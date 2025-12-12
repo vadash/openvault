@@ -7,7 +7,7 @@
  * All data is stored in chatMetadata - no external services required.
  */
 
-import { eventSource, event_types, saveSettingsDebounced, saveChatConditional, setExtensionPrompt, extension_prompt_types } from "../../../../script.js";
+import { eventSource, event_types, saveSettingsDebounced, saveChatConditional, setExtensionPrompt, extension_prompt_types, sendTextareaMessage } from "../../../../script.js";
 import { extension_settings, getContext, loadExtensionSettings } from "../../../extensions.js";
 import { executeSlashCommandsWithOptions } from "../../../slash-commands.js";
 import { ConnectionManagerRequestService } from "../../shared.js";
@@ -41,7 +41,6 @@ const operationState = {
     generationInProgress: false,
     extractionInProgress: false,
     retrievalInProgress: false,
-    pendingInjectionUpdate: false,
 };
 
 // Timeout constants for generation flow
@@ -49,6 +48,10 @@ const RETRIEVAL_TIMEOUT_MS = 30000; // 30 seconds max for retrieval
 const GENERATION_LOCK_TIMEOUT_MS = 120000; // 2 minutes safety timeout
 
 let generationLockTimeout = null;
+
+// Input interceptor state
+let inputInterceptorInstalled = false;
+let enterKeyHandler = null;
 
 /**
  * Wrap a promise with a timeout
@@ -544,12 +547,128 @@ function escapeHtml(str) {
 }
 
 /**
- * Update event listeners based on settings
+ * Handle OpenVault send - does memory retrieval before triggering generation
+ * This is the core function that intercepts user input
  */
-function updateEventListeners() {
+async function handleOpenVaultSend() {
     const settings = extension_settings[extensionName];
 
-    // Remove existing listeners first
+    // If OpenVault disabled or manual mode, just send normally
+    if (!settings.enabled || !settings.automaticMode) {
+        await sendTextareaMessage();
+        return;
+    }
+
+    // Skip if already generating
+    if (operationState.generationInProgress) {
+        log('Skipping - generation already in progress');
+        return;
+    }
+
+    try {
+        setStatus('retrieving');
+
+        // Get pending user message for context-aware retrieval
+        const pendingUserMessage = String($('#send_textarea').val()).trim();
+
+        // Do memory retrieval BEFORE generation starts
+        log(`>>> Pre-send retrieval starting (message: "${pendingUserMessage.substring(0, 50)}...")`);
+        await withTimeout(
+            updateInjection(pendingUserMessage),
+            RETRIEVAL_TIMEOUT_MS,
+            'Memory retrieval'
+        );
+        log('>>> Pre-send retrieval complete');
+
+        setStatus('ready');
+
+        // Now trigger normal send
+        await sendTextareaMessage();
+    } catch (error) {
+        console.error('OpenVault: Error during pre-send retrieval:', error);
+        setStatus('error');
+        // Still try to send even if retrieval failed
+        await sendTextareaMessage();
+    }
+}
+
+/**
+ * Install input interceptors to capture Enter key and Send button clicks
+ * This replaces the event listener approach with direct input interception
+ */
+function installInputInterceptors() {
+    if (inputInterceptorInstalled) return;
+
+    const $sendButton = $('#send_but');
+    const textarea = document.getElementById('send_textarea');
+
+    if (!textarea) {
+        console.error('OpenVault: Could not find send_textarea element');
+        return;
+    }
+
+    // 1. Replace send button handler
+    $sendButton.off('click'); // Remove default handler
+    $sendButton.on('click', async function(e) {
+        e.preventDefault();
+        await handleOpenVaultSend();
+    });
+
+    // 2. Add Enter key interceptor (capture phase to run first)
+    enterKeyHandler = async function(e) {
+        // Only intercept Enter without modifiers (same as ST logic)
+        // Shift+Enter = newline, Ctrl+Enter = regenerate, etc.
+        if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.isComposing) {
+            const settings = extension_settings[extensionName];
+            if (settings.enabled && settings.automaticMode) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                await handleOpenVaultSend();
+            }
+            // If disabled, let default handler run
+        }
+    };
+    textarea.addEventListener('keydown', enterKeyHandler, true); // capture phase
+
+    inputInterceptorInstalled = true;
+    log('Input interceptors installed');
+}
+
+/**
+ * Remove input interceptors and restore default behavior
+ * Note: This doesn't fully restore ST's original handler - that requires page reload
+ */
+function removeInputInterceptors() {
+    if (!inputInterceptorInstalled) return;
+
+    const $sendButton = $('#send_but');
+    const textarea = document.getElementById('send_textarea');
+
+    // Remove our handlers
+    $sendButton.off('click');
+    if (enterKeyHandler && textarea) {
+        textarea.removeEventListener('keydown', enterKeyHandler, true);
+        enterKeyHandler = null;
+    }
+
+    // Reinstall a basic pass-through handler for the send button
+    // This ensures send still works after removal
+    $sendButton.on('click', async function() {
+        await sendTextareaMessage();
+    });
+
+    inputInterceptorInstalled = false;
+    log('Input interceptors removed');
+}
+
+/**
+ * Update event listeners based on settings
+ * @param {boolean} skipInitialization - If true, skip the initial injection (used after backfill)
+ */
+function updateEventListeners(skipInitialization = false) {
+    const settings = extension_settings[extensionName];
+
+    // Remove old event listeners (no longer using GENERATION_AFTER_COMMANDS for main retrieval)
     eventSource.removeListener(event_types.GENERATION_AFTER_COMMANDS, onBeforeGeneration);
     eventSource.removeListener(event_types.GENERATION_ENDED, onGenerationEnded);
     eventSource.removeListener(event_types.MESSAGE_RECEIVED, onMessageReceived);
@@ -560,79 +679,56 @@ function updateEventListeners() {
     if (!operationState.generationInProgress) {
         operationState.extractionInProgress = false;
         operationState.retrievalInProgress = false;
-        operationState.pendingInjectionUpdate = false;
     } else {
         log('Warning: Settings changed during generation, keeping locks');
     }
 
-    // Add listeners if enabled and automatic mode is on
+    // Install input interceptors (replaces GENERATION_AFTER_COMMANDS approach)
+    // Interceptors always installed - handleOpenVaultSend checks settings and passes through if disabled
+    installInputInterceptors();
+
     if (settings.enabled && settings.automaticMode) {
-        // GENERATION_AFTER_COMMANDS: Fires after slash commands but BEFORE generation
-        // Use makeFirst to ensure we run before other handlers and block generation
-        eventSource.on(event_types.GENERATION_AFTER_COMMANDS, onBeforeGeneration);
-        eventSource.makeFirst(event_types.GENERATION_AFTER_COMMANDS, onBeforeGeneration);
-        // GENERATION_ENDED: Clear generation lock, process pending updates
+        // Keep these event listeners for post-generation work
         eventSource.on(event_types.GENERATION_ENDED, onGenerationEnded);
-        // MESSAGE_RECEIVED: Extract after AI responds (LLM call happens here, safely after generation)
         eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
         eventSource.on(event_types.CHAT_CHANGED, onChatChanged);
-        log('Automatic mode enabled - listening for generation and message events');
-        // Initialize the injection (async, handle errors)
-        updateInjection().catch(err => console.error('OpenVault: Init injection error:', err));
+
+        log('Automatic mode enabled - input interceptors installed');
+
+        // Initialize the injection (async, handle errors) - skip after backfill to avoid concurrent requests
+        if (!skipInitialization) {
+            updateInjection().catch(err => console.error('OpenVault: Init injection error:', err));
+        } else {
+            log('Skipping initialization (backfill mode) - retrieval will happen on next generation');
+        }
     } else {
-        // Clear injection when disabled/manual
+        // Clear injection when disabled/manual (interceptors still pass through)
         setExtensionPrompt(extensionName, '', extension_prompt_types.IN_CHAT, 0);
-        log('Manual mode - event listeners removed, injection cleared');
+        log('Manual mode - interceptors pass-through, injection cleared');
     }
 }
 
 /**
  * Handle generation ended event
- * Clears the generation lock and processes any pending updates
+ * Clears the generation lock
  */
 function onGenerationEnded() {
     clearGenerationLock(); // Use helper that also clears safety timeout
     log('Generation ended, clearing lock');
-
-    // If there was a pending injection update, do it now
-    if (operationState.pendingInjectionUpdate) {
-        operationState.pendingInjectionUpdate = false;
-        log('Processing pending injection update');
-        updateInjection().catch(err => console.error('OpenVault: Pending injection error:', err));
-    }
 }
 
 /**
  * Handle chat changed event
+ * Just clears injection - retrieval will happen before next generation
  */
-async function onChatChanged() {
+function onChatChanged() {
     const settings = extension_settings[extensionName];
     if (!settings.enabled || !settings.automaticMode) return;
 
-    log('Chat changed, scheduling injection update');
+    log('Chat changed, clearing injection (will refresh on next generation)');
 
-    // If generation is happening, defer the update
-    if (operationState.generationInProgress) {
-        operationState.pendingInjectionUpdate = true;
-        log('Generation in progress, deferring chat change update');
-        return;
-    }
-
-    // Small delay to ensure chat metadata is loaded
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // Check again after delay - generation might have started
-    if (operationState.generationInProgress) {
-        operationState.pendingInjectionUpdate = true;
-        log('Generation started during delay, deferring update');
-        return;
-    }
-
-    try {
-        await updateInjection();
-    } catch (error) {
-        console.error('OpenVault: Chat change injection error:', error);
-    }
+    // Clear current injection - it will be refreshed in onBeforeGeneration
+    setExtensionPrompt(extensionName, '', extension_prompt_types.IN_CHAT, 0);
 }
 
 /**
@@ -693,13 +789,8 @@ async function onMessageReceived(messageId) {
             // Extract only the safe message IDs (excluding last user+assistant pair)
             const safeMessageIds = unprocessedMessages.slice(-messageCount).map(m => m.idx);
             await extractMemories(safeMessageIds);
-
-            // Update injection for next generation (if not currently generating)
-            if (!operationState.generationInProgress) {
-                await updateInjection();
-            } else {
-                operationState.pendingInjectionUpdate = true;
-            }
+            // Note: No updateInjection() here - it will be called before NEXT generation
+            // Newly extracted memories are too recent to include anyway
         } catch (error) {
             console.error('[OpenVault] Automatic extraction error:', error);
         } finally {
@@ -711,76 +802,22 @@ async function onMessageReceived(messageId) {
 }
 
 /**
- * Handle before-generation event (automatic mode)
- * Uses GENERATION_AFTER_COMMANDS which fires AFTER slash commands but BEFORE generation
- * This is the correct hook point - same pattern Quick Replies uses
- * ST awaits async handlers, so retrieval completes before generation proceeds
+ * Handle before-generation event (backup/fallback)
+ *
+ * NOTE: Main retrieval now happens in handleOpenVaultSend() via input interceptors.
+ * This function is kept as a backup for cases where generation is triggered
+ * without going through our interceptors (e.g., swipes, regenerates, or API calls).
+ *
+ * It now just sets the generation lock - retrieval was already done by the interceptor.
  */
 async function onBeforeGeneration(generationType, options = {}, isDryRun = false) {
-    const startTime = Date.now();
-    log(`>>> BEFORE_GENERATION START [type=${generationType}, dryRun=${isDryRun}]`);
-
     const settings = extension_settings[extensionName];
-    if (!settings.enabled || !settings.automaticMode) {
-        log(`>>> BEFORE_GENERATION END (disabled) [${Date.now() - startTime}ms]`);
-        return;
-    }
+    if (!settings.enabled || !settings.automaticMode) return;
+    if (isDryRun) return;
 
-    // Skip dry runs (just calculating token counts, not actual generation)
-    if (isDryRun) {
-        log(`>>> BEFORE_GENERATION END (dryRun) [${Date.now() - startTime}ms]`);
-        return;
-    }
-
-    // Only proceed for normal generation (user sent a message)
-    // Skip swipes and regenerates - they should use existing injection
-    if (generationType === 'swipe' || generationType === 'regenerate') {
-        log(`>>> BEFORE_GENERATION END (${generationType}, using existing) [${Date.now() - startTime}ms]`);
-        return;
-    }
-
-    // Set generation lock FIRST to prevent race conditions
+    // Set generation lock for all types (interceptor already did retrieval for 'normal')
     setGenerationLock();
-
-    // Check if retrieval is already in progress
-    if (operationState.retrievalInProgress) {
-        log(`>>> BEFORE_GENERATION END (retrieval already in progress) [${Date.now() - startTime}ms]`);
-        // Don't clear generation lock - let it time out or be cleared by GENERATION_ENDED
-        return;
-    }
-
-    operationState.retrievalInProgress = true;
-
-    // Capture the pending user message from textarea
-    // At GENERATION_AFTER_COMMANDS, the user's message is still in textarea, not yet in chat
-    const pendingUserMessage = String($('#send_textarea').val()).trim();
-    if (pendingUserMessage) {
-        log(`>>> Pending user message: "${pendingUserMessage.substring(0, 50)}..."`);
-    }
-
-    try {
-        log('>>> Starting retrieval...');
-        // Use timeout to prevent hanging forever
-        // Pass pending user message so retrieval AI can see what user just typed
-        await withTimeout(
-            updateInjection(pendingUserMessage),
-            RETRIEVAL_TIMEOUT_MS,
-            'Memory retrieval'
-        );
-        log(`>>> BEFORE_GENERATION END (success) [${Date.now() - startTime}ms]`);
-    } catch (error) {
-        if (error.message.includes('timed out')) {
-            console.warn('OpenVault: Retrieval timed out, proceeding with existing context');
-            log(`>>> BEFORE_GENERATION END (timeout) [${Date.now() - startTime}ms]`);
-        } else {
-            console.error('OpenVault: Error during pre-generation retrieval:', error);
-            log(`>>> BEFORE_GENERATION END (error) [${Date.now() - startTime}ms]`);
-        }
-        // Continue with whatever injection was already set
-    } finally {
-        operationState.retrievalInProgress = false;
-        // Note: generationInProgress stays true until GENERATION_ENDED
-    }
+    log(`>>> BEFORE_GENERATION (backup) [type=${generationType}] - retrieval already done by interceptor`);
 }
 
 /**
@@ -1228,17 +1265,46 @@ async function extractAllMessages() {
             const result = await extractMemories(batch);
             totalEvents += result?.events_created || 0;
 
-            // Small delay between batches to avoid rate limiting
+            // Delay between batches to avoid rate limiting and let saves complete
             if (i + batchSize < messagesToExtract.length) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                await new Promise(resolve => setTimeout(resolve, 2000));
             }
         } catch (error) {
             console.error('[OpenVault] Batch extraction error:', error);
         }
     }
 
+    // Reset all operation state after heavy backfill operation
+    // This ensures no stale locks interfere with subsequent generation
+    operationState.generationInProgress = false;
+    operationState.extractionInProgress = false;
+    operationState.retrievalInProgress = false;
+    if (generationLockTimeout) {
+        clearTimeout(generationLockTimeout);
+        generationLockTimeout = null;
+    }
+
+    // Clear any existing injection - will be refreshed on next generation
+    setExtensionPrompt(extensionName, '', extension_prompt_types.IN_CHAT, 0);
+
+    // Wait for async operations to settle after many rapid saves
+    // This prevents 502 errors from SillyTavern's backend being in a transitional state
+    log('Waiting for async operations to settle...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Force a final save to ensure everything is synced
+    await saveChatConditional();
+
+    // CRITICAL FIX: Force re-register event listeners to clear any stale state
+    // This is what page reload does - ensures clean listener state after heavy backfill
+    // Pass skipInitialization=true to avoid triggering concurrent LLM requests
+    log('Re-registering event listeners after backfill...');
+    updateEventListeners(true); // Skip initialization - let first generation trigger retrieval
+
     toastr.success(`Extracted ${totalEvents} events from ${messagesToExtract.length} messages`, 'OpenVault');
     refreshAllUI();
+    setStatus('ready');
+    log('Backfill complete, state and listeners reset');
 }
 
 /**
@@ -1722,10 +1788,32 @@ async function updateInjection(pendingUserMessage = '') {
         return false;
     });
 
-    // Fallback to all memories if POV filter is too strict
-    let memoriesToUse = accessibleMemories;
-    if (accessibleMemories.length === 0 && memories.length > 0) {
-        log('Injection: POV filter returned 0, using all memories');
+    // Exclude memories from recent messages (they're still in context, no need to "remember")
+    // Get message IDs from the last N messages that are used for context
+    const recentMessageIds = new Set(
+        context.chat
+            .map((m, idx) => idx)  // Get indices as message IDs
+            .slice(-10)  // Last 10 messages - generous buffer beyond the 5 used for context
+    );
+
+    const nonRecentMemories = accessibleMemories.filter(m => {
+        // If memory has no message_ids, include it (legacy memories)
+        if (!m.message_ids || m.message_ids.length === 0) return true;
+        // Exclude if ALL source messages are in recent context
+        const allSourcesRecent = m.message_ids.every(id => recentMessageIds.has(id));
+        if (allSourcesRecent) {
+            log(`Excluding recent memory: "${m.summary?.substring(0, 40)}..." (from messages ${m.message_ids.join(',')})`);
+            return false;
+        }
+        return true;
+    });
+
+    log(`Retrieval: ${accessibleMemories.length} accessible, ${nonRecentMemories.length} after excluding recent`);
+
+    // Fallback to all memories if filters are too strict
+    let memoriesToUse = nonRecentMemories;
+    if (nonRecentMemories.length === 0 && memories.length > 0) {
+        log('Injection: All memories filtered out (POV or recency), using all memories as fallback');
         memoriesToUse = memories;
     }
 
