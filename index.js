@@ -1377,11 +1377,26 @@ async function extractAllMessages() {
 
     const settings = extension_settings[extensionName];
     const messageCount = settings.messagesPerExtraction || 5;
+    const data = getOpenVaultData();
+
+    // Get all message IDs that already have memories extracted from them
+    const alreadyExtractedIds = new Set();
+    for (const memory of (data[MEMORIES_KEY] || [])) {
+        for (const msgId of (memory.message_ids || [])) {
+            alreadyExtractedIds.add(msgId);
+        }
+    }
 
     // Get all message indices (including hidden ones for import/backfill scenarios)
     // We include hidden messages so users can extract memories from imported chats
+    // But skip messages that already have memories extracted from them
     const allMessageIds = chat
-        .map((m, idx) => idx);
+        .map((m, idx) => idx)
+        .filter(idx => !alreadyExtractedIds.has(idx));
+
+    if (alreadyExtractedIds.size > 0) {
+        log(`Backfill: Skipping ${alreadyExtractedIds.size} already-extracted messages`);
+    }
 
     // Exclude the last N messages (they'll be handled by regular/automatic extraction)
     let messagesToExtract = allMessageIds.slice(0, -messageCount);
@@ -1397,7 +1412,11 @@ async function extractAllMessages() {
     }
 
     if (messagesToExtract.length === 0) {
-        toastr.warning(`No complete batches to extract (need ${messageCount} messages, have ${allMessageIds.length - messageCount})`, 'OpenVault');
+        if (alreadyExtractedIds.size > 0) {
+            toastr.info(`All eligible messages already extracted (${alreadyExtractedIds.size} messages have memories)`, 'OpenVault');
+        } else {
+            toastr.warning(`No complete batches to extract (need ${messageCount} messages)`, 'OpenVault');
+        }
         return;
     }
 
@@ -1414,12 +1433,7 @@ async function extractAllMessages() {
         }
     ));
 
-    // Reset tracking to start fresh
-    const data = getOpenVaultData();
-    data[LAST_PROCESSED_KEY] = -1;
-    data[EXTRACTED_BATCHES_KEY] = []; // Clear extracted batches for fresh backfill
-
-    // Process in batches
+    // Process in batches (no reset - we skip already-extracted messages above)
     let totalEvents = 0;
 
     for (let i = 0; i < completeBatches; i++) {
