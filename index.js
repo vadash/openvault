@@ -21,11 +21,12 @@ const MEMORIES_KEY = 'memories';
 const CHARACTERS_KEY = 'character_states';
 const RELATIONSHIPS_KEY = 'relationships';
 const LAST_PROCESSED_KEY = 'last_processed_message_id';
+const LAST_BATCH_KEY = 'last_extraction_batch';
 
 // Default settings
 const defaultSettings = {
     enabled: true,
-    automaticMode: false,
+    automaticMode: true,
     extractionProfile: '',
     tokenBudget: 1000,
     maxMemoriesPerRetrieval: 10,
@@ -865,6 +866,9 @@ async function extractMemories(messageIds = null) {
     log(`Extracting ${messagesToExtract.length} messages`);
     setStatus('extracting');
 
+    // Generate a unique batch ID for this extraction run
+    const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
     try {
         const characterName = context.name2;
         const userName = context.name1;
@@ -889,7 +893,7 @@ async function extractMemories(messageIds = null) {
         }
 
         // Parse and store extracted events
-        const events = parseExtractionResult(extractedJson, messagesToExtract, characterName, userName);
+        const events = parseExtractionResult(extractedJson, messagesToExtract, characterName, userName, batchId);
 
         if (events.length > 0) {
             // Add events to storage
@@ -903,6 +907,9 @@ async function extractMemories(messageIds = null) {
             // Update last processed message ID
             const maxId = Math.max(...messagesToExtract.map(m => m.id));
             data[LAST_PROCESSED_KEY] = Math.max(data[LAST_PROCESSED_KEY] || -1, maxId);
+
+            // Store this batch ID as the most recent (for exclusion during retrieval)
+            data[LAST_BATCH_KEY] = batchId;
 
             await saveOpenVaultData();
 
@@ -1086,8 +1093,13 @@ async function callLLMForExtraction(prompt) {
 
 /**
  * Parse extraction result from LLM
+ * @param {string} jsonString - JSON string from LLM
+ * @param {Array} messages - Source messages
+ * @param {string} characterName - Character name
+ * @param {string} userName - User name
+ * @param {string} batchId - Unique batch ID for this extraction run
  */
-function parseExtractionResult(jsonString, messages, characterName, userName) {
+function parseExtractionResult(jsonString, messages, characterName, userName, batchId = null) {
     try {
         // Extract JSON from response (handle markdown code blocks)
         let cleaned = jsonString;
@@ -1111,6 +1123,7 @@ function parseExtractionResult(jsonString, messages, characterName, userName) {
             // Sequence is based on the earliest message ID, with sub-index for multiple events from same batch
             sequence: minMessageId * 1000 + index,
             created_at: Date.now(),
+            batch_id: batchId, // Track which extraction batch this memory came from
             characters_involved: event.characters_involved || [],
             witnesses: event.witnesses || event.characters_involved || [],
             location: event.location || 'unknown',
@@ -1261,11 +1274,15 @@ async function extractAllMessages() {
 
     for (let i = 0; i < messagesToExtract.length; i += batchSize) {
         const batch = messagesToExtract.slice(i, i + batchSize);
+        const batchNum = Math.floor(i / batchSize) + 1;
+        const totalBatches = Math.ceil(messagesToExtract.length / batchSize);
+
         try {
+            log(`Processing batch ${batchNum}/${totalBatches}...`);
             const result = await extractMemories(batch);
             totalEvents += result?.events_created || 0;
 
-            // Delay between batches to avoid rate limiting and let saves complete
+            // Delay between batches to avoid rate limiting
             if (i + batchSize < messagesToExtract.length) {
                 await new Promise(resolve => setTimeout(resolve, 2000));
             }
@@ -1274,8 +1291,7 @@ async function extractAllMessages() {
         }
     }
 
-    // Reset all operation state after heavy backfill operation
-    // This ensures no stale locks interfere with subsequent generation
+    // Reset operation state
     operationState.generationInProgress = false;
     operationState.extractionInProgress = false;
     operationState.retrievalInProgress = false;
@@ -1284,27 +1300,17 @@ async function extractAllMessages() {
         generationLockTimeout = null;
     }
 
-    // Clear any existing injection - will be refreshed on next generation
+    // Clear injection and save
     setExtensionPrompt(extensionName, '', extension_prompt_types.IN_CHAT, 0);
-
-    // Wait for async operations to settle after many rapid saves
-    // This prevents 502 errors from SillyTavern's backend being in a transitional state
-    log('Waiting for async operations to settle...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
-
-    // Force a final save to ensure everything is synced
     await saveChatConditional();
 
-    // CRITICAL FIX: Force re-register event listeners to clear any stale state
-    // This is what page reload does - ensures clean listener state after heavy backfill
-    // Pass skipInitialization=true to avoid triggering concurrent LLM requests
-    log('Re-registering event listeners after backfill...');
-    updateEventListeners(true); // Skip initialization - let first generation trigger retrieval
+    // Re-register event listeners
+    updateEventListeners(true);
 
     toastr.success(`Extracted ${totalEvents} events from ${messagesToExtract.length} messages`, 'OpenVault');
     refreshAllUI();
     setStatus('ready');
-    log('Backfill complete, state and listeners reset');
+    log('Backfill complete');
 }
 
 /**
@@ -1808,12 +1814,23 @@ async function updateInjection(pendingUserMessage = '') {
         return true;
     });
 
-    log(`Retrieval: ${accessibleMemories.length} accessible, ${nonRecentMemories.length} after excluding recent`);
+    // Exclude memories from the most recent extraction batch
+    // These are too fresh - their source content is likely still in context
+    const lastBatchId = data[LAST_BATCH_KEY];
+    const nonBatchMemories = nonRecentMemories.filter(m => {
+        if (lastBatchId && m.batch_id === lastBatchId) {
+            log(`Excluding last-batch memory: "${m.summary?.substring(0, 40)}..." (batch: ${m.batch_id})`);
+            return false;
+        }
+        return true;
+    });
+
+    log(`Retrieval: ${accessibleMemories.length} accessible, ${nonRecentMemories.length} after recent filter, ${nonBatchMemories.length} after batch filter`);
 
     // Fallback to all memories if filters are too strict
-    let memoriesToUse = nonRecentMemories;
-    if (nonRecentMemories.length === 0 && memories.length > 0) {
-        log('Injection: All memories filtered out (POV or recency), using all memories as fallback');
+    let memoriesToUse = nonBatchMemories;
+    if (nonBatchMemories.length === 0 && memories.length > 0) {
+        log('Injection: All memories filtered out (POV, recency, or batch), using all memories as fallback');
         memoriesToUse = memories;
     }
 
