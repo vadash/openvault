@@ -58,10 +58,10 @@
                 <small class="openvault-hint">Number of messages to analyze when extracting memories</small>
 
                 <label for="openvault_memory_context_count">
-                    Memory Context: <span id="openvault_memory_context_count_value">15</span>
+                    Memory Context: <span id="openvault_memory_context_count_value">All</span>
                 </label>
-                <input type="range" id="openvault_memory_context_count" min="0" max="50" step="5" value="15" />
-                <small class="openvault-hint">Include recent memories in extraction for consistency (0 to disable)</small>
+                <input type="range" id="openvault_memory_context_count" min="-1" max="50" step="1" value="-1" />
+                <small class="openvault-hint">Include memories in extraction for consistency (-1 = All, 0 = none)</small>
 
                 <label class="checkbox_label">
                     <input type="checkbox" id="openvault_smart_retrieval" />

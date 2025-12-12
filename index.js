@@ -34,7 +34,7 @@ const defaultSettings = {
     debugMode: false,
     // Phase 6 settings
     messagesPerExtraction: 5,      // Number of messages to analyze per extraction
-    memoryContextCount: 15,        // Number of recent memories to include in extraction prompt
+    memoryContextCount: -1,        // Number of recent memories to include in extraction prompt (-1 = all)
     smartRetrievalEnabled: false,  // Use LLM to select relevant memories
     // Auto-hide settings
     autoHideEnabled: true,         // Automatically hide old messages from context
@@ -210,7 +210,7 @@ function bindUIElements() {
     // Memory context count slider
     $('#openvault_memory_context_count').on('input', function() {
         settings.memoryContextCount = parseInt($(this).val());
-        $('#openvault_memory_context_count_value').text(settings.memoryContextCount);
+        $('#openvault_memory_context_count_value').text(settings.memoryContextCount < 0 ? 'All' : settings.memoryContextCount);
         saveSettingsDebounced();
     });
 
@@ -288,7 +288,7 @@ function updateUI() {
     $('#openvault_messages_per_extraction').val(settings.messagesPerExtraction);
     $('#openvault_messages_per_extraction_value').text(settings.messagesPerExtraction);
     $('#openvault_memory_context_count').val(settings.memoryContextCount);
-    $('#openvault_memory_context_count_value').text(settings.memoryContextCount);
+    $('#openvault_memory_context_count_value').text(settings.memoryContextCount < 0 ? 'All' : settings.memoryContextCount);
     $('#openvault_smart_retrieval').prop('checked', settings.smartRetrievalEnabled);
 
     // Auto-hide settings
@@ -1003,6 +1003,12 @@ async function extractMemories(messageIds = null) {
         const characterName = context.name2;
         const userName = context.name1;
 
+        // Get character description from character card
+        const characterDescription = context.characters?.[context.characterId]?.description || '';
+
+        // Get persona description
+        const personaDescription = context.powerUserSettings?.persona_description || '';
+
         // Build extraction prompt
         const messagesText = messagesToExtract.map(m => {
             const speaker = m.is_user ? userName : (m.name || characterName);
@@ -1013,7 +1019,7 @@ async function extractMemories(messageIds = null) {
         const memoryContextCount = settings.memoryContextCount || 0;
         const existingMemories = getRecentMemoriesForContext(memoryContextCount);
 
-        const extractionPrompt = buildExtractionPrompt(messagesText, characterName, userName, existingMemories);
+        const extractionPrompt = buildExtractionPrompt(messagesText, characterName, userName, existingMemories, characterDescription, personaDescription);
 
         // Call LLM for extraction
         const extractedJson = await callLLMForExtraction(extractionPrompt);
@@ -1063,23 +1069,24 @@ async function extractMemories(messageIds = null) {
 
 /**
  * Get recent memories for context during extraction
- * @param {number} count - Number of recent memories to retrieve
+ * @param {number} count - Number of recent memories to retrieve (-1 = all, 0 = none)
  * @returns {Object[]} - Array of recent memory objects
  */
 function getRecentMemoriesForContext(count) {
-    if (count <= 0) return [];
+    if (count === 0) return [];
 
     const data = getOpenVaultData();
     const memories = data[MEMORIES_KEY] || [];
 
-    // Sort by sequence/creation time (newest first) and take the requested count
+    // Sort by sequence/creation time (newest first)
     const sorted = [...memories].sort((a, b) => {
         const seqA = a.sequence ?? a.created_at ?? 0;
         const seqB = b.sequence ?? b.created_at ?? 0;
         return seqB - seqA;
     });
 
-    return sorted.slice(0, count);
+    // Return all if count is -1, otherwise slice to count
+    return count < 0 ? sorted : sorted.slice(0, count);
 }
 
 /**
@@ -1088,8 +1095,22 @@ function getRecentMemoriesForContext(count) {
  * @param {string} characterName - Main character name
  * @param {string} userName - User character name
  * @param {Object[]} existingMemories - Recent memories for context (optional)
+ * @param {string} characterDescription - Character card description (optional)
+ * @param {string} personaDescription - User persona description (optional)
  */
-function buildExtractionPrompt(messagesText, characterName, userName, existingMemories = []) {
+function buildExtractionPrompt(messagesText, characterName, userName, existingMemories = [], characterDescription = '', personaDescription = '') {
+    // Build character context section if we have descriptions
+    let characterContextSection = '';
+    if (characterDescription || personaDescription) {
+        characterContextSection = '\n## Character Context\n';
+        if (characterDescription) {
+            characterContextSection += `### ${characterName} (AI Character)\n${characterDescription}\n\n`;
+        }
+        if (personaDescription) {
+            characterContextSection += `### ${userName} (User's Persona)\n${personaDescription}\n\n`;
+        }
+    }
+
     // Build memory context section if we have existing memories
     let memoryContextSection = '';
     if (existingMemories && existingMemories.length > 0) {
@@ -1115,12 +1136,12 @@ ${memorySummaries}
 ## Characters
 - Main character: ${characterName}
 - User's character: ${userName}
-${memoryContextSection}
+${characterContextSection}${memoryContextSection}
 ## Messages to analyze:
 ${messagesText}
 
 ## Task
-Extract NEW significant events from these messages. For each event, identify:
+Extract NEW significant events from these messages. Use the Character Context (if provided) to better understand motivations, personality traits, and relationship dynamics. For each event, identify:
 1. **event_type**: One of: "action", "revelation", "emotion_shift", "relationship_change"
 2. **importance**: 1-5 scale (1=minor detail, 2=notable, 3=significant, 4=major event, 5=critical/story-changing)
 3. **summary**: Brief description of what happened (1-2 sentences)
