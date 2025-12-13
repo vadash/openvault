@@ -33,7 +33,7 @@ const defaultSettings = {
     maxMemoriesPerRetrieval: 10,
     debugMode: false,
     // Phase 6 settings
-    messagesPerExtraction: 5,      // Number of messages to analyze per extraction
+    messagesPerExtraction: 10,      // Number of messages to analyze per extraction
     memoryContextCount: -1,        // Number of recent memories to include in extraction prompt (-1 = all)
     smartRetrievalEnabled: true,  // Use LLM to select relevant memories
     // Auto-hide settings
