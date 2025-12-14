@@ -43,7 +43,13 @@
                 <select id="openvault_extraction_profile" class="text_pole">
                     <option value="">Use current connection</option>
                 </select>
-                <small class="openvault-hint">LLM profile used for memory extraction</small>
+                <small class="openvault-hint">LLM profile used for memory extraction (quality summaries)</small>
+
+                <label for="openvault_retrieval_profile">Retrieval Profile</label>
+                <select id="openvault_retrieval_profile" class="text_pole">
+                    <option value="">Use current connection</option>
+                </select>
+                <small class="openvault-hint">LLM profile used for smart retrieval (can use faster model)</small>
 
                 <label for="openvault_token_budget">
                     Token Budget: <span id="openvault_token_budget_value">1000</span>

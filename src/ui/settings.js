@@ -149,9 +149,14 @@ function bindUIElements() {
         if (deleteAllDataFn) deleteAllDataFn();
     });
 
-    // Profile selector
+    // Profile selectors
     $('#openvault_extraction_profile').on('change', function() {
         settings.extractionProfile = $(this).val();
+        saveSettingsDebounced();
+    });
+
+    $('#openvault_retrieval_profile').on('change', function() {
+        settings.retrievalProfile = $(this).val();
         saveSettingsDebounced();
     });
 
@@ -199,18 +204,29 @@ export function updateUI() {
 }
 
 /**
- * Populate the connection profile selector
+ * Populate the connection profile selectors (extraction and retrieval)
  */
 export function populateProfileSelector() {
     const settings = extension_settings[extensionName];
     const profiles = extension_settings.connectionManager?.profiles || [];
-    const $selector = $('#openvault_extraction_profile');
 
-    $selector.empty();
-    $selector.append('<option value="">Use current connection</option>');
+    // Populate extraction profile selector
+    const $extractionSelector = $('#openvault_extraction_profile');
+    $extractionSelector.empty();
+    $extractionSelector.append('<option value="">Use current connection</option>');
 
     for (const profile of profiles) {
         const selected = profile.id === settings.extractionProfile ? 'selected' : '';
-        $selector.append(`<option value="${profile.id}" ${selected}>${profile.name}</option>`);
+        $extractionSelector.append(`<option value="${profile.id}" ${selected}>${profile.name}</option>`);
+    }
+
+    // Populate retrieval profile selector
+    const $retrievalSelector = $('#openvault_retrieval_profile');
+    $retrievalSelector.empty();
+    $retrievalSelector.append('<option value="">Use current connection</option>');
+
+    for (const profile of profiles) {
+        const selected = profile.id === settings.retrievalProfile ? 'selected' : '';
+        $retrievalSelector.append(`<option value="${profile.id}" ${selected}>${profile.name}</option>`);
     }
 }

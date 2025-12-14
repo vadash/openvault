@@ -21,6 +21,7 @@ export const defaultSettings = {
     enabled: true,
     automaticMode: true,
     extractionProfile: '',
+    retrievalProfile: '',
     tokenBudget: 1000,
     maxMemoriesPerRetrieval: 10,
     debugMode: false,
