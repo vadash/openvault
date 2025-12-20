@@ -23,7 +23,7 @@ export const defaultSettings = {
     extractionProfile: '',
     retrievalProfile: '',
     tokenBudget: 1000,
-    maxMemoriesPerRetrieval: 10,
+    maxMemoriesPerRetrieval: 100,
     debugMode: false,
     // Extraction settings
     messagesPerExtraction: 10,
@@ -37,7 +37,7 @@ export const defaultSettings = {
 };
 
 // Timeout constants
-export const RETRIEVAL_TIMEOUT_MS = 30000; // 30 seconds max for retrieval
+export const RETRIEVAL_TIMEOUT_MS = 60000; // 60 seconds max for retrieval
 export const GENERATION_LOCK_TIMEOUT_MS = 120000; // 2 minutes safety timeout
 
 // Pagination constants

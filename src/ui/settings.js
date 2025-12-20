@@ -108,6 +108,13 @@ function bindUIElements() {
         saveSettingsDebounced();
     });
 
+    // Max memories per retrieval slider
+    $('#openvault_max_memories').on('input', function() {
+        settings.maxMemoriesPerRetrieval = parseInt($(this).val());
+        $('#openvault_max_memories_value').text(settings.maxMemoriesPerRetrieval);
+        saveSettingsDebounced();
+    });
+
     // Auto-hide toggle
     $('#openvault_auto_hide').on('change', function() {
         settings.autoHideEnabled = $(this).is(':checked');
@@ -187,6 +194,8 @@ export function updateUI() {
     $('#openvault_memory_context_count').val(settings.memoryContextCount);
     $('#openvault_memory_context_count_value').text(settings.memoryContextCount < 0 ? 'All' : settings.memoryContextCount);
     $('#openvault_smart_retrieval').prop('checked', settings.smartRetrievalEnabled);
+    $('#openvault_max_memories').val(settings.maxMemoriesPerRetrieval);
+    $('#openvault_max_memories_value').text(settings.maxMemoriesPerRetrieval);
 
     // Auto-hide settings
     $('#openvault_auto_hide').prop('checked', settings.autoHideEnabled);

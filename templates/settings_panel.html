@@ -54,19 +54,19 @@
                 <label for="openvault_token_budget">
                     Token Budget: <span id="openvault_token_budget_value">1000</span>
                 </label>
-                <input type="range" id="openvault_token_budget" min="200" max="4000" step="100" value="1000" />
+                <input type="range" id="openvault_token_budget" min="200" max="30000" step="100" value="1000" />
                 <small class="openvault-hint">Maximum tokens for injected context</small>
 
                 <label for="openvault_messages_per_extraction">
                     Messages per Extraction: <span id="openvault_messages_per_extraction_value">10</span>
                 </label>
-                <input type="range" id="openvault_messages_per_extraction" min="1" max="20" step="1" value="10" />
+                <input type="range" id="openvault_messages_per_extraction" min="1" max="50" step="1" value="10" />
                 <small class="openvault-hint">Number of messages to analyze when extracting memories</small>
 
                 <label for="openvault_memory_context_count">
                     Memory Context: <span id="openvault_memory_context_count_value">All</span>
                 </label>
-                <input type="range" id="openvault_memory_context_count" min="-1" max="50" step="1" value="-1" />
+                <input type="range" id="openvault_memory_context_count" min="-1" max="200" step="1" value="-1" />
                 <small class="openvault-hint">Include memories in extraction for consistency (-1 = All, 0 = none)</small>
 
                 <label class="checkbox_label">
@@ -74,6 +74,12 @@
                     <span>Smart Retrieval Mode</span>
                     <small class="openvault-hint">(Use LLM to select most relevant memories)</small>
                 </label>
+
+                <label for="openvault_max_memories">
+                    Max Memories per Retrieval: <span id="openvault_max_memories_value">100</span>
+                </label>
+                <input type="range" id="openvault_max_memories" min="5" max="200" step="5" value="100" />
+                <small class="openvault-hint">Maximum memories LLM can select from during smart retrieval</small>
 
                 <label class="checkbox_label">
                     <input type="checkbox" id="openvault_auto_hide" checked />

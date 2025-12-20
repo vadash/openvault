@@ -20,14 +20,14 @@ OpenVault provides POV-aware memory with witness tracking, relationship dynamics
 
 1. Open SillyTavern
 2. Go to **Extensions** > **Install Extension**
-3. Enter the repository URL: `https://github.com/unkarelian/openvault`
+3. Enter the repository URL: `https://github.com/vadash/openvault`
 4. Click Install
 5. Reload SillyTavern
 
 Or manually clone into your extensions folder:
 ```bash
 cd SillyTavern/data/<user>/extensions
-git clone https://github.com/unkarelian/openvault
+git clone https://github.com/vadash/openvault
 ```
 
 ## Usage
