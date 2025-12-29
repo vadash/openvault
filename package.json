@@ -1,0 +1,13 @@
+{
+  "name": "openvault",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "SillyTavern extension",
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2"
+  }
+}
