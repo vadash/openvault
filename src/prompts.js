@@ -1,10 +1,23 @@
 /**
- * OpenVault Extraction Prompts
+ * OpenVault Prompts
  *
- * Builds prompts for memory extraction from messages.
+ * All LLM prompts centralized in one file.
  */
 
-import { sortMemoriesBySequence } from '../utils.js';
+import { sortMemoriesBySequence } from './utils.js';
+
+// =============================================================================
+// SYSTEM PROMPTS (used in llm.js)
+// =============================================================================
+
+export const SYSTEM_PROMPTS = {
+    extraction: 'You are a helpful assistant that extracts structured data from roleplay conversations. Always respond with valid JSON only, no markdown formatting.',
+    retrieval: 'You are a helpful assistant that analyzes memories for relevance. Always respond with valid JSON only, no markdown formatting.'
+};
+
+// =============================================================================
+// EXTRACTION PROMPT
+// =============================================================================
 
 /**
  * Build the extraction prompt
@@ -90,4 +103,39 @@ Respond with a JSON array of events:
 \`\`\`
 
 If no significant events, respond with an empty array: []`;
+}
+
+// =============================================================================
+// SMART RETRIEVAL PROMPT
+// =============================================================================
+
+/**
+ * Build the smart retrieval prompt
+ * @param {string} recentContext - Recent chat context
+ * @param {string} numberedList - Numbered list of memories
+ * @param {string} characterName - POV character name
+ * @param {number} limit - Maximum memories to select
+ * @returns {string} The smart retrieval prompt
+ */
+export function buildSmartRetrievalPrompt(recentContext, numberedList, characterName, limit) {
+    return `You are a narrative memory analyzer. Given the current roleplay scene and a list of available memories, select which memories are most relevant for the AI to reference in its response.
+
+CURRENT SCENE:
+${recentContext}
+
+AVAILABLE MEMORIES (numbered):
+${numberedList}
+
+[Task]: Select up to ${limit} memories that would be most useful for ${characterName} to know for the current scene. Consider:
+- Importance level (★ to ★★★★★) - higher importance events are more critical to the story
+- Direct relevance to current conversation topics
+- Character relationships being discussed
+- Background context that explains current situations
+- Emotional continuity
+- Secrets the character knows
+
+[Return]: JSON object with selected memory numbers (1-indexed) and brief reasoning:
+{"selected": [1, 4, 7], "reasoning": "Brief explanation of why these memories are relevant"}
+
+Only return valid JSON, no markdown formatting.`;
 }

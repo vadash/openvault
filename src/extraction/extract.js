@@ -10,7 +10,7 @@ import { extensionName, MEMORIES_KEY, LAST_PROCESSED_KEY, LAST_BATCH_KEY } from 
 import { callLLMForExtraction } from '../llm.js';
 import { setStatus } from '../ui/status.js';
 import { refreshAllUI } from '../ui/browser.js';
-import { buildExtractionPrompt } from './prompts.js';
+import { buildExtractionPrompt } from '../prompts.js';
 import { parseExtractionResult, updateCharacterStatesFromEvents, updateRelationshipsFromEvents } from './parser.js';
 
 /**

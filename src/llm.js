@@ -8,6 +8,7 @@ import { getContext, extension_settings } from '../../../../extensions.js';
 import { ConnectionManagerRequestService } from '../../../shared.js';
 import { log, showToast } from './utils.js';
 import { extensionName } from './constants.js';
+import { SYSTEM_PROMPTS } from './prompts.js';
 
 /**
  * LLM configuration presets
@@ -15,13 +16,13 @@ import { extensionName } from './constants.js';
 export const LLM_CONFIGS = {
     extraction: {
         profileSettingKey: 'extractionProfile',
-        systemPrompt: 'You are a helpful assistant that extracts structured data from roleplay conversations. Always respond with valid JSON only, no markdown formatting.',
+        systemPrompt: SYSTEM_PROMPTS.extraction,
         maxTokens: 2000,
         errorContext: 'Extraction'
     },
     retrieval: {
         profileSettingKey: 'retrievalProfile',
-        systemPrompt: 'You are a helpful assistant that analyzes memories for relevance. Always respond with valid JSON only, no markdown formatting.',
+        systemPrompt: SYSTEM_PROMPTS.retrieval,
         maxTokens: 1000,
         errorContext: 'Smart retrieval'
     }

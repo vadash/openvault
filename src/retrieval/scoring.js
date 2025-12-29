@@ -8,6 +8,7 @@ import { extension_settings } from '../../../../../extensions.js';
 import { log, parseJsonFromMarkdown } from '../utils.js';
 import { extensionName, SCORING_WEIGHTS } from '../constants.js';
 import { callLLMForRetrieval } from '../llm.js';
+import { buildSmartRetrievalPrompt } from '../prompts.js';
 
 /**
  * Select relevant memories using simple scoring (fast mode)
@@ -87,26 +88,7 @@ export async function selectRelevantMemoriesSmart(memories, recentContext, chara
         return `${i + 1}. ${typeTag} ${importanceTag} ${secretTag}${m.summary}`;
     }).join('\n');
 
-    const prompt = `You are a narrative memory analyzer. Given the current roleplay scene and a list of available memories, select which memories are most relevant for the AI to reference in its response.
-
-CURRENT SCENE:
-${recentContext}
-
-AVAILABLE MEMORIES (numbered):
-${numberedList}
-
-[Task]: Select up to ${limit} memories that would be most useful for ${characterName} to know for the current scene. Consider:
-- Importance level (\u2605 to \u2605\u2605\u2605\u2605\u2605) - higher importance events are more critical to the story
-- Direct relevance to current conversation topics
-- Character relationships being discussed
-- Background context that explains current situations
-- Emotional continuity
-- Secrets the character knows
-
-[Return]: JSON object with selected memory numbers (1-indexed) and brief reasoning:
-{"selected": [1, 4, 7], "reasoning": "Brief explanation of why these memories are relevant"}
-
-Only return valid JSON, no markdown formatting.`;
+    const prompt = buildSmartRetrievalPrompt(recentContext, numberedList, characterName, limit);
 
     try {
         // Call LLM for retrieval (uses retrieval profile, separate from extraction)
