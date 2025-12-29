@@ -111,6 +111,29 @@
     color: var(--SmartThemeEmColor, #888);
 }
 
+/* Batch Processing Info */
+.openvault-batch-info {
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    font-size: 0.85em;
+}
+
+.openvault-batch-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+}
+
+.openvault-batch-label {
+    color: var(--SmartThemeEmColor, #888);
+}
+
+.openvault-batch-value {
+    font-weight: 500;
+}
+
 /* Filters */
 .openvault-filters {
     display: flex;
