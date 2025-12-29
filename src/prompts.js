@@ -112,6 +112,23 @@ Write summaries that are:
   GOOD: "Elena confesses to killing her brother"
 </summary_guidelines>
 
+<character_name_rules>
+CRITICAL: Use EXACTLY the character names from <characters> section above.
+- Never transliterate names (keep original language/spelling)
+- Never use nicknames, aliases, or personas - always use main character name
+- For witnesses/involved: use exact names, not descriptions like "shoppers" or "staff"
+
+Example - if <characters> defines names as "Катя" and "Дима":
+CORRECT: "characters_involved": ["Катя", "Дима"]
+WRONG: "characters_involved": ["Katya", "Dima"] (transliterated)
+WRONG: "characters_involved": ["Kate", "shoppers"] (anglicized, unnamed NPC)
+
+Example - if character "Дима" adopts persona "Лили":
+CORRECT: "characters_involved": ["Дима"] (always use main name)
+WRONG: "characters_involved": ["Лили"] (alias - use main name instead)
+WRONG: "characters_involved": ["Дима/Лили"] (don't combine names)
+</character_name_rules>
+
 <output_schema>
 {
   "event_type": "action|revelation|emotion_shift|relationship_change",
@@ -141,6 +158,25 @@ Output:
     "is_secret": true,
     "emotional_impact": {"Elena": "guilt, grief"},
     "relationship_impact": {"Elena->Marcus": "trust deepened"}
+  }
+]
+</example>
+
+<example>
+Input: "[Катя]: *краснея* Я видела твой дневник... Ты писал обо мне."
+
+Output:
+[
+  {
+    "event_type": "revelation",
+    "importance": 4,
+    "summary": "Катя admits reading Дима's diary entries about her.",
+    "characters_involved": ["Катя"],
+    "witnesses": ["Катя", "Дима"],
+    "location": null,
+    "is_secret": true,
+    "emotional_impact": {"Катя": "embarrassed"},
+    "relationship_impact": {"Катя->Дима": "vulnerability shown"}
   }
 ]
 </example>
