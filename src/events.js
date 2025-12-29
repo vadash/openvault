@@ -189,28 +189,15 @@ export function onChatChanged() {
     // Refresh UI on chat change
     refreshAllUI();
     setStatus('ready');
-
-    // After cooldown, check if we should trigger automatic backfill
-    setTimeout(() => {
-        checkAndTriggerBackfill();
-    }, 2500); // Slightly longer than cooldown to ensure it's cleared
 }
 
 /**
- * Check if there are enough unprocessed messages to trigger automatic backfill
- * Called after chat load cooldown when automatic mode is enabled
+ * Check and trigger automatic backfill if there are enough unprocessed messages
+ * Uses same logic as manual "Backfill Chat History" button
  */
 async function checkAndTriggerBackfill() {
     const settings = extension_settings[extensionName];
-
-    // Double-check automatic mode is still enabled
     if (!settings.enabled || !settings.automaticMode) return;
-
-    // Don't trigger if an operation is in progress
-    if (operationState.extractionInProgress || operationState.generationInProgress) {
-        log('Skipping automatic backfill check - operation in progress');
-        return;
-    }
 
     const context = getContext();
     const chat = context.chat || [];
@@ -221,10 +208,7 @@ async function checkAndTriggerBackfill() {
 
     const messageCount = settings.messagesPerExtraction || 10;
 
-    // Count ALL messages, not just visible ones
-    const totalMessages = chat.length;
-
-    // Get messages that have been extracted
+    // Get already extracted message IDs
     const extractedMessageIds = new Set();
     for (const memory of (data[MEMORIES_KEY] || [])) {
         for (const msgId of (memory.message_ids || [])) {
@@ -232,37 +216,35 @@ async function checkAndTriggerBackfill() {
         }
     }
 
-    // Buffer zone: last N messages reserved for automatic extraction
-    const bufferSize = messageCount * 2;
-    const bufferStart = Math.max(0, totalMessages - bufferSize);
-
-    // Count unprocessed messages before buffer
-    let unprocessedCount = 0;
-    for (let i = 0; i < bufferStart; i++) {
+    // Get unextracted message IDs
+    const unextractedIds = [];
+    for (let i = 0; i < chat.length; i++) {
         if (!extractedMessageIds.has(i)) {
-            unprocessedCount++;
+            unextractedIds.push(i);
         }
     }
 
-    log(`Automatic backfill check: ${totalMessages} messages, ${extractedMessageIds.size} extracted, ${unprocessedCount} unprocessed before buffer`);
+    // Exclude last N messages (buffer for automatic extraction)
+    const messagesToBackfill = unextractedIds.slice(0, -messageCount);
 
-    // Trigger backfill if we have at least one batch worth of unprocessed messages
-    if (unprocessedCount >= messageCount) {
-        log(`Triggering automatic backfill for ${unprocessedCount} unprocessed messages`);
-        showToast('info', `Starting automatic backfill (${unprocessedCount} messages)...`, 'OpenVault');
+    // Only trigger if we have at least one complete batch
+    const completeBatches = Math.floor(messagesToBackfill.length / messageCount);
+
+    if (completeBatches >= 1) {
+        log(`Auto-backfill: ${messagesToBackfill.length} messages ready (${completeBatches} batches)`);
+        showToast('info', `Auto-backfill: ${completeBatches} batches...`, 'OpenVault');
 
         try {
             await extractAllMessages(updateEventListeners);
         } catch (error) {
-            console.error('[OpenVault] Automatic backfill error:', error);
-            showToast('error', `Automatic backfill failed: ${error.message}`, 'OpenVault');
+            console.error('[OpenVault] Auto-backfill error:', error);
         }
     }
 }
 
 /**
  * Handle message received event (automatic mode)
- * Extracts memories AFTER AI responds
+ * Extracts memories AFTER AI responds, then checks for backfill
  * @param {number} messageId - The message ID
  */
 export async function onMessageReceived(messageId) {
@@ -275,11 +257,7 @@ export async function onMessageReceived(messageId) {
         return;
     }
 
-    // Don't extract during generation or if already extracting
-    if (operationState.generationInProgress) {
-        log('Skipping extraction - generation still in progress');
-        return;
-    }
+    // Don't extract if already extracting
     if (operationState.extractionInProgress) {
         log('Skipping extraction - extraction already in progress');
         return;
@@ -407,12 +385,14 @@ export async function onMessageReceived(messageId) {
     } finally {
         operationState.extractionInProgress = false;
         setStatus('ready');
+
+        // Check for backfill after each generation cycle
+        checkAndTriggerBackfill();
     }
 }
 
 /**
  * Update event listeners based on settings
- * @param {boolean} skipInitialization - If true, skip the initial injection and backfill check
  */
 export function updateEventListeners(skipInitialization = false) {
     const settings = extension_settings[extensionName];
@@ -425,9 +405,6 @@ export function updateEventListeners(skipInitialization = false) {
 
     // Reset operation state only if no generation in progress
     resetOperationStatesIfSafe();
-    if (operationState.generationInProgress) {
-        log('Warning: Settings changed during generation, keeping locks');
-    }
 
     if (settings.enabled && settings.automaticMode) {
         // Register event listeners for automatic mode
@@ -437,15 +414,6 @@ export function updateEventListeners(skipInitialization = false) {
         eventSource.on(event_types.CHAT_CHANGED, onChatChanged);
 
         log('Automatic mode enabled - event listeners registered');
-
-        if (skipInitialization) {
-            log('Skipping initialization (backfill mode) - retrieval will happen on next generation');
-        } else {
-            // Check for unprocessed batches when automatic mode is enabled
-            setTimeout(() => {
-                checkAndTriggerBackfill();
-            }, 500);
-        }
     } else {
         // Clear injection when disabled/manual
         safeSetExtensionPrompt('');
