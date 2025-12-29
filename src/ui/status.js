@@ -6,7 +6,7 @@
 
 import { getContext, extension_settings } from '../../../../../extensions.js';
 import { getOpenVaultData, log } from '../utils.js';
-import { MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, EXTRACTED_BATCHES_KEY, extensionName } from '../constants.js';
+import { MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, extensionName } from '../constants.js';
 
 /**
  * Set the status indicator
@@ -46,7 +46,7 @@ export function refreshStats() {
     $('#openvault_stat_characters').text(Object.keys(data[CHARACTERS_KEY] || {}).length);
     $('#openvault_stat_relationships').text(Object.keys(data[RELATIONSHIPS_KEY] || {}).length);
 
-    // Calculate batch processing info
+    // Calculate extraction progress based on actual message coverage
     const settings = extension_settings[extensionName];
     const messageCount = settings?.messagesPerExtraction || 10;
 
@@ -55,26 +55,39 @@ export function refreshStats() {
     const nonSystemMessages = chat.filter(m => !m.is_system);
     const totalMessages = nonSystemMessages.length;
 
-    // Calculate batches
-    const totalCompleteBatches = Math.floor(totalMessages / messageCount);
-    const extractedBatches = data[EXTRACTED_BATCHES_KEY] || [];
-    const processedBatchCount = extractedBatches.length;
+    // Count messages that have been extracted (by checking memory message_ids)
+    const memories = data[MEMORIES_KEY] || [];
+    const extractedMessageIds = new Set();
+    for (const memory of memories) {
+        for (const msgId of (memory.message_ids || [])) {
+            extractedMessageIds.add(msgId);
+        }
+    }
+    const extractedCount = extractedMessageIds.size;
 
-    // Buffer is 2 batches (kept for automatic mode)
-    const bufferBatches = 2;
-    const availableForBackfill = Math.max(0, totalCompleteBatches - bufferBatches);
-    const unprocessedBatches = Math.max(0, availableForBackfill - processedBatchCount);
+    // Buffer zone: last N messages reserved for automatic extraction
+    const bufferSize = messageCount * 2;
+    const bufferStart = Math.max(0, totalMessages - bufferSize);
+    const inBuffer = totalMessages - bufferStart;
+
+    // Unprocessed: messages before buffer that haven't been extracted
+    let unprocessedCount = 0;
+    for (let i = 0; i < bufferStart; i++) {
+        if (!extractedMessageIds.has(i)) {
+            unprocessedCount++;
+        }
+    }
 
     // Update UI
-    $('#openvault_batch_messages').text(`${totalMessages} (${messageCount}/batch)`);
-    $('#openvault_batch_processed').text(`${processedBatchCount}/${availableForBackfill} extracted`);
+    $('#openvault_batch_messages').text(`${totalMessages} total`);
+    $('#openvault_batch_processed').text(`${extractedCount} extracted, ${inBuffer} in buffer`);
 
     // Status message
     let statusText;
-    if (totalCompleteBatches < bufferBatches) {
-        statusText = `Need ${bufferBatches * messageCount - totalMessages} more msgs`;
-    } else if (unprocessedBatches > 0) {
-        statusText = `${unprocessedBatches} batch${unprocessedBatches > 1 ? 'es' : ''} pending`;
+    if (totalMessages < bufferSize) {
+        statusText = `Need ${bufferSize - totalMessages} more msgs`;
+    } else if (unprocessedCount > 0) {
+        statusText = `${unprocessedCount} msgs to backfill`;
     } else {
         statusText = 'Up to date';
     }
