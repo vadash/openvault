@@ -65,8 +65,15 @@ export function buildExtractionPrompt(messagesText, characterName, userName, exi
             .join('\n');
 
         memoryContextSection = `<established_memories>
-The following events have already been recorded. Do NOT duplicate these.
+Events already recorded - DO NOT extract duplicates.
+A duplicate is any event with the SAME core action, even if worded differently.
+
 ${memorySummaries}
+
+DEDUPLICATION RULES:
+- Same action + same characters = SKIP even if new details mentioned
+- Progression of same event = SKIP, don't create new entry
+- Only extract if fundamentally NEW action occurred
 </established_memories>\n\n`;
     }
 
@@ -92,44 +99,73 @@ Extract NEW significant events from the messages above. For each event, provide:
 5 = Critical (story-changing moment)
 </importance_scale>
 
+<summary_guidelines>
+Write summaries that are:
+- Maximum 12 words, typically 8-10
+- English only (more token-efficient)
+- Action-focused: describe WHAT happened, not feelings
+- Non-redundant: don't repeat event_type in summary
+  BAD: "Elena reveals she killed her brother" (redundant "reveals")
+  GOOD: "Elena killed her brother to prevent Empire betrayal"
+- Factual: emotions go in emotional_impact, not summary
+  BAD: "Elena breaks down crying, overwhelmed with guilt, confessing..."
+  GOOD: "Elena confesses to killing her brother"
+</summary_guidelines>
+
 <output_schema>
 {
   "event_type": "action|revelation|emotion_shift|relationship_change",
   "importance": 1-5,
-  "summary": "Brief 1-2 sentence description",
-  "characters_involved": ["names directly involved"],
-  "witnesses": ["names who observed this"],
-  "location": "where it happened or 'unknown'",
+  "summary": "8-12 words max, factual, English only",
+  "characters_involved": ["names"],
+  "witnesses": ["names who observed"],
+  "location": "where or null",
   "is_secret": true/false,
-  "emotional_impact": {"CharacterName": "emotional change"},
-  "relationship_impact": {"CharA->CharB": "how relationship changed"}
+  "emotional_impact": {"Name": "1-3 word emotion"},
+  "relationship_impact": {"A->B": "1-3 word change"}
 }
 </output_schema>
 
 <example>
 Input: "[Elena]: *She finally breaks down, tears streaming* I killed him. My own brother. He was going to betray us all to the Empire."
+
 Output:
 [
   {
     "event_type": "revelation",
     "importance": 5,
-    "summary": "Elena confesses to killing her brother to prevent his betrayal to the Empire.",
+    "summary": "Elena killed her brother to prevent Empire betrayal.",
     "characters_involved": ["Elena"],
     "witnesses": ["Elena", "Marcus"],
-    "location": "unknown",
+    "location": null,
     "is_secret": true,
-    "emotional_impact": {"Elena": "overwhelming guilt and grief"},
-    "relationship_impact": {"Elena->Marcus": "deepened trust through vulnerability"}
+    "emotional_impact": {"Elena": "guilt, grief"},
+    "relationship_impact": {"Elena->Marcus": "trust deepened"}
   }
 ]
 </example>
 
-Instructions:
-1. Only extract events significant for character memory and story continuity
-2. Skip mundane exchanges and small talk
-3. Use witnesses field to track who knows about each event${existingMemories.length > 0 ? '\n4. Do NOT duplicate events from <established_memories>' : ''}
+<negative_examples>
+DO NOT extract:
+- Mundane dialogue: greetings, small talk, filler
+- Already-recorded events with minor new details
+- Internal thoughts without external action
+- Events implied but not explicitly shown
 
-Respond with a JSON array. If no significant events, respond with: []
+BAD summary examples:
+- "Elena finally breaks down, tears streaming as she confesses..." (too long, emotional)
+- "A shocking revelation occurs when Elena admits..." (meta-commentary)
+- "Elena reveals important information about..." (vague, redundant with event_type)
+</negative_examples>
+
+Instructions:
+1. Extract only significant events for story continuity
+2. Skip mundane exchanges, small talk, and internal monologue
+3. Write summaries in English, 8-12 words, action-focused
+4. Put emotions in emotional_impact field, not summary
+5. Use witnesses field to track who knows about each event${existingMemories.length > 0 ? '\n6. Check <established_memories> - skip semantic duplicates' : ''}
+
+Return JSON array. Empty array [] if no significant NEW events.
 </task>`;
 }
 

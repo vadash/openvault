@@ -37,7 +37,17 @@ export function getRelationshipContext(data, povCharacter, activeCharacters) {
         }
     }
 
-    return relevant;
+    // Deduplicate by character name (in case multiple relationship entries exist for same pair)
+    const deduped = [];
+    const seen = new Set();
+    for (const rel of relevant) {
+        if (!seen.has(rel.character)) {
+            seen.add(rel.character);
+            deduped.push(rel);
+        }
+    }
+
+    return deduped;
 }
 
 /**
