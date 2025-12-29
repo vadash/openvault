@@ -11,7 +11,7 @@ import { extensionName, MEMORIES_KEY, EXTRACTED_BATCHES_KEY, RETRIEVAL_TIMEOUT_M
 import { operationState, setGenerationLock, clearGenerationLock, isChatLoadingCooldown, setChatLoadingCooldown, resetOperationStatesIfSafe } from './state.js';
 import { setStatus } from './ui/status.js';
 import { refreshAllUI, resetMemoryBrowserPage } from './ui/browser.js';
-import { extractMemories } from './extraction/extract.js';
+import { extractMemories, extractAllMessages } from './extraction/extract.js';
 import { updateInjection } from './retrieval/retrieve.js';
 
 /**
@@ -168,6 +168,68 @@ export function onChatChanged() {
     // Refresh UI on chat change
     refreshAllUI();
     setStatus('ready');
+
+    // After cooldown, check if we should trigger automatic backfill
+    setTimeout(() => {
+        checkAndTriggerBackfill();
+    }, 2500); // Slightly longer than cooldown to ensure it's cleared
+}
+
+/**
+ * Check if there are enough unprocessed messages to trigger automatic backfill
+ * Called after chat load cooldown when automatic mode is enabled
+ */
+async function checkAndTriggerBackfill() {
+    const settings = extension_settings[extensionName];
+
+    // Double-check automatic mode is still enabled
+    if (!settings.enabled || !settings.automaticMode) return;
+
+    // Don't trigger if an operation is in progress
+    if (operationState.extractionInProgress || operationState.generationInProgress) {
+        log('Skipping automatic backfill check - operation in progress');
+        return;
+    }
+
+    const context = getContext();
+    const chat = context.chat || [];
+    if (chat.length === 0) return;
+
+    const data = getOpenVaultData();
+    if (!data) return;
+
+    const messageCount = settings.messagesPerExtraction || 10;
+
+    // Get non-system messages
+    const nonSystemMessages = chat.filter(m => !m.is_system);
+    const totalMessages = nonSystemMessages.length;
+
+    // Get extracted batches
+    const extractedBatches = data[EXTRACTED_BATCHES_KEY] || [];
+    const highestExtractedBatch = extractedBatches.length > 0 ? Math.max(...extractedBatches) : -1;
+
+    // Calculate how many complete batches we have
+    const totalCompleteBatches = Math.floor(totalMessages / messageCount);
+
+    // Calculate unprocessed batches (need to keep buffer batch for automatic mode)
+    // We can backfill up to totalCompleteBatches - 2 (keeping 2 batches as buffer)
+    const maxBackfillBatch = totalCompleteBatches - 2;
+    const unprocessedBatches = maxBackfillBatch - highestExtractedBatch;
+
+    log(`Automatic backfill check: ${totalMessages} messages, ${totalCompleteBatches} complete batches, highest extracted: ${highestExtractedBatch}, unprocessed batches: ${unprocessedBatches}`);
+
+    // Trigger backfill if we have at least 1 unprocessed batch
+    if (unprocessedBatches >= 1) {
+        log(`Triggering automatic backfill for ${unprocessedBatches} unprocessed batches`);
+        showToast('info', `Starting automatic backfill (${unprocessedBatches} batches)...`, 'OpenVault');
+
+        try {
+            await extractAllMessages(updateEventListeners);
+        } catch (error) {
+            console.error('[OpenVault] Automatic backfill error:', error);
+            showToast('error', `Automatic backfill failed: ${error.message}`, 'OpenVault');
+        }
+    }
 }
 
 /**
@@ -322,7 +384,7 @@ export async function onMessageReceived(messageId) {
 
 /**
  * Update event listeners based on settings
- * @param {boolean} skipInitialization - If true, skip the initial injection
+ * @param {boolean} skipInitialization - If true, skip the initial injection and backfill check
  */
 export function updateEventListeners(skipInitialization = false) {
     const settings = extension_settings[extensionName];
@@ -350,6 +412,11 @@ export function updateEventListeners(skipInitialization = false) {
 
         if (skipInitialization) {
             log('Skipping initialization (backfill mode) - retrieval will happen on next generation');
+        } else {
+            // Check for unprocessed batches when automatic mode is enabled
+            setTimeout(() => {
+                checkAndTriggerBackfill();
+            }, 500);
         }
     } else {
         // Clear injection when disabled/manual
