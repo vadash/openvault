@@ -39,6 +39,7 @@ export function refreshStats() {
         $('#openvault_batch_messages').text('--');
         $('#openvault_batch_processed').text('--');
         $('#openvault_batch_status').text('No chat');
+        $('#openvault_batch_next').text('--');
         return;
     }
 
@@ -52,8 +53,9 @@ export function refreshStats() {
 
     const context = getContext();
     const chat = context.chat || [];
-    const nonSystemMessages = chat.filter(m => !m.is_system);
-    const totalMessages = nonSystemMessages.length;
+    // Count ALL messages, not just visible ones
+    const totalMessages = chat.length;
+    const hiddenMessages = chat.filter(m => m.is_system).length;
 
     // Count messages that have been extracted (by checking memory message_ids)
     const memories = data[MEMORIES_KEY] || [];
@@ -68,7 +70,6 @@ export function refreshStats() {
     // Buffer zone: last N messages reserved for automatic extraction
     const bufferSize = messageCount * 2;
     const bufferStart = Math.max(0, totalMessages - bufferSize);
-    const inBuffer = totalMessages - bufferStart;
 
     // Unprocessed: messages before buffer that haven't been extracted
     let unprocessedCount = 0;
@@ -79,19 +80,46 @@ export function refreshStats() {
     }
 
     // Update UI
-    $('#openvault_batch_messages').text(`${totalMessages} total`);
-    $('#openvault_batch_processed').text(`${extractedCount} extracted, ${inBuffer} in buffer`);
+    const hiddenText = hiddenMessages > 0 ? ` (${hiddenMessages} hidden)` : '';
+    $('#openvault_batch_messages').text(`${totalMessages} total${hiddenText}`);
+    $('#openvault_batch_processed').text(`${extractedCount} of ${totalMessages}`);
 
-    // Status message
-    let statusText;
+    // Backfill status
+    let backfillText;
     if (totalMessages < bufferSize) {
-        statusText = `Need ${bufferSize - totalMessages} more msgs`;
+        backfillText = 'Waiting for more messages';
     } else if (unprocessedCount > 0) {
-        statusText = `${unprocessedCount} msgs to backfill`;
+        backfillText = `${unprocessedCount} msgs ready`;
     } else {
-        statusText = 'Up to date';
+        backfillText = 'Up to date';
     }
-    $('#openvault_batch_status').text(statusText);
+    $('#openvault_batch_status').text(backfillText);
+
+    // Next automatic extraction info
+    // Auto-extraction triggers when we have enough messages beyond the buffer
+    const messagesInBuffer = Math.min(totalMessages, bufferSize);
+    const messagesBeforeBuffer = totalMessages - messagesInBuffer;
+    const extractedInBuffer = [...extractedMessageIds].filter(id => id >= bufferStart).length;
+
+    let nextAutoText;
+    if (totalMessages < bufferSize) {
+        // Not enough messages yet
+        const needed = bufferSize - totalMessages;
+        nextAutoText = `Need ${needed} more msgs`;
+    } else if (messagesBeforeBuffer > extractedCount) {
+        // Has unextracted messages before buffer - backfill should run
+        nextAutoText = 'Backfill pending';
+    } else {
+        // All caught up - show when next batch will extract
+        const nextBatchStart = totalMessages; // Next message index
+        const messagesUntilNextBatch = messageCount - (extractedInBuffer % messageCount || messageCount);
+        if (messagesUntilNextBatch === messageCount) {
+            nextAutoText = 'Ready on next AI msg';
+        } else {
+            nextAutoText = `In ${messagesUntilNextBatch} msgs`;
+        }
+    }
+    $('#openvault_batch_next').text(nextAutoText);
 
     log(`Stats: ${data[MEMORIES_KEY]?.length || 0} memories, ${Object.keys(data[CHARACTERS_KEY] || {}).length} characters`);
 }

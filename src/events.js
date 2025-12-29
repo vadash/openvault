@@ -18,6 +18,7 @@ import { updateInjection } from './retrieval/retrieve.js';
  * Auto-hide old messages beyond the threshold
  * Hides messages in pairs (user-assistant) to maintain conversation coherence
  * Messages are marked with is_system=true which excludes them from context
+ * IMPORTANT: Only hides messages that have already been extracted into memories
  */
 export async function autoHideOldMessages() {
     const settings = extension_settings[extensionName];
@@ -26,6 +27,17 @@ export async function autoHideOldMessages() {
     const context = getContext();
     const chat = context.chat || [];
     const threshold = settings.autoHideThreshold || 50;
+
+    // Get messages that have been extracted into memories
+    const data = getOpenVaultData();
+    const extractedMessageIds = new Set();
+    if (data) {
+        for (const memory of (data[MEMORIES_KEY] || [])) {
+            for (const msgId of (memory.message_ids || [])) {
+                extractedMessageIds.add(msgId);
+            }
+        }
+    }
 
     // Get visible (non-hidden) messages with their original indices
     const visibleMessages = chat
@@ -44,18 +56,27 @@ export async function autoHideOldMessages() {
 
     if (messagesToHide <= 0) return;
 
-    // Hide the oldest messages (they're at the start of visibleMessages array)
+    // Hide the oldest messages, but ONLY if they've been extracted
     let hiddenCount = 0;
+    let skippedCount = 0;
     for (let i = 0; i < messagesToHide && i < visibleMessages.length; i++) {
         const msgIdx = visibleMessages[i].idx;
-        chat[msgIdx].is_system = true;
-        hiddenCount++;
+
+        // Only hide if this message has been extracted into memories
+        if (extractedMessageIds.has(msgIdx)) {
+            chat[msgIdx].is_system = true;
+            hiddenCount++;
+        } else {
+            skippedCount++;
+        }
     }
 
     if (hiddenCount > 0) {
         await saveChatConditional();
-        log(`Auto-hid ${hiddenCount} messages (${pairsToHide} pairs) - threshold: ${threshold}`);
+        log(`Auto-hid ${hiddenCount} messages (skipped ${skippedCount} not yet extracted) - threshold: ${threshold}`);
         showToast('info', `Auto-hid ${hiddenCount} old messages`);
+    } else if (skippedCount > 0) {
+        log(`Auto-hide: ${skippedCount} messages need extraction before hiding`);
     }
 }
 
@@ -200,28 +221,35 @@ async function checkAndTriggerBackfill() {
 
     const messageCount = settings.messagesPerExtraction || 10;
 
-    // Get non-system messages
-    const nonSystemMessages = chat.filter(m => !m.is_system);
-    const totalMessages = nonSystemMessages.length;
+    // Count ALL messages, not just visible ones
+    const totalMessages = chat.length;
 
-    // Get extracted batches
-    const extractedBatches = data[EXTRACTED_BATCHES_KEY] || [];
-    const highestExtractedBatch = extractedBatches.length > 0 ? Math.max(...extractedBatches) : -1;
+    // Get messages that have been extracted
+    const extractedMessageIds = new Set();
+    for (const memory of (data[MEMORIES_KEY] || [])) {
+        for (const msgId of (memory.message_ids || [])) {
+            extractedMessageIds.add(msgId);
+        }
+    }
 
-    // Calculate how many complete batches we have
-    const totalCompleteBatches = Math.floor(totalMessages / messageCount);
+    // Buffer zone: last N messages reserved for automatic extraction
+    const bufferSize = messageCount * 2;
+    const bufferStart = Math.max(0, totalMessages - bufferSize);
 
-    // Calculate unprocessed batches (need to keep buffer batch for automatic mode)
-    // We can backfill up to totalCompleteBatches - 2 (keeping 2 batches as buffer)
-    const maxBackfillBatch = totalCompleteBatches - 2;
-    const unprocessedBatches = maxBackfillBatch - highestExtractedBatch;
+    // Count unprocessed messages before buffer
+    let unprocessedCount = 0;
+    for (let i = 0; i < bufferStart; i++) {
+        if (!extractedMessageIds.has(i)) {
+            unprocessedCount++;
+        }
+    }
 
-    log(`Automatic backfill check: ${totalMessages} messages, ${totalCompleteBatches} complete batches, highest extracted: ${highestExtractedBatch}, unprocessed batches: ${unprocessedBatches}`);
+    log(`Automatic backfill check: ${totalMessages} messages, ${extractedMessageIds.size} extracted, ${unprocessedCount} unprocessed before buffer`);
 
-    // Trigger backfill if we have at least 1 unprocessed batch
-    if (unprocessedBatches >= 1) {
-        log(`Triggering automatic backfill for ${unprocessedBatches} unprocessed batches`);
-        showToast('info', `Starting automatic backfill (${unprocessedBatches} batches)...`, 'OpenVault');
+    // Trigger backfill if we have at least one batch worth of unprocessed messages
+    if (unprocessedCount >= messageCount) {
+        log(`Triggering automatic backfill for ${unprocessedCount} unprocessed messages`);
+        showToast('info', `Starting automatic backfill (${unprocessedCount} messages)...`, 'OpenVault');
 
         try {
             await extractAllMessages(updateEventListeners);
