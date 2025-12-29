@@ -130,7 +130,7 @@ jQuery(() => {
         try {
             const response = await fetch('/version');
             const version = await response.json();
-            const [major, minor] = version.pkgVersion.split('.').map(Number);
+            const [_major, minor] = version.pkgVersion.split('.').map(Number);
 
             if (minor < 13) {
                 showToast('error', 'OpenVault requires SillyTavern 1.13.0 or later');

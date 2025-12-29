@@ -7,7 +7,7 @@
 import { saveSettingsDebounced } from '../../../../../../script.js';
 import { extension_settings } from '../../../../../extensions.js';
 import { extensionName, extensionFolderPath, defaultSettings } from '../constants.js';
-import { refreshAllUI, renderMemoryBrowser, prevPage, nextPage, resetAndRender } from './browser.js';
+import { refreshAllUI, prevPage, nextPage, resetAndRender } from './browser.js';
 
 // References to external functions (set during init)
 let updateEventListenersFn = null;

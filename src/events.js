@@ -12,7 +12,6 @@ import { operationState, setGenerationLock, clearGenerationLock, isChatLoadingCo
 import { setStatus } from './ui/status.js';
 import { refreshAllUI, resetMemoryBrowserPage } from './ui/browser.js';
 import { extractMemories } from './extraction/extract.js';
-import { extractAllMessages } from './extraction/batch.js';
 import { updateInjection } from './retrieval/retrieve.js';
 import { autoHideOldMessages } from './auto-hide.js';
 import { checkAndTriggerBackfill } from './backfill.js';
@@ -244,7 +243,7 @@ export async function onMessageReceived(messageId) {
 /**
  * Update event listeners based on settings
  */
-export function updateEventListeners(skipInitialization = false) {
+export function updateEventListeners(_skipInitialization = false) {
     const settings = extension_settings[extensionName];
 
     // Remove old event listeners first to prevent duplicates

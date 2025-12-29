@@ -105,7 +105,6 @@ export function refreshStats() {
         nextAutoText = 'Backfill pending';
     } else {
         // All caught up - show when next batch will extract
-        const nextBatchStart = totalMessages; // Next message index
         const messagesUntilNextBatch = messageCount - (extractedInBuffer % messageCount || messageCount);
         if (messagesUntilNextBatch === messageCount) {
             nextAutoText = 'Ready on next AI msg';

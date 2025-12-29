@@ -18,7 +18,7 @@ export function getRelationshipContext(data, povCharacter, activeCharacters) {
     const relationships = data[RELATIONSHIPS_KEY] || {};
     const relevant = [];
 
-    for (const [key, rel] of Object.entries(relationships)) {
+    for (const [_key, rel] of Object.entries(relationships)) {
         // Check if this relationship involves POV character and any active character
         const involvesPov = rel.character_a === povCharacter || rel.character_b === povCharacter;
         const involvesActive = activeCharacters.some(c =>
