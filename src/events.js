@@ -7,7 +7,7 @@
 import { eventSource, event_types } from '../../../../../script.js';
 import { getContext, extension_settings } from '../../../../extensions.js';
 import { getOpenVaultData, getCurrentChatId, saveOpenVaultData, showToast, safeSetExtensionPrompt, withTimeout, log } from './utils.js';
-import { extensionName, EXTRACTED_BATCHES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
+import { extensionName, MEMORIES_KEY, EXTRACTED_BATCHES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
 import { operationState, setGenerationLock, clearGenerationLock, isChatLoadingCooldown, setChatLoadingCooldown, resetOperationStatesIfSafe } from './state.js';
 import { setStatus } from './ui/status.js';
 import { refreshAllUI, resetMemoryBrowserPage } from './ui/browser.js';
