@@ -5,8 +5,8 @@
  */
 
 import { extension_settings } from '../../../../../extensions.js';
-import { log } from '../utils.js';
-import { extensionName } from '../constants.js';
+import { log, parseJsonFromMarkdown } from '../utils.js';
+import { extensionName, SCORING_WEIGHTS } from '../constants.js';
 import { callLLMForRetrieval } from '../llm.js';
 
 /**
@@ -30,17 +30,17 @@ export function selectRelevantMemoriesSimple(memories, recentContext, characterN
 
         // Importance bonus (major factor: 0-20 points based on 1-5 scale)
         const importance = memory.importance || 3;
-        score += importance * 4; // 4, 8, 12, 16, 20 points
+        score += importance * SCORING_WEIGHTS.IMPORTANCE_MULTIPLIER;
 
         // Recency bonus (newer = higher)
         const age = Date.now() - memory.created_at;
         const ageHours = age / (1000 * 60 * 60);
-        score += Math.max(0, 10 - ageHours); // Up to 10 points for recent
+        score += Math.max(0, SCORING_WEIGHTS.RECENCY_MAX_POINTS - ageHours);
 
         // Character involvement bonus
         for (const char of activeCharacters) {
-            if (memory.characters_involved?.includes(char)) score += 5;
-            if (memory.witnesses?.includes(char)) score += 3;
+            if (memory.characters_involved?.includes(char)) score += SCORING_WEIGHTS.CHARACTER_INVOLVED;
+            if (memory.witnesses?.includes(char)) score += SCORING_WEIGHTS.CHARACTER_WITNESS;
         }
 
         // Keyword matching (simple)
@@ -49,12 +49,12 @@ export function selectRelevantMemoriesSimple(memories, recentContext, characterN
         const contextWords = contextLower.split(/\s+/).filter(w => w.length > 3);
 
         for (const word of contextWords) {
-            if (summaryLower.includes(word)) score += 1;
+            if (summaryLower.includes(word)) score += SCORING_WEIGHTS.KEYWORD_MATCH;
         }
 
         // Event type bonus
-        if (memory.event_type === 'revelation') score += 3;
-        if (memory.event_type === 'relationship_change') score += 2;
+        if (memory.event_type === 'revelation') score += SCORING_WEIGHTS.EVENT_TYPE_REVELATION;
+        if (memory.event_type === 'relationship_change') score += SCORING_WEIGHTS.EVENT_TYPE_RELATIONSHIP;
 
         return { memory, score };
     });
@@ -115,13 +115,7 @@ Only return valid JSON, no markdown formatting.`;
         // Parse the response
         let parsed;
         try {
-            // Handle potential markdown code blocks
-            let cleaned = response;
-            const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
-            if (jsonMatch) {
-                cleaned = jsonMatch[1];
-            }
-            parsed = JSON.parse(cleaned.trim());
+            parsed = parseJsonFromMarkdown(response);
         } catch (parseError) {
             log(`Smart retrieval: Failed to parse LLM response, falling back to simple mode. Error: ${parseError.message}`);
             return selectRelevantMemoriesSimple(memories, recentContext, characterName, [], limit);

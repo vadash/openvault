@@ -5,7 +5,7 @@
  */
 
 import { getContext, extension_settings } from '../../../../../extensions.js';
-import { getOpenVaultData, saveOpenVaultData, showToast, log } from '../utils.js';
+import { getOpenVaultData, saveOpenVaultData, showToast, log, sortMemoriesBySequence, isExtensionEnabled } from '../utils.js';
 import { extensionName, MEMORIES_KEY, LAST_PROCESSED_KEY, LAST_BATCH_KEY } from '../constants.js';
 import { callLLMForExtraction } from '../llm.js';
 import { setStatus } from '../ui/status.js';
@@ -26,11 +26,7 @@ export function getRecentMemoriesForContext(count) {
     const memories = data[MEMORIES_KEY] || [];
 
     // Sort by sequence/creation time (newest first)
-    const sorted = [...memories].sort((a, b) => {
-        const seqA = a.sequence ?? a.created_at ?? 0;
-        const seqB = b.sequence ?? b.created_at ?? 0;
-        return seqB - seqA;
-    });
+    const sorted = sortMemoriesBySequence(memories, false);
 
     // Return all if count is -1, otherwise slice to count
     return count < 0 ? sorted : sorted.slice(0, count);
@@ -42,12 +38,12 @@ export function getRecentMemoriesForContext(count) {
  * @returns {Promise<{events_created: number, messages_processed: number}|undefined>}
  */
 export async function extractMemories(messageIds = null) {
-    const settings = extension_settings[extensionName];
-    if (!settings.enabled) {
+    if (!isExtensionEnabled()) {
         showToast('warning', 'OpenVault is disabled');
         return;
     }
 
+    const settings = extension_settings[extensionName];
     const context = getContext();
     const chat = context.chat;
 

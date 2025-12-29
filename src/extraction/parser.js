@@ -4,7 +4,7 @@
  * Parses LLM extraction results and updates character states and relationships.
  */
 
-import { generateId, log } from '../utils.js';
+import { generateId, log, parseJsonFromMarkdown } from '../utils.js';
 import { CHARACTERS_KEY, RELATIONSHIPS_KEY } from '../constants.js';
 
 /**
@@ -18,14 +18,7 @@ import { CHARACTERS_KEY, RELATIONSHIPS_KEY } from '../constants.js';
  */
 export function parseExtractionResult(jsonString, messages, characterName, userName, batchId = null) {
     try {
-        // Extract JSON from response (handle markdown code blocks)
-        let cleaned = jsonString;
-        const jsonMatch = jsonString.match(/```(?:json)?\s*([\s\S]*?)```/);
-        if (jsonMatch) {
-            cleaned = jsonMatch[1];
-        }
-
-        const parsed = JSON.parse(cleaned.trim());
+        const parsed = parseJsonFromMarkdown(jsonString);
         const events = Array.isArray(parsed) ? parsed : [parsed];
 
         // Get message IDs for sequence ordering

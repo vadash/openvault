@@ -5,7 +5,7 @@
  */
 
 import { getContext, extension_settings } from '../../../../extensions.js';
-import { getOpenVaultData, showToast, log, getExtractedMessageIds } from './utils.js';
+import { getOpenVaultData, showToast, log, getExtractedMessageIds, isAutomaticMode } from './utils.js';
 import { extensionName } from './constants.js';
 import { extractAllMessages } from './extraction/batch.js';
 
@@ -15,9 +15,9 @@ import { extractAllMessages } from './extraction/batch.js';
  * @param {function} updateEventListenersFn - Function to update event listeners after backfill
  */
 export async function checkAndTriggerBackfill(updateEventListenersFn) {
-    const settings = extension_settings[extensionName];
-    if (!settings.enabled || !settings.automaticMode) return;
+    if (!isAutomaticMode()) return;
 
+    const settings = extension_settings[extensionName];
     const context = getContext();
     const chat = context.chat || [];
     if (chat.length === 0) return;

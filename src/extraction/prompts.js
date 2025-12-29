@@ -4,6 +4,8 @@
  * Builds prompts for memory extraction from messages.
  */
 
+import { sortMemoriesBySequence } from '../utils.js';
+
 /**
  * Build the extraction prompt
  * @param {string} messagesText - Formatted messages to analyze
@@ -30,8 +32,7 @@ export function buildExtractionPrompt(messagesText, characterName, userName, exi
     // Build memory context section if we have existing memories
     let memoryContextSection = '';
     if (existingMemories && existingMemories.length > 0) {
-        const memorySummaries = existingMemories
-            .sort((a, b) => (a.sequence ?? a.created_at ?? 0) - (b.sequence ?? b.created_at ?? 0))
+        const memorySummaries = sortMemoriesBySequence(existingMemories, true)
             .map((m, i) => `${i + 1}. [${m.event_type || 'event'}] ${m.summary}`)
             .join('\n');
 

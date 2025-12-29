@@ -5,8 +5,8 @@
  */
 
 import { getContext, extension_settings } from '../../../../../extensions.js';
-import { getOpenVaultData, safeSetExtensionPrompt, showToast, log } from '../utils.js';
-import { extensionName, MEMORIES_KEY, CHARACTERS_KEY, LAST_BATCH_KEY } from '../constants.js';
+import { getOpenVaultData, safeSetExtensionPrompt, showToast, log, isExtensionEnabled, isAutomaticMode } from '../utils.js';
+import { extensionName, MEMORIES_KEY, CHARACTERS_KEY, LAST_BATCH_KEY, RECENT_MESSAGE_BUFFER } from '../constants.js';
 import { setStatus } from '../ui/status.js';
 import { getActiveCharacters, getPOVContext, filterMemoriesByPOV } from '../pov.js';
 import { selectRelevantMemories } from './scoring.js';
@@ -83,12 +83,12 @@ async function selectFormatAndInject(memoriesToUse, data, recentMessages, primar
  * @returns {Promise<{memories: Object[], context: string}|null>}
  */
 export async function retrieveAndInjectContext() {
-    const settings = extension_settings[extensionName];
-    if (!settings.enabled) {
+    if (!isExtensionEnabled()) {
         log('OpenVault disabled, skipping retrieval');
         return null;
     }
 
+    const settings = extension_settings[extensionName];
     const context = getContext();
     const chat = context.chat;
 
@@ -163,14 +163,13 @@ export async function retrieveAndInjectContext() {
  * @param {string} pendingUserMessage - Optional user message not yet in chat
  */
 export async function updateInjection(pendingUserMessage = '') {
-    const settings = extension_settings[extensionName];
-
     // Clear injection if disabled or not in automatic mode
-    if (!settings.enabled || !settings.automaticMode) {
+    if (!isAutomaticMode()) {
         safeSetExtensionPrompt('');
         return;
     }
 
+    const settings = extension_settings[extensionName];
     const context = getContext();
     if (!context.chat || context.chat.length === 0) {
         safeSetExtensionPrompt('');
@@ -196,7 +195,7 @@ export async function updateInjection(pendingUserMessage = '') {
     const accessibleMemories = filterMemoriesByPOV(memories, povCharacters, data);
 
     // Exclude memories from recent messages (they're still in context)
-    const recentMessageIds = new Set(context.chat.map((m, idx) => idx).slice(-10));
+    const recentMessageIds = new Set(context.chat.map((m, idx) => idx).slice(-RECENT_MESSAGE_BUFFER));
     const nonRecentMemories = accessibleMemories.filter(m => {
         if (!m.message_ids || m.message_ids.length === 0) return true;
         const allSourcesRecent = m.message_ids.every(id => recentMessageIds.has(id));

@@ -161,10 +161,47 @@ export function getExtractedMessageIds(data) {
 }
 
 /**
- * Filter out system messages from chat
- * @param {Object[]} chat - Chat message array
- * @returns {Object[]} Non-system messages
+ * Check if OpenVault extension is enabled
+ * @returns {boolean}
  */
-export function getVisibleMessages(chat) {
-    return (chat || []).filter(m => !m.is_system);
+export function isExtensionEnabled() {
+    return extension_settings[extensionName]?.enabled === true;
+}
+
+/**
+ * Check if OpenVault extension is enabled AND in automatic mode
+ * @returns {boolean}
+ */
+export function isAutomaticMode() {
+    const settings = extension_settings[extensionName];
+    return settings?.enabled && settings?.automaticMode;
+}
+
+/**
+ * Parse JSON from a response that may be wrapped in markdown code blocks
+ * @param {string} response - Raw response potentially containing markdown
+ * @returns {any} Parsed JSON object
+ * @throws {Error} If JSON parsing fails
+ */
+export function parseJsonFromMarkdown(response) {
+    let cleaned = response;
+    const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+        cleaned = jsonMatch[1];
+    }
+    return JSON.parse(cleaned.trim());
+}
+
+/**
+ * Sort memories by sequence number or creation time
+ * @param {Object[]} memories - Array of memory objects
+ * @param {boolean} ascending - Sort ascending (oldest first) or descending (newest first)
+ * @returns {Object[]} Sorted copy of memories array
+ */
+export function sortMemoriesBySequence(memories, ascending = true) {
+    return [...memories].sort((a, b) => {
+        const seqA = a.sequence ?? a.created_at ?? 0;
+        const seqB = b.sequence ?? b.created_at ?? 0;
+        return ascending ? seqA - seqB : seqB - seqA;
+    });
 }

@@ -6,6 +6,7 @@
 
 import { getContext } from '../../../../../extensions.js';
 import { RELATIONSHIPS_KEY } from '../constants.js';
+import { sortMemoriesBySequence } from '../utils.js';
 
 /**
  * Get relationship context for active characters
@@ -49,15 +50,16 @@ export function getRelationshipContext(data, povCharacter, activeCharacters) {
  * @returns {string} Formatted context string
  */
 export function formatContextForInjection(memories, relationships, emotionalInfo, characterName, tokenBudget) {
-    const lines = [];
-
     // Get current message number for context
     const context = getContext();
     const currentMessageNum = context.chat?.length || 0;
 
-    lines.push(`[${characterName}'s Memory & State]`);
-    lines.push(`(Current message: #${currentMessageNum})`);
-    lines.push('');
+    // Build header lines
+    const headerLines = [
+        `[${characterName}'s Memory & State]`,
+        `(Current message: #${currentMessageNum})`,
+        ''
+    ];
 
     // Emotional state - handle both old string format and new object format
     const emotion = typeof emotionalInfo === 'string' ? emotionalInfo : emotionalInfo?.emotion;
@@ -71,34 +73,53 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
                 ? ` (as of msg #${min})`
                 : ` (as of msgs #${min}-${max})`;
         }
-        lines.push(emotionLine);
-        lines.push('');
+        headerLines.push(emotionLine);
+        headerLines.push('');
     }
 
     // Relationships
     if (relationships && relationships.length > 0) {
-        lines.push('Relationships with present characters:');
+        headerLines.push('Relationships with present characters:');
         for (const rel of relationships) {
             const trustDesc = rel.trust >= 7 ? 'high trust' : rel.trust <= 3 ? 'low trust' : 'moderate trust';
             const tensionDesc = rel.tension >= 7 ? 'high tension' : rel.tension >= 4 ? 'some tension' : '';
-            lines.push(`- ${rel.character}: ${rel.type || 'acquaintance'} (${trustDesc}${tensionDesc ? ', ' + tensionDesc : ''})`);
+            headerLines.push(`- ${rel.character}: ${rel.type || 'acquaintance'} (${trustDesc}${tensionDesc ? ', ' + tensionDesc : ''})`);
         }
-        lines.push('');
+        headerLines.push('');
     }
 
-    // Memories - sorted by sequence (chronological order) with message numbers
-    if (memories && memories.length > 0) {
-        // Sort by sequence number (earlier events first)
-        const sortedMemories = [...memories].sort((a, b) => {
-            const seqA = a.sequence ?? a.created_at ?? 0;
-            const seqB = b.sequence ?? b.created_at ?? 0;
-            return seqA - seqB;
-        });
+    const footerLine = `[End ${characterName}'s Memory]`;
 
-        lines.push('Relevant memories (in chronological order, \u2605=minor to \u2605\u2605\u2605\u2605\u2605=critical):');
+    // Calculate overhead tokens (header + footer)
+    const overheadTokens = (headerLines.join('\n').length + footerLine.length) / 4;
+    const availableForMemories = tokenBudget - overheadTokens;
+
+    // Pre-truncate memories to fit within budget
+    let memoriesToFormat = memories || [];
+    if (memoriesToFormat.length > 0) {
+        const truncatedMemories = [];
+        let currentTokens = 0;
+
+        for (const memory of memoriesToFormat) {
+            const memoryTokens = (memory.summary?.length || 0) / 4 + 5;
+            if (currentTokens + memoryTokens <= availableForMemories) {
+                truncatedMemories.push(memory);
+                currentTokens += memoryTokens;
+            } else {
+                break;
+            }
+        }
+        memoriesToFormat = truncatedMemories;
+    }
+
+    // Build memory lines
+    const memoryLines = [];
+    if (memoriesToFormat.length > 0) {
+        const sortedMemories = sortMemoriesBySequence(memoriesToFormat, true);
+
+        memoryLines.push('Relevant memories (in chronological order, \u2605=minor to \u2605\u2605\u2605\u2605\u2605=critical):');
         sortedMemories.forEach((memory, index) => {
             const prefix = memory.is_secret ? '[Secret] ' : '';
-            // Get message number(s) for this memory
             const msgIds = memory.message_ids || [];
             let msgLabel = '';
             if (msgIds.length === 1) {
@@ -108,40 +129,12 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
                 const maxMsg = Math.max(...msgIds);
                 msgLabel = `(msgs #${minMsg}-${maxMsg})`;
             }
-            // Importance indicator: star for each level (1-5)
             const importance = memory.importance || 3;
             const importanceLabel = '\u2605'.repeat(importance);
-            lines.push(`${index + 1}. ${msgLabel} [${importanceLabel}] ${prefix}${memory.summary}`);
+            memoryLines.push(`${index + 1}. ${msgLabel} [${importanceLabel}] ${prefix}${memory.summary}`);
         });
     }
 
-    lines.push(`[End ${characterName}'s Memory]`);
-
-    // Rough token estimate (4 chars per token)
-    let result = lines.join('\n');
-    const estimatedTokens = result.length / 4;
-
-    if (estimatedTokens > tokenBudget) {
-        // Truncate memories if needed
-        const overhead = (lines.slice(0, 5).join('\n').length + lines.slice(-1).join('\n').length) / 4;
-        const availableForMemories = tokenBudget - overhead;
-
-        const truncatedMemories = [];
-        let currentTokens = 0;
-
-        for (const memory of memories) {
-            const memoryTokens = (memory.summary?.length || 0) / 4 + 5;
-            if (currentTokens + memoryTokens <= availableForMemories) {
-                truncatedMemories.push(memory);
-                currentTokens += memoryTokens;
-            } else {
-                break;
-            }
-        }
-
-        // Rebuild with truncated memories
-        return formatContextForInjection(truncatedMemories, relationships, emotionalInfo, characterName, tokenBudget * 2);
-    }
-
-    return result;
+    // Combine all lines
+    return [...headerLines, ...memoryLines, footerLine].join('\n');
 }

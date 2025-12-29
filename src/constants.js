@@ -42,3 +42,18 @@ export const GENERATION_LOCK_TIMEOUT_MS = 120000; // 2 minutes safety timeout
 
 // Pagination constants
 export const MEMORIES_PER_PAGE = 10;
+
+// Scoring weights for simple relevance scoring
+export const SCORING_WEIGHTS = {
+    IMPORTANCE_MULTIPLIER: 4,     // importance (1-5) * 4 = 4-20 points
+    RECENCY_MAX_POINTS: 10,       // up to 10 points for recent memories
+    RECENCY_DECAY_HOURS: 10,      // full decay after 10 hours
+    CHARACTER_INVOLVED: 5,        // points for character involvement
+    CHARACTER_WITNESS: 3,         // points for witness
+    KEYWORD_MATCH: 1,             // points per keyword match
+    EVENT_TYPE_REVELATION: 3,     // bonus for revelation events
+    EVENT_TYPE_RELATIONSHIP: 2,   // bonus for relationship_change events
+};
+
+// Retrieval filter constants
+export const RECENT_MESSAGE_BUFFER = 10; // exclude memories from last N messages

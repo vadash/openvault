@@ -6,7 +6,7 @@
 
 import { eventSource, event_types } from '../../../../../script.js';
 import { getContext, extension_settings } from '../../../../extensions.js';
-import { getOpenVaultData, getCurrentChatId, showToast, safeSetExtensionPrompt, withTimeout, log, getExtractedMessageIds } from './utils.js';
+import { getOpenVaultData, getCurrentChatId, showToast, safeSetExtensionPrompt, withTimeout, log, getExtractedMessageIds, isAutomaticMode } from './utils.js';
 import { extensionName, MEMORIES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
 import { operationState, setGenerationLock, clearGenerationLock, isChatLoadingCooldown, setChatLoadingCooldown, resetOperationStatesIfSafe } from './state.js';
 import { setStatus } from './ui/status.js';
@@ -23,10 +23,8 @@ import { checkAndTriggerBackfill } from './backfill.js';
  * @param {boolean} dryRun - If true, don't actually do retrieval
  */
 export async function onBeforeGeneration(type, options, dryRun = false) {
-    const settings = extension_settings[extensionName];
-
     // Skip if disabled, manual mode, or dry run
-    if (!settings.enabled || !settings.automaticMode || dryRun) {
+    if (!isAutomaticMode() || dryRun) {
         return;
     }
 
@@ -105,8 +103,7 @@ export function onGenerationEnded() {
  * Handle chat changed event
  */
 export function onChatChanged() {
-    const settings = extension_settings[extensionName];
-    if (!settings.enabled || !settings.automaticMode) return;
+    if (!isAutomaticMode()) return;
 
     log('Chat changed, clearing injection and setting load cooldown');
 
@@ -133,8 +130,7 @@ export function onChatChanged() {
  * @param {number} messageId - The message ID
  */
 export async function onMessageReceived(messageId) {
-    const settings = extension_settings[extensionName];
-    if (!settings.enabled || !settings.automaticMode) return;
+    if (!isAutomaticMode()) return;
 
     // Don't extract during chat load cooldown
     if (isChatLoadingCooldown()) {
@@ -171,6 +167,7 @@ export async function onMessageReceived(messageId) {
             return;
         }
 
+        const settings = extension_settings[extensionName];
         const messageCount = settings.messagesPerExtraction || 10;
 
         // Use message-based tracking (works correctly with auto-hide)
@@ -244,8 +241,6 @@ export async function onMessageReceived(messageId) {
  * Update event listeners based on settings
  */
 export function updateEventListeners(_skipInitialization = false) {
-    const settings = extension_settings[extensionName];
-
     // Remove old event listeners first to prevent duplicates
     eventSource.removeListener(event_types.GENERATION_AFTER_COMMANDS, onBeforeGeneration);
     eventSource.removeListener(event_types.GENERATION_ENDED, onGenerationEnded);
@@ -255,7 +250,7 @@ export function updateEventListeners(_skipInitialization = false) {
     // Reset operation state only if no generation in progress
     resetOperationStatesIfSafe();
 
-    if (settings.enabled && settings.automaticMode) {
+    if (isAutomaticMode()) {
         // Register event listeners for automatic mode
         eventSource.on(event_types.GENERATION_AFTER_COMMANDS, onBeforeGeneration);
         eventSource.on(event_types.GENERATION_ENDED, onGenerationEnded);
