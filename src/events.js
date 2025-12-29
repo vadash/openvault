@@ -6,7 +6,7 @@
 
 import { eventSource, event_types } from '../../../../../script.js';
 import { getContext, extension_settings } from '../../../../extensions.js';
-import { getOpenVaultData, getCurrentChatId, showToast, safeSetExtensionPrompt, withTimeout, log, getExtractedMessageIds, isAutomaticMode } from './utils.js';
+import { getOpenVaultData, getCurrentChatId, showToast, safeSetExtensionPrompt, withTimeout, log, getExtractedMessageIds, getUnextractedMessageIds, isAutomaticMode } from './utils.js';
 import { extensionName, MEMORIES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
 import { operationState, setGenerationLock, clearGenerationLock, isChatLoadingCooldown, setChatLoadingCooldown, resetOperationStatesIfSafe } from './state.js';
 import { setStatus } from './ui/status.js';
@@ -176,15 +176,7 @@ export async function onMessageReceived(messageId) {
         const extractedCount = extractedMessageIds.size;
 
         // Find unextracted message indices (excluding last N messages as buffer)
-        const unextractedIds = [];
-        for (let i = 0; i < chat.length; i++) {
-            if (!extractedMessageIds.has(i)) {
-                unextractedIds.push(i);
-            }
-        }
-
-        // Exclude last N messages (buffer for current context)
-        const extractableIds = unextractedIds.slice(0, -messageCount);
+        const extractableIds = getUnextractedMessageIds(chat, extractedMessageIds, messageCount);
 
         // Only extract if we have a complete batch ready
         if (extractableIds.length < messageCount) {

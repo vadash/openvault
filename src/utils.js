@@ -7,7 +7,7 @@
 import { getContext } from '../../../../extensions.js';
 import { saveChatConditional, setExtensionPrompt, extension_prompt_types } from '../../../../../script.js';
 import { extension_settings } from '../../../../extensions.js';
-import { extensionName, METADATA_KEY, MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, LAST_PROCESSED_KEY, EXTRACTED_BATCHES_KEY } from './constants.js';
+import { extensionName, METADATA_KEY, MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, LAST_PROCESSED_KEY } from './constants.js';
 
 /**
  * Wrap a promise with a timeout
@@ -43,7 +43,6 @@ export function getOpenVaultData() {
             [CHARACTERS_KEY]: {},
             [RELATIONSHIPS_KEY]: {},
             [LAST_PROCESSED_KEY]: -1,
-            [EXTRACTED_BATCHES_KEY]: [],
         };
     }
     return context.chatMetadata[METADATA_KEY];
@@ -158,6 +157,23 @@ export function getExtractedMessageIds(data) {
         }
     }
     return extractedIds;
+}
+
+/**
+ * Get array of message indices that have not been extracted yet
+ * @param {Object[]} chat - Chat messages array
+ * @param {Set<number>} extractedIds - Set of already extracted message IDs
+ * @param {number} excludeLastN - Number of recent messages to exclude (buffer)
+ * @returns {number[]} Array of unextracted message indices
+ */
+export function getUnextractedMessageIds(chat, extractedIds, excludeLastN = 0) {
+    const unextractedIds = [];
+    for (let i = 0; i < chat.length; i++) {
+        if (!extractedIds.has(i)) {
+            unextractedIds.push(i);
+        }
+    }
+    return excludeLastN > 0 ? unextractedIds.slice(0, -excludeLastN) : unextractedIds;
 }
 
 /**

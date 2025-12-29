@@ -14,7 +14,6 @@ export const CHARACTERS_KEY = 'character_states';
 export const RELATIONSHIPS_KEY = 'relationships';
 export const LAST_PROCESSED_KEY = 'last_processed_message_id';
 export const LAST_BATCH_KEY = 'last_extraction_batch';
-export const EXTRACTED_BATCHES_KEY = 'extracted_batches';
 
 // Default settings
 export const defaultSettings = {
@@ -47,7 +46,6 @@ export const MEMORIES_PER_PAGE = 10;
 export const SCORING_WEIGHTS = {
     IMPORTANCE_MULTIPLIER: 4,     // importance (1-5) * 4 = 4-20 points
     RECENCY_MAX_POINTS: 10,       // up to 10 points for recent memories
-    RECENCY_DECAY_HOURS: 10,      // full decay after 10 hours
     CHARACTER_INVOLVED: 5,        // points for character involvement
     CHARACTER_WITNESS: 3,         // points for witness
     KEYWORD_MATCH: 1,             // points per keyword match

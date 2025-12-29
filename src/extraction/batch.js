@@ -7,7 +7,7 @@
 import { getContext, extension_settings } from '../../../../../extensions.js';
 import { saveChatConditional } from '../../../../../../script.js';
 import { getOpenVaultData, showToast, log, getExtractedMessageIds, safeSetExtensionPrompt } from '../utils.js';
-import { extensionName, EXTRACTED_BATCHES_KEY } from '../constants.js';
+import { extensionName } from '../constants.js';
 import { setStatus } from '../ui/status.js';
 import { refreshAllUI } from '../ui/browser.js';
 import { clearAllLocks } from '../state.js';
@@ -101,11 +101,6 @@ export async function extractAllMessages(updateEventListenersFn) {
             log(`Processing batch ${batchNum}/${completeBatches} (batch index ${i})...`);
             const result = await extractMemories(batch);
             totalEvents += result?.events_created || 0;
-
-            // Mark this batch as extracted
-            if (!data[EXTRACTED_BATCHES_KEY].includes(i)) {
-                data[EXTRACTED_BATCHES_KEY].push(i);
-            }
 
             // Delay between batches based on rate limit setting
             if (batchNum < completeBatches) {
