@@ -6,8 +6,8 @@
 
 import { eventSource, event_types } from '../../../../../script.js';
 import { getContext, extension_settings } from '../../../../extensions.js';
-import { getOpenVaultData, getCurrentChatId, saveOpenVaultData, showToast, safeSetExtensionPrompt, withTimeout, log } from './utils.js';
-import { extensionName, MEMORIES_KEY, EXTRACTED_BATCHES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
+import { getOpenVaultData, getCurrentChatId, showToast, safeSetExtensionPrompt, withTimeout, log, getExtractedMessageIds } from './utils.js';
+import { extensionName, MEMORIES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
 import { operationState, setGenerationLock, clearGenerationLock, isChatLoadingCooldown, setChatLoadingCooldown, resetOperationStatesIfSafe } from './state.js';
 import { setStatus } from './ui/status.js';
 import { refreshAllUI, resetMemoryBrowserPage } from './ui/browser.js';
@@ -174,64 +174,44 @@ export async function onMessageReceived(messageId) {
 
         const messageCount = settings.messagesPerExtraction || 10;
 
-        // Get all non-system messages
-        const nonSystemMessages = chat
-            .map((m, idx) => ({ ...m, idx }))
-            .filter(m => !m.is_system);
+        // Use message-based tracking (works correctly with auto-hide)
+        const extractedMessageIds = getExtractedMessageIds(data);
+        const totalMessages = chat.length;
+        const extractedCount = extractedMessageIds.size;
 
-        const totalMessages = nonSystemMessages.length;
+        // Find unextracted message indices (excluding last N messages as buffer)
+        const unextractedIds = [];
+        for (let i = 0; i < chat.length; i++) {
+            if (!extractedMessageIds.has(i)) {
+                unextractedIds.push(i);
+            }
+        }
 
-        // Get the highest extracted batch number (-1 if none extracted yet)
-        const extractedBatches = data[EXTRACTED_BATCHES_KEY] || [];
-        const highestExtractedBatch = extractedBatches.length > 0 ? Math.max(...extractedBatches) : -1;
+        // Exclude last N messages (buffer for current context)
+        const extractableIds = unextractedIds.slice(0, -messageCount);
 
-        // Calculate the next batch to extract
-        const nextBatchToExtract = highestExtractedBatch + 1;
-
-        // Calculate how many complete batches worth of messages we have
-        const totalCompleteBatches = Math.floor(totalMessages / messageCount);
-
-        // We need the batch we want to extract PLUS one buffer batch
-        const requiredBatches = nextBatchToExtract + 2;
-
-        log(`AI message received: ${messageId}, total: ${totalMessages}, complete batches: ${totalCompleteBatches}, last extracted: ${highestExtractedBatch}, next to extract: ${nextBatchToExtract}, required: ${requiredBatches}`);
-
-        if (totalCompleteBatches < requiredBatches) {
-            const messagesNeeded = requiredBatches * messageCount;
-            const remaining = messagesNeeded - totalMessages;
-            log(`Not enough messages yet: have ${totalMessages}, need ${messagesNeeded} (${remaining} more) to safely extract batch ${nextBatchToExtract}`);
+        // Only extract if we have a complete batch ready
+        if (extractableIds.length < messageCount) {
+            const remaining = messageCount - extractableIds.length;
+            log(`Auto-extract: ${extractedCount}/${totalMessages} extracted, ${extractableIds.length} ready, need ${remaining} more for next batch`);
             return;
         }
 
-        // Double-check this batch hasn't been extracted (safety check)
-        if (extractedBatches.includes(nextBatchToExtract)) {
-            log(`Batch ${nextBatchToExtract} already extracted, skipping`);
-            return;
-        }
+        // Get the oldest complete batch of unextracted messages
+        const batchToExtract = extractableIds.slice(0, messageCount);
 
-        // Calculate message range for this batch (0-indexed)
-        const startIdx = nextBatchToExtract * messageCount;
-        const endIdx = startIdx + messageCount;
-        const batchMessages = nonSystemMessages.slice(startIdx, endIdx);
-
-        if (batchMessages.length !== messageCount) {
-            log(`Batch ${nextBatchToExtract} has wrong size (${batchMessages.length}/${messageCount}), skipping`);
-            return;
-        }
-
-        log(`Extracting batch ${nextBatchToExtract} (messages ${startIdx}-${endIdx - 1}, indices: ${batchMessages.map(m => m.idx).join(',')})`);
+        log(`Auto-extract: ${extractedCount}/${totalMessages} extracted, extracting batch of ${batchToExtract.length} messages (indices ${batchToExtract[0]}-${batchToExtract[batchToExtract.length - 1]})`);
 
         // Show extraction indicator
         setStatus('extracting');
-        showToast('info', `Extracting memories (batch ${nextBatchToExtract + 1}, messages ${startIdx + 1}-${endIdx})...`, 'OpenVault', {
+        showToast('info', `Extracting memories (messages ${batchToExtract[0] + 1}-${batchToExtract[batchToExtract.length - 1] + 1})...`, 'OpenVault', {
             timeOut: 0,
             extendedTimeOut: 0,
             tapToDismiss: false,
             toastClass: 'toast openvault-extracting-toast'
         });
 
-        const messageIds = batchMessages.map(m => m.idx);
-        const result = await extractMemories(messageIds);
+        const result = await extractMemories(batchToExtract);
 
         // Check if chat changed during extraction - don't save to wrong chat
         const chatIdAfterExtraction = getCurrentChatId();
@@ -242,26 +222,10 @@ export async function onMessageReceived(messageId) {
             return;
         }
 
-        // Only mark batch as extracted if events were actually created
-        if (result && result.events_created > 0) {
-            // Re-get data in case it changed (get fresh reference after async)
-            const freshData = getOpenVaultData();
-            if (freshData) {
-                freshData[EXTRACTED_BATCHES_KEY] = freshData[EXTRACTED_BATCHES_KEY] || [];
-                if (!freshData[EXTRACTED_BATCHES_KEY].includes(nextBatchToExtract)) {
-                    freshData[EXTRACTED_BATCHES_KEY].push(nextBatchToExtract);
-                }
-                await saveOpenVaultData();
-                log(`Batch ${nextBatchToExtract} extracted and marked (${result.events_created} events)`);
-            }
-        } else {
-            log(`Batch ${nextBatchToExtract} extraction produced no events, not marking as extracted`);
-        }
-
         // Clear the persistent toast and show success
         $('.openvault-extracting-toast').remove();
         if (result && result.events_created > 0) {
-            showToast('success', `Batch ${nextBatchToExtract + 1} extracted successfully (${result.events_created} events)`, 'OpenVault');
+            showToast('success', `Extracted ${result.events_created} events from ${result.messages_processed} messages`, 'OpenVault');
         }
     } catch (error) {
         console.error('[OpenVault] Automatic extraction error:', error);
