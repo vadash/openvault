@@ -5,7 +5,7 @@
  */
 
 import { getContext, extension_settings } from '../../../../../extensions.js';
-import { getOpenVaultData, log } from '../utils.js';
+import { getOpenVaultData, log, getExtractedMessageIds } from '../utils.js';
 import { MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, extensionName } from '../constants.js';
 
 /**
@@ -58,13 +58,7 @@ export function refreshStats() {
     const hiddenMessages = chat.filter(m => m.is_system).length;
 
     // Count messages that have been extracted (by checking memory message_ids)
-    const memories = data[MEMORIES_KEY] || [];
-    const extractedMessageIds = new Set();
-    for (const memory of memories) {
-        for (const msgId of (memory.message_ids || [])) {
-            extractedMessageIds.add(msgId);
-        }
-    }
+    const extractedMessageIds = getExtractedMessageIds(data);
     const extractedCount = extractedMessageIds.size;
 
     // Buffer zone: last N messages reserved for automatic extraction

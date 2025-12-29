@@ -213,29 +213,27 @@ export function updateUI() {
 }
 
 /**
+ * Populate a profile selector dropdown
+ * @param {jQuery} $selector - jQuery selector element
+ * @param {Object[]} profiles - Available profiles
+ * @param {string} currentValue - Currently selected profile ID
+ */
+function populateProfileDropdown($selector, profiles, currentValue) {
+    $selector.empty();
+    $selector.append('<option value="">Use current connection</option>');
+    for (const profile of profiles) {
+        const selected = profile.id === currentValue ? 'selected' : '';
+        $selector.append(`<option value="${profile.id}" ${selected}>${profile.name}</option>`);
+    }
+}
+
+/**
  * Populate the connection profile selectors (extraction and retrieval)
  */
 export function populateProfileSelector() {
     const settings = extension_settings[extensionName];
     const profiles = extension_settings.connectionManager?.profiles || [];
 
-    // Populate extraction profile selector
-    const $extractionSelector = $('#openvault_extraction_profile');
-    $extractionSelector.empty();
-    $extractionSelector.append('<option value="">Use current connection</option>');
-
-    for (const profile of profiles) {
-        const selected = profile.id === settings.extractionProfile ? 'selected' : '';
-        $extractionSelector.append(`<option value="${profile.id}" ${selected}>${profile.name}</option>`);
-    }
-
-    // Populate retrieval profile selector
-    const $retrievalSelector = $('#openvault_retrieval_profile');
-    $retrievalSelector.empty();
-    $retrievalSelector.append('<option value="">Use current connection</option>');
-
-    for (const profile of profiles) {
-        const selected = profile.id === settings.retrievalProfile ? 'selected' : '';
-        $retrievalSelector.append(`<option value="${profile.id}" ${selected}>${profile.name}</option>`);
-    }
+    populateProfileDropdown($('#openvault_extraction_profile'), profiles, settings.extractionProfile);
+    populateProfileDropdown($('#openvault_retrieval_profile'), profiles, settings.retrievalProfile);
 }

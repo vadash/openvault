@@ -4,85 +4,10 @@
  * Algorithms for selecting relevant memories for retrieval.
  */
 
-import { getContext, extension_settings } from '../../../../../extensions.js';
-import { ConnectionManagerRequestService } from '../../../../shared.js';
-import { log, showToast } from '../utils.js';
+import { extension_settings } from '../../../../../extensions.js';
+import { log } from '../utils.js';
 import { extensionName } from '../constants.js';
-
-/**
- * Call LLM for retrieval using ConnectionManagerRequestService
- * Uses the retrieval profile setting (separate from extraction profile)
- * @param {string} prompt - The retrieval prompt
- * @returns {Promise<string>} The LLM response content
- * @throws {Error} If the LLM call fails or no profile is available
- */
-async function callLLMForRetrieval(prompt) {
-    const settings = extension_settings[extensionName];
-
-    // Get profile ID - use retrieval profile or fall back to currently selected profile
-    let profileId = settings.retrievalProfile;
-
-    // If no profile specified, use the currently selected profile
-    if (!profileId) {
-        profileId = extension_settings?.connectionManager?.selectedProfile;
-        if (profileId) {
-            const profiles = extension_settings?.connectionManager?.profiles || [];
-            const profile = profiles.find(p => p.id === profileId);
-            log(`No retrieval profile set, using current profile: ${profile?.name || profileId}`);
-        }
-    }
-
-    if (!profileId) {
-        throw new Error('No connection profile available for retrieval. Please configure a profile in Connection Manager.');
-    }
-
-    try {
-        log(`Using ConnectionManagerRequestService for retrieval with profile: ${profileId}`);
-
-        // Build messages array
-        const messages = [
-            {
-                role: 'system',
-                content: 'You are a helpful assistant that analyzes memories for relevance. Always respond with valid JSON only, no markdown formatting.'
-            },
-            { role: 'user', content: prompt }
-        ];
-
-        // Send request via ConnectionManagerRequestService
-        const result = await ConnectionManagerRequestService.sendRequest(
-            profileId,
-            messages,
-            1000, // max tokens (retrieval needs less than extraction)
-            {
-                includePreset: true,
-                includeInstruct: true,
-                stream: false
-            },
-            {} // override payload
-        );
-
-        // Extract content from response
-        const content = result?.content || result || '';
-
-        if (!content) {
-            throw new Error('Empty response from LLM');
-        }
-
-        // Parse reasoning if present (some models return thinking tags)
-        const context = getContext();
-        if (context.parseReasoningFromString) {
-            const parsed = context.parseReasoningFromString(content);
-            return parsed ? parsed.content : content;
-        }
-
-        return content;
-    } catch (error) {
-        const errorMessage = error.message || 'Unknown error';
-        log(`Retrieval LLM call error: ${errorMessage}`);
-        showToast('error', `Smart retrieval failed: ${errorMessage}`);
-        throw error;
-    }
-}
+import { callLLMForRetrieval } from '../llm.js';
 
 /**
  * Select relevant memories using simple scoring (fast mode)

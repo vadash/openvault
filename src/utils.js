@@ -142,3 +142,29 @@ export function log(message) {
         console.log(`[OpenVault] ${message}`);
     }
 }
+
+/**
+ * Get set of message IDs that have been extracted into memories
+ * @param {Object} data - OpenVault data object
+ * @returns {Set<number>} Set of extracted message IDs
+ */
+export function getExtractedMessageIds(data) {
+    const extractedIds = new Set();
+    if (!data) return extractedIds;
+
+    for (const memory of (data[MEMORIES_KEY] || [])) {
+        for (const msgId of (memory.message_ids || [])) {
+            extractedIds.add(msgId);
+        }
+    }
+    return extractedIds;
+}
+
+/**
+ * Filter out system messages from chat
+ * @param {Object[]} chat - Chat message array
+ * @returns {Object[]} Non-system messages
+ */
+export function getVisibleMessages(chat) {
+    return (chat || []).filter(m => !m.is_system);
+}

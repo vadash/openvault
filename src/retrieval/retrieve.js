@@ -8,7 +8,7 @@ import { getContext, extension_settings } from '../../../../../extensions.js';
 import { getOpenVaultData, safeSetExtensionPrompt, showToast, log } from '../utils.js';
 import { extensionName, MEMORIES_KEY, CHARACTERS_KEY, LAST_BATCH_KEY } from '../constants.js';
 import { setStatus } from '../ui/status.js';
-import { getActiveCharacters, getPOVContext } from '../pov.js';
+import { getActiveCharacters, getPOVContext, filterMemoriesByPOV } from '../pov.js';
 import { selectRelevantMemories } from './scoring.js';
 import { getRelationshipContext, formatContextForInjection } from './formatting.js';
 
@@ -28,6 +28,54 @@ export function injectContext(contextText) {
     } else {
         log('Failed to inject context');
     }
+}
+
+/**
+ * Core retrieval logic: select relevant memories, format, and inject
+ * @param {Object[]} memoriesToUse - Pre-filtered memories to select from
+ * @param {Object} data - OpenVault data object
+ * @param {string} recentMessages - Chat context for relevance matching
+ * @param {string} primaryCharacter - Primary character for formatting
+ * @param {string[]} activeCharacters - All active characters
+ * @param {string} headerName - Header name for injection
+ * @param {Object} settings - Extension settings
+ * @returns {Promise<{memories: Object[], context: string}|null>}
+ */
+async function selectFormatAndInject(memoriesToUse, data, recentMessages, primaryCharacter, activeCharacters, headerName, settings) {
+    const relevantMemories = await selectRelevantMemories(
+        memoriesToUse,
+        recentMessages,
+        primaryCharacter,
+        activeCharacters,
+        settings.maxMemoriesPerRetrieval
+    );
+
+    if (!relevantMemories || relevantMemories.length === 0) {
+        return null;
+    }
+
+    // Get relationship and emotional context
+    const relationshipContext = getRelationshipContext(data, primaryCharacter, activeCharacters);
+    const primaryCharState = data[CHARACTERS_KEY]?.[primaryCharacter];
+    const emotionalInfo = {
+        emotion: primaryCharState?.current_emotion || 'neutral',
+        fromMessages: primaryCharState?.emotion_from_messages || null,
+    };
+
+    // Format and inject
+    const formattedContext = formatContextForInjection(
+        relevantMemories,
+        relationshipContext,
+        emotionalInfo,
+        headerName,
+        settings.tokenBudget
+    );
+
+    if (formattedContext) {
+        injectContext(formattedContext);
+    }
+
+    return { memories: relevantMemories, context: formattedContext };
 }
 
 /**
@@ -64,38 +112,14 @@ export async function retrieveAndInjectContext() {
     setStatus('retrieving');
 
     try {
-        const userName = context.name1;
         const activeCharacters = getActiveCharacters();
-
-        // Get POV context (different behavior for group chat vs narrator mode)
         const { povCharacters, isGroupChat } = getPOVContext();
 
-        // Collect known events from all POV characters
-        const knownEventIds = new Set();
-        for (const charName of povCharacters) {
-            const charState = data[CHARACTERS_KEY]?.[charName];
-            if (charState?.known_events) {
-                for (const eventId of charState.known_events) {
-                    knownEventIds.add(eventId);
-                }
-            }
-        }
-
-        // Filter memories by POV - memories that ANY of the POV characters know
-        const povCharactersLower = povCharacters.map(c => c.toLowerCase());
-        const accessibleMemories = memories.filter(m => {
-            // Any POV character was a witness (case-insensitive)
-            if (m.witnesses?.some(w => povCharactersLower.includes(w.toLowerCase()))) return true;
-            // Non-secret events that any POV character is involved in
-            if (!m.is_secret && m.characters_involved?.some(c => povCharactersLower.includes(c.toLowerCase()))) return true;
-            // Explicitly in any POV character's known events
-            if (knownEventIds.has(m.id)) return true;
-            return false;
-        });
-
+        // Filter memories by POV
+        const accessibleMemories = filterMemoriesByPOV(memories, povCharacters, data);
         log(`POV filter: mode=${isGroupChat ? 'group' : 'narrator'}, characters=[${povCharacters.join(', ')}], total=${memories.length}, accessible=${accessibleMemories.length}`);
 
-        // If POV filtering is too strict, fall back to all memories with a warning
+        // Fallback to all memories if POV filter is too strict
         let memoriesToUse = accessibleMemories;
         if (accessibleMemories.length === 0 && memories.length > 0) {
             log('POV filter returned 0 results, using all memories as fallback');
@@ -108,60 +132,24 @@ export async function retrieveAndInjectContext() {
             return null;
         }
 
-        // Use first POV character for formatting (or main character for narrator mode)
         const primaryCharacter = isGroupChat ? povCharacters[0] : context.name2;
+        const headerName = isGroupChat ? primaryCharacter : 'Scene';
+        const recentMessages = chat.filter(m => !m.is_system).map(m => m.mes).join('\n');
 
-        // Get full visible chat context for relevance matching
-        const recentMessages = chat
-            .filter(m => !m.is_system)
-            .map(m => m.mes)
-            .join('\n');
-
-        // Build retrieval prompt to select relevant memories
-        const relevantMemories = await selectRelevantMemories(
-            memoriesToUse,
-            recentMessages,
-            primaryCharacter,
-            activeCharacters,
-            settings.maxMemoriesPerRetrieval
+        const result = await selectFormatAndInject(
+            memoriesToUse, data, recentMessages, primaryCharacter, activeCharacters, headerName, settings
         );
 
-        if (!relevantMemories || relevantMemories.length === 0) {
+        if (!result) {
             log('No relevant memories found');
             setStatus('ready');
             return null;
         }
 
-        // Get relationship context for the primary character
-        const relationshipContext = getRelationshipContext(data, primaryCharacter, activeCharacters);
-
-        // Get emotional state of primary character (with message range info)
-        const primaryCharState = data[CHARACTERS_KEY]?.[primaryCharacter];
-        const emotionalInfo = {
-            emotion: primaryCharState?.current_emotion || 'neutral',
-            fromMessages: primaryCharState?.emotion_from_messages || null,
-        };
-
-        // Format header based on mode
-        const headerName = isGroupChat ? primaryCharacter : 'Scene';
-
-        // Format and inject context
-        const formattedContext = formatContextForInjection(
-            relevantMemories,
-            relationshipContext,
-            emotionalInfo,
-            headerName,
-            settings.tokenBudget
-        );
-
-        if (formattedContext) {
-            injectContext(formattedContext);
-            log(`Injected ${relevantMemories.length} memories into context`);
-            showToast('success', `Retrieved ${relevantMemories.length} relevant memories`);
-        }
-
+        log(`Injected ${result.memories.length} memories into context`);
+        showToast('success', `Retrieved ${result.memories.length} relevant memories`);
         setStatus('ready');
-        return { memories: relevantMemories, context: formattedContext };
+        return result;
     } catch (error) {
         console.error('[OpenVault] Retrieval error:', error);
         setStatus('error');
@@ -202,37 +190,13 @@ export async function updateInjection(pendingUserMessage = '') {
     }
 
     const activeCharacters = getActiveCharacters();
-
-    // Get POV context (different behavior for group chat vs narrator mode)
     const { povCharacters, isGroupChat } = getPOVContext();
 
-    // Collect known events from all POV characters
-    const knownEventIds = new Set();
-    for (const charName of povCharacters) {
-        const charState = data[CHARACTERS_KEY]?.[charName];
-        if (charState?.known_events) {
-            for (const eventId of charState.known_events) {
-                knownEventIds.add(eventId);
-            }
-        }
-    }
+    // Filter memories by POV
+    const accessibleMemories = filterMemoriesByPOV(memories, povCharacters, data);
 
-    // Filter memories by POV - memories that ANY of the POV characters know
-    const povCharactersLower = povCharacters.map(c => c.toLowerCase());
-    const accessibleMemories = memories.filter(m => {
-        if (m.witnesses?.some(w => povCharactersLower.includes(w.toLowerCase()))) return true;
-        if (!m.is_secret && m.characters_involved?.some(c => povCharactersLower.includes(c.toLowerCase()))) return true;
-        if (knownEventIds.has(m.id)) return true;
-        return false;
-    });
-
-    // Exclude memories from recent messages (they're still in context, no need to "remember")
-    const recentMessageIds = new Set(
-        context.chat
-            .map((m, idx) => idx)
-            .slice(-10)
-    );
-
+    // Exclude memories from recent messages (they're still in context)
+    const recentMessageIds = new Set(context.chat.map((m, idx) => idx).slice(-10));
     const nonRecentMemories = accessibleMemories.filter(m => {
         if (!m.message_ids || m.message_ids.length === 0) return true;
         const allSourcesRecent = m.message_ids.every(id => recentMessageIds.has(id));
@@ -267,57 +231,24 @@ export async function updateInjection(pendingUserMessage = '') {
         return;
     }
 
-    // Use first POV character for formatting (or context name for narrator mode)
     const primaryCharacter = isGroupChat ? povCharacters[0] : context.name2;
+    const headerName = isGroupChat ? primaryCharacter : 'Scene';
 
-    // Get full visible chat context for relevance matching
-    let recentMessages = context.chat
-        .filter(m => !m.is_system)
-        .map(m => m.mes)
-        .join('\n');
-
-    // Include pending user message if provided (for pre-generation retrieval)
+    // Build chat context, optionally including pending user message
+    let recentMessages = context.chat.filter(m => !m.is_system).map(m => m.mes).join('\n');
     if (pendingUserMessage) {
         recentMessages = recentMessages + '\n\n[User is about to say]: ' + pendingUserMessage;
         log(`Including pending user message in retrieval context`);
     }
 
-    // Select relevant memories - uses smart retrieval if enabled in settings
-    const relevantMemories = await selectRelevantMemories(
-        memoriesToUse,
-        recentMessages,
-        primaryCharacter,
-        activeCharacters,
-        settings.maxMemoriesPerRetrieval
+    const result = await selectFormatAndInject(
+        memoriesToUse, data, recentMessages, primaryCharacter, activeCharacters, headerName, settings
     );
 
-    if (!relevantMemories || relevantMemories.length === 0) {
+    if (!result) {
         safeSetExtensionPrompt('');
         return;
     }
 
-    // Get relationship and emotional context (with message range info)
-    const relationshipContext = getRelationshipContext(data, primaryCharacter, activeCharacters);
-    const primaryCharState = data[CHARACTERS_KEY]?.[primaryCharacter];
-    const emotionalInfo = {
-        emotion: primaryCharState?.current_emotion || 'neutral',
-        fromMessages: primaryCharState?.emotion_from_messages || null,
-    };
-
-    // Format header based on mode
-    const headerName = isGroupChat ? primaryCharacter : 'Scene';
-
-    // Format and inject
-    const formattedContext = formatContextForInjection(
-        relevantMemories,
-        relationshipContext,
-        emotionalInfo,
-        headerName,
-        settings.tokenBudget
-    );
-
-    if (formattedContext) {
-        injectContext(formattedContext);
-        log(`Injection updated: ${relevantMemories.length} memories`);
-    }
+    log(`Injection updated: ${result.memories.length} memories`);
 }

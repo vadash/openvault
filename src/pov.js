@@ -9,6 +9,42 @@ import { getOpenVaultData, log } from './utils.js';
 import { MEMORIES_KEY, CHARACTERS_KEY } from './constants.js';
 
 /**
+ * Filter memories by POV accessibility
+ * Returns only memories that the POV characters would know about.
+ * @param {Object[]} memories - All memories
+ * @param {string[]} povCharacters - POV character names
+ * @param {Object} data - OpenVault data containing character states
+ * @returns {Object[]} Memories accessible to POV characters
+ */
+export function filterMemoriesByPOV(memories, povCharacters, data) {
+    if (!memories || memories.length === 0) return [];
+    if (!povCharacters || povCharacters.length === 0) return memories;
+
+    // Collect known events from all POV characters
+    const knownEventIds = new Set();
+    for (const charName of povCharacters) {
+        const charState = data[CHARACTERS_KEY]?.[charName];
+        if (charState?.known_events) {
+            for (const eventId of charState.known_events) {
+                knownEventIds.add(eventId);
+            }
+        }
+    }
+
+    // Filter memories by POV - memories that ANY of the POV characters know
+    const povCharactersLower = povCharacters.map(c => c.toLowerCase());
+    return memories.filter(m => {
+        // Any POV character was a witness (case-insensitive)
+        if (m.witnesses?.some(w => povCharactersLower.includes(w.toLowerCase()))) return true;
+        // Non-secret events that any POV character is involved in
+        if (!m.is_secret && m.characters_involved?.some(c => povCharactersLower.includes(c.toLowerCase()))) return true;
+        // Explicitly in any POV character's known events
+        if (knownEventIds.has(m.id)) return true;
+        return false;
+    });
+}
+
+/**
  * Get active characters in the conversation
  * @returns {string[]}
  */

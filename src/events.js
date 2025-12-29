@@ -4,81 +4,18 @@
  * Handles all SillyTavern event subscriptions and processing.
  */
 
-import { eventSource, event_types, saveChatConditional } from '../../../../../script.js';
+import { eventSource, event_types } from '../../../../../script.js';
 import { getContext, extension_settings } from '../../../../extensions.js';
 import { getOpenVaultData, getCurrentChatId, saveOpenVaultData, showToast, safeSetExtensionPrompt, withTimeout, log } from './utils.js';
-import { extensionName, MEMORIES_KEY, EXTRACTED_BATCHES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
+import { extensionName, EXTRACTED_BATCHES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
 import { operationState, setGenerationLock, clearGenerationLock, isChatLoadingCooldown, setChatLoadingCooldown, resetOperationStatesIfSafe } from './state.js';
 import { setStatus } from './ui/status.js';
 import { refreshAllUI, resetMemoryBrowserPage } from './ui/browser.js';
-import { extractMemories, extractAllMessages } from './extraction/extract.js';
+import { extractMemories } from './extraction/extract.js';
+import { extractAllMessages } from './extraction/batch.js';
 import { updateInjection } from './retrieval/retrieve.js';
-
-/**
- * Auto-hide old messages beyond the threshold
- * Hides messages in pairs (user-assistant) to maintain conversation coherence
- * Messages are marked with is_system=true which excludes them from context
- * IMPORTANT: Only hides messages that have already been extracted into memories
- */
-export async function autoHideOldMessages() {
-    const settings = extension_settings[extensionName];
-    if (!settings.autoHideEnabled) return;
-
-    const context = getContext();
-    const chat = context.chat || [];
-    const threshold = settings.autoHideThreshold || 50;
-
-    // Get messages that have been extracted into memories
-    const data = getOpenVaultData();
-    const extractedMessageIds = new Set();
-    if (data) {
-        for (const memory of (data[MEMORIES_KEY] || [])) {
-            for (const msgId of (memory.message_ids || [])) {
-                extractedMessageIds.add(msgId);
-            }
-        }
-    }
-
-    // Get visible (non-hidden) messages with their original indices
-    const visibleMessages = chat
-        .map((m, idx) => ({ ...m, idx }))
-        .filter(m => !m.is_system);
-
-    // If we have fewer messages than threshold, nothing to hide
-    if (visibleMessages.length <= threshold) return;
-
-    // Calculate how many messages to hide
-    const toHideCount = visibleMessages.length - threshold;
-
-    // Round down to nearest even number (for pairs)
-    const pairsToHide = Math.floor(toHideCount / 2);
-    const messagesToHide = pairsToHide * 2;
-
-    if (messagesToHide <= 0) return;
-
-    // Hide the oldest messages, but ONLY if they've been extracted
-    let hiddenCount = 0;
-    let skippedCount = 0;
-    for (let i = 0; i < messagesToHide && i < visibleMessages.length; i++) {
-        const msgIdx = visibleMessages[i].idx;
-
-        // Only hide if this message has been extracted into memories
-        if (extractedMessageIds.has(msgIdx)) {
-            chat[msgIdx].is_system = true;
-            hiddenCount++;
-        } else {
-            skippedCount++;
-        }
-    }
-
-    if (hiddenCount > 0) {
-        await saveChatConditional();
-        log(`Auto-hid ${hiddenCount} messages (skipped ${skippedCount} not yet extracted) - threshold: ${threshold}`);
-        showToast('info', `Auto-hid ${hiddenCount} old messages`);
-    } else if (skippedCount > 0) {
-        log(`Auto-hide: ${skippedCount} messages need extraction before hiding`);
-    }
-}
+import { autoHideOldMessages } from './auto-hide.js';
+import { checkAndTriggerBackfill } from './backfill.js';
 
 /**
  * Handle pre-generation event
@@ -189,57 +126,6 @@ export function onChatChanged() {
     // Refresh UI on chat change
     refreshAllUI();
     setStatus('ready');
-}
-
-/**
- * Check and trigger automatic backfill if there are enough unprocessed messages
- * Uses same logic as manual "Backfill Chat History" button
- */
-async function checkAndTriggerBackfill() {
-    const settings = extension_settings[extensionName];
-    if (!settings.enabled || !settings.automaticMode) return;
-
-    const context = getContext();
-    const chat = context.chat || [];
-    if (chat.length === 0) return;
-
-    const data = getOpenVaultData();
-    if (!data) return;
-
-    const messageCount = settings.messagesPerExtraction || 10;
-
-    // Get already extracted message IDs
-    const extractedMessageIds = new Set();
-    for (const memory of (data[MEMORIES_KEY] || [])) {
-        for (const msgId of (memory.message_ids || [])) {
-            extractedMessageIds.add(msgId);
-        }
-    }
-
-    // Get unextracted message IDs
-    const unextractedIds = [];
-    for (let i = 0; i < chat.length; i++) {
-        if (!extractedMessageIds.has(i)) {
-            unextractedIds.push(i);
-        }
-    }
-
-    // Exclude last N messages (buffer for automatic extraction)
-    const messagesToBackfill = unextractedIds.slice(0, -messageCount);
-
-    // Only trigger if we have at least one complete batch
-    const completeBatches = Math.floor(messagesToBackfill.length / messageCount);
-
-    if (completeBatches >= 1) {
-        log(`Auto-backfill: ${messagesToBackfill.length} messages ready (${completeBatches} batches)`);
-        showToast('info', `Auto-backfill: ${completeBatches} batches...`, 'OpenVault');
-
-        try {
-            await extractAllMessages(updateEventListeners);
-        } catch (error) {
-            console.error('[OpenVault] Auto-backfill error:', error);
-        }
-    }
 }
 
 /**
@@ -387,7 +273,7 @@ export async function onMessageReceived(messageId) {
         setStatus('ready');
 
         // Check for backfill after each generation cycle
-        checkAndTriggerBackfill();
+        checkAndTriggerBackfill(updateEventListeners);
     }
 }
 
