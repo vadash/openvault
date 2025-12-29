@@ -11,8 +11,17 @@ import { sortMemoriesBySequence } from './utils.js';
 // =============================================================================
 
 export const SYSTEM_PROMPTS = {
-    extraction: 'You are a helpful assistant that extracts structured data from roleplay conversations. Always respond with valid JSON only, no markdown formatting.',
-    retrieval: 'You are a helpful assistant that analyzes memories for relevance. Always respond with valid JSON only, no markdown formatting.'
+    extraction: `You are an expert narrative analyst specializing in roleplay and interactive fiction. Your expertise includes:
+- Understanding character motivations and emotional dynamics
+- Tracking relationship developments and story continuity
+- Identifying significant plot events vs mundane exchanges
+- Recognizing secrets, revelations, and character growth moments
+
+Extract structured memory events from roleplay messages. Respond with valid JSON only, no markdown formatting or additional text.`,
+
+    retrieval: `You are a narrative memory curator for interactive fiction. Your role is to select the most relevant memories a character would recall based on the current scene.
+
+Consider what information the character would naturally remember given the conversation topics, relationships involved, and emotional context. Respond with valid JSON only, no markdown formatting or additional text.`
 };
 
 // =============================================================================
@@ -33,13 +42,19 @@ export function buildExtractionPrompt(messagesText, characterName, userName, exi
     // Build character context section if we have descriptions
     let characterContextSection = '';
     if (characterDescription || personaDescription) {
-        characterContextSection = '\n## Character Context\n';
+        characterContextSection = '<characters>\n';
         if (characterDescription) {
-            characterContextSection += `### ${characterName} (AI Character)\n${characterDescription}\n\n`;
+            characterContextSection += `<character name="${characterName}" role="main">\n${characterDescription}\n</character>\n`;
         }
         if (personaDescription) {
-            characterContextSection += `### ${userName} (User's Persona)\n${personaDescription}\n\n`;
+            characterContextSection += `<character name="${userName}" role="user">\n${personaDescription}\n</character>\n`;
         }
+        characterContextSection += '</characters>\n\n';
+    } else {
+        characterContextSection = `<characters>
+<character name="${characterName}" role="main"/>
+<character name="${userName}" role="user"/>
+</characters>\n\n`;
     }
 
     // Build memory context section if we have existing memories
@@ -49,60 +64,73 @@ export function buildExtractionPrompt(messagesText, characterName, userName, exi
             .map((m, i) => `${i + 1}. [${m.event_type || 'event'}] ${m.summary}`)
             .join('\n');
 
-        memoryContextSection = `
-## Previously Established Memories
-The following events have already been recorded. Use this context to:
-- Avoid duplicating already-recorded events
-- Maintain consistency with established facts
-- Build upon existing character developments
-
+        memoryContextSection = `<established_memories>
+The following events have already been recorded. Do NOT duplicate these.
 ${memorySummaries}
-
-`;
+</established_memories>\n\n`;
     }
 
-    return `You are analyzing roleplay messages to extract structured memory events.
-
-## Characters
-- Main character: ${characterName}
-- User's character: ${userName}
-${characterContextSection}${memoryContextSection}
-## Messages to analyze:
+    return `${characterContextSection}${memoryContextSection}<messages>
 ${messagesText}
+</messages>
 
-## Task
-Extract NEW significant events from these messages. Use the Character Context (if provided) to better understand motivations, personality traits, and relationship dynamics. For each event, identify:
-1. **event_type**: One of: "action", "revelation", "emotion_shift", "relationship_change"
-2. **importance**: 1-5 scale (1=minor detail, 2=notable, 3=significant, 4=major event, 5=critical/story-changing)
-3. **summary**: Brief description of what happened (1-2 sentences)
-4. **characters_involved**: List of character names directly involved
-5. **witnesses**: List of character names who observed this (important for POV filtering)
-6. **location**: Where this happened (if mentioned, otherwise "unknown")
-7. **is_secret**: Whether this information should only be known by witnesses
-8. **emotional_impact**: Object mapping character names to emotional changes (e.g., {"${characterName}": "growing trust", "${userName}": "surprised"})
-9. **relationship_impact**: Object describing relationship changes (e.g., {"${characterName}->${userName}": "trust increased"})
+<task>
+Extract NEW significant events from the messages above. For each event, provide:
 
-Only extract events that are significant for character memory and story continuity. Skip mundane exchanges.
-${existingMemories.length > 0 ? 'Do NOT duplicate events from the "Previously Established Memories" section.' : ''}
+<event_types>
+<type name="action">Physical actions, movements, combat, significant gestures</type>
+<type name="revelation">New information disclosed, secrets shared, backstory revealed</type>
+<type name="emotion_shift">Significant emotional changes, mood shifts, reactions</type>
+<type name="relationship_change">Trust gained/lost, bonds formed/broken, status changes</type>
+</event_types>
 
-Respond with a JSON array of events:
-\`\`\`json
+<importance_scale>
+1 = Minor detail (passing mention)
+2 = Notable (worth remembering)
+3 = Significant (affects story)
+4 = Major event (turning point)
+5 = Critical (story-changing moment)
+</importance_scale>
+
+<output_schema>
+{
+  "event_type": "action|revelation|emotion_shift|relationship_change",
+  "importance": 1-5,
+  "summary": "Brief 1-2 sentence description",
+  "characters_involved": ["names directly involved"],
+  "witnesses": ["names who observed this"],
+  "location": "where it happened or 'unknown'",
+  "is_secret": true/false,
+  "emotional_impact": {"CharacterName": "emotional change"},
+  "relationship_impact": {"CharA->CharB": "how relationship changed"}
+}
+</output_schema>
+
+<example>
+Input: "[Elena]: *She finally breaks down, tears streaming* I killed him. My own brother. He was going to betray us all to the Empire."
+Output:
 [
   {
-    "event_type": "...",
-    "importance": 3,
-    "summary": "...",
-    "characters_involved": [...],
-    "witnesses": [...],
-    "location": "...",
-    "is_secret": false,
-    "emotional_impact": {...},
-    "relationship_impact": {...}
+    "event_type": "revelation",
+    "importance": 5,
+    "summary": "Elena confesses to killing her brother to prevent his betrayal to the Empire.",
+    "characters_involved": ["Elena"],
+    "witnesses": ["Elena", "Marcus"],
+    "location": "unknown",
+    "is_secret": true,
+    "emotional_impact": {"Elena": "overwhelming guilt and grief"},
+    "relationship_impact": {"Elena->Marcus": "deepened trust through vulnerability"}
   }
 ]
-\`\`\`
+</example>
 
-If no significant events, respond with an empty array: []`;
+Instructions:
+1. Only extract events significant for character memory and story continuity
+2. Skip mundane exchanges and small talk
+3. Use witnesses field to track who knows about each event${existingMemories.length > 0 ? '\n4. Do NOT duplicate events from <established_memories>' : ''}
+
+Respond with a JSON array. If no significant events, respond with: []
+</task>`;
 }
 
 // =============================================================================
@@ -118,24 +146,36 @@ If no significant events, respond with an empty array: []`;
  * @returns {string} The smart retrieval prompt
  */
 export function buildSmartRetrievalPrompt(recentContext, numberedList, characterName, limit) {
-    return `You are a narrative memory analyzer. Given the current roleplay scene and a list of available memories, select which memories are most relevant for the AI to reference in its response.
-
-CURRENT SCENE:
+    return `<scene>
 ${recentContext}
+</scene>
 
-AVAILABLE MEMORIES (numbered):
+<memories>
 ${numberedList}
+</memories>
 
-[Task]: Select up to ${limit} memories that would be most useful for ${characterName} to know for the current scene. Consider:
-- Importance level (★ to ★★★★★) - higher importance events are more critical to the story
-- Direct relevance to current conversation topics
-- Character relationships being discussed
-- Background context that explains current situations
-- Emotional continuity
-- Secrets the character knows
+<task>
+Select up to ${limit} memories that ${characterName} would most naturally recall for this scene.
 
-[Return]: JSON object with selected memory numbers (1-indexed) and brief reasoning:
-{"selected": [1, 4, 7], "reasoning": "Brief explanation of why these memories are relevant"}
+<selection_criteria>
+- High importance (★★★★★) events take priority over low importance ones
+- Direct relevance to current conversation topics or characters mentioned
+- Relationship history with characters present in the scene
+- Emotional continuity (past feelings toward people/places being discussed)
+- Secrets or private knowledge relevant to the situation
+- Recent events that provide immediate context
+</selection_criteria>
 
-Only return valid JSON, no markdown formatting.`;
+<output_format>
+{"selected": [1, 4, 7], "reasoning": "Brief explanation"}
+</output_format>
+
+<example>
+Scene mentions: Elena asking about the old castle
+Available: 1. [★★] Visited market yesterday, 2. [★★★★] Discovered hidden passage in castle, 3. [★] Ate breakfast
+Output: {"selected": [2], "reasoning": "The hidden passage discovery is directly relevant to discussing the castle"}
+</example>
+
+Return only the JSON object with selected memory numbers (1-indexed) and reasoning.
+</task>`;
 }
