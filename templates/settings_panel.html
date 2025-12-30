@@ -98,6 +98,24 @@
                 <small class="openvault-hint">Max requests per minute during backfill (lower = safer for rate limits)</small>
             </div>
 
+            <!-- Vector Embeddings (Optional) -->
+            <div class="openvault-section">
+                <h4>Vector Embeddings (Optional)</h4>
+
+                <label for="openvault_ollama_url">Ollama URL</label>
+                <input type="text" id="openvault_ollama_url" class="text_pole" placeholder="http://localhost:11434" />
+                <small class="openvault-hint">Local Ollama server endpoint (leave empty to disable)</small>
+
+                <label for="openvault_embedding_model">Embedding Model</label>
+                <input type="text" id="openvault_embedding_model" class="text_pole" placeholder="nomic-embed-text" />
+                <small class="openvault-hint">Ollama model for embeddings (e.g., nomic-embed-text, mxbai-embed-large)</small>
+
+                <button id="openvault_backfill_embeddings_btn" class="menu_button wide">
+                    <i class="fa-solid fa-vector-square"></i> Generate Embeddings for Existing Memories
+                </button>
+                <small class="openvault-hint">Creates vector embeddings for semantic search</small>
+            </div>
+
             <!-- Statistics -->
             <div class="openvault-section">
                 <h4>Statistics</h4>

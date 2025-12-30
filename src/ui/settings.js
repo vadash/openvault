@@ -16,6 +16,7 @@ let retrieveAndInjectContextFn = null;
 let extractAllMessagesFn = null;
 let deleteCurrentChatDataFn = null;
 let deleteAllDataFn = null;
+let backfillEmbeddingsFn = null;
 
 /**
  * Set external function references
@@ -28,6 +29,7 @@ export function setExternalFunctions(fns) {
     extractAllMessagesFn = fns.extractAllMessages;
     deleteCurrentChatDataFn = fns.deleteCurrentChatData;
     deleteAllDataFn = fns.deleteAllData;
+    backfillEmbeddingsFn = fns.backfillEmbeddings;
 }
 
 /**
@@ -136,6 +138,23 @@ function bindUIElements() {
         saveSettingsDebounced();
     });
 
+    // Ollama URL input
+    $('#openvault_ollama_url').on('change', function() {
+        settings.ollamaUrl = $(this).val().trim();
+        saveSettingsDebounced();
+    });
+
+    // Embedding model input
+    $('#openvault_embedding_model').on('change', function() {
+        settings.embeddingModel = $(this).val().trim();
+        saveSettingsDebounced();
+    });
+
+    // Backfill embeddings button
+    $('#openvault_backfill_embeddings_btn').on('click', () => {
+        if (backfillEmbeddingsFn) backfillEmbeddingsFn();
+    });
+
     // Manual action buttons
     $('#openvault_extract_btn').on('click', () => {
         if (extractMemoriesFn) extractMemoriesFn();
@@ -204,6 +223,10 @@ export function updateUI() {
 
     // Backfill settings
     $('#openvault_backfill_rpm').val(settings.backfillMaxRPM);
+
+    // Embedding settings
+    $('#openvault_ollama_url').val(settings.ollamaUrl || '');
+    $('#openvault_embedding_model').val(settings.embeddingModel || '');
 
     // Populate profile selector
     populateProfileSelector();

@@ -12,6 +12,7 @@ import { setStatus } from '../ui/status.js';
 import { refreshAllUI } from '../ui/browser.js';
 import { buildExtractionPrompt } from '../prompts.js';
 import { parseExtractionResult, updateCharacterStatesFromEvents, updateRelationshipsFromEvents } from './parser.js';
+import { getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 
 /**
  * Get recent memories for context during extraction
@@ -115,6 +116,19 @@ export async function extractMemories(messageIds = null) {
         const events = parseExtractionResult(extractedJson, messagesToExtract, characterName, userName, batchId);
 
         if (events.length > 0) {
+            // Generate embeddings for new events if Ollama is configured
+            if (isEmbeddingsEnabled()) {
+                log(`Generating embeddings for ${events.length} new events`);
+                for (const event of events) {
+                    if (event.summary) {
+                        const embedding = await getEmbedding(event.summary);
+                        if (embedding) {
+                            event.embedding = embedding;
+                        }
+                    }
+                }
+            }
+
             // Add events to storage
             data[MEMORIES_KEY] = data[MEMORIES_KEY] || [];
             data[MEMORIES_KEY].push(...events);

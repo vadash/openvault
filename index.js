@@ -22,6 +22,7 @@ import { extractAllMessages } from './src/extraction/batch.js';
 import { retrieveAndInjectContext } from './src/retrieval/retrieve.js';
 import { updateEventListeners } from './src/events.js';
 import { MEMORIES_KEY } from './src/constants.js';
+import { generateEmbeddingsForMemories, isEmbeddingsEnabled } from './src/embeddings.js';
 
 // Re-export extensionName for external use
 export { extensionName };
@@ -70,6 +71,51 @@ async function deleteAllData() {
  */
 function extractAllMessagesWrapper() {
     return extractAllMessages(updateEventListeners);
+}
+
+/**
+ * Generate embeddings for existing memories that don't have them
+ */
+async function backfillEmbeddings() {
+    if (!isEmbeddingsEnabled()) {
+        showToast('warning', 'Configure Ollama URL and embedding model first');
+        return;
+    }
+
+    const data = getOpenVaultData();
+    if (!data) {
+        showToast('warning', 'No chat data available');
+        return;
+    }
+
+    const memories = data[MEMORIES_KEY] || [];
+    const needsEmbedding = memories.filter(m => !m.embedding);
+
+    if (needsEmbedding.length === 0) {
+        showToast('info', 'All memories already have embeddings');
+        return;
+    }
+
+    showToast('info', `Generating embeddings for ${needsEmbedding.length} memories...`);
+    setStatus('extracting');
+
+    try {
+        const count = await generateEmbeddingsForMemories(needsEmbedding);
+
+        if (count > 0) {
+            await saveChatConditional();
+            showToast('success', `Generated ${count} embeddings`);
+            log(`Backfill complete: generated ${count} embeddings for existing memories`);
+        } else {
+            showToast('warning', 'No embeddings generated - check Ollama connection');
+        }
+    } catch (error) {
+        console.error('[OpenVault] Backfill embeddings error:', error);
+        showToast('error', `Embedding generation failed: ${error.message}`);
+    }
+
+    setStatus('ready');
+    refreshAllUI();
 }
 
 /**
@@ -150,6 +196,7 @@ jQuery(() => {
             extractAllMessages: extractAllMessagesWrapper,
             deleteCurrentChatData,
             deleteAllData,
+            backfillEmbeddings,
         });
 
         await loadSettings();

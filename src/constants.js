@@ -33,6 +33,11 @@ export const defaultSettings = {
     autoHideThreshold: 50,
     // Backfill settings
     backfillMaxRPM: 30,
+    // Embedding settings (Local RAG)
+    ollamaUrl: '',
+    embeddingModel: '',
+    vectorSimilarityWeight: 15,
+    vectorSimilarityThreshold: 0.5,
 };
 
 // Timeout constants
@@ -51,6 +56,12 @@ export const SCORING_WEIGHTS = {
     KEYWORD_MATCH: 1,             // points per keyword match
     EVENT_TYPE_REVELATION: 3,     // bonus for revelation events
     EVENT_TYPE_RELATIONSHIP: 2,   // bonus for relationship_change events
+};
+
+// Forgetfulness curve constants
+export const FORGETFULNESS = {
+    BASE_LAMBDA: 0.05,         // Base decay rate for exponential curve
+    IMPORTANCE_5_FLOOR: 5,     // Minimum score for importance-5 memories
 };
 
 // Retrieval filter constants

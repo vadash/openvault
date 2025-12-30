@@ -2,65 +2,78 @@
  * OpenVault Memory Scoring
  *
  * Algorithms for selecting relevant memories for retrieval.
+ * Uses forgetfulness curve (exponential decay) and optional vector similarity.
  */
 
 import { extension_settings } from '../../../../../extensions.js';
 import { log, parseJsonFromMarkdown } from '../utils.js';
-import { extensionName, SCORING_WEIGHTS } from '../constants.js';
+import { extensionName, FORGETFULNESS } from '../constants.js';
 import { callLLMForRetrieval } from '../llm.js';
 import { buildSmartRetrievalPrompt } from '../prompts.js';
+import { getEmbedding, cosineSimilarity, isEmbeddingsEnabled } from '../embeddings.js';
 
 /**
- * Select relevant memories using simple scoring (fast mode)
+ * Select relevant memories using forgetfulness curve scoring
  * @param {Object[]} memories - Available memories
  * @param {string} recentContext - Recent chat context
- * @param {string} characterName - POV character name
- * @param {string[]} activeCharacters - List of active characters
+ * @param {string} characterName - POV character name (unused, kept for API compatibility)
+ * @param {string[]} activeCharacters - List of active characters (unused, kept for API compatibility)
  * @param {number} limit - Maximum memories to return
- * @returns {Object[]} Selected memories
+ * @param {number} chatLength - Current chat length (for distance calculation)
+ * @returns {Promise<Object[]>} Selected memories
  */
-export function selectRelevantMemoriesSimple(memories, recentContext, characterName, activeCharacters, limit) {
-    // Simple relevance scoring based on:
-    // 1. Importance (highest weight)
-    // 2. Recency
-    // 3. Character involvement
-    // 4. Keyword matching
+export async function selectRelevantMemoriesSimple(memories, recentContext, characterName, activeCharacters, limit, chatLength) {
+    const settings = extension_settings[extensionName];
+
+    // Get embedding for current context if enabled
+    let contextEmbedding = null;
+    if (isEmbeddingsEnabled()) {
+        // Use last ~500 chars of context for embedding
+        const contextSnippet = recentContext.slice(-500);
+        contextEmbedding = await getEmbedding(contextSnippet);
+    }
 
     const scored = memories.map(memory => {
-        let score = 0;
+        // === Forgetfulness Curve ===
+        // Use message distance (narrative time) instead of timestamp
+        const messageIds = memory.message_ids || [0];
+        const maxMessageId = Math.max(...messageIds);
+        const distance = Math.max(0, chatLength - maxMessageId);
 
-        // Importance bonus (major factor: 0-20 points based on 1-5 scale)
+        // Get importance (1-5, default 3)
         const importance = memory.importance || 3;
-        score += importance * SCORING_WEIGHTS.IMPORTANCE_MULTIPLIER;
 
-        // Recency bonus (newer = higher)
-        const age = Date.now() - memory.created_at;
-        const ageHours = age / (1000 * 60 * 60);
-        score += Math.max(0, SCORING_WEIGHTS.RECENCY_MAX_POINTS - ageHours);
+        // Calculate lambda: higher importance = slower decay
+        // importance 5 -> lambda = 0.05 / 25 = 0.002 (very slow decay)
+        // importance 1 -> lambda = 0.05 / 1  = 0.05  (fast decay)
+        const lambda = FORGETFULNESS.BASE_LAMBDA / (importance * importance);
 
-        // Character involvement bonus
-        for (const char of activeCharacters) {
-            if (memory.characters_involved?.includes(char)) score += SCORING_WEIGHTS.CHARACTER_INVOLVED;
-            if (memory.witnesses?.includes(char)) score += SCORING_WEIGHTS.CHARACTER_WITNESS;
+        // Core forgetfulness formula: Score = Importance × e^(-λ × Distance)
+        let score = importance * Math.exp(-lambda * distance);
+
+        // Importance-5 floor: never drops below minimum score
+        if (importance === 5) {
+            score = Math.max(score, FORGETFULNESS.IMPORTANCE_5_FLOOR);
         }
 
-        // Keyword matching (simple)
-        const summaryLower = memory.summary?.toLowerCase() || '';
-        const contextLower = recentContext.toLowerCase();
-        const contextWords = contextLower.split(/\s+/).filter(w => w.length > 3);
+        // === Vector Similarity Bonus ===
+        if (contextEmbedding && memory.embedding) {
+            const similarity = cosineSimilarity(contextEmbedding, memory.embedding);
+            const threshold = settings.vectorSimilarityThreshold || 0.5;
+            const maxBonus = settings.vectorSimilarityWeight || 15;
 
-        for (const word of contextWords) {
-            if (summaryLower.includes(word)) score += SCORING_WEIGHTS.KEYWORD_MATCH;
+            if (similarity > threshold) {
+                // Scale similarity above threshold to bonus points
+                // e.g., similarity 0.75 with threshold 0.5 -> (0.75-0.5)/(1-0.5) = 0.5 -> 7.5 points
+                const normalizedSim = (similarity - threshold) / (1 - threshold);
+                score += normalizedSim * maxBonus;
+            }
         }
-
-        // Event type bonus
-        if (memory.event_type === 'revelation') score += SCORING_WEIGHTS.EVENT_TYPE_REVELATION;
-        if (memory.event_type === 'relationship_change') score += SCORING_WEIGHTS.EVENT_TYPE_RELATIONSHIP;
 
         return { memory, score };
     });
 
-    // Sort by score and take top N
+    // Sort by score (highest first) and take top N
     scored.sort((a, b) => b.score - a.score);
     return scored.slice(0, limit).map(s => s.memory);
 }
@@ -71,9 +84,10 @@ export function selectRelevantMemoriesSimple(memories, recentContext, characterN
  * @param {string} recentContext - Recent chat context
  * @param {string} characterName - POV character name
  * @param {number} limit - Maximum memories to select
+ * @param {number} chatLength - Current chat length (for fallback distance calculation)
  * @returns {Promise<Object[]>} - Selected memories
  */
-export async function selectRelevantMemoriesSmart(memories, recentContext, characterName, limit) {
+export async function selectRelevantMemoriesSmart(memories, recentContext, characterName, limit, chatLength) {
     if (memories.length === 0) return [];
     if (memories.length <= limit) return memories; // No need to select if we have few enough
 
@@ -100,14 +114,14 @@ export async function selectRelevantMemoriesSmart(memories, recentContext, chara
             parsed = parseJsonFromMarkdown(response);
         } catch (parseError) {
             log(`Smart retrieval: Failed to parse LLM response, falling back to simple mode. Error: ${parseError.message}`);
-            return selectRelevantMemoriesSimple(memories, recentContext, characterName, [], limit);
+            return selectRelevantMemoriesSimple(memories, recentContext, characterName, [], limit, chatLength);
         }
 
         // Extract selected indices
         const selectedIndices = parsed.selected || [];
         if (!Array.isArray(selectedIndices) || selectedIndices.length === 0) {
             log('Smart retrieval: No memories selected by LLM, falling back to simple mode');
-            return selectRelevantMemoriesSimple(memories, recentContext, characterName, [], limit);
+            return selectRelevantMemoriesSimple(memories, recentContext, characterName, [], limit, chatLength);
         }
 
         // Convert 1-indexed to 0-indexed and filter valid indices
@@ -117,14 +131,14 @@ export async function selectRelevantMemoriesSmart(memories, recentContext, chara
 
         if (selectedMemories.length === 0) {
             log('Smart retrieval: Invalid indices from LLM, falling back to simple mode');
-            return selectRelevantMemoriesSimple(memories, recentContext, characterName, [], limit);
+            return selectRelevantMemoriesSimple(memories, recentContext, characterName, [], limit, chatLength);
         }
 
         log(`Smart retrieval: LLM selected ${selectedMemories.length} memories. Reasoning: ${parsed.reasoning || 'none provided'}`);
         return selectedMemories;
     } catch (error) {
         log(`Smart retrieval error: ${error.message}, falling back to simple mode`);
-        return selectRelevantMemoriesSimple(memories, recentContext, characterName, [], limit);
+        return selectRelevantMemoriesSimple(memories, recentContext, characterName, [], limit, chatLength);
     }
 }
 
@@ -136,14 +150,15 @@ export async function selectRelevantMemoriesSmart(memories, recentContext, chara
  * @param {string} characterName - POV character name
  * @param {string[]} activeCharacters - List of active characters
  * @param {number} limit - Maximum memories to return
+ * @param {number} chatLength - Current chat length (for distance calculation)
  * @returns {Promise<Object[]>} Selected memories
  */
-export async function selectRelevantMemories(memories, recentContext, characterName, activeCharacters, limit) {
+export async function selectRelevantMemories(memories, recentContext, characterName, activeCharacters, limit, chatLength) {
     const settings = extension_settings[extensionName];
 
     if (settings.smartRetrievalEnabled) {
-        return selectRelevantMemoriesSmart(memories, recentContext, characterName, limit);
+        return selectRelevantMemoriesSmart(memories, recentContext, characterName, limit, chatLength);
     } else {
-        return selectRelevantMemoriesSimple(memories, recentContext, characterName, activeCharacters, limit);
+        return selectRelevantMemoriesSimple(memories, recentContext, characterName, activeCharacters, limit, chatLength);
     }
 }

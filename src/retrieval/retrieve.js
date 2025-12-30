@@ -5,7 +5,7 @@
  */
 
 import { getContext, extension_settings } from '../../../../../extensions.js';
-import { getOpenVaultData, safeSetExtensionPrompt, showToast, log, isExtensionEnabled, isAutomaticMode } from '../utils.js';
+import { getOpenVaultData, saveOpenVaultData, safeSetExtensionPrompt, showToast, log, isExtensionEnabled, isAutomaticMode } from '../utils.js';
 import { extensionName, MEMORIES_KEY, CHARACTERS_KEY, LAST_BATCH_KEY, RECENT_MESSAGE_BUFFER } from '../constants.js';
 import { setStatus } from '../ui/status.js';
 import { getActiveCharacters, getPOVContext, filterMemoriesByPOV } from '../pov.js';
@@ -39,19 +39,40 @@ export function injectContext(contextText) {
  * @param {string[]} activeCharacters - All active characters
  * @param {string} headerName - Header name for injection
  * @param {Object} settings - Extension settings
+ * @param {number} chatLength - Current chat length (for distance calculation)
  * @returns {Promise<{memories: Object[], context: string}|null>}
  */
-async function selectFormatAndInject(memoriesToUse, data, recentMessages, primaryCharacter, activeCharacters, headerName, settings) {
+async function selectFormatAndInject(memoriesToUse, data, recentMessages, primaryCharacter, activeCharacters, headerName, settings, chatLength) {
     const relevantMemories = await selectRelevantMemories(
         memoriesToUse,
         recentMessages,
         primaryCharacter,
         activeCharacters,
-        settings.maxMemoriesPerRetrieval
+        settings.maxMemoriesPerRetrieval,
+        chatLength
     );
 
     if (!relevantMemories || relevantMemories.length === 0) {
         return null;
+    }
+
+    // === Memory Reinforcement ===
+    // Update message_ids for retrieved memories to make them "fresher" in the forgetfulness curve
+    // This simulates "recalling" a memory, which makes it harder to forget
+    const currentMessageId = chatLength - 1;
+    let reinforced = false;
+    for (const memory of relevantMemories) {
+        if (!memory.message_ids) {
+            memory.message_ids = [];
+        }
+        if (!memory.message_ids.includes(currentMessageId)) {
+            memory.message_ids.push(currentMessageId);
+            reinforced = true;
+        }
+    }
+    if (reinforced) {
+        await saveOpenVaultData();
+        log(`Memory reinforcement: updated message_ids for ${relevantMemories.length} recalled memories`);
     }
 
     // Get relationship and emotional context
@@ -135,9 +156,10 @@ export async function retrieveAndInjectContext() {
         const primaryCharacter = isGroupChat ? povCharacters[0] : context.name2;
         const headerName = isGroupChat ? primaryCharacter : 'Scene';
         const recentMessages = chat.filter(m => !m.is_system).map(m => m.mes).join('\n');
+        const chatLength = chat.length;
 
         const result = await selectFormatAndInject(
-            memoriesToUse, data, recentMessages, primaryCharacter, activeCharacters, headerName, settings
+            memoriesToUse, data, recentMessages, primaryCharacter, activeCharacters, headerName, settings, chatLength
         );
 
         if (!result) {
@@ -232,6 +254,7 @@ export async function updateInjection(pendingUserMessage = '') {
 
     const primaryCharacter = isGroupChat ? povCharacters[0] : context.name2;
     const headerName = isGroupChat ? primaryCharacter : 'Scene';
+    const chatLength = context.chat.length;
 
     // Build chat context, optionally including pending user message
     let recentMessages = context.chat.filter(m => !m.is_system).map(m => m.mes).join('\n');
@@ -241,7 +264,7 @@ export async function updateInjection(pendingUserMessage = '') {
     }
 
     const result = await selectFormatAndInject(
-        memoriesToUse, data, recentMessages, primaryCharacter, activeCharacters, headerName, settings
+        memoriesToUse, data, recentMessages, primaryCharacter, activeCharacters, headerName, settings, chatLength
     );
 
     if (!result) {
