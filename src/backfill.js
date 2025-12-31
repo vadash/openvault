@@ -4,7 +4,7 @@
  * Handles automatic backfill detection and triggering.
  */
 
-import { getContext, extension_settings } from '../../../../extensions.js';
+import { getDeps } from './deps.js';
 import { getOpenVaultData, showToast, log, getExtractedMessageIds, getUnextractedMessageIds, isAutomaticMode } from './utils.js';
 import { extensionName } from './constants.js';
 import { extractAllMessages } from './extraction/batch.js';
@@ -17,8 +17,9 @@ import { extractAllMessages } from './extraction/batch.js';
 export async function checkAndTriggerBackfill(updateEventListenersFn) {
     if (!isAutomaticMode()) return;
 
-    const settings = extension_settings[extensionName];
-    const context = getContext();
+    const deps = getDeps();
+    const settings = deps.getExtensionSettings()[extensionName];
+    const context = deps.getContext();
     const chat = context.chat || [];
     if (chat.length === 0) return;
 
@@ -43,7 +44,7 @@ export async function checkAndTriggerBackfill(updateEventListenersFn) {
         try {
             await extractAllMessages(updateEventListenersFn);
         } catch (error) {
-            console.error('[OpenVault] Auto-backfill error:', error);
+            deps.console.error('[OpenVault] Auto-backfill error:', error);
         }
     }
 }

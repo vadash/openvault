@@ -4,9 +4,7 @@
  * Core utility functions used throughout the extension.
  */
 
-import { getContext } from '../../../../extensions.js';
-import { saveChatConditional, setExtensionPrompt, extension_prompt_types } from '../../../../../script.js';
-import { extension_settings } from '../../../../extensions.js';
+import { getDeps } from './deps.js';
 import { extensionName, METADATA_KEY, MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, LAST_PROCESSED_KEY } from './constants.js';
 
 /**
@@ -29,9 +27,9 @@ export function withTimeout(promise, ms, operation = 'Operation') {
  * @returns {Object|null} Returns null if context is not available
  */
 export function getOpenVaultData() {
-    const context = getContext();
+    const context = getDeps().getContext();
     if (!context) {
-        console.warn('[OpenVault] getContext() returned null/undefined');
+        getDeps().console.warn('[OpenVault] getContext() returned null/undefined');
         return null;
     }
     if (!context.chatMetadata) {
@@ -53,7 +51,7 @@ export function getOpenVaultData() {
  * @returns {string|null}
  */
 export function getCurrentChatId() {
-    const context = getContext();
+    const context = getDeps().getContext();
     return context?.chatId || context?.chat_metadata?.chat_id || null;
 }
 
@@ -63,11 +61,11 @@ export function getCurrentChatId() {
  */
 export async function saveOpenVaultData() {
     try {
-        await saveChatConditional();
+        await getDeps().saveChatConditional();
         log('Data saved to chat metadata');
         return true;
     } catch (error) {
-        console.error('[OpenVault] Failed to save data:', error);
+        getDeps().console.error('[OpenVault] Failed to save data:', error);
         showToast('error', `Failed to save data: ${error.message}`);
         return false;
     }
@@ -81,11 +79,7 @@ export async function saveOpenVaultData() {
  * @param {object} options - Additional toastr options
  */
 export function showToast(type, message, title = 'OpenVault', options = {}) {
-    if (typeof toastr !== 'undefined' && toastr[type]) {
-        toastr[type](message, title, options);
-    } else {
-        console.log(`[OpenVault] Toast (${type}): ${message}`);
-    }
+    getDeps().showToast(type, message, title, options);
 }
 
 /**
@@ -95,15 +89,16 @@ export function showToast(type, message, title = 'OpenVault', options = {}) {
  */
 export function safeSetExtensionPrompt(content) {
     try {
-        setExtensionPrompt(
+        const deps = getDeps();
+        deps.setExtensionPrompt(
             extensionName,
             content,
-            extension_prompt_types.IN_CHAT,
+            deps.extension_prompt_types.IN_CHAT,
             0
         );
         return true;
     } catch (error) {
-        console.error('[OpenVault] Failed to set extension prompt:', error);
+        getDeps().console.error('[OpenVault] Failed to set extension prompt:', error);
         return false;
     }
 }
@@ -113,7 +108,7 @@ export function safeSetExtensionPrompt(content) {
  * @returns {string}
  */
 export function generateId() {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `${getDeps().Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
 /**
@@ -136,9 +131,9 @@ export function escapeHtml(str) {
  * @param {string} message
  */
 export function log(message) {
-    const settings = extension_settings[extensionName];
+    const settings = getDeps().getExtensionSettings()[extensionName];
     if (settings?.debugMode) {
-        console.log(`[OpenVault] ${message}`);
+        getDeps().console.log(`[OpenVault] ${message}`);
     }
 }
 
@@ -181,7 +176,7 @@ export function getUnextractedMessageIds(chat, extractedIds, excludeLastN = 0) {
  * @returns {boolean}
  */
 export function isExtensionEnabled() {
-    return extension_settings[extensionName]?.enabled === true;
+    return getDeps().getExtensionSettings()[extensionName]?.enabled === true;
 }
 
 /**
@@ -189,7 +184,7 @@ export function isExtensionEnabled() {
  * @returns {boolean}
  */
 export function isAutomaticMode() {
-    const settings = extension_settings[extensionName];
+    const settings = getDeps().getExtensionSettings()[extensionName];
     return settings?.enabled && settings?.automaticMode;
 }
 

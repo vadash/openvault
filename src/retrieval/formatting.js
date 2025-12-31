@@ -4,7 +4,6 @@
  * Formats memories and relationships for injection into prompts.
  */
 
-import { getContext } from '../../../../../extensions.js';
 import { RELATIONSHIPS_KEY } from '../constants.js';
 import { sortMemoriesBySequence } from '../utils.js';
 
@@ -57,12 +56,12 @@ export function getRelationshipContext(data, povCharacter, activeCharacters) {
  * @param {Object} emotionalInfo - Emotional state info { emotion, fromMessages }
  * @param {string} characterName - Character name for header
  * @param {number} tokenBudget - Maximum token budget
+ * @param {number} chatLength - Current chat length for context
  * @returns {string} Formatted context string
  */
-export function formatContextForInjection(memories, relationships, emotionalInfo, characterName, tokenBudget) {
+export function formatContextForInjection(memories, relationships, emotionalInfo, characterName, tokenBudget, chatLength = 0) {
     // Get current message number for context
-    const context = getContext();
-    const currentMessageNum = context.chat?.length || 0;
+    const currentMessageNum = chatLength;
 
     // Build header lines
     const headerLines = [

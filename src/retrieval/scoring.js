@@ -5,7 +5,7 @@
  * Uses forgetfulness curve (exponential decay) and optional vector similarity.
  */
 
-import { extension_settings } from '../../../../../extensions.js';
+import { getDeps } from '../deps.js';
 import { log, parseJsonFromMarkdown } from '../utils.js';
 import { extensionName, FORGETFULNESS } from '../constants.js';
 import { callLLMForRetrieval } from '../llm.js';
@@ -23,7 +23,7 @@ import { getEmbedding, cosineSimilarity, isEmbeddingsEnabled } from '../embeddin
  * @returns {Promise<Object[]>} Selected memories
  */
 export async function selectRelevantMemoriesSimple(memories, recentContext, characterName, activeCharacters, limit, chatLength) {
-    const settings = extension_settings[extensionName];
+    const settings = getDeps().getExtensionSettings()[extensionName];
 
     // Get embedding for current context if enabled
     let contextEmbedding = null;
@@ -154,7 +154,7 @@ export async function selectRelevantMemoriesSmart(memories, recentContext, chara
  * @returns {Promise<Object[]>} Selected memories
  */
 export async function selectRelevantMemories(memories, recentContext, characterName, activeCharacters, limit, chatLength) {
-    const settings = extension_settings[extensionName];
+    const settings = getDeps().getExtensionSettings()[extensionName];
 
     if (settings.smartRetrievalEnabled) {
         return selectRelevantMemoriesSmart(memories, recentContext, characterName, limit, chatLength);

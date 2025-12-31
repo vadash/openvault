@@ -4,6 +4,7 @@
  * Handles operation state machine, generation locks, and chat loading cooldown.
  */
 
+import { getDeps } from './deps.js';
 import { GENERATION_LOCK_TIMEOUT_MS } from './constants.js';
 
 // Operation state machine to prevent concurrent operations
@@ -29,13 +30,13 @@ export function setGenerationLock() {
 
     // Clear any existing safety timeout
     if (generationLockTimeout) {
-        clearTimeout(generationLockTimeout);
+        getDeps().clearTimeout(generationLockTimeout);
     }
 
     // Set safety timeout - if GENERATION_ENDED doesn't fire, clear the lock anyway
-    generationLockTimeout = setTimeout(() => {
+    generationLockTimeout = getDeps().setTimeout(() => {
         if (operationState.generationInProgress) {
-            console.warn('OpenVault: Generation lock timeout - clearing stale lock');
+            getDeps().console.warn('OpenVault: Generation lock timeout - clearing stale lock');
             operationState.generationInProgress = false;
         }
     }, GENERATION_LOCK_TIMEOUT_MS);
@@ -47,7 +48,7 @@ export function setGenerationLock() {
 export function clearGenerationLock() {
     operationState.generationInProgress = false;
     if (generationLockTimeout) {
-        clearTimeout(generationLockTimeout);
+        getDeps().clearTimeout(generationLockTimeout);
         generationLockTimeout = null;
     }
 }
@@ -60,7 +61,7 @@ export function clearAllLocks() {
     operationState.extractionInProgress = false;
     operationState.retrievalInProgress = false;
     if (generationLockTimeout) {
-        clearTimeout(generationLockTimeout);
+        getDeps().clearTimeout(generationLockTimeout);
         generationLockTimeout = null;
     }
 }
@@ -81,9 +82,9 @@ export function isChatLoadingCooldown() {
 export function setChatLoadingCooldown(timeoutMs = 2000, logFn = null) {
     chatLoadingCooldown = true;
     if (chatLoadingTimeout) {
-        clearTimeout(chatLoadingTimeout);
+        getDeps().clearTimeout(chatLoadingTimeout);
     }
-    chatLoadingTimeout = setTimeout(() => {
+    chatLoadingTimeout = getDeps().setTimeout(() => {
         chatLoadingCooldown = false;
         if (logFn) logFn('Chat load cooldown cleared');
     }, timeoutMs);

@@ -5,7 +5,7 @@
  * Provides graceful fallback when Ollama is not configured.
  */
 
-import { extension_settings } from '../../../../extensions.js';
+import { getDeps } from './deps.js';
 import { log } from './utils.js';
 import { extensionName } from './constants.js';
 
@@ -39,7 +39,7 @@ export function cosineSimilarity(vecA, vecB) {
  * @returns {boolean} True if Ollama URL and model are configured
  */
 export function isEmbeddingsEnabled() {
-    const settings = extension_settings[extensionName];
+    const settings = getDeps().getExtensionSettings()[extensionName];
     return !!(settings?.ollamaUrl && settings?.embeddingModel);
 }
 
@@ -49,7 +49,7 @@ export function isEmbeddingsEnabled() {
  * @returns {Promise<number[]|null>} Embedding vector or null if unavailable
  */
 export async function getEmbedding(text) {
-    const settings = extension_settings[extensionName];
+    const settings = getDeps().getExtensionSettings()[extensionName];
 
     if (!settings?.ollamaUrl || !settings?.embeddingModel) {
         return null;
@@ -61,7 +61,7 @@ export async function getEmbedding(text) {
 
     try {
         const url = settings.ollamaUrl.replace(/\/+$/, ''); // Remove trailing slashes
-        const response = await fetch(`${url}/api/embeddings`, {
+        const response = await getDeps().fetch(`${url}/api/embeddings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

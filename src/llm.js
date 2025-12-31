@@ -4,8 +4,7 @@
  * Unified LLM communication for extraction and retrieval operations.
  */
 
-import { getContext, extension_settings } from '../../../../extensions.js';
-import { ConnectionManagerRequestService } from '../../../shared.js';
+import { getDeps } from './deps.js';
 import { log, showToast } from './utils.js';
 import { extensionName } from './constants.js';
 import { SYSTEM_PROMPTS } from './prompts.js';
@@ -37,6 +36,8 @@ export const LLM_CONFIGS = {
  */
 export async function callLLM(prompt, config) {
     const { profileSettingKey, systemPrompt, maxTokens, errorContext } = config;
+    const deps = getDeps();
+    const extension_settings = deps.getExtensionSettings();
     const settings = extension_settings[extensionName];
 
     // Get profile ID - use specified profile or fall back to currently selected
@@ -63,7 +64,7 @@ export async function callLLM(prompt, config) {
             { role: 'user', content: prompt }
         ];
 
-        const result = await ConnectionManagerRequestService.sendRequest(
+        const result = await deps.connectionManager.sendRequest(
             profileId,
             messages,
             maxTokens,
@@ -82,7 +83,7 @@ export async function callLLM(prompt, config) {
         }
 
         // Parse reasoning if present (some models return thinking tags)
-        const context = getContext();
+        const context = deps.getContext();
         if (context.parseReasoningFromString) {
             const parsed = context.parseReasoningFromString(content);
             return parsed ? parsed.content : content;

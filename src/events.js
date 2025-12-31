@@ -5,7 +5,7 @@
  */
 
 import { eventSource, event_types } from '../../../../../script.js';
-import { getContext, extension_settings } from '../../../../extensions.js';
+import { getDeps } from './deps.js';
 import { getOpenVaultData, getCurrentChatId, showToast, safeSetExtensionPrompt, withTimeout, log, getExtractedMessageIds, getUnextractedMessageIds, isAutomaticMode } from './utils.js';
 import { extensionName, MEMORIES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
 import { operationState, setGenerationLock, clearGenerationLock, isChatLoadingCooldown, setChatLoadingCooldown, resetOperationStatesIfSafe } from './state.js';
@@ -63,7 +63,7 @@ export async function onBeforeGeneration(type, options, dryRun = false) {
         setGenerationLock();
 
         // Get context for retrieval - use the last user message if available
-        const context = getContext();
+        const context = getDeps().getContext();
         const chat = context.chat || [];
         const lastUserMessage = [...chat].reverse().find(m => m.is_user && !m.is_system);
         const pendingUserMessage = lastUserMessage?.mes || '';
@@ -82,7 +82,7 @@ export async function onBeforeGeneration(type, options, dryRun = false) {
 
         setStatus('ready');
     } catch (error) {
-        console.error('OpenVault: Error during pre-generation retrieval:', error);
+        getDeps().console.error('OpenVault: Error during pre-generation retrieval:', error);
         setStatus('error');
         // Don't block generation on retrieval failure
     } finally {
@@ -151,7 +151,8 @@ export async function onMessageReceived(messageId) {
     const chatIdBeforeExtraction = getCurrentChatId();
 
     try {
-        const context = getContext();
+        const deps = getDeps();
+        const context = deps.getContext();
         const chat = context.chat || [];
         const message = chat[messageId];
 
@@ -167,7 +168,7 @@ export async function onMessageReceived(messageId) {
             return;
         }
 
-        const settings = extension_settings[extensionName];
+        const settings = deps.getExtensionSettings()[extensionName];
         const messageCount = settings.messagesPerExtraction || 10;
 
         // Use message-based tracking (works correctly with auto-hide)
@@ -216,7 +217,7 @@ export async function onMessageReceived(messageId) {
             showToast('success', `Extracted ${result.events_created} events from ${result.messages_processed} messages`, 'OpenVault');
         }
     } catch (error) {
-        console.error('[OpenVault] Automatic extraction error:', error);
+        getDeps().console.error('[OpenVault] Automatic extraction error:', error);
         // Clear the persistent toast and show error
         $('.openvault-extracting-toast').remove();
         showToast('error', `Extraction failed: ${error.message}`, 'OpenVault');

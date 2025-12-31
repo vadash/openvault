@@ -4,7 +4,7 @@
  * Main retrieval logic for selecting and injecting memories into context.
  */
 
-import { getContext, extension_settings } from '../../../../../extensions.js';
+import { getDeps } from '../deps.js';
 import { getOpenVaultData, saveOpenVaultData, safeSetExtensionPrompt, showToast, log, isExtensionEnabled, isAutomaticMode } from '../utils.js';
 import { extensionName, MEMORIES_KEY, CHARACTERS_KEY, LAST_BATCH_KEY, RECENT_MESSAGE_BUFFER } from '../constants.js';
 import { setStatus } from '../ui/status.js';
@@ -89,7 +89,8 @@ async function selectFormatAndInject(memoriesToUse, data, recentMessages, primar
         relationshipContext,
         emotionalInfo,
         headerName,
-        settings.tokenBudget
+        settings.tokenBudget,
+        chatLength
     );
 
     if (formattedContext) {
@@ -109,8 +110,9 @@ export async function retrieveAndInjectContext() {
         return null;
     }
 
-    const settings = extension_settings[extensionName];
-    const context = getContext();
+    const deps = getDeps();
+    const settings = deps.getExtensionSettings()[extensionName];
+    const context = deps.getContext();
     const chat = context.chat;
 
     if (!chat || chat.length === 0) {
@@ -173,7 +175,7 @@ export async function retrieveAndInjectContext() {
         setStatus('ready');
         return result;
     } catch (error) {
-        console.error('[OpenVault] Retrieval error:', error);
+        getDeps().console.error('[OpenVault] Retrieval error:', error);
         setStatus('error');
         return null;
     }
@@ -191,8 +193,9 @@ export async function updateInjection(pendingUserMessage = '') {
         return;
     }
 
-    const settings = extension_settings[extensionName];
-    const context = getContext();
+    const deps = getDeps();
+    const settings = deps.getExtensionSettings()[extensionName];
+    const context = deps.getContext();
     if (!context.chat || context.chat.length === 0) {
         safeSetExtensionPrompt('');
         return;

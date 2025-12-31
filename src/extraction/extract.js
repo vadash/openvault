@@ -4,7 +4,7 @@
  * Main extraction logic for extracting memories from messages.
  */
 
-import { getContext, extension_settings } from '../../../../../extensions.js';
+import { getDeps } from '../deps.js';
 import { getOpenVaultData, saveOpenVaultData, showToast, log, sortMemoriesBySequence, isExtensionEnabled } from '../utils.js';
 import { extensionName, MEMORIES_KEY, LAST_PROCESSED_KEY, LAST_BATCH_KEY } from '../constants.js';
 import { callLLMForExtraction } from '../llm.js';
@@ -44,8 +44,9 @@ export async function extractMemories(messageIds = null) {
         return;
     }
 
-    const settings = extension_settings[extensionName];
-    const context = getContext();
+    const deps = getDeps();
+    const settings = deps.getExtensionSettings()[extensionName];
+    const context = deps.getContext();
     const chat = context.chat;
 
     if (!chat || chat.length === 0) {
@@ -85,7 +86,7 @@ export async function extractMemories(messageIds = null) {
     setStatus('extracting');
 
     // Generate a unique batch ID for this extraction run
-    const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const batchId = `batch_${deps.Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     try {
         const characterName = context.name2;
@@ -157,7 +158,7 @@ export async function extractMemories(messageIds = null) {
 
         return { events_created: events.length, messages_processed: messagesToExtract.length };
     } catch (error) {
-        console.error('[OpenVault] Extraction error:', error);
+        getDeps().console.error('[OpenVault] Extraction error:', error);
         showToast('error', `Extraction failed: ${error.message}`);
         setStatus('error');
         throw error;

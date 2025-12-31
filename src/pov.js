@@ -4,7 +4,7 @@
  * Handles point-of-view determination and character detection for memory filtering.
  */
 
-import { getContext } from '../../../../extensions.js';
+import { getDeps } from './deps.js';
 import { getOpenVaultData, log } from './utils.js';
 import { MEMORIES_KEY, CHARACTERS_KEY } from './constants.js';
 
@@ -49,7 +49,7 @@ export function filterMemoriesByPOV(memories, povCharacters, data) {
  * @returns {string[]}
  */
 export function getActiveCharacters() {
-    const context = getContext();
+    const context = getDeps().getContext();
     const characters = [context.name2]; // Main character
 
     // Add user
@@ -80,7 +80,7 @@ export function getActiveCharacters() {
  * @returns {string[]} - List of detected character names
  */
 export function detectPresentCharactersFromMessages(messageCount = 2) {
-    const context = getContext();
+    const context = getDeps().getContext();
     const chat = context.chat || [];
     const data = getOpenVaultData();
 
@@ -164,7 +164,7 @@ export function detectPresentCharactersFromMessages(messageCount = 2) {
  * @returns {{ povCharacters: string[], isGroupChat: boolean }}
  */
 export function getPOVContext() {
-    const context = getContext();
+    const context = getDeps().getContext();
     const isGroupChat = !!context.groupId;
 
     if (isGroupChat) {

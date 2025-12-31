@@ -4,8 +4,7 @@
  * Automatically hides old messages that have been extracted into memories.
  */
 
-import { saveChatConditional } from '../../../../../script.js';
-import { getContext, extension_settings } from '../../../../extensions.js';
+import { getDeps } from './deps.js';
 import { getOpenVaultData, showToast, log, getExtractedMessageIds } from './utils.js';
 import { extensionName } from './constants.js';
 
@@ -16,10 +15,11 @@ import { extensionName } from './constants.js';
  * IMPORTANT: Only hides messages that have already been extracted into memories
  */
 export async function autoHideOldMessages() {
-    const settings = extension_settings[extensionName];
+    const deps = getDeps();
+    const settings = deps.getExtensionSettings()[extensionName];
     if (!settings.autoHideEnabled) return;
 
-    const context = getContext();
+    const context = deps.getContext();
     const chat = context.chat || [];
     const threshold = settings.autoHideThreshold || 50;
 
@@ -60,7 +60,7 @@ export async function autoHideOldMessages() {
     }
 
     if (hiddenCount > 0) {
-        await saveChatConditional();
+        await getDeps().saveChatConditional();
         log(`Auto-hid ${hiddenCount} messages (skipped ${skippedCount} not yet extracted) - threshold: ${threshold}`);
         showToast('info', `Auto-hid ${hiddenCount} old messages`);
     } else if (skippedCount > 0) {
