@@ -8,6 +8,8 @@ import { saveSettingsDebounced } from '../../../../../../script.js';
 import { extension_settings } from '../../../../../extensions.js';
 import { extensionName, extensionFolderPath, defaultSettings } from '../constants.js';
 import { refreshAllUI, prevPage, nextPage, resetAndRender } from './browser.js';
+import { formatMemoryContextCount } from './formatting.js';
+import { validateRPM } from './calculations.js';
 
 // References to external functions (set during init)
 let updateEventListenersFn = null;
@@ -100,7 +102,7 @@ function bindUIElements() {
     // Memory context count slider
     $('#openvault_memory_context_count').on('input', function() {
         settings.memoryContextCount = parseInt($(this).val());
-        $('#openvault_memory_context_count_value').text(settings.memoryContextCount < 0 ? 'All' : settings.memoryContextCount);
+        $('#openvault_memory_context_count_value').text(formatMemoryContextCount(settings.memoryContextCount));
         saveSettingsDebounced();
     });
 
@@ -132,8 +134,7 @@ function bindUIElements() {
 
     // Backfill rate limit input
     $('#openvault_backfill_rpm').on('change', function() {
-        const value = parseInt($(this).val()) || 30;
-        settings.backfillMaxRPM = Math.max(1, Math.min(600, value));
+        settings.backfillMaxRPM = validateRPM($(this).val(), 30);
         $(this).val(settings.backfillMaxRPM);
         saveSettingsDebounced();
     });
@@ -211,7 +212,7 @@ export function updateUI() {
     $('#openvault_messages_per_extraction').val(settings.messagesPerExtraction);
     $('#openvault_messages_per_extraction_value').text(settings.messagesPerExtraction);
     $('#openvault_memory_context_count').val(settings.memoryContextCount);
-    $('#openvault_memory_context_count_value').text(settings.memoryContextCount < 0 ? 'All' : settings.memoryContextCount);
+    $('#openvault_memory_context_count_value').text(formatMemoryContextCount(settings.memoryContextCount));
     $('#openvault_smart_retrieval').prop('checked', settings.smartRetrievalEnabled);
     $('#openvault_max_memories').val(settings.maxMemoriesPerRetrieval);
     $('#openvault_max_memories_value').text(settings.maxMemoriesPerRetrieval);

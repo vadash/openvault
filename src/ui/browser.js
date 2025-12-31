@@ -8,6 +8,8 @@ import { saveChatConditional } from '../../../../../../script.js';
 import { getOpenVaultData, escapeHtml, showToast } from '../utils.js';
 import { MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, MEMORIES_PER_PAGE } from '../constants.js';
 import { refreshStats } from './status.js';
+import { formatMemoryImportance, formatMemoryDate, formatWitnesses } from './formatting.js';
+import { filterMemories, sortMemoriesByDate, getPaginationInfo, extractCharactersSet, buildCharacterStateData, buildRelationshipData } from './calculations.js';
 
 // Pagination state for memory browser
 let memoryBrowserPage = 0;
@@ -65,21 +67,13 @@ export function renderMemoryBrowser() {
     const typeFilter = $('#openvault_filter_type').val();
     const characterFilter = $('#openvault_filter_character').val();
 
-    // Filter memories
-    let filteredMemories = memories.filter(m => {
-        if (typeFilter && m.event_type !== typeFilter) return false;
-        if (characterFilter && !m.characters_involved?.includes(characterFilter)) return false;
-        return true;
-    });
+    // Filter and sort using pure functions
+    const filteredMemories = sortMemoriesByDate(filterMemories(memories, typeFilter, characterFilter));
 
-    // Sort by creation date (newest first)
-    filteredMemories.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
-
-    // Pagination
-    const totalPages = Math.ceil(filteredMemories.length / MEMORIES_PER_PAGE) || 1;
-    memoryBrowserPage = Math.min(memoryBrowserPage, totalPages - 1);
-    const startIdx = memoryBrowserPage * MEMORIES_PER_PAGE;
-    const pageMemories = filteredMemories.slice(startIdx, startIdx + MEMORIES_PER_PAGE);
+    // Pagination using pure function
+    const pagination = getPaginationInfo(filteredMemories.length, memoryBrowserPage, MEMORIES_PER_PAGE);
+    memoryBrowserPage = pagination.currentPage;
+    const pageMemories = filteredMemories.slice(pagination.startIdx, pagination.endIdx);
 
     // Clear and render
     $list.empty();
@@ -88,18 +82,19 @@ export function renderMemoryBrowser() {
         $list.html('<p class="openvault-placeholder">No memories yet</p>');
     } else {
         for (const memory of pageMemories) {
-            const date = memory.created_at ? new Date(memory.created_at).toLocaleDateString() : 'Unknown';
+            const date = formatMemoryDate(memory.created_at);
             const typeClass = memory.event_type || 'action';
             const characters = (memory.characters_involved || []).map(c =>
                 `<span class="openvault-character-tag">${escapeHtml(c)}</span>`
             ).join('');
-            const witnesses = memory.witnesses?.length > 0
-                ? `<div class="openvault-memory-witnesses">Witnesses: ${memory.witnesses.join(', ')}</div>`
+            const witnessText = formatWitnesses(memory.witnesses);
+            const witnesses = witnessText
+                ? `<div class="openvault-memory-witnesses">${witnessText}</div>`
                 : '';
 
-            // Importance stars
+            // Importance stars using pure function
             const importance = memory.importance || 3;
-            const stars = '\u2605'.repeat(importance) + '\u2606'.repeat(5 - importance);
+            const stars = formatMemoryImportance(importance);
 
             $list.append(`
                 <div class="openvault-memory-item ${typeClass}" data-id="${memory.id}">
@@ -128,9 +123,9 @@ export function renderMemoryBrowser() {
     }
 
     // Update pagination
-    $pageInfo.text(`Page ${memoryBrowserPage + 1} of ${totalPages}`);
-    $prevBtn.prop('disabled', memoryBrowserPage === 0);
-    $nextBtn.prop('disabled', memoryBrowserPage >= totalPages - 1);
+    $pageInfo.text(`Page ${pagination.currentPage + 1} of ${pagination.totalPages}`);
+    $prevBtn.prop('disabled', !pagination.hasPrev);
+    $nextBtn.prop('disabled', !pagination.hasNext);
 
     // Populate character filter dropdown
     populateCharacterFilter();
@@ -165,24 +160,18 @@ export function populateCharacterFilter() {
         return;
     }
     const memories = data[MEMORIES_KEY] || [];
-    const characters = new Set();
-
-    for (const memory of memories) {
-        for (const char of (memory.characters_involved || [])) {
-            characters.add(char);
-        }
-    }
+    const characters = extractCharactersSet(memories);
 
     const $filter = $('#openvault_filter_character');
     const currentValue = $filter.val();
     $filter.find('option:not(:first)').remove();
 
-    for (const char of Array.from(characters).sort()) {
+    for (const char of characters) {
         $filter.append(`<option value="${escapeHtml(char)}">${escapeHtml(char)}</option>`);
     }
 
     // Restore selection if still valid
-    if (currentValue && characters.has(currentValue)) {
+    if (currentValue && characters.includes(currentValue)) {
         $filter.val(currentValue);
     }
 }
@@ -208,30 +197,18 @@ export function renderCharacterStates() {
     }
 
     for (const name of charNames.sort()) {
-        const char = characters[name];
-        const emotion = char.current_emotion || 'neutral';
-        const intensity = char.emotion_intensity || 5;
-        const knownCount = char.known_events?.length || 0;
-
-        // Format message range for emotion source
-        let emotionSource = '';
-        if (char.emotion_from_messages) {
-            const { min, max } = char.emotion_from_messages;
-            emotionSource = min === max
-                ? ` (msg ${min})`
-                : ` (msgs ${min}-${max})`;
-        }
+        const charData = buildCharacterStateData(name, characters[name]);
 
         $container.append(`
             <div class="openvault-character-item">
-                <div class="openvault-character-name">${escapeHtml(name)}</div>
+                <div class="openvault-character-name">${escapeHtml(charData.name)}</div>
                 <div class="openvault-emotion">
-                    <span class="openvault-emotion-label">${escapeHtml(emotion)}${emotionSource}</span>
+                    <span class="openvault-emotion-label">${escapeHtml(charData.emotion)}${charData.emotionSource}</span>
                     <div class="openvault-emotion-bar">
-                        <div class="openvault-emotion-fill" style="width: ${intensity * 10}%"></div>
+                        <div class="openvault-emotion-fill" style="width: ${charData.intensityPercent}%"></div>
                     </div>
                 </div>
-                <div class="openvault-memory-witnesses">Known events: ${knownCount}</div>
+                <div class="openvault-memory-witnesses">Known events: ${charData.knownCount}</div>
             </div>
         `);
     }
@@ -258,26 +235,23 @@ export function renderRelationships() {
     }
 
     for (const key of relKeys.sort()) {
-        const rel = relationships[key];
-        const trust = rel.trust_level || 5;
-        const tension = rel.tension_level || 0;
-        const type = rel.relationship_type || 'acquaintance';
+        const relData = buildRelationshipData(key, relationships[key]);
 
         $container.append(`
             <div class="openvault-relationship-item">
-                <div class="openvault-relationship-pair">${escapeHtml(rel.character_a || '?')} \u2194 ${escapeHtml(rel.character_b || '?')}</div>
-                <div class="openvault-relationship-type">${escapeHtml(type)}</div>
+                <div class="openvault-relationship-pair">${escapeHtml(relData.characterA)} \u2194 ${escapeHtml(relData.characterB)}</div>
+                <div class="openvault-relationship-type">${escapeHtml(relData.type)}</div>
                 <div class="openvault-relationship-bars">
                     <div class="openvault-bar-row">
                         <span class="openvault-bar-label">Trust</span>
                         <div class="openvault-bar-container">
-                            <div class="openvault-bar-fill trust" style="width: ${trust * 10}%"></div>
+                            <div class="openvault-bar-fill trust" style="width: ${relData.trustPercent}%"></div>
                         </div>
                     </div>
                     <div class="openvault-bar-row">
                         <span class="openvault-bar-label">Tension</span>
                         <div class="openvault-bar-container">
-                            <div class="openvault-bar-fill tension" style="width: ${tension * 10}%"></div>
+                            <div class="openvault-bar-fill tension" style="width: ${relData.tensionPercent}%"></div>
                         </div>
                     </div>
                 </div>
