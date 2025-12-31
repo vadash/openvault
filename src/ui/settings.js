@@ -50,6 +50,14 @@ export async function loadSettings() {
     const settingsHtml = await $.get(`${extensionFolderPath}/templates/settings_panel.html`);
     $('#extensions_settings2').append(settingsHtml);
 
+    // Inject version from manifest.json
+    try {
+        const manifest = await $.getJSON(`${extensionFolderPath}/manifest.json`);
+        $('#openvault_version').text(manifest.version);
+    } catch {
+        $('#openvault_version').text('?');
+    }
+
     // Bind UI elements
     bindUIElements();
 
