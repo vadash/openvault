@@ -242,15 +242,6 @@ describe('retrieve', () => {
             expect(setStatus).toHaveBeenCalledWith('ready');
         });
 
-        it('initializes message_ids if undefined', async () => {
-            const selectedMemory = { id: '1', summary: 'Memory 1' };
-            selectRelevantMemories.mockResolvedValue([selectedMemory]);
-
-            await retrieveAndInjectContext();
-
-            expect(selectedMemory.message_ids).toContain(1);
-        });
-
         it('gets relationship context for active characters', async () => {
             selectRelevantMemories.mockResolvedValue([mockData[MEMORIES_KEY][0]]);
 

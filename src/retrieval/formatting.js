@@ -65,8 +65,8 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
 
     // Build header lines
     const headerLines = [
-        `[${characterName}'s Memory & State]`,
-        `(Current message: #${currentMessageNum})`,
+        '<scene_memory>',
+        `(Current chat has #${currentMessageNum} messages)`,
         ''
     ];
 
@@ -97,7 +97,7 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
         headerLines.push('');
     }
 
-    const footerLine = `[End ${characterName}'s Memory]`;
+    const footerLine = '</scene_memory>';
 
     // Calculate overhead tokens (header + footer)
     const overheadTokens = (headerLines.join('\n').length + footerLine.length) / 4;
@@ -127,20 +127,19 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
         const sortedMemories = sortMemoriesBySequence(memoriesToFormat, true);
 
         memoryLines.push('Relevant memories (in chronological order, \u2605=minor to \u2605\u2605\u2605\u2605\u2605=critical):');
-        sortedMemories.forEach((memory, index) => {
+        sortedMemories.forEach((memory) => {
             const prefix = memory.is_secret ? '[Secret] ' : '';
             const msgIds = memory.message_ids || [];
             let msgLabel = '';
             if (msgIds.length === 1) {
-                msgLabel = `(msg #${msgIds[0]})`;
+                msgLabel = `#${msgIds[0]}`;
             } else if (msgIds.length > 1) {
                 const minMsg = Math.min(...msgIds);
-                const maxMsg = Math.max(...msgIds);
-                msgLabel = `(msgs #${minMsg}-${maxMsg})`;
+                msgLabel = `#${minMsg}`;
             }
             const importance = memory.importance || 3;
             const importanceLabel = '\u2605'.repeat(importance);
-            memoryLines.push(`${index + 1}. ${msgLabel} [${importanceLabel}] ${prefix}${memory.summary}`);
+            memoryLines.push(`${msgLabel} [${importanceLabel}] ${prefix}${memory.summary}`);
         });
     }
 

@@ -127,9 +127,9 @@ describe('formatting', () => {
     describe('formatContextForInjection', () => {
         it('formats basic header with character name', () => {
             const result = formatContextForInjection([], [], null, 'Alice', 1000, 50);
-            expect(result).toContain("[Alice's Memory & State]");
-            expect(result).toContain('(Current message: #50)');
-            expect(result).toContain("[End Alice's Memory]");
+            expect(result).toContain('<scene_memory>');
+            expect(result).toContain('(Current chat has #50 messages)');
+            expect(result).toContain('</scene_memory>');
         });
 
         it('includes emotional state when not neutral', () => {
@@ -235,8 +235,8 @@ describe('formatting', () => {
 
             const result = formatContextForInjection(memories, [], null, 'Alice', 10000);
 
-            expect(result).toContain('(msg #5)');
-            expect(result).toContain('(msgs #10-12)');
+            expect(result).toContain('#5 [');
+            expect(result).toContain('#10 [');
         });
 
         it('marks secret memories', () => {
@@ -263,8 +263,8 @@ describe('formatting', () => {
             // Small budget - should only fit a few memories
             const result = formatContextForInjection(memories, [], null, 'Alice', 200);
 
-            // Count how many memories made it in
-            const memoryCount = (result.match(/\d+\. \(msg/g) || []).length;
+            // Count how many memories made it in (each has #N [ format)
+            const memoryCount = (result.match(/#\d+ \[/g) || []).length;
             expect(memoryCount).toBeLessThan(100);
             expect(memoryCount).toBeGreaterThan(0);
         });
@@ -276,7 +276,7 @@ describe('formatting', () => {
 
         it('handles null memories', () => {
             const result = formatContextForInjection(null, [], null, 'Alice', 1000);
-            expect(result).toContain("[Alice's Memory & State]");
+            expect(result).toContain('<scene_memory>');
         });
 
         it('defaults relationship type to acquaintance', () => {
