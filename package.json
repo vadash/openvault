@@ -5,8 +5,7 @@
   "description": "SillyTavern extension",
   "scripts": {
     "lint": "eslint .",
-    "test": "vitest",
-    "test:run": "vitest run"
+    "test": "vitest run"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
