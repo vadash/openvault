@@ -1,0 +1,493 @@
+/**
+ * Tests for src/retrieval/retrieve.js
+ */
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { setDeps, resetDeps } from '../src/deps.js';
+import { extensionName, MEMORIES_KEY, CHARACTERS_KEY, LAST_BATCH_KEY, RECENT_MESSAGE_BUFFER } from '../src/constants.js';
+
+// Mock dependencies
+vi.mock('../src/utils.js', () => ({
+    getOpenVaultData: vi.fn(),
+    saveOpenVaultData: vi.fn(),
+    safeSetExtensionPrompt: vi.fn(),
+    showToast: vi.fn(),
+    log: vi.fn(),
+    isExtensionEnabled: vi.fn(),
+    isAutomaticMode: vi.fn(),
+}));
+
+vi.mock('../src/ui/status.js', () => ({
+    setStatus: vi.fn(),
+}));
+
+vi.mock('../src/pov.js', () => ({
+    getActiveCharacters: vi.fn(),
+    getPOVContext: vi.fn(),
+    filterMemoriesByPOV: vi.fn(),
+}));
+
+vi.mock('../src/retrieval/scoring.js', () => ({
+    selectRelevantMemories: vi.fn(),
+}));
+
+vi.mock('../src/retrieval/formatting.js', () => ({
+    getRelationshipContext: vi.fn(),
+    formatContextForInjection: vi.fn(),
+}));
+
+// Import after mocks
+import {
+    injectContext,
+    retrieveAndInjectContext,
+    updateInjection,
+} from '../src/retrieval/retrieve.js';
+import { getOpenVaultData, saveOpenVaultData, safeSetExtensionPrompt, showToast, log, isExtensionEnabled, isAutomaticMode } from '../src/utils.js';
+import { setStatus } from '../src/ui/status.js';
+import { getActiveCharacters, getPOVContext, filterMemoriesByPOV } from '../src/pov.js';
+import { selectRelevantMemories } from '../src/retrieval/scoring.js';
+import { getRelationshipContext, formatContextForInjection } from '../src/retrieval/formatting.js';
+
+describe('retrieve', () => {
+    let mockConsole;
+    let mockSettings;
+    let mockContext;
+    let mockData;
+
+    beforeEach(() => {
+        mockConsole = {
+            log: vi.fn(),
+            warn: vi.fn(),
+            error: vi.fn(),
+        };
+
+        mockSettings = {
+            enabled: true,
+            automaticMode: true,
+            debugMode: true,
+            maxMemoriesPerRetrieval: 10,
+            tokenBudget: 1000,
+        };
+
+        mockContext = {
+            chat: [
+                { mes: 'Hello', is_user: true },
+                { mes: 'Hi there!', is_user: false, is_system: false },
+            ],
+            name1: 'User',
+            name2: 'Alice',
+        };
+
+        mockData = {
+            [MEMORIES_KEY]: [
+                { id: '1', summary: 'Memory 1', importance: 3, message_ids: [0] },
+                { id: '2', summary: 'Memory 2', importance: 4, message_ids: [1] },
+            ],
+            [CHARACTERS_KEY]: {
+                Alice: { current_emotion: 'happy', emotion_from_messages: [1] },
+            },
+        };
+
+        setDeps({
+            console: mockConsole,
+            getExtensionSettings: () => ({ [extensionName]: mockSettings }),
+            getContext: () => mockContext,
+        });
+
+        // Reset all mocks
+        vi.clearAllMocks();
+
+        // Default mock behaviors
+        isExtensionEnabled.mockReturnValue(true);
+        isAutomaticMode.mockReturnValue(true);
+        getOpenVaultData.mockReturnValue(mockData);
+        saveOpenVaultData.mockResolvedValue();
+        safeSetExtensionPrompt.mockReturnValue(true);
+        getActiveCharacters.mockReturnValue(['Alice']);
+        getPOVContext.mockReturnValue({ povCharacters: ['Alice'], isGroupChat: false });
+        filterMemoriesByPOV.mockImplementation((memories) => memories);
+        selectRelevantMemories.mockResolvedValue([]);
+        getRelationshipContext.mockReturnValue('Relationship context');
+        formatContextForInjection.mockReturnValue('Formatted context');
+    });
+
+    afterEach(() => {
+        resetDeps();
+    });
+
+    describe('injectContext', () => {
+        it('clears injection when context is null', () => {
+            injectContext(null);
+
+            expect(safeSetExtensionPrompt).toHaveBeenCalledWith('');
+        });
+
+        it('clears injection when context is empty string', () => {
+            injectContext('');
+
+            expect(safeSetExtensionPrompt).toHaveBeenCalledWith('');
+        });
+
+        it('injects context text via safeSetExtensionPrompt', () => {
+            injectContext('Memory context here');
+
+            expect(safeSetExtensionPrompt).toHaveBeenCalledWith('Memory context here');
+        });
+
+        it('logs success when injection succeeds', () => {
+            safeSetExtensionPrompt.mockReturnValue(true);
+
+            injectContext('Some context');
+
+            expect(log).toHaveBeenCalledWith('Context injected into prompt');
+        });
+
+        it('logs failure when injection fails', () => {
+            safeSetExtensionPrompt.mockReturnValue(false);
+
+            injectContext('Some context');
+
+            expect(log).toHaveBeenCalledWith('Failed to inject context');
+        });
+    });
+
+    describe('retrieveAndInjectContext', () => {
+        it('returns null if extension disabled', async () => {
+            isExtensionEnabled.mockReturnValue(false);
+
+            const result = await retrieveAndInjectContext();
+
+            expect(result).toBeNull();
+            expect(log).toHaveBeenCalledWith('OpenVault disabled, skipping retrieval');
+        });
+
+        it('returns null if no chat', async () => {
+            mockContext.chat = null;
+
+            const result = await retrieveAndInjectContext();
+
+            expect(result).toBeNull();
+            expect(log).toHaveBeenCalledWith('No chat to retrieve context for');
+        });
+
+        it('returns null if empty chat', async () => {
+            mockContext.chat = [];
+
+            const result = await retrieveAndInjectContext();
+
+            expect(result).toBeNull();
+        });
+
+        it('returns null if no data', async () => {
+            getOpenVaultData.mockReturnValue(null);
+
+            const result = await retrieveAndInjectContext();
+
+            expect(result).toBeNull();
+            expect(log).toHaveBeenCalledWith('No chat context available');
+        });
+
+        it('returns null if no memories', async () => {
+            mockData[MEMORIES_KEY] = [];
+
+            const result = await retrieveAndInjectContext();
+
+            expect(result).toBeNull();
+            expect(log).toHaveBeenCalledWith('No memories stored yet');
+        });
+
+        it('sets status to retrieving', async () => {
+            selectRelevantMemories.mockResolvedValue([]);
+
+            await retrieveAndInjectContext();
+
+            expect(setStatus).toHaveBeenCalledWith('retrieving');
+        });
+
+        it('applies POV filtering', async () => {
+            selectRelevantMemories.mockResolvedValue([]);
+
+            await retrieveAndInjectContext();
+
+            expect(filterMemoriesByPOV).toHaveBeenCalledWith(
+                mockData[MEMORIES_KEY],
+                ['Alice'],
+                mockData
+            );
+        });
+
+        it('falls back to all memories if POV filter too strict', async () => {
+            filterMemoriesByPOV.mockReturnValue([]);
+            selectRelevantMemories.mockResolvedValue([mockData[MEMORIES_KEY][0]]);
+
+            await retrieveAndInjectContext();
+
+            expect(log).toHaveBeenCalledWith('POV filter returned 0 results, using all memories as fallback');
+            expect(selectRelevantMemories).toHaveBeenCalledWith(
+                mockData[MEMORIES_KEY],
+                expect.any(String),
+                'Alice',
+                ['Alice'],
+                10,
+                2
+            );
+        });
+
+        it('returns null when no relevant memories found', async () => {
+            selectRelevantMemories.mockResolvedValue([]);
+
+            const result = await retrieveAndInjectContext();
+
+            expect(result).toBeNull();
+            expect(log).toHaveBeenCalledWith('No relevant memories found');
+            expect(setStatus).toHaveBeenCalledWith('ready');
+        });
+
+        it('reinforces memory message_ids when selected', async () => {
+            const selectedMemory = { id: '1', summary: 'Memory 1', message_ids: [0] };
+            selectRelevantMemories.mockResolvedValue([selectedMemory]);
+
+            await retrieveAndInjectContext();
+
+            // message_ids should include the current message (chat.length - 1 = 1)
+            expect(selectedMemory.message_ids).toContain(1);
+            expect(saveOpenVaultData).toHaveBeenCalled();
+        });
+
+        it('does not add duplicate message_ids during reinforcement', async () => {
+            const selectedMemory = { id: '1', summary: 'Memory 1', message_ids: [0, 1] };
+            selectRelevantMemories.mockResolvedValue([selectedMemory]);
+
+            await retrieveAndInjectContext();
+
+            // Should not add 1 again
+            expect(selectedMemory.message_ids).toEqual([0, 1]);
+        });
+
+        it('initializes message_ids if undefined', async () => {
+            const selectedMemory = { id: '1', summary: 'Memory 1' };
+            selectRelevantMemories.mockResolvedValue([selectedMemory]);
+
+            await retrieveAndInjectContext();
+
+            expect(selectedMemory.message_ids).toContain(1);
+        });
+
+        it('gets relationship context for active characters', async () => {
+            selectRelevantMemories.mockResolvedValue([mockData[MEMORIES_KEY][0]]);
+
+            await retrieveAndInjectContext();
+
+            expect(getRelationshipContext).toHaveBeenCalledWith(mockData, 'Alice', ['Alice']);
+        });
+
+        it('formats context with emotional info', async () => {
+            selectRelevantMemories.mockResolvedValue([mockData[MEMORIES_KEY][0]]);
+
+            await retrieveAndInjectContext();
+
+            expect(formatContextForInjection).toHaveBeenCalledWith(
+                expect.any(Array),
+                'Relationship context',
+                { emotion: 'happy', fromMessages: [1] },
+                'Scene',
+                1000,
+                2
+            );
+        });
+
+        it('uses primary character header for group chats', async () => {
+            getPOVContext.mockReturnValue({ povCharacters: ['Bob', 'Alice'], isGroupChat: true });
+            selectRelevantMemories.mockResolvedValue([mockData[MEMORIES_KEY][0]]);
+
+            await retrieveAndInjectContext();
+
+            expect(formatContextForInjection).toHaveBeenCalledWith(
+                expect.any(Array),
+                expect.any(String),
+                expect.any(Object),
+                'Bob',  // First POV character as header
+                expect.any(Number),
+                expect.any(Number)
+            );
+        });
+
+        it('injects formatted context', async () => {
+            selectRelevantMemories.mockResolvedValue([mockData[MEMORIES_KEY][0]]);
+            formatContextForInjection.mockReturnValue('Final formatted context');
+
+            await retrieveAndInjectContext();
+
+            expect(safeSetExtensionPrompt).toHaveBeenCalledWith('Final formatted context');
+        });
+
+        it('shows success toast and returns result', async () => {
+            const selectedMemories = [mockData[MEMORIES_KEY][0], mockData[MEMORIES_KEY][1]];
+            selectRelevantMemories.mockResolvedValue(selectedMemories);
+            formatContextForInjection.mockReturnValue('Context');
+
+            const result = await retrieveAndInjectContext();
+
+            expect(showToast).toHaveBeenCalledWith('success', 'Retrieved 2 relevant memories');
+            expect(setStatus).toHaveBeenCalledWith('ready');
+            expect(result).toEqual({
+                memories: selectedMemories,
+                context: 'Context',
+            });
+        });
+
+        it('handles errors gracefully', async () => {
+            selectRelevantMemories.mockRejectedValue(new Error('Scoring failed'));
+
+            const result = await retrieveAndInjectContext();
+
+            expect(result).toBeNull();
+            expect(mockConsole.error).toHaveBeenCalled();
+            expect(setStatus).toHaveBeenCalledWith('error');
+        });
+
+        it('uses default emotion when character state missing', async () => {
+            mockData[CHARACTERS_KEY] = {};
+            selectRelevantMemories.mockResolvedValue([mockData[MEMORIES_KEY][0]]);
+
+            await retrieveAndInjectContext();
+
+            expect(formatContextForInjection).toHaveBeenCalledWith(
+                expect.any(Array),
+                expect.any(String),
+                { emotion: 'neutral', fromMessages: null },
+                expect.any(String),
+                expect.any(Number),
+                expect.any(Number)
+            );
+        });
+    });
+
+    describe('updateInjection', () => {
+        it('clears injection if not in automatic mode', async () => {
+            isAutomaticMode.mockReturnValue(false);
+
+            await updateInjection();
+
+            expect(safeSetExtensionPrompt).toHaveBeenCalledWith('');
+        });
+
+        it('clears injection if no chat', async () => {
+            mockContext.chat = null;
+
+            await updateInjection();
+
+            expect(safeSetExtensionPrompt).toHaveBeenCalledWith('');
+        });
+
+        it('clears injection if empty chat', async () => {
+            mockContext.chat = [];
+
+            await updateInjection();
+
+            expect(safeSetExtensionPrompt).toHaveBeenCalledWith('');
+        });
+
+        it('clears injection if no data', async () => {
+            getOpenVaultData.mockReturnValue(null);
+
+            await updateInjection();
+
+            expect(safeSetExtensionPrompt).toHaveBeenCalledWith('');
+        });
+
+        it('clears injection if no memories', async () => {
+            mockData[MEMORIES_KEY] = [];
+
+            await updateInjection();
+
+            expect(safeSetExtensionPrompt).toHaveBeenCalledWith('');
+        });
+
+        it('filters out recent memories based on RECENT_MESSAGE_BUFFER', async () => {
+            // Create chat with enough messages
+            mockContext.chat = [];
+            for (let i = 0; i < RECENT_MESSAGE_BUFFER + 5; i++) {
+                mockContext.chat.push({ mes: `Message ${i}`, is_user: i % 2 === 0 });
+            }
+
+            mockData[MEMORIES_KEY] = [
+                { id: '1', summary: 'Old memory', message_ids: [0] },
+                { id: '2', summary: 'Recent memory', message_ids: [mockContext.chat.length - 1] },
+            ];
+            filterMemoriesByPOV.mockReturnValue(mockData[MEMORIES_KEY]);
+            selectRelevantMemories.mockResolvedValue([]);
+
+            await updateInjection();
+
+            // Log should mention excluding recent memory
+            expect(log).toHaveBeenCalledWith(expect.stringContaining('Excluding recent memory'));
+        });
+
+        it('excludes memories from last batch', async () => {
+            // Create chat with enough messages so memories aren't filtered by recency
+            mockContext.chat = [];
+            for (let i = 0; i < 15; i++) {
+                mockContext.chat.push({ mes: `Message ${i}`, is_user: i % 2 === 0 });
+            }
+
+            mockData[LAST_BATCH_KEY] = 'batch_123';
+            mockData[MEMORIES_KEY] = [
+                { id: '1', summary: 'Old memory', message_ids: [0] },  // Not recent, not last batch
+                { id: '2', summary: 'New batch memory', message_ids: [1], batch_id: 'batch_123' },  // Not recent, but last batch
+            ];
+            filterMemoriesByPOV.mockReturnValue(mockData[MEMORIES_KEY]);
+            selectRelevantMemories.mockResolvedValue([]);
+
+            await updateInjection();
+
+            expect(log).toHaveBeenCalledWith(expect.stringContaining('Excluding last-batch memory'));
+        });
+
+        it('falls back to all memories if filters too strict', async () => {
+            mockData[MEMORIES_KEY] = [
+                { id: '1', summary: 'Memory', message_ids: [0], batch_id: 'batch_123' },
+            ];
+            mockData[LAST_BATCH_KEY] = 'batch_123';
+            filterMemoriesByPOV.mockReturnValue(mockData[MEMORIES_KEY]);
+            selectRelevantMemories.mockResolvedValue([mockData[MEMORIES_KEY][0]]);
+
+            await updateInjection();
+
+            expect(log).toHaveBeenCalledWith(expect.stringContaining('using all memories as fallback'));
+        });
+
+        it('includes pending user message in context', async () => {
+            selectRelevantMemories.mockResolvedValue([mockData[MEMORIES_KEY][0]]);
+
+            await updateInjection('What about that thing we discussed?');
+
+            expect(log).toHaveBeenCalledWith('Including pending user message in retrieval context');
+        });
+
+        it('logs filter statistics', async () => {
+            filterMemoriesByPOV.mockReturnValue(mockData[MEMORIES_KEY]);
+            selectRelevantMemories.mockResolvedValue([]);
+
+            await updateInjection();
+
+            expect(log).toHaveBeenCalledWith(expect.stringMatching(/Retrieval: \d+ accessible, \d+ after recent filter, \d+ after batch filter/));
+        });
+
+        it('clears injection when no relevant memories', async () => {
+            selectRelevantMemories.mockResolvedValue([]);
+
+            await updateInjection();
+
+            expect(safeSetExtensionPrompt).toHaveBeenCalledWith('');
+        });
+
+        it('logs injection update count', async () => {
+            selectRelevantMemories.mockResolvedValue([mockData[MEMORIES_KEY][0]]);
+            formatContextForInjection.mockReturnValue('Context');
+
+            await updateInjection();
+
+            expect(log).toHaveBeenCalledWith('Injection updated: 1 memories');
+        });
+    });
+});

@@ -10,6 +10,8 @@ export function setExtensionPrompt() {}
 export const extension_prompt_types = {
     IN_CHAT: 1,
     AFTER_SCENARIO: 2,
+    IN_PROMPT: 3,
+    BEFORE_PROMPT: 4,
 };
 
 export const eventSource = {
@@ -20,6 +22,7 @@ export const eventSource = {
 
 export const event_types = {
     GENERATION_AFTER_COMMANDS: 'GENERATION_AFTER_COMMANDS',
+    GENERATION_ENDED: 'GENERATION_ENDED',
     MESSAGE_RECEIVED: 'MESSAGE_RECEIVED',
     CHAT_CHANGED: 'CHAT_CHANGED',
 };
