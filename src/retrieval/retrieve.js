@@ -56,25 +56,6 @@ async function selectFormatAndInject(memoriesToUse, data, recentMessages, primar
         return null;
     }
 
-    // === Memory Reinforcement ===
-    // Update message_ids for retrieved memories to make them "fresher" in the forgetfulness curve
-    // This simulates "recalling" a memory, which makes it harder to forget
-    const currentMessageId = chatLength - 1;
-    let reinforced = false;
-    for (const memory of relevantMemories) {
-        if (!memory.message_ids) {
-            memory.message_ids = [];
-        }
-        if (!memory.message_ids.includes(currentMessageId)) {
-            memory.message_ids.push(currentMessageId);
-            reinforced = true;
-        }
-    }
-    if (reinforced) {
-        await saveOpenVaultData();
-        log(`Memory reinforcement: updated message_ids for ${relevantMemories.length} recalled memories`);
-    }
-
     // Get relationship and emotional context
     const relationshipContext = getRelationshipContext(data, primaryCharacter, activeCharacters);
     const primaryCharState = data[CHARACTERS_KEY]?.[primaryCharacter];

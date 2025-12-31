@@ -242,27 +242,6 @@ describe('retrieve', () => {
             expect(setStatus).toHaveBeenCalledWith('ready');
         });
 
-        it('reinforces memory message_ids when selected', async () => {
-            const selectedMemory = { id: '1', summary: 'Memory 1', message_ids: [0] };
-            selectRelevantMemories.mockResolvedValue([selectedMemory]);
-
-            await retrieveAndInjectContext();
-
-            // message_ids should include the current message (chat.length - 1 = 1)
-            expect(selectedMemory.message_ids).toContain(1);
-            expect(saveOpenVaultData).toHaveBeenCalled();
-        });
-
-        it('does not add duplicate message_ids during reinforcement', async () => {
-            const selectedMemory = { id: '1', summary: 'Memory 1', message_ids: [0, 1] };
-            selectRelevantMemories.mockResolvedValue([selectedMemory]);
-
-            await retrieveAndInjectContext();
-
-            // Should not add 1 again
-            expect(selectedMemory.message_ids).toEqual([0, 1]);
-        });
-
         it('initializes message_ids if undefined', async () => {
             const selectedMemory = { id: '1', summary: 'Memory 1' };
             selectRelevantMemories.mockResolvedValue([selectedMemory]);
