@@ -126,7 +126,7 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
     if (memoriesToFormat.length > 0) {
         const sortedMemories = sortMemoriesBySequence(memoriesToFormat, true);
 
-        memoryLines.push('Relevant memories (in chronological order, \u2605=minor to \u2605\u2605\u2605\u2605\u2605=critical):');
+        memoryLines.push('Relevant memories (in chronological order, # show position in chat when it happened, \u2605=minor to \u2605\u2605\u2605\u2605\u2605=critical):');
         sortedMemories.forEach((memory) => {
             const prefix = memory.is_secret ? '[Secret] ' : '';
             const msgIds = memory.message_ids || [];

@@ -11,17 +11,17 @@ import { sortMemoriesBySequence } from './utils.js';
 // =============================================================================
 
 export const SYSTEM_PROMPTS = {
-    extraction: `You are an expert narrative analyst specializing in roleplay and interactive fiction. Your expertise includes:
-- Understanding character motivations and emotional dynamics
-- Tracking relationship developments and story continuity
-- Identifying significant plot events vs mundane exchanges
-- Recognizing secrets, revelations, and character growth moments
+    extraction: `You extract narrative events from roleplay messages into structured JSON.
 
-Extract structured memory events from roleplay messages. Respond with valid JSON only, no markdown formatting or additional text.`,
+Your task: Identify significant events (actions, revelations, emotional shifts, relationship changes) and record them as past-tense factual summaries. Skip mundane dialogue and already-recorded events.
 
-    retrieval: `You are a narrative memory curator for interactive fiction. Your role is to select the most relevant memories a character would recall based on the current scene.
+Output valid JSON only. No markdown, no explanatory text.`,
 
-Consider what information the character would naturally remember given the conversation topics, relationships involved, and emotional context. Respond with valid JSON only, no markdown formatting or additional text.`
+    retrieval: `You select which memories a character would naturally recall given the current scene.
+
+Prioritize: high-importance events, direct relevance to current topics, relationship history with present characters, emotional continuity, and recent context.
+
+Output valid JSON only. No markdown, no explanatory text.`
 };
 
 // =============================================================================
@@ -101,15 +101,21 @@ Extract NEW significant events from the messages above. For each event, provide:
 
 <summary_guidelines>
 Write summaries that are:
-- Maximum 12 words, typically 8-10
+- Maximum 24 words, typically 12
 - English only (more token-efficient)
+- Past tense ALWAYS: describe what HAPPENED, not what is happening
+  BAD: "Elena confesses to the crime." (present tense - implies occurring now)
+  GOOD: "Elena confessed to the crime during the interrogation." (past tense)
+- Temporal context: anchor the event when possible
+  BAD: "Elena killed her brother."
+  GOOD: "Elena killed her brother to prevent Empire betrayal."
 - Action-focused: describe WHAT happened, not feelings
 - Non-redundant: don't repeat event_type in summary
   BAD: "Elena reveals she killed her brother" (redundant "reveals")
   GOOD: "Elena killed her brother to prevent Empire betrayal"
 - Factual: emotions go in emotional_impact, not summary
   BAD: "Elena breaks down crying, overwhelmed with guilt, confessing..."
-  GOOD: "Elena confesses to killing her brother"
+  GOOD: "Elena confessed to killing her brother"
 </summary_guidelines>
 
 <character_name_rules>
@@ -133,7 +139,7 @@ WRONG: "characters_involved": ["Дима/Лили"] (don't combine names)
 {
   "event_type": "action|revelation|emotion_shift|relationship_change",
   "importance": 1-5,
-  "summary": "8-12 words max, factual, English only",
+  "summary": "24 words max, factual, English only",
   "characters_involved": ["names"],
   "witnesses": ["names who observed"],
   "location": "where or null",
@@ -151,7 +157,7 @@ Output:
   {
     "event_type": "revelation",
     "importance": 5,
-    "summary": "Elena killed her brother to prevent Empire betrayal.",
+    "summary": "Elena confessed to killing her brother to prevent betrayal.",
     "characters_involved": ["Elena"],
     "witnesses": ["Elena", "Marcus"],
     "location": null,
@@ -170,7 +176,7 @@ Output:
   {
     "event_type": "revelation",
     "importance": 4,
-    "summary": "Катя admits reading Дима's diary entries about her.",
+    "summary": "Катя admitted to reading Дима's diary entries about her.",
     "characters_involved": ["Катя"],
     "witnesses": ["Катя", "Дима"],
     "location": null,
@@ -197,9 +203,10 @@ BAD summary examples:
 Instructions:
 1. Extract only significant events for story continuity
 2. Skip mundane exchanges, small talk, and internal monologue
-3. Write summaries in English, 8-12 words, action-focused
-4. Put emotions in emotional_impact field, not summary
-5. Use witnesses field to track who knows about each event${existingMemories.length > 0 ? '\n6. Check <established_memories> - skip semantic duplicates' : ''}
+3. Write summaries in PAST TENSE, English, 8-24 words, action-focused
+4. Include temporal context when possible (during X, after Y)
+5. Put emotions in emotional_impact field, not summary
+6. Use witnesses field to track who knows about each event${existingMemories.length > 0 ? '\n7. Check <established_memories> - skip semantic duplicates' : ''}
 
 Return JSON array. Empty array [] if no significant NEW events.
 </task>`;
@@ -244,7 +251,7 @@ Select up to ${limit} memories that ${characterName} would most naturally recall
 
 <example>
 Scene mentions: Elena asking about the old castle
-Available: 1. [★★] Visited market yesterday, 2. [★★★★] Discovered hidden passage in castle, 3. [★] Ate breakfast
+Available: 1. [★★] Visited market yesterday, 2. [★★★★] Discovered hidden passage in castle, 3. [★] Had breakfast
 Output: {"selected": [2], "reasoning": "The hidden passage discovery is directly relevant to discussing the castle"}
 </example>
 
