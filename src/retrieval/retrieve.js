@@ -5,7 +5,7 @@
  */
 
 import { getDeps } from '../deps.js';
-import { getOpenVaultData, saveOpenVaultData, safeSetExtensionPrompt, showToast, log, isExtensionEnabled, isAutomaticMode } from '../utils.js';
+import { getOpenVaultData, safeSetExtensionPrompt, showToast, log, isExtensionEnabled, isAutomaticMode } from '../utils.js';
 import { extensionName, MEMORIES_KEY, CHARACTERS_KEY, LAST_BATCH_KEY, RECENT_MESSAGE_BUFFER } from '../constants.js';
 import { setStatus } from '../ui/status.js';
 import { getActiveCharacters, getPOVContext, filterMemoriesByPOV } from '../pov.js';

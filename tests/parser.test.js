@@ -402,6 +402,7 @@ describe('parser', () => {
                 event_id: 'evt-1',
                 impact: 'they became closer',
                 timestamp: expect.any(Number),
+                message_id: null,
             });
         });
 

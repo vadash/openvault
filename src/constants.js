@@ -66,3 +66,8 @@ export const FORGETFULNESS = {
 
 // Retrieval filter constants
 export const RECENT_MESSAGE_BUFFER = 10; // exclude memories from last N messages
+
+// Relationship decay constants
+export const RELATIONSHIP_DECAY_INTERVAL = 50; // Messages before decay triggers
+export const TENSION_DECAY_RATE = 0.5;         // Tension drops per interval (dissipates naturally)
+export const TRUST_DECAY_RATE = 0.1;           // High trust decay per interval (trust is stickier)

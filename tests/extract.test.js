@@ -35,6 +35,7 @@ vi.mock('../src/extraction/parser.js', () => ({
     parseExtractionResult: vi.fn(),
     updateCharacterStatesFromEvents: vi.fn(),
     updateRelationshipsFromEvents: vi.fn(),
+    applyRelationshipDecay: vi.fn(),
 }));
 
 vi.mock('../src/embeddings.js', () => ({

@@ -11,7 +11,7 @@ import { callLLMForExtraction } from '../llm.js';
 import { setStatus } from '../ui/status.js';
 import { refreshAllUI } from '../ui/browser.js';
 import { buildExtractionPrompt } from '../prompts.js';
-import { parseExtractionResult, updateCharacterStatesFromEvents, updateRelationshipsFromEvents } from './parser.js';
+import { parseExtractionResult, updateCharacterStatesFromEvents, updateRelationshipsFromEvents, applyRelationshipDecay } from './parser.js';
 import { getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 
 /**
@@ -140,6 +140,10 @@ export async function extractMemories(messageIds = null) {
 
             // Update last processed message ID
             const maxId = Math.max(...messagesToExtract.map(m => m.id));
+
+            // Apply relationship decay based on message intervals
+            applyRelationshipDecay(data, maxId);
+
             data[LAST_PROCESSED_KEY] = Math.max(data[LAST_PROCESSED_KEY] || -1, maxId);
 
             // Store this batch ID as the most recent (for exclusion during retrieval)

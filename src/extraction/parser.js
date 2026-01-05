@@ -5,7 +5,13 @@
  */
 
 import { generateId, log, parseJsonFromMarkdown } from '../utils.js';
-import { CHARACTERS_KEY, RELATIONSHIPS_KEY } from '../constants.js';
+import {
+    CHARACTERS_KEY,
+    RELATIONSHIPS_KEY,
+    RELATIONSHIP_DECAY_INTERVAL,
+    TENSION_DECAY_RATE,
+    TRUST_DECAY_RATE,
+} from '../constants.js';
 
 /**
  * Parse extraction result from LLM
@@ -145,12 +151,71 @@ export function updateRelationshipsFromEvents(events, data) {
                 }
 
                 // Add to history
+                const messageId = event.message_ids?.length > 0
+                    ? Math.max(...event.message_ids)
+                    : null;
+
                 data[RELATIONSHIPS_KEY][key].history.push({
                     event_id: event.id,
                     impact: impact,
                     timestamp: Date.now(),
+                    message_id: messageId,
                 });
+
+                // Track last updated message for decay calculations
+                if (messageId !== null) {
+                    data[RELATIONSHIPS_KEY][key].last_updated_message_id = messageId;
+                }
             }
         }
+    }
+}
+
+/**
+ * Apply decay to relationships that haven't been updated recently.
+ * Tension drifts toward 0, high trust (>5) drifts toward 5.
+ * @param {Object} data - OpenVault data object
+ * @param {number} currentMessageId - Current message ID for delta calculation
+ */
+export function applyRelationshipDecay(data, currentMessageId) {
+    if (!data[RELATIONSHIPS_KEY] || typeof currentMessageId !== 'number') {
+        return;
+    }
+
+    for (const [key, relationship] of Object.entries(data[RELATIONSHIPS_KEY])) {
+        const lastUpdated = relationship.last_updated_message_id;
+
+        // Skip if no last_updated_message_id tracked yet
+        if (typeof lastUpdated !== 'number') {
+            continue;
+        }
+
+        const delta = currentMessageId - lastUpdated;
+
+        // Only decay if enough messages have passed
+        if (delta < RELATIONSHIP_DECAY_INTERVAL) {
+            continue;
+        }
+
+        // Calculate number of decay intervals passed
+        const intervals = Math.floor(delta / RELATIONSHIP_DECAY_INTERVAL);
+
+        // Decay tension toward 0
+        if (relationship.tension_level > 0) {
+            const tensionDecay = TENSION_DECAY_RATE * intervals;
+            relationship.tension_level = Math.max(0, relationship.tension_level - tensionDecay);
+        }
+
+        // Decay high trust (>5) toward neutral (5)
+        // Low trust/distrust is "sticky" and doesn't auto-recover
+        if (relationship.trust_level > 5) {
+            const trustDecay = TRUST_DECAY_RATE * intervals;
+            relationship.trust_level = Math.max(5, relationship.trust_level - trustDecay);
+        }
+
+        // Update the last_updated_message_id to current so we don't re-decay
+        relationship.last_updated_message_id = currentMessageId;
+
+        log(`Decay applied to ${key}: tension=${relationship.tension_level.toFixed(1)}, trust=${relationship.trust_level.toFixed(1)} (${intervals} intervals)`);
     }
 }
