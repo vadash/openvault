@@ -13,6 +13,7 @@ OpenVault provides POV-aware memory with witness tracking, relationship dynamics
 - **Emotional Continuity**: Tracks emotional states and shifts across conversations
 - **Auto-Hide**: Automatically hides old messages from context while preserving their memories
 - **Smart Retrieval**: Optional LLM-powered selection of the most relevant memories
+- **Vector Embeddings**: Optional Ollama-powered semantic similarity for memory ranking
 - **Memory Browser**: View, filter, and manage extracted memories
 - **Backfill**: Extract memories from existing chat history
 
@@ -56,6 +57,10 @@ Use the buttons in the settings panel:
 | **Messages per Extraction** | Messages to analyze per extraction | 5 |
 | **Memory Context** | Memories shown to extraction LLM (-1 = All) | All |
 | **Smart Retrieval** | Use LLM to select relevant memories | Off |
+| **Ollama URL** | Ollama server URL for embeddings | - |
+| **Embedding Model** | Ollama model for vector embeddings | - |
+| **Similarity Threshold** | Minimum similarity for bonus (0-1) | 0.5 |
+| **Similarity Weight** | Max bonus points for similarity | 15 |
 | **Auto-hide old messages** | Hide messages beyond threshold | On |
 | **Messages to keep visible** | Auto-hide threshold | 50 |
 
@@ -80,9 +85,48 @@ The LLM extracts structured events with:
 ### Memory Retrieval
 
 Before the AI responds, OpenVault:
-1. Analyzes the current conversation context
-2. Finds relevant memories (filtered by POV/witnesses)
-3. Injects them as context within the token budget
+1. Filters memories by POV/witnesses
+2. Scores and ranks memories by relevance
+3. Injects top memories as context within the token budget
+
+### Memory Ranking Algorithm
+
+OpenVault uses a two-part scoring system to select the most relevant memories:
+
+#### 1. Forgetfulness Curve (Base Score)
+
+Memories naturally decay over time using an exponential forgetfulness curve:
+
+```
+Score = Importance × e^(-λ × Distance)
+```
+
+- **Distance**: Number of messages since the memory was created (narrative time, not real time)
+- **Importance**: Memory importance rating (1-5 scale)
+- **λ (lambda)**: Decay rate, calculated as `0.05 / (importance²)`
+
+This means:
+- **Importance 5** memories decay very slowly (λ = 0.002) and have a floor score they never drop below
+- **Importance 1** memories decay quickly (λ = 0.05) and fade from relevance faster
+- Recent memories score higher than older ones of the same importance
+
+#### 2. Vector Similarity Bonus (Optional)
+
+When Ollama embeddings are configured, memories get a relevance boost based on semantic similarity:
+
+1. The last ~500 characters of recent context are embedded
+2. Each memory's summary is compared using **cosine similarity**
+3. If similarity exceeds the threshold (default 0.5), bonus points are added:
+
+```
+Bonus = ((similarity - threshold) / (1 - threshold)) × maxBonus
+```
+
+Default `maxBonus` is 15 points. This allows semantically relevant older memories to surface above recent but unrelated ones.
+
+#### 3. Smart Retrieval (Alternative)
+
+When Smart Retrieval is enabled, instead of the algorithm above, an LLM analyzes the memory list and current context to select the most relevant memories. This is more accurate but slower and uses additional tokens.
 
 ### Auto-Hide
 
