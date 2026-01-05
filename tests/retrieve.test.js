@@ -70,8 +70,8 @@ describe('retrieve', () => {
 
         mockContext = {
             chat: [
-                { mes: 'Hello', is_user: true },
-                { mes: 'Hi there!', is_user: false, is_system: false },
+                { mes: 'Hello', is_user: true, is_system: true },  // hidden
+                { mes: 'Hi there!', is_user: false, is_system: true },  // hidden
             ],
             name1: 'User',
             name2: 'Alice',
@@ -209,19 +209,19 @@ describe('retrieve', () => {
             await retrieveAndInjectContext();
 
             expect(filterMemoriesByPOV).toHaveBeenCalledWith(
-                mockData[MEMORIES_KEY],
+                mockData[MEMORIES_KEY],  // hiddenMemories = all memories since all are hidden
                 ['Alice'],
                 mockData
             );
         });
 
-        it('falls back to all memories if POV filter too strict', async () => {
+        it('falls back to hidden memories if POV filter too strict', async () => {
             filterMemoriesByPOV.mockReturnValue([]);
             selectRelevantMemories.mockResolvedValue([mockData[MEMORIES_KEY][0]]);
 
             await retrieveAndInjectContext();
 
-            expect(log).toHaveBeenCalledWith('POV filter returned 0 results, using all memories as fallback');
+            expect(log).toHaveBeenCalledWith('POV filter returned 0 results, using all hidden memories as fallback');
             expect(selectRelevantMemories).toHaveBeenCalledWith(
                 mockData[MEMORIES_KEY],
                 expect.any(String),

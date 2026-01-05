@@ -121,15 +121,21 @@ export async function retrieveAndInjectContext() {
         const activeCharacters = getActiveCharacters();
         const { povCharacters, isGroupChat } = getPOVContext();
 
-        // Filter memories by POV
-        const accessibleMemories = filterMemoriesByPOV(memories, povCharacters, data);
-        log(`POV filter: mode=${isGroupChat ? 'group' : 'narrator'}, characters=[${povCharacters.join(', ')}], total=${memories.length}, accessible=${accessibleMemories.length}`);
+        // Filter to memories from hidden messages only (visible messages are already in context)
+        const hiddenMemories = memories.filter(m =>
+            m.message_ids?.length > 0 &&
+            m.message_ids.every(id => chat[id]?.is_system)
+        );
 
-        // Fallback to all memories if POV filter is too strict
+        // Filter memories by POV
+        const accessibleMemories = filterMemoriesByPOV(hiddenMemories, povCharacters, data);
+        log(`Retrieval filter: total=${memories.length}, hidden=${hiddenMemories.length}, pov=${accessibleMemories.length} (mode=${isGroupChat ? 'group' : 'narrator'}, chars=[${povCharacters.join(', ')}])`);
+
+        // Fallback to hidden memories if POV filter is too strict
         let memoriesToUse = accessibleMemories;
-        if (accessibleMemories.length === 0 && memories.length > 0) {
-            log('POV filter returned 0 results, using all memories as fallback');
-            memoriesToUse = memories;
+        if (accessibleMemories.length === 0 && hiddenMemories.length > 0) {
+            log('POV filter returned 0 results, using all hidden memories as fallback');
+            memoriesToUse = hiddenMemories;
         }
 
         if (memoriesToUse.length === 0) {
@@ -201,15 +207,21 @@ export async function updateInjection(pendingUserMessage = '') {
     const activeCharacters = getActiveCharacters();
     const { povCharacters, isGroupChat } = getPOVContext();
 
-    // Filter memories by POV
-    const accessibleMemories = filterMemoriesByPOV(memories, povCharacters, data);
-    log(`Retrieval: ${memories.length} total, ${accessibleMemories.length} accessible after POV filter`);
+    // Filter to memories from hidden messages only (visible messages are already in context)
+    const hiddenMemories = memories.filter(m =>
+        m.message_ids?.length > 0 &&
+        m.message_ids.every(id => context.chat[id]?.is_system)
+    );
 
-    // Fallback to all memories if POV filter is too strict
+    // Filter memories by POV
+    const accessibleMemories = filterMemoriesByPOV(hiddenMemories, povCharacters, data);
+    log(`Injection filter: total=${memories.length}, hidden=${hiddenMemories.length}, pov=${accessibleMemories.length}`);
+
+    // Fallback to hidden memories if POV filter is too strict
     let memoriesToUse = accessibleMemories;
-    if (accessibleMemories.length === 0 && memories.length > 0) {
-        log('Injection: All memories filtered out by POV, using all memories as fallback');
-        memoriesToUse = memories;
+    if (accessibleMemories.length === 0 && hiddenMemories.length > 0) {
+        log('Injection: POV filter returned 0, using all hidden memories as fallback');
+        memoriesToUse = hiddenMemories;
     }
 
     if (memoriesToUse.length === 0) {
