@@ -35,6 +35,7 @@ export function injectContext(contextText) {
  * @param {Object[]} memoriesToUse - Pre-filtered memories to select from
  * @param {Object} data - OpenVault data object
  * @param {string} recentMessages - Chat context for relevance matching
+ * @param {string} userMessages - Last 3 user messages for embedding (capped at 1000 chars)
  * @param {string} primaryCharacter - Primary character for formatting
  * @param {string[]} activeCharacters - All active characters
  * @param {string} headerName - Header name for injection
@@ -42,10 +43,11 @@ export function injectContext(contextText) {
  * @param {number} chatLength - Current chat length (for distance calculation)
  * @returns {Promise<{memories: Object[], context: string}|null>}
  */
-async function selectFormatAndInject(memoriesToUse, data, recentMessages, primaryCharacter, activeCharacters, headerName, settings, chatLength) {
+async function selectFormatAndInject(memoriesToUse, data, recentMessages, userMessages, primaryCharacter, activeCharacters, headerName, settings, chatLength) {
     const relevantMemories = await selectRelevantMemories(
         memoriesToUse,
         recentMessages,
+        userMessages,
         primaryCharacter,
         activeCharacters,
         settings.maxMemoriesPerRetrieval,
@@ -139,10 +141,12 @@ export async function retrieveAndInjectContext() {
         const primaryCharacter = isGroupChat ? povCharacters[0] : context.name2;
         const headerName = isGroupChat ? primaryCharacter : 'Scene';
         const recentMessages = chat.filter(m => !m.is_system).map(m => m.mes).join('\n');
+        // Extract last 3 user messages for embedding (user intent matters most)
+        const userMessages = chat.filter(m => !m.is_system && m.is_user).slice(-3).map(m => m.mes).join('\n').slice(-1000);
         const chatLength = chat.length;
 
         const result = await selectFormatAndInject(
-            memoriesToUse, data, recentMessages, primaryCharacter, activeCharacters, headerName, settings, chatLength
+            memoriesToUse, data, recentMessages, userMessages, primaryCharacter, activeCharacters, headerName, settings, chatLength
         );
 
         if (!result) {
@@ -247,8 +251,16 @@ export async function updateInjection(pendingUserMessage = '') {
         log(`Including pending user message in retrieval context`);
     }
 
+    // Extract last 3 user messages for embedding (user intent matters most)
+    let userMsgs = context.chat.filter(m => !m.is_system && m.is_user).slice(-3).map(m => m.mes);
+    if (pendingUserMessage) {
+        userMsgs.push(pendingUserMessage);
+        userMsgs = userMsgs.slice(-3); // Keep only last 3
+    }
+    const userMessages = userMsgs.join('\n').slice(-1000);
+
     const result = await selectFormatAndInject(
-        memoriesToUse, data, recentMessages, primaryCharacter, activeCharacters, headerName, settings, chatLength
+        memoriesToUse, data, recentMessages, userMessages, primaryCharacter, activeCharacters, headerName, settings, chatLength
     );
 
     if (!result) {

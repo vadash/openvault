@@ -74,7 +74,7 @@ describe('scoring', () => {
 
     describe('selectRelevantMemoriesSimple', () => {
         it('returns empty array for empty memories', async () => {
-            const result = await selectRelevantMemoriesSimple([], 'context', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple([], 'context', 'user messages', 'Alice', [], 10, 100);
             expect(result).toEqual([]);
         });
 
@@ -84,7 +84,7 @@ describe('scoring', () => {
                 { id: '2', summary: 'Memory 2', importance: 3, message_ids: [20] },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
 
             expect(result).toHaveLength(2);
         });
@@ -95,7 +95,7 @@ describe('scoring', () => {
                 { id: '1', summary: 'Recent', importance: 3, message_ids: [100] },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
 
             expect(result).toHaveLength(1);
             expect(result[0].id).toBe('1');
@@ -108,7 +108,7 @@ describe('scoring', () => {
                 { id: 'high', summary: 'High importance', importance: 5, message_ids: [50] },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
 
             expect(result[0].id).toBe('high');
             expect(result[1].id).toBe('low');
@@ -120,7 +120,7 @@ describe('scoring', () => {
                 { id: 'recent', summary: 'Recent memory', importance: 3, message_ids: [90] },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
 
             expect(result[0].id).toBe('recent');
             expect(result[1].id).toBe('old');
@@ -133,7 +133,7 @@ describe('scoring', () => {
                 { id: 'recent-low', summary: 'Recent low', importance: 2, message_ids: [95] },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
 
             // The importance-5 memory at distance 99 should still score well due to floor
             // IMPORTANCE_5_FLOOR = 5, so it should compete with recent memories
@@ -148,7 +148,7 @@ describe('scoring', () => {
                 { id: '3', summary: 'Memory 3', importance: 3, message_ids: [80] },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
 
             // Higher importance and/or more recent should come first
             // Memory 2 (imp 5, dist 50) and Memory 3 (imp 3, dist 20) should beat Memory 1
@@ -163,7 +163,7 @@ describe('scoring', () => {
                 message_ids: [i * 5],
             }));
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'Alice', [], 5, 100);
+            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 5, 100);
 
             expect(result).toHaveLength(5);
         });
@@ -173,7 +173,7 @@ describe('scoring', () => {
                 { id: '1', summary: 'No importance', message_ids: [50] },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
 
             expect(result).toHaveLength(1);
         });
@@ -183,7 +183,7 @@ describe('scoring', () => {
                 { id: '1', summary: 'No message_ids', importance: 3 },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
 
             expect(result).toHaveLength(1);
         });
@@ -202,7 +202,7 @@ describe('scoring', () => {
                     { id: 'no-embed', summary: 'No embedding', importance: 3, message_ids: [50] },
                 ];
 
-                const result = await selectRelevantMemoriesSimple(memories, 'context', 'Alice', [], 10, 100);
+                const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
 
                 // Memory with embedding and good similarity should rank higher
                 expect(result[0].id).toBe('with-embed');
@@ -216,7 +216,7 @@ describe('scoring', () => {
                     { id: 'low-sim', summary: 'Low similarity', importance: 3, message_ids: [50], embedding: [0.1, 0.2, 0.3] },
                 ];
 
-                await selectRelevantMemoriesSimple(memories, 'context', 'Alice', [], 10, 100);
+                await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
 
                 // Should not receive bonus (verified by cosineSimilarity being called)
                 expect(cosineSimilarity).toHaveBeenCalled();
@@ -230,7 +230,7 @@ describe('scoring', () => {
                     { id: '1', summary: 'Test', importance: 3, message_ids: [50], embedding: [0.1, 0.2, 0.3] },
                 ];
 
-                await selectRelevantMemoriesSimple(memories, 'context', 'Alice', [], 10, 100);
+                await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
 
                 // Memory should not get bonus (similarity 0.65 < threshold 0.7)
                 expect(cosineSimilarity).toHaveBeenCalled();
@@ -244,7 +244,7 @@ describe('scoring', () => {
                     { id: '1', summary: 'Test', importance: 3, message_ids: [50], embedding: [0.1, 0.2, 0.3] },
                 ];
 
-                await selectRelevantMemoriesSimple(memories, 'context', 'Alice', [], 10, 100);
+                await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
 
                 // Weight affects bonus calculation
                 expect(cosineSimilarity).toHaveBeenCalled();
@@ -257,25 +257,25 @@ describe('scoring', () => {
                     { id: '1', summary: 'Memory 1', importance: 3, message_ids: [50] },
                 ];
 
-                const result = await selectRelevantMemoriesSimple(memories, 'context', 'Alice', [], 10, 100);
+                const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
 
                 expect(result).toHaveLength(1);
                 expect(getEmbedding).not.toHaveBeenCalled();
             });
 
-            it('uses last 500 chars of context for embedding', async () => {
-                const longContext = 'x'.repeat(1000);
+            it('uses userMessages for embedding', async () => {
+                const userMessages = 'user question about alice';
 
-                await selectRelevantMemoriesSimple([], longContext, 'Alice', [], 10, 100);
+                await selectRelevantMemoriesSimple([], 'full context', userMessages, 'Alice', [], 10, 100);
 
-                expect(getEmbedding).toHaveBeenCalledWith('x'.repeat(500));
+                expect(getEmbedding).toHaveBeenCalledWith(userMessages);
             });
         });
     });
 
     describe('selectRelevantMemoriesSmart', () => {
         it('returns empty array for empty memories', async () => {
-            const result = await selectRelevantMemoriesSmart([], 'context', 'Alice', 10, 100);
+            const result = await selectRelevantMemoriesSmart([], 'context', 'user messages', 'Alice', 10, 100);
             expect(result).toEqual([]);
         });
 
@@ -285,7 +285,7 @@ describe('scoring', () => {
                 { id: '2', summary: 'Memory 2' },
             ];
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'Alice', 10, 100);
+            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 10, 100);
 
             expect(result).toEqual(memories);
             expect(callLLMForRetrieval).not.toHaveBeenCalled();
@@ -300,7 +300,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('{"selected": [1, 2, 3]}');
 
-            await selectRelevantMemoriesSmart(memories, 'recent context', 'Alice', 3, 100);
+            await selectRelevantMemoriesSmart(memories, 'recent context', 'user messages', 'Alice', 3, 100);
 
             expect(buildSmartRetrievalPrompt).toHaveBeenCalledWith(
                 'recent context',
@@ -321,7 +321,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('{"selected": [1, 3]}');
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'Alice', 2, 100);
+            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 2, 100);
 
             // Indices are 1-indexed, so [1, 3] -> memories[0], memories[2]
             expect(result).toHaveLength(2);
@@ -338,7 +338,7 @@ describe('scoring', () => {
             // 1-indexed: 2 -> 0-indexed: 1 -> memories[1]
             callLLMForRetrieval.mockResolvedValue('{"selected": [2]}');
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'Alice', 1, 100);
+            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 1, 100);
 
             expect(result).toHaveLength(1);
             expect(result[0].id).toBe('second');
@@ -354,7 +354,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockRejectedValue(new Error('LLM error'));
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'Alice', 2, 100);
+            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 2, 100);
 
             // Should fall back to simple mode and return some results
             expect(result.length).toBeGreaterThan(0);
@@ -371,7 +371,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('not valid json');
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'Alice', 2, 100);
+            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 2, 100);
 
             // Should fall back to simple mode
             expect(result.length).toBeLessThanOrEqual(2);
@@ -387,7 +387,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('{"selected": []}');
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'Alice', 2, 100);
+            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 2, 100);
 
             // Should fall back to simple mode
             expect(result.length).toBeLessThanOrEqual(2);
@@ -402,7 +402,7 @@ describe('scoring', () => {
             // Index 99 doesn't exist
             callLLMForRetrieval.mockResolvedValue('{"selected": [99]}');
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'Alice', 1, 100);
+            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 1, 100);
 
             // Should fall back since all indices are invalid
             expect(result).toBeDefined();
@@ -418,7 +418,7 @@ describe('scoring', () => {
             // Index 1 is valid (memories[0]), index 99 is not
             callLLMForRetrieval.mockResolvedValue('{"selected": [1, 99]}');
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'Alice', 2, 100);
+            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 2, 100);
 
             expect(result).toHaveLength(1);
             expect(result[0].id).toBe('0');
@@ -432,7 +432,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('{"selected": [1]}');
 
-            await selectRelevantMemoriesSmart(memories, 'context', 'Alice', 1, 100);
+            await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 1, 100);
 
             // Verify the prompt was built with formatted list
             const promptCall = buildSmartRetrievalPrompt.mock.calls[0];
@@ -450,7 +450,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('{"selected": [1], "reasoning": "Memory 0 is most relevant"}');
 
-            await selectRelevantMemoriesSmart(memories, 'context', 'Alice', 1, 100);
+            await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 1, 100);
 
             expect(mockConsole.log).toHaveBeenCalledWith(
                 expect.stringContaining('Memory 0 is most relevant')
@@ -467,7 +467,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('{"selected": [1]}');
 
-            const result = await selectRelevantMemories(memories, 'context', 'Alice', [], 1, 100);
+            const result = await selectRelevantMemories(memories, 'context', 'user messages', 'Alice', [], 1, 100);
 
             // Smart mode returns all if count <= limit (no LLM call needed)
             expect(result).toEqual(memories);
@@ -479,7 +479,7 @@ describe('scoring', () => {
                 { id: '0', summary: 'Memory 0', importance: 3, message_ids: [50] },
             ];
 
-            const result = await selectRelevantMemories(memories, 'context', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemories(memories, 'context', 'user messages', 'Alice', [], 10, 100);
 
             expect(result).toHaveLength(1);
             expect(callLLMForRetrieval).not.toHaveBeenCalled();
@@ -493,7 +493,7 @@ describe('scoring', () => {
                 { id: '0', summary: 'Memory 0', importance: 3, message_ids: [50] },
             ];
 
-            await selectRelevantMemories(memories, 'context text', 'Alice', ['Bob'], 5, 200);
+            await selectRelevantMemories(memories, 'context text', 'user messages', 'Alice', ['Bob'], 5, 200);
 
             // Simple mode doesn't call LLM
             expect(callLLMForRetrieval).not.toHaveBeenCalled();
@@ -509,7 +509,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('{"selected": [1, 2]}');
 
-            await selectRelevantMemories(memories, 'context text', 'Alice', ['Bob'], 2, 200);
+            await selectRelevantMemories(memories, 'context text', 'user messages', 'Alice', ['Bob'], 2, 200);
 
             expect(buildSmartRetrievalPrompt).toHaveBeenCalledWith(
                 'context text',
@@ -544,7 +544,7 @@ describe('scoring', () => {
             // imp1: 1 * e^(-0.05 * 100) = 1 * e^(-5) ≈ 0.0067
             // imp5: 5 * e^(-0.002 * 100) = 5 * e^(-0.2) ≈ 4.09
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
 
             // Importance 5 should be first
             expect(result[0].id).toBe('imp5');

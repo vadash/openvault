@@ -15,22 +15,21 @@ import { getEmbedding, cosineSimilarity, isEmbeddingsEnabled } from '../embeddin
 /**
  * Select relevant memories using forgetfulness curve scoring
  * @param {Object[]} memories - Available memories
- * @param {string} recentContext - Recent chat context
+ * @param {string} recentContext - Recent chat context (for smart retrieval)
+ * @param {string} userMessages - Last 3 user messages for embedding (capped at 1000 chars)
  * @param {string} characterName - POV character name (unused, kept for API compatibility)
  * @param {string[]} activeCharacters - List of active characters (unused, kept for API compatibility)
  * @param {number} limit - Maximum memories to return
  * @param {number} chatLength - Current chat length (for distance calculation)
  * @returns {Promise<Object[]>} Selected memories
  */
-export async function selectRelevantMemoriesSimple(memories, recentContext, characterName, activeCharacters, limit, chatLength) {
+export async function selectRelevantMemoriesSimple(memories, recentContext, userMessages, characterName, activeCharacters, limit, chatLength) {
     const settings = getDeps().getExtensionSettings()[extensionName];
 
-    // Get embedding for current context if enabled
+    // Get embedding for user messages if enabled (user intent matters most for retrieval)
     let contextEmbedding = null;
-    if (isEmbeddingsEnabled()) {
-        // Use last ~500 chars of context for embedding
-        const contextSnippet = recentContext.slice(-500);
-        contextEmbedding = await getEmbedding(contextSnippet);
+    if (isEmbeddingsEnabled() && userMessages) {
+        contextEmbedding = await getEmbedding(userMessages);
     }
 
     const scored = memories.map(memory => {
@@ -82,12 +81,13 @@ export async function selectRelevantMemoriesSimple(memories, recentContext, char
  * Select relevant memories using LLM (smart mode)
  * @param {Object[]} memories - Available memories to select from
  * @param {string} recentContext - Recent chat context
+ * @param {string} userMessages - Last 3 user messages for embedding fallback
  * @param {string} characterName - POV character name
  * @param {number} limit - Maximum memories to select
  * @param {number} chatLength - Current chat length (for fallback distance calculation)
  * @returns {Promise<Object[]>} - Selected memories
  */
-export async function selectRelevantMemoriesSmart(memories, recentContext, characterName, limit, chatLength) {
+export async function selectRelevantMemoriesSmart(memories, recentContext, userMessages, characterName, limit, chatLength) {
     if (memories.length === 0) return [];
     if (memories.length <= limit) return memories; // No need to select if we have few enough
 
@@ -114,14 +114,14 @@ export async function selectRelevantMemoriesSmart(memories, recentContext, chara
             parsed = parseJsonFromMarkdown(response);
         } catch (parseError) {
             log(`Smart retrieval: Failed to parse LLM response, falling back to simple mode. Error: ${parseError.message}`);
-            return selectRelevantMemoriesSimple(memories, recentContext, characterName, [], limit, chatLength);
+            return selectRelevantMemoriesSimple(memories, recentContext, userMessages, characterName, [], limit, chatLength);
         }
 
         // Extract selected indices
         const selectedIndices = parsed.selected || [];
         if (!Array.isArray(selectedIndices) || selectedIndices.length === 0) {
             log('Smart retrieval: No memories selected by LLM, falling back to simple mode');
-            return selectRelevantMemoriesSimple(memories, recentContext, characterName, [], limit, chatLength);
+            return selectRelevantMemoriesSimple(memories, recentContext, userMessages, characterName, [], limit, chatLength);
         }
 
         // Convert 1-indexed to 0-indexed and filter valid indices
@@ -131,14 +131,14 @@ export async function selectRelevantMemoriesSmart(memories, recentContext, chara
 
         if (selectedMemories.length === 0) {
             log('Smart retrieval: Invalid indices from LLM, falling back to simple mode');
-            return selectRelevantMemoriesSimple(memories, recentContext, characterName, [], limit, chatLength);
+            return selectRelevantMemoriesSimple(memories, recentContext, userMessages, characterName, [], limit, chatLength);
         }
 
         log(`Smart retrieval: LLM selected ${selectedMemories.length} memories. Reasoning: ${parsed.reasoning || 'none provided'}`);
         return selectedMemories;
     } catch (error) {
         log(`Smart retrieval error: ${error.message}, falling back to simple mode`);
-        return selectRelevantMemoriesSimple(memories, recentContext, characterName, [], limit, chatLength);
+        return selectRelevantMemoriesSimple(memories, recentContext, userMessages, characterName, [], limit, chatLength);
     }
 }
 
@@ -147,18 +147,19 @@ export async function selectRelevantMemoriesSmart(memories, recentContext, chara
  * Uses smart retrieval if enabled in settings
  * @param {Object[]} memories - Available memories
  * @param {string} recentContext - Recent chat context
+ * @param {string} userMessages - Last 3 user messages for embedding
  * @param {string} characterName - POV character name
  * @param {string[]} activeCharacters - List of active characters
  * @param {number} limit - Maximum memories to return
  * @param {number} chatLength - Current chat length (for distance calculation)
  * @returns {Promise<Object[]>} Selected memories
  */
-export async function selectRelevantMemories(memories, recentContext, characterName, activeCharacters, limit, chatLength) {
+export async function selectRelevantMemories(memories, recentContext, userMessages, characterName, activeCharacters, limit, chatLength) {
     const settings = getDeps().getExtensionSettings()[extensionName];
 
     if (settings.smartRetrievalEnabled) {
-        return selectRelevantMemoriesSmart(memories, recentContext, characterName, limit, chatLength);
+        return selectRelevantMemoriesSmart(memories, recentContext, userMessages, characterName, limit, chatLength);
     } else {
-        return selectRelevantMemoriesSimple(memories, recentContext, characterName, activeCharacters, limit, chatLength);
+        return selectRelevantMemoriesSimple(memories, recentContext, userMessages, characterName, activeCharacters, limit, chatLength);
     }
 }

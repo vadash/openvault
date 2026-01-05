@@ -114,7 +114,7 @@ This means:
 
 When Ollama embeddings are configured, memories get a relevance boost based on semantic similarity:
 
-1. The last ~500 characters of recent context are embedded
+1. The last 3 user messages are embedded (capped at 1000 chars) - user intent matters most for retrieval
 2. Each memory's summary is compared using **cosine similarity**
 3. If similarity exceeds the threshold (default 0.5), bonus points are added:
 

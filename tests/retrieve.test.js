@@ -225,6 +225,7 @@ describe('retrieve', () => {
             expect(selectRelevantMemories).toHaveBeenCalledWith(
                 mockData[MEMORIES_KEY],
                 expect.any(String),
+                expect.any(String), // userMessages
                 'Alice',
                 ['Alice'],
                 10,
