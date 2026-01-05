@@ -19,6 +19,8 @@ export default [
                 confirm: "readonly",
                 prompt: "readonly",
                 alert: "readonly",
+                Worker: "readonly",
+                URL: "readonly",
                 // SillyTavern globals
                 jQuery: "readonly",
                 $: "readonly",
@@ -32,5 +34,13 @@ export default [
     },
     {
         ignores: ["node_modules/**", "types/**"]
+    },
+    {
+        files: ["**/worker.js"],
+        languageOptions: {
+            globals: {
+                self: "readonly"
+            }
+        }
     }
 ];

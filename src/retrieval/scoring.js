@@ -10,10 +10,60 @@ import { log, parseJsonFromMarkdown } from '../utils.js';
 import { extensionName, FORGETFULNESS } from '../constants.js';
 import { callLLMForRetrieval } from '../llm.js';
 import { buildSmartRetrievalPrompt } from '../prompts.js';
-import { getEmbedding, cosineSimilarity, isEmbeddingsEnabled } from '../embeddings.js';
+import { getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
+
+// Lazy-initialized worker
+let scoringWorker = null;
+
+function getScoringWorker() {
+    if (!scoringWorker) {
+        scoringWorker = new Worker(new URL('./worker.js', import.meta.url));
+    }
+    return scoringWorker;
+}
 
 /**
- * Select relevant memories using forgetfulness curve scoring
+ * Run scoring in web worker
+ */
+function runWorkerScoring(memories, contextEmbedding, chatLength, limit, settings) {
+    return new Promise((resolve, reject) => {
+        const worker = getScoringWorker();
+
+        const handler = (e) => {
+            worker.removeEventListener('message', handler);
+            worker.removeEventListener('error', errorHandler);
+            if (e.data.success) {
+                resolve(e.data.results);
+            } else {
+                reject(new Error(e.data.error));
+            }
+        };
+
+        const errorHandler = (e) => {
+            worker.removeEventListener('message', handler);
+            worker.removeEventListener('error', errorHandler);
+            reject(e);
+        };
+
+        worker.addEventListener('message', handler);
+        worker.addEventListener('error', errorHandler);
+
+        worker.postMessage({
+            memories,
+            contextEmbedding,
+            chatLength,
+            limit,
+            constants: FORGETFULNESS,
+            settings: {
+                vectorSimilarityThreshold: settings.vectorSimilarityThreshold,
+                vectorSimilarityWeight: settings.vectorSimilarityWeight
+            }
+        });
+    });
+}
+
+/**
+ * Select relevant memories using forgetfulness curve scoring (via Web Worker)
  * @param {Object[]} memories - Available memories
  * @param {string} recentContext - Recent chat context (for smart retrieval)
  * @param {string} userMessages - Last 3 user messages for embedding (capped at 1000 chars)
@@ -32,49 +82,7 @@ export async function selectRelevantMemoriesSimple(memories, recentContext, user
         contextEmbedding = await getEmbedding(userMessages);
     }
 
-    const scored = memories.map(memory => {
-        // === Forgetfulness Curve ===
-        // Use message distance (narrative time) instead of timestamp
-        const messageIds = memory.message_ids || [0];
-        const maxMessageId = Math.max(...messageIds);
-        const distance = Math.max(0, chatLength - maxMessageId);
-
-        // Get importance (1-5, default 3)
-        const importance = memory.importance || 3;
-
-        // Calculate lambda: higher importance = slower decay
-        // importance 5 -> lambda = 0.05 / 25 = 0.002 (very slow decay)
-        // importance 1 -> lambda = 0.05 / 1  = 0.05  (fast decay)
-        const lambda = FORGETFULNESS.BASE_LAMBDA / (importance * importance);
-
-        // Core forgetfulness formula: Score = Importance × e^(-λ × Distance)
-        let score = importance * Math.exp(-lambda * distance);
-
-        // Importance-5 floor: never drops below minimum score
-        if (importance === 5) {
-            score = Math.max(score, FORGETFULNESS.IMPORTANCE_5_FLOOR);
-        }
-
-        // === Vector Similarity Bonus ===
-        if (contextEmbedding && memory.embedding) {
-            const similarity = cosineSimilarity(contextEmbedding, memory.embedding);
-            const threshold = settings.vectorSimilarityThreshold || 0.5;
-            const maxBonus = settings.vectorSimilarityWeight || 15;
-
-            if (similarity > threshold) {
-                // Scale similarity above threshold to bonus points
-                // e.g., similarity 0.75 with threshold 0.5 -> (0.75-0.5)/(1-0.5) = 0.5 -> 7.5 points
-                const normalizedSim = (similarity - threshold) / (1 - threshold);
-                score += normalizedSim * maxBonus;
-            }
-        }
-
-        return { memory, score };
-    });
-
-    // Sort by score (highest first) and take top N
-    scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, limit).map(s => s.memory);
+    return runWorkerScoring(memories, contextEmbedding, chatLength, limit, settings);
 }
 
 /**
