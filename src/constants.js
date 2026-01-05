@@ -13,7 +13,6 @@ export const MEMORIES_KEY = 'memories';
 export const CHARACTERS_KEY = 'character_states';
 export const RELATIONSHIPS_KEY = 'relationships';
 export const LAST_PROCESSED_KEY = 'last_processed_message_id';
-export const LAST_BATCH_KEY = 'last_extraction_batch';
 
 // Default settings
 export const defaultSettings = {
@@ -63,9 +62,6 @@ export const FORGETFULNESS = {
     BASE_LAMBDA: 0.05,         // Base decay rate for exponential curve
     IMPORTANCE_5_FLOOR: 5,     // Minimum score for importance-5 memories
 };
-
-// Retrieval filter constants
-export const RECENT_MESSAGE_BUFFER = 10; // exclude memories from last N messages
 
 // Relationship decay constants
 export const RELATIONSHIP_DECAY_INTERVAL = 50; // Messages before decay triggers

@@ -53,8 +53,8 @@ class MockWorker {
         }, 0);
     }
 }
-global.Worker = MockWorker;
-global.URL = URL;
+globalThis.Worker = MockWorker;
+globalThis.URL = URL;
 
 // Mock the embeddings module
 vi.mock('../src/embeddings.js', () => ({

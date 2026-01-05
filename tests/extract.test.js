@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { setDeps, resetDeps } from '../src/deps.js';
-import { extensionName, MEMORIES_KEY, LAST_PROCESSED_KEY, LAST_BATCH_KEY } from '../src/constants.js';
+import { extensionName, MEMORIES_KEY, LAST_PROCESSED_KEY } from '../src/constants.js';
 
 // Mock dependencies
 vi.mock('../src/utils.js', () => ({
@@ -48,7 +48,7 @@ import {
     getRecentMemoriesForContext,
     extractMemories,
 } from '../src/extraction/extract.js';
-import { getOpenVaultData, saveOpenVaultData, showToast, log, sortMemoriesBySequence, isExtensionEnabled } from '../src/utils.js';
+import { getOpenVaultData, saveOpenVaultData, showToast, sortMemoriesBySequence, isExtensionEnabled } from '../src/utils.js';
 import { callLLMForExtraction } from '../src/llm.js';
 import { setStatus } from '../src/ui/status.js';
 import { refreshAllUI } from '../src/ui/browser.js';
@@ -333,7 +333,6 @@ describe('extract', () => {
             await extractMemories();
 
             expect(mockData[MEMORIES_KEY]).toHaveLength(2);
-            expect(mockData[LAST_BATCH_KEY]).toMatch(/^batch_/);
             expect(saveOpenVaultData).toHaveBeenCalled();
         });
 
@@ -459,14 +458,6 @@ describe('extract', () => {
                 expect.any(String),
                 expect.any(String)
             );
-        });
-
-        it('generates unique batch ID with timestamp', async () => {
-            parseExtractionResult.mockReturnValue([{ id: 'evt1', summary: 'Event' }]);
-
-            await extractMemories();
-
-            expect(mockData[LAST_BATCH_KEY]).toMatch(/^batch_1000000_/);
         });
     });
 });

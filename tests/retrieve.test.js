@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { setDeps, resetDeps } from '../src/deps.js';
-import { extensionName, MEMORIES_KEY, CHARACTERS_KEY, LAST_BATCH_KEY, RECENT_MESSAGE_BUFFER } from '../src/constants.js';
+import { extensionName, MEMORIES_KEY, CHARACTERS_KEY } from '../src/constants.js';
 
 // Mock dependencies
 vi.mock('../src/utils.js', () => ({
@@ -374,74 +374,12 @@ describe('retrieve', () => {
             expect(safeSetExtensionPrompt).toHaveBeenCalledWith('');
         });
 
-        it('filters out recent memories based on RECENT_MESSAGE_BUFFER', async () => {
-            // Create chat with enough messages
-            mockContext.chat = [];
-            for (let i = 0; i < RECENT_MESSAGE_BUFFER + 5; i++) {
-                mockContext.chat.push({ mes: `Message ${i}`, is_user: i % 2 === 0 });
-            }
-
-            mockData[MEMORIES_KEY] = [
-                { id: '1', summary: 'Old memory', message_ids: [0] },
-                { id: '2', summary: 'Recent memory', message_ids: [mockContext.chat.length - 1] },
-            ];
-            filterMemoriesByPOV.mockReturnValue(mockData[MEMORIES_KEY]);
-            selectRelevantMemories.mockResolvedValue([]);
-
-            await updateInjection();
-
-            // Log should mention excluding recent memory
-            expect(log).toHaveBeenCalledWith(expect.stringContaining('Excluding recent memory'));
-        });
-
-        it('excludes memories from last batch', async () => {
-            // Create chat with enough messages so memories aren't filtered by recency
-            mockContext.chat = [];
-            for (let i = 0; i < 15; i++) {
-                mockContext.chat.push({ mes: `Message ${i}`, is_user: i % 2 === 0 });
-            }
-
-            mockData[LAST_BATCH_KEY] = 'batch_123';
-            mockData[MEMORIES_KEY] = [
-                { id: '1', summary: 'Old memory', message_ids: [0] },  // Not recent, not last batch
-                { id: '2', summary: 'New batch memory', message_ids: [1], batch_id: 'batch_123' },  // Not recent, but last batch
-            ];
-            filterMemoriesByPOV.mockReturnValue(mockData[MEMORIES_KEY]);
-            selectRelevantMemories.mockResolvedValue([]);
-
-            await updateInjection();
-
-            expect(log).toHaveBeenCalledWith(expect.stringContaining('Excluding last-batch memory'));
-        });
-
-        it('falls back to all memories if filters too strict', async () => {
-            mockData[MEMORIES_KEY] = [
-                { id: '1', summary: 'Memory', message_ids: [0], batch_id: 'batch_123' },
-            ];
-            mockData[LAST_BATCH_KEY] = 'batch_123';
-            filterMemoriesByPOV.mockReturnValue(mockData[MEMORIES_KEY]);
-            selectRelevantMemories.mockResolvedValue([mockData[MEMORIES_KEY][0]]);
-
-            await updateInjection();
-
-            expect(log).toHaveBeenCalledWith(expect.stringContaining('using all memories as fallback'));
-        });
-
         it('includes pending user message in context', async () => {
             selectRelevantMemories.mockResolvedValue([mockData[MEMORIES_KEY][0]]);
 
             await updateInjection('What about that thing we discussed?');
 
             expect(log).toHaveBeenCalledWith('Including pending user message in retrieval context');
-        });
-
-        it('logs filter statistics', async () => {
-            filterMemoriesByPOV.mockReturnValue(mockData[MEMORIES_KEY]);
-            selectRelevantMemories.mockResolvedValue([]);
-
-            await updateInjection();
-
-            expect(log).toHaveBeenCalledWith(expect.stringMatching(/Retrieval: \d+ accessible, \d+ after recent filter, \d+ after batch filter/));
         });
 
         it('clears injection when no relevant memories', async () => {

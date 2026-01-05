@@ -6,7 +6,7 @@
 
 import { getDeps } from '../deps.js';
 import { getOpenVaultData, safeSetExtensionPrompt, showToast, log, isExtensionEnabled, isAutomaticMode } from '../utils.js';
-import { extensionName, MEMORIES_KEY, CHARACTERS_KEY, LAST_BATCH_KEY, RECENT_MESSAGE_BUFFER } from '../constants.js';
+import { extensionName, MEMORIES_KEY, CHARACTERS_KEY } from '../constants.js';
 import { setStatus } from '../ui/status.js';
 import { getActiveCharacters, getPOVContext, filterMemoriesByPOV } from '../pov.js';
 import { selectRelevantMemories } from './scoring.js';
@@ -203,35 +203,12 @@ export async function updateInjection(pendingUserMessage = '') {
 
     // Filter memories by POV
     const accessibleMemories = filterMemoriesByPOV(memories, povCharacters, data);
+    log(`Retrieval: ${memories.length} total, ${accessibleMemories.length} accessible after POV filter`);
 
-    // Exclude memories from recent messages (they're still in context)
-    const recentMessageIds = new Set(context.chat.map((m, idx) => idx).slice(-RECENT_MESSAGE_BUFFER));
-    const nonRecentMemories = accessibleMemories.filter(m => {
-        if (!m.message_ids || m.message_ids.length === 0) return true;
-        const allSourcesRecent = m.message_ids.every(id => recentMessageIds.has(id));
-        if (allSourcesRecent) {
-            log(`Excluding recent memory: "${m.summary?.substring(0, 40)}..." (from messages ${m.message_ids.join(',')})`);
-            return false;
-        }
-        return true;
-    });
-
-    // Exclude memories from the most recent extraction batch
-    const lastBatchId = data[LAST_BATCH_KEY];
-    const nonBatchMemories = nonRecentMemories.filter(m => {
-        if (lastBatchId && m.batch_id === lastBatchId) {
-            log(`Excluding last-batch memory: "${m.summary?.substring(0, 40)}..." (batch: ${m.batch_id})`);
-            return false;
-        }
-        return true;
-    });
-
-    log(`Retrieval: ${accessibleMemories.length} accessible, ${nonRecentMemories.length} after recent filter, ${nonBatchMemories.length} after batch filter`);
-
-    // Fallback to all memories if filters are too strict
-    let memoriesToUse = nonBatchMemories;
-    if (nonBatchMemories.length === 0 && memories.length > 0) {
-        log('Injection: All memories filtered out (POV, recency, or batch), using all memories as fallback');
+    // Fallback to all memories if POV filter is too strict
+    let memoriesToUse = accessibleMemories;
+    if (accessibleMemories.length === 0 && memories.length > 0) {
+        log('Injection: All memories filtered out by POV, using all memories as fallback');
         memoriesToUse = memories;
     }
 

@@ -6,7 +6,7 @@
 
 import { getDeps } from '../deps.js';
 import { getOpenVaultData, saveOpenVaultData, showToast, log, sortMemoriesBySequence, isExtensionEnabled } from '../utils.js';
-import { extensionName, MEMORIES_KEY, LAST_PROCESSED_KEY, LAST_BATCH_KEY } from '../constants.js';
+import { extensionName, MEMORIES_KEY, LAST_PROCESSED_KEY } from '../constants.js';
 import { callLLMForExtraction } from '../llm.js';
 import { setStatus } from '../ui/status.js';
 import { refreshAllUI } from '../ui/browser.js';
@@ -145,9 +145,6 @@ export async function extractMemories(messageIds = null) {
             applyRelationshipDecay(data, maxId);
 
             data[LAST_PROCESSED_KEY] = Math.max(data[LAST_PROCESSED_KEY] || -1, maxId);
-
-            // Store this batch ID as the most recent (for exclusion during retrieval)
-            data[LAST_BATCH_KEY] = batchId;
 
             await saveOpenVaultData();
 

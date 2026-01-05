@@ -9,7 +9,7 @@ import { extensionName, MEMORIES_KEY, RETRIEVAL_TIMEOUT_MS } from '../src/consta
 const mockJQuery = vi.fn(() => ({
     remove: vi.fn(),
 }));
-global.$ = mockJQuery;
+globalThis.$ = mockJQuery;
 
 // Mock script.js to add vi.fn() for call tracking
 vi.mock('../../../../../script.js', async (importOriginal) => {
