@@ -76,7 +76,8 @@
 
                 <label for="openvault_ollama_url">Ollama URL</label>
                 <input type="text" id="openvault_ollama_url" class="text_pole" placeholder="http://localhost:11434" />
-                <small class="openvault-hint">Local Ollama endpoint (leave empty to disable vectors)</small>
+                <small class="openvault-hint">Local Ollama endpoint (leave empty to disable vectors)<br/>
+                    <strong>CORS required:</strong> Windows: set <code>OLLAMA_ORIGINS=*</code> in environment variables. Linux/Mac: <code>OLLAMA_ORIGINS=* ollama serve</code></small>
 
                 <label for="openvault_embedding_model">Embedding Model</label>
                 <input type="text" id="openvault_embedding_model" class="text_pole" placeholder="nomic-embed-text" />
