@@ -382,3 +382,37 @@ export async function generateEmbeddingsForMemories(memories) {
 
     return count;
 }
+
+/**
+ * Enrich events with embeddings (mutates events in place)
+ * @param {Object[]} events - Events to enrich with embeddings
+ * @returns {Promise<number>} Number of events successfully embedded
+ */
+export async function enrichEventsWithEmbeddings(events) {
+    if (!isEmbeddingsEnabled()) {
+        return 0;
+    }
+
+    // Filter to valid events: have summary, no embedding yet
+    const validEvents = events.filter(e => e.summary && !e.embedding);
+
+    if (validEvents.length === 0) {
+        return 0;
+    }
+
+    log(`Generating embeddings for ${validEvents.length} events`);
+
+    // Process in batches of 5
+    const embeddings = await processInBatches(validEvents, 5, e => getEmbedding(e.summary));
+
+    // Assign results back to event objects
+    let count = 0;
+    for (let i = 0; i < validEvents.length; i++) {
+        if (embeddings[i]) {
+            validEvents[i].embedding = embeddings[i];
+            count++;
+        }
+    }
+
+    return count;
+}

@@ -44,6 +44,11 @@ vi.mock('../src/extraction/parser.js', () => ({
 vi.mock('../src/embeddings.js', () => ({
     getEmbedding: vi.fn(),
     isEmbeddingsEnabled: vi.fn(),
+    enrichEventsWithEmbeddings: vi.fn(),
+}));
+
+vi.mock('../src/extraction/context-builder.js', () => ({
+    selectMemoriesForExtraction: vi.fn(),
 }));
 
 // Import after mocks
@@ -56,7 +61,8 @@ import { setStatus } from '../src/ui/status.js';
 import { refreshAllUI } from '../src/ui/browser.js';
 import { buildExtractionPrompt } from '../src/prompts.js';
 import { parseExtractionResult, updateCharacterStatesFromEvents, updateRelationshipsFromEvents } from '../src/extraction/parser.js';
-import { getEmbedding, isEmbeddingsEnabled } from '../src/embeddings.js';
+import { getEmbedding, isEmbeddingsEnabled, enrichEventsWithEmbeddings } from '../src/embeddings.js';
+import { selectMemoriesForExtraction } from '../src/extraction/context-builder.js';
 
 describe('extract', () => {
     let mockConsole;
@@ -116,6 +122,8 @@ describe('extract', () => {
         });
         sliceToTokenBudget.mockImplementation((memories) => memories);
         isEmbeddingsEnabled.mockReturnValue(false);
+        enrichEventsWithEmbeddings.mockResolvedValue(0);
+        selectMemoriesForExtraction.mockReturnValue([]);
         callLLMForExtraction.mockResolvedValue('{}');
         parseExtractionResult.mockReturnValue([]);
     });
@@ -293,29 +301,29 @@ describe('extract', () => {
 
         it('generates embeddings when enabled', async () => {
             isEmbeddingsEnabled.mockReturnValue(true);
-            getEmbedding.mockResolvedValue([0.1, 0.2, 0.3]);
             const newEvents = [
                 { id: 'evt1', summary: 'Event 1' },
             ];
             parseExtractionResult.mockReturnValue(newEvents);
+            enrichEventsWithEmbeddings.mockResolvedValue(1);
 
             await extractMemories();
 
-            expect(getEmbedding).toHaveBeenCalledWith('Event 1');
-            expect(newEvents[0].embedding).toEqual([0.1, 0.2, 0.3]);
+            expect(enrichEventsWithEmbeddings).toHaveBeenCalledWith(newEvents);
         });
 
         it('skips embedding if getEmbedding returns null', async () => {
             isEmbeddingsEnabled.mockReturnValue(true);
-            getEmbedding.mockResolvedValue(null);
             const newEvents = [
                 { id: 'evt1', summary: 'Event 1' },
             ];
             parseExtractionResult.mockReturnValue(newEvents);
+            // enrichEventsWithEmbeddings returns 0 (no embeddings generated)
+            enrichEventsWithEmbeddings.mockResolvedValue(0);
 
             await extractMemories();
 
-            expect(newEvents[0].embedding).toBeUndefined();
+            expect(enrichEventsWithEmbeddings).toHaveBeenCalledWith(newEvents);
         });
 
         it('shows success toast and sets ready status', async () => {
@@ -373,13 +381,14 @@ describe('extract', () => {
             mockData[MEMORIES_KEY] = [
                 { id: '1', summary: 'Old memory', sequence: 1 },
             ];
-            sortMemoriesBySequence.mockReturnValue([
+            selectMemoriesForExtraction.mockReturnValue([
                 { id: '1', summary: 'Old memory', sequence: 1 },
             ]);
             parseExtractionResult.mockReturnValue([]);
 
             await extractMemories();
 
+            expect(selectMemoriesForExtraction).toHaveBeenCalledWith(mockData, mockSettings);
             expect(buildExtractionPrompt).toHaveBeenCalledWith(
                 expect.any(String),
                 'Alice',
