@@ -263,7 +263,7 @@ export function updateUI() {
     $('#openvault_backfill_rpm').val(settings.backfillMaxRPM);
 
     // Embedding settings
-    $('#openvault_embedding_source').val(settings.embeddingSource || 'multilingual-e5-small:q8');
+    $('#openvault_embedding_source').val(settings.embeddingSource || 'multilingual-e5-small');
     $('#openvault_ollama_settings').toggle(settings.embeddingSource === 'ollama');
     $('#openvault_ollama_url').val(settings.ollamaUrl || '');
     $('#openvault_embedding_model').val(settings.embeddingModel || '');

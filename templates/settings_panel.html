@@ -76,22 +76,19 @@
 
                 <label for="openvault_embedding_source">Embedding Model</label>
                 <select id="openvault_embedding_source" class="text_pole">
-                    <optgroup label="Multilingual (Recommended)">
-                        <option value="multilingual-e5-small:q8">multilingual-e5-small (q8, ~120MB) - Best multilingual 100+ langs</option>
-                        <option value="multilingual-e5-small:q4">multilingual-e5-small (q4, ~65MB) - Multilingual, smaller download</option>
-                        <option value="paraphrase-multilingual-MiniLM-L12-v2:q8">paraphrase-MiniLM (q8, ~120MB) - Cross-lingual similarity</option>
+                    <optgroup label="Multilingual">
+                        <option value="multilingual-e5-small">multilingual-e5-small - Best quality (100+ langs)</option>
+                        <option value="paraphrase-multilingual-MiniLM-L12-v2">paraphrase-MiniLM - Cross-lingual similarity (50+ langs)</option>
                     </optgroup>
                     <optgroup label="English Only">
-                        <option value="all-MiniLM-L6-v2:fp32">all-MiniLM-L6-v2 (fp32, ~25MB) - Fastest load, full precision</option>
-                        <option value="all-MiniLM-L6-v2:q8">all-MiniLM-L6-v2 (q8, ~12MB) - Tiny footprint</option>
-                        <option value="bge-small-en-v1.5:q8">bge-small-en-v1.5 (q8, ~35MB) - Best RAG retrieval quality</option>
-                        <option value="bge-small-en-v1.5:q4">bge-small-en-v1.5 (q4, ~20MB) - RAG optimized, smallest</option>
+                        <option value="all-MiniLM-L6-v2">all-MiniLM-L6-v2 - Fastest load (~25MB)</option>
+                        <option value="bge-small-en-v1.5">bge-small-en-v1.5 - Best RAG retrieval</option>
                     </optgroup>
                     <optgroup label="External">
                         <option value="ollama">Ollama (Custom server)</option>
                     </optgroup>
                 </select>
-                <small class="openvault-hint">q8 = balanced accuracy/size, q4 = smallest, fp32 = full precision</small>
+                <small class="openvault-hint">Auto-detects WebGPU for optimal performance, falls back to WASM</small>
                 <div id="openvault_embedding_status" class="openvault-badge" style="margin-top: 5px;">Not loaded</div>
 
                 <div id="openvault_ollama_settings" style="display: none;">

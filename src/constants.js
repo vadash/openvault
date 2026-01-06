@@ -33,7 +33,7 @@ export const defaultSettings = {
     // Backfill settings
     backfillMaxRPM: 30,
     // Embedding settings (Local RAG)
-    embeddingSource: 'multilingual-e5-small:q8', // 'model:dtype' format or 'ollama'
+    embeddingSource: 'multilingual-e5-small', // model name or 'ollama'
     ollamaUrl: '',
     embeddingModel: '',
     vectorSimilarityWeight: 15,

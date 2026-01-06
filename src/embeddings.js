@@ -5,71 +5,78 @@
  * Supports multiple embedding models with lazy loading.
  */
 
+/* global navigator */
+
 import { getDeps } from './deps.js';
 import { log } from './utils.js';
 import { extensionName } from './constants.js';
 
-// Model configuration with quantization options
-// Keys are "modelKey:dtype" format for combined selection
+// Model configuration with WebGPU and WASM fallback quantizations
+// Runtime auto-selects dtype based on WebGPU availability
 const TRANSFORMERS_MODELS = {
-    // Multilingual E5 Small - Best multilingual accuracy
-    'multilingual-e5-small:q8': {
+    // Multilingual models
+    'multilingual-e5-small': {
         name: 'Xenova/multilingual-e5-small',
-        dtype: 'q8',
-        size: '~120MB',
+        dtypeWebGPU: 'q4f16',   // ~65MB, fast on GPU
+        dtypeWASM: 'q8',        // ~120MB, accurate on CPU
         dimensions: 384,
-        description: 'Best multilingual (100+ langs) - Balanced',
+        description: 'Best multilingual (100+ langs)',
     },
-    'multilingual-e5-small:q4': {
-        name: 'Xenova/multilingual-e5-small',
-        dtype: 'q4',
-        size: '~65MB',
-        dimensions: 384,
-        description: 'Best multilingual (100+ langs) - Smallest',
-    },
-    // Paraphrase Multilingual MiniLM - Cross-lingual similarity
-    'paraphrase-multilingual-MiniLM-L12-v2:q8': {
+    'paraphrase-multilingual-MiniLM-L12-v2': {
         name: 'Xenova/paraphrase-multilingual-MiniLM-L12-v2',
-        dtype: 'q8',
-        size: '~120MB',
+        dtypeWebGPU: 'fp16',    // High precision on GPU
+        dtypeWASM: 'q8',        // ~120MB
         dimensions: 384,
-        description: 'Cross-lingual similarity (50+ langs) - Balanced',
+        description: 'Cross-lingual similarity (50+ langs)',
     },
-    // All MiniLM L6 v2 - Smallest English model
-    'all-MiniLM-L6-v2:fp32': {
+    // English models
+    'all-MiniLM-L6-v2': {
         name: 'Xenova/all-MiniLM-L6-v2',
-        dtype: 'fp32',
-        size: '~25MB',
+        dtypeWebGPU: 'fp32',    // ~25MB, small model needs full precision
+        dtypeWASM: 'fp32',      // ~25MB, same - quantization hurts small models
         dimensions: 384,
-        description: 'English only - Fastest load, max accuracy',
+        description: 'English only - Fastest load (~25MB)',
     },
-    'all-MiniLM-L6-v2:q8': {
-        name: 'Xenova/all-MiniLM-L6-v2',
-        dtype: 'q8',
-        size: '~12MB',
-        dimensions: 384,
-        description: 'English only - Tiny footprint',
-    },
-    // BGE Small EN - Best RAG performance for English
-    'bge-small-en-v1.5:q8': {
+    'bge-small-en-v1.5': {
         name: 'Xenova/bge-small-en-v1.5',
-        dtype: 'q8',
-        size: '~35MB',
+        dtypeWebGPU: 'q4f16',   // ~20MB, optimized for WebGPU RAG
+        dtypeWASM: 'q8',        // ~35MB
         dimensions: 384,
-        description: 'English RAG optimized - Best retrieval quality',
-    },
-    'bge-small-en-v1.5:q4': {
-        name: 'Xenova/bge-small-en-v1.5',
-        dtype: 'q4',
-        size: '~20MB',
-        dimensions: 384,
-        description: 'English RAG optimized - Smallest',
+        description: 'English only - Best RAG retrieval',
     },
 };
+
+// WebGPU detection cache
+let webGPUSupported = null;
+
+/**
+ * Check if WebGPU is available
+ * @returns {Promise<boolean>}
+ */
+async function isWebGPUAvailable() {
+    if (webGPUSupported !== null) {
+        return webGPUSupported;
+    }
+
+    try {
+        if (!navigator.gpu) {
+            webGPUSupported = false;
+            return false;
+        }
+        const adapter = await navigator.gpu.requestAdapter();
+        webGPUSupported = !!adapter;
+        log(`WebGPU ${webGPUSupported ? 'available' : 'not available'}`);
+        return webGPUSupported;
+    } catch {
+        webGPUSupported = false;
+        return false;
+    }
+}
 
 // Cached pipeline and state
 let cachedPipeline = null;
 let cachedModelId = null;
+let cachedDevice = null; // 'webgpu' or 'wasm'
 let loadingPromise = null;
 
 // Status callback for UI updates
@@ -100,7 +107,7 @@ function updateStatus(status) {
  */
 export function getEmbeddingStatus() {
     const settings = getDeps().getExtensionSettings()[extensionName];
-    const source = settings?.embeddingSource || 'multilingual-e5-small:q8';
+    const source = settings?.embeddingSource || 'multilingual-e5-small';
 
     if (source === 'ollama') {
         if (settings?.ollamaUrl && settings?.embeddingModel) {
@@ -114,19 +121,19 @@ export function getEmbeddingStatus() {
         return 'Unknown model';
     }
 
-    // Extract display name (model:dtype -> shorter label)
-    const [modelName, dtype] = source.split(':');
-    const shortName = modelName.split('-').slice(0, 2).join('-'); // e.g. "multilingual-e5"
+    // Short display name
+    const shortName = source.split('-').slice(0, 2).join('-'); // e.g. "multilingual-e5"
 
     if (cachedPipeline && cachedModelId === source) {
-        return `${shortName} (${dtype}) ✓`;
+        const deviceLabel = cachedDevice === 'webgpu' ? 'WebGPU' : 'WASM';
+        return `${shortName} (${deviceLabel}) ✓`;
     }
 
     if (loadingPromise && cachedModelId === source) {
         return `Loading ${shortName}...`;
     }
 
-    return `${shortName} (${dtype}, ${modelConfig.size})`;
+    return `${shortName}`;
 }
 
 /**
@@ -160,11 +167,19 @@ async function loadTransformersPipeline(modelKey) {
 
     loadingPromise = (async () => {
         try {
+            // Detect WebGPU and select optimal config
+            const useWebGPU = await isWebGPUAvailable();
+            const device = useWebGPU ? 'webgpu' : 'wasm';
+            const dtype = useWebGPU ? modelConfig.dtypeWebGPU : modelConfig.dtypeWASM;
+
+            log(`Loading ${modelKey} with ${device} (${dtype})`);
+
             // Dynamic import of Transformers.js
             const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1');
 
             const pipe = await pipeline('feature-extraction', modelConfig.name, {
-                dtype: modelConfig.dtype || 'fp32',
+                device,
+                dtype,
                 progress_callback: (progress) => {
                     if (progress.status === 'progress' && progress.total) {
                         const pct = Math.round((progress.loaded / progress.total) * 100);
@@ -174,11 +189,14 @@ async function loadTransformersPipeline(modelKey) {
             });
 
             cachedPipeline = pipe;
-            updateStatus(`${modelKey} (${modelConfig.size}) ✓`);
+            cachedDevice = device;
+            const deviceLabel = useWebGPU ? 'WebGPU' : 'WASM';
+            updateStatus(`${modelKey} (${deviceLabel}) ✓`);
             return pipe;
         } catch (error) {
             updateStatus(`Failed to load ${modelKey}`);
             cachedPipeline = null;
+            cachedDevice = null;
             loadingPromise = null;
             throw error;
         }
@@ -235,7 +253,7 @@ export function cosineSimilarity(vecA, vecB) {
  */
 export function isEmbeddingsEnabled() {
     const settings = getDeps().getExtensionSettings()[extensionName];
-    const source = settings?.embeddingSource || 'multilingual-e5-small:q8';
+    const source = settings?.embeddingSource || 'multilingual-e5-small';
 
     if (source === 'ollama') {
         return !!(settings?.ollamaUrl && settings?.embeddingModel);
@@ -252,7 +270,7 @@ export function isEmbeddingsEnabled() {
  */
 async function getTransformersEmbedding(text) {
     const settings = getDeps().getExtensionSettings()[extensionName];
-    const source = settings?.embeddingSource || 'multilingual-e5-small:q8';
+    const source = settings?.embeddingSource || 'multilingual-e5-small';
 
     if (!text || text.trim().length === 0) {
         return null;
@@ -315,7 +333,7 @@ async function getOllamaEmbedding(text) {
  */
 export async function getEmbedding(text) {
     const settings = getDeps().getExtensionSettings()[extensionName];
-    const source = settings?.embeddingSource || 'multilingual-e5-small:q8';
+    const source = settings?.embeddingSource || 'multilingual-e5-small';
 
     if (source === 'ollama') {
         return getOllamaEmbedding(text);
