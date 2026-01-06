@@ -93,7 +93,7 @@ export function safeSetExtensionPrompt(content) {
         deps.setExtensionPrompt(
             extensionName,
             content,
-            deps.extension_prompt_types.IN_CHAT,
+            deps.extension_prompt_types.IN_PROMPT,
             0
         );
         return true;

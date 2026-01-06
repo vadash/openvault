@@ -170,19 +170,19 @@ describe('utils', () => {
             setDeps({
                 console: mockConsole,
                 setExtensionPrompt: mockSetPrompt,
-                extension_prompt_types: { IN_CHAT: 1 },
+                extension_prompt_types: { IN_PROMPT: 3 },
             });
 
             const result = safeSetExtensionPrompt('test content');
             expect(result).toBe(true);
-            expect(mockSetPrompt).toHaveBeenCalledWith(extensionName, 'test content', 1, 0);
+            expect(mockSetPrompt).toHaveBeenCalledWith(extensionName, 'test content', 3, 0);
         });
 
         it('returns false on error', () => {
             setDeps({
                 console: mockConsole,
                 setExtensionPrompt: () => { throw new Error('Prompt failed'); },
-                extension_prompt_types: { IN_CHAT: 1 },
+                extension_prompt_types: { IN_PROMPT: 3 },
             });
 
             const result = safeSetExtensionPrompt('test content');
