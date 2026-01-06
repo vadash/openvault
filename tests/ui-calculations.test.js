@@ -278,8 +278,8 @@ describe('ui/calculations', () => {
             expect(result.totalMessages).toBe(5);
             expect(result.hiddenMessages).toBe(1);
             expect(result.extractedCount).toBe(2);
-            expect(result.bufferSize).toBe(4); // messageCount * 2
-            expect(result.bufferStart).toBe(1); // max(0, 5-4)
+            expect(result.bufferSize).toBe(2); // messageCount (1 batch)
+            expect(result.bufferStart).toBe(3); // max(0, 5-2)
         });
 
         it('counts unprocessed messages before buffer', () => {
@@ -288,9 +288,9 @@ describe('ui/calculations', () => {
 
             const result = calculateExtractionStats(chat, extractedIds, 5);
 
-            // bufferSize = 10, bufferStart = 10
-            // Messages 3-9 are before buffer and not extracted = 7 unprocessed
-            expect(result.unprocessedCount).toBe(7);
+            // bufferSize = 5, bufferStart = 15
+            // Messages 3-14 are before buffer and not extracted = 12 unprocessed
+            expect(result.unprocessedCount).toBe(12);
         });
 
         it('handles empty chat', () => {

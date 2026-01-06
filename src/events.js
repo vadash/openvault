@@ -176,8 +176,8 @@ export async function onMessageReceived(messageId) {
         const totalMessages = chat.length;
         const extractedCount = extractedMessageIds.size;
 
-        // Find unextracted message indices (excluding last N messages as buffer)
-        const extractableIds = getUnextractedMessageIds(chat, extractedMessageIds, messageCount);
+        // Find unextracted message indices (no buffer - extract as soon as full batch ready)
+        const extractableIds = getUnextractedMessageIds(chat, extractedMessageIds, 0);
 
         // Only extract if we have a complete batch ready
         if (extractableIds.length < messageCount) {

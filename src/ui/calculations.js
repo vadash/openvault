@@ -127,8 +127,8 @@ export function calculateExtractionStats(chat, extractedMessageIds, messageCount
     const hiddenMessages = chat.filter(m => m.is_system).length;
     const extractedCount = extractedMessageIds.size;
 
-    // Buffer zone: last N messages reserved for automatic extraction
-    const bufferSize = messageCount * 2;
+    // Buffer zone: last N messages reserved for automatic extraction (1 batch)
+    const bufferSize = messageCount;
     const bufferStart = Math.max(0, totalMessages - bufferSize);
 
     // Unprocessed: messages before buffer that haven't been extracted
