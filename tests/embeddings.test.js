@@ -24,6 +24,7 @@ describe('embeddings', () => {
             console: mockConsole,
             getExtensionSettings: () => ({
                 [extensionName]: {
+                    embeddingSource: 'ollama',
                     ollamaUrl: 'http://localhost:11434',
                     embeddingModel: 'nomic-embed-text',
                     debugMode: false,
@@ -98,7 +99,7 @@ describe('embeddings', () => {
         it('returns false when ollamaUrl is missing', () => {
             setDeps({
                 getExtensionSettings: () => ({
-                    [extensionName]: { embeddingModel: 'model' }
+                    [extensionName]: { embeddingSource: 'ollama', embeddingModel: 'model' }
                 }),
             });
             expect(isEmbeddingsEnabled()).toBe(false);
@@ -107,23 +108,23 @@ describe('embeddings', () => {
         it('returns false when embeddingModel is missing', () => {
             setDeps({
                 getExtensionSettings: () => ({
-                    [extensionName]: { ollamaUrl: 'http://localhost' }
+                    [extensionName]: { embeddingSource: 'ollama', ollamaUrl: 'http://localhost' }
                 }),
             });
             expect(isEmbeddingsEnabled()).toBe(false);
         });
 
-        it('returns false when settings are empty', () => {
+        it('returns true for Transformers.js models by default', () => {
             setDeps({
                 getExtensionSettings: () => ({}),
             });
-            expect(isEmbeddingsEnabled()).toBe(false);
+            expect(isEmbeddingsEnabled()).toBe(true);
         });
 
-        it('returns false for empty strings', () => {
+        it('returns false for empty ollama strings', () => {
             setDeps({
                 getExtensionSettings: () => ({
-                    [extensionName]: { ollamaUrl: '', embeddingModel: '' }
+                    [extensionName]: { embeddingSource: 'ollama', ollamaUrl: '', embeddingModel: '' }
                 }),
             });
             expect(isEmbeddingsEnabled()).toBe(false);
@@ -131,9 +132,9 @@ describe('embeddings', () => {
     });
 
     describe('getEmbedding', () => {
-        it('returns null when embeddings not configured', async () => {
+        it('returns null when ollama not configured', async () => {
             setDeps({
-                getExtensionSettings: () => ({ [extensionName]: {} }),
+                getExtensionSettings: () => ({ [extensionName]: { embeddingSource: 'ollama' } }),
             });
             const result = await getEmbedding('test text');
             expect(result).toBeNull();
@@ -158,6 +159,7 @@ describe('embeddings', () => {
                 console: mockConsole,
                 getExtensionSettings: () => ({
                     [extensionName]: {
+                        embeddingSource: 'ollama',
                         ollamaUrl: 'http://localhost:11434',
                         embeddingModel: 'nomic-embed-text',
                         debugMode: false,
@@ -191,6 +193,7 @@ describe('embeddings', () => {
                 console: mockConsole,
                 getExtensionSettings: () => ({
                     [extensionName]: {
+                        embeddingSource: 'ollama',
                         ollamaUrl: 'http://localhost:11434///',
                         embeddingModel: 'model',
                         debugMode: false,
@@ -217,6 +220,7 @@ describe('embeddings', () => {
                 console: mockConsole,
                 getExtensionSettings: () => ({
                     [extensionName]: {
+                        embeddingSource: 'ollama',
                         ollamaUrl: 'http://localhost:11434',
                         embeddingModel: 'model',
                         debugMode: false,
@@ -235,6 +239,7 @@ describe('embeddings', () => {
                 console: mockConsole,
                 getExtensionSettings: () => ({
                     [extensionName]: {
+                        embeddingSource: 'ollama',
                         ollamaUrl: 'http://localhost:11434',
                         embeddingModel: 'model',
                         debugMode: false,
@@ -256,6 +261,7 @@ describe('embeddings', () => {
                 console: mockConsole,
                 getExtensionSettings: () => ({
                     [extensionName]: {
+                        embeddingSource: 'ollama',
                         ollamaUrl: 'http://localhost:11434',
                         embeddingModel: 'model',
                         debugMode: false,
@@ -276,9 +282,9 @@ describe('embeddings', () => {
     });
 
     describe('generateEmbeddingsForMemories', () => {
-        it('returns 0 when embeddings not enabled', async () => {
+        it('returns 0 when ollama not enabled', async () => {
             setDeps({
-                getExtensionSettings: () => ({ [extensionName]: {} }),
+                getExtensionSettings: () => ({ [extensionName]: { embeddingSource: 'ollama' } }),
             });
 
             const memories = [{ id: '1', summary: 'Test' }];
@@ -295,6 +301,7 @@ describe('embeddings', () => {
                 console: mockConsole,
                 getExtensionSettings: () => ({
                     [extensionName]: {
+                        embeddingSource: 'ollama',
                         ollamaUrl: 'http://localhost:11434',
                         embeddingModel: 'model',
                         debugMode: false,
@@ -322,6 +329,7 @@ describe('embeddings', () => {
                 console: mockConsole,
                 getExtensionSettings: () => ({
                     [extensionName]: {
+                        embeddingSource: 'ollama',
                         ollamaUrl: 'http://localhost:11434',
                         embeddingModel: 'model',
                         debugMode: false,
@@ -349,6 +357,7 @@ describe('embeddings', () => {
                 console: mockConsole,
                 getExtensionSettings: () => ({
                     [extensionName]: {
+                        embeddingSource: 'ollama',
                         ollamaUrl: 'http://localhost:11434',
                         embeddingModel: 'model',
                         debugMode: false,
@@ -379,6 +388,7 @@ describe('embeddings', () => {
                 console: mockConsole,
                 getExtensionSettings: () => ({
                     [extensionName]: {
+                        embeddingSource: 'ollama',
                         ollamaUrl: 'http://localhost:11434',
                         embeddingModel: 'model',
                         debugMode: false,

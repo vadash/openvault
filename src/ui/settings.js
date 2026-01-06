@@ -9,6 +9,7 @@ import { extension_settings } from '../../../../../extensions.js';
 import { extensionName, extensionFolderPath, defaultSettings } from '../constants.js';
 import { refreshAllUI, prevPage, nextPage, resetAndRender } from './browser.js';
 import { validateRPM } from './calculations.js';
+import { setEmbeddingStatusCallback, getEmbeddingStatus } from '../embeddings.js';
 
 // References to external functions (set during init)
 let updateEventListenersFn = null;
@@ -170,6 +171,14 @@ function bindUIElements() {
         saveSettingsDebounced();
     });
 
+    // Embedding source dropdown
+    $('#openvault_embedding_source').on('change', function() {
+        settings.embeddingSource = $(this).val();
+        $('#openvault_ollama_settings').toggle(settings.embeddingSource === 'ollama');
+        $('#openvault_embedding_status').text(getEmbeddingStatus());
+        saveSettingsDebounced();
+    });
+
     // Backfill embeddings button
     $('#openvault_backfill_embeddings_btn').on('click', () => {
         if (backfillEmbeddingsFn) backfillEmbeddingsFn();
@@ -209,6 +218,11 @@ function bindUIElements() {
     // Memory browser filters
     $('#openvault_filter_type').on('change', () => resetAndRender());
     $('#openvault_filter_character').on('change', () => resetAndRender());
+
+    // Embedding status callback
+    setEmbeddingStatusCallback((status) => {
+        $('#openvault_embedding_status').text(status);
+    });
 }
 
 /**
@@ -249,8 +263,11 @@ export function updateUI() {
     $('#openvault_backfill_rpm').val(settings.backfillMaxRPM);
 
     // Embedding settings
+    $('#openvault_embedding_source').val(settings.embeddingSource || 'multilingual-e5-small');
+    $('#openvault_ollama_settings').toggle(settings.embeddingSource === 'ollama');
     $('#openvault_ollama_url').val(settings.ollamaUrl || '');
     $('#openvault_embedding_model').val(settings.embeddingModel || '');
+    $('#openvault_embedding_status').text(getEmbeddingStatus());
 
     // Populate profile selector
     populateProfileSelector();

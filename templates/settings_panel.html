@@ -74,13 +74,25 @@
             <div class="openvault-section">
                 <h4>Vector & Storage</h4>
 
-                <label for="openvault_ollama_url">Ollama URL</label>
-                <input type="text" id="openvault_ollama_url" class="text_pole" placeholder="http://localhost:11434" />
-                <small class="openvault-hint">Local Ollama endpoint (leave empty to disable vectors)<br/>
-                    <strong>CORS required:</strong> Windows: set <code>OLLAMA_ORIGINS=*</code> in environment variables. Linux/Mac: <code>OLLAMA_ORIGINS=* ollama serve</code></small>
+                <label for="openvault_embedding_source">Embedding Model</label>
+                <select id="openvault_embedding_source" class="text_pole">
+                    <option value="multilingual-e5-small">multilingual-e5-small (Default, 100+ languages)</option>
+                    <option value="paraphrase-multilingual-MiniLM-L12-v2">paraphrase-multilingual-MiniLM-L12-v2 (50+ languages)</option>
+                    <option value="all-MiniLM-L6-v2">all-MiniLM-L6-v2 (English, 25MB)</option>
+                    <option value="bge-small-en-v1.5">bge-small-en-v1.5 (English, best RAG)</option>
+                    <option value="ollama">Ollama (Custom)</option>
+                </select>
+                <small class="openvault-hint">Transformers.js models run locally in browser. Ollama requires local server.</small>
+                <div id="openvault_embedding_status" class="openvault-badge" style="margin-top: 5px;">Not loaded</div>
 
-                <label for="openvault_embedding_model">Embedding Model</label>
-                <input type="text" id="openvault_embedding_model" class="text_pole" placeholder="nomic-embed-text" />
+                <div id="openvault_ollama_settings" style="display: none;">
+                    <label for="openvault_ollama_url">Ollama URL</label>
+                    <input type="text" id="openvault_ollama_url" class="text_pole" placeholder="http://localhost:11434" />
+                    <small class="openvault-hint"><strong>CORS required:</strong> Windows: set <code>OLLAMA_ORIGINS=*</code> in environment variables. Linux/Mac: <code>OLLAMA_ORIGINS=* ollama serve</code></small>
+
+                    <label for="openvault_embedding_model">Ollama Model Name</label>
+                    <input type="text" id="openvault_embedding_model" class="text_pole" placeholder="nomic-embed-text" />
+                </div>
 
                 <label class="checkbox_label">
                     <input type="checkbox" id="openvault_auto_hide" checked />
