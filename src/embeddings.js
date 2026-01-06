@@ -181,13 +181,18 @@ async function loadTransformersPipeline(modelKey) {
             // Dynamic import of Transformers.js
             const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1');
 
+            let lastReportedPct = 0;
             const pipe = await pipeline('feature-extraction', modelConfig.name, {
                 device,
                 dtype,
                 progress_callback: (progress) => {
                     if (progress.status === 'progress' && progress.total) {
                         const pct = Math.round((progress.loaded / progress.total) * 100);
-                        updateStatus(`Loading ${modelKey}: ${pct}%`);
+                        // Only update at 25% intervals
+                        if (pct >= lastReportedPct + 25) {
+                            lastReportedPct = Math.floor(pct / 25) * 25;
+                            updateStatus(`Loading ${modelKey}: ${lastReportedPct}%`);
+                        }
                     }
                 },
             });
