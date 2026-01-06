@@ -61,7 +61,7 @@ import { setStatus } from '../src/ui/status.js';
 import { refreshAllUI } from '../src/ui/browser.js';
 import { buildExtractionPrompt } from '../src/prompts.js';
 import { parseExtractionResult, updateCharacterStatesFromEvents, updateRelationshipsFromEvents } from '../src/extraction/parser.js';
-import { getEmbedding, isEmbeddingsEnabled, enrichEventsWithEmbeddings } from '../src/embeddings.js';
+import { isEmbeddingsEnabled, enrichEventsWithEmbeddings } from '../src/embeddings.js';
 import { selectMemoriesForExtraction } from '../src/extraction/context-builder.js';
 
 describe('extract', () => {

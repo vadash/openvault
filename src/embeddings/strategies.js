@@ -49,7 +49,7 @@ class EmbeddingStrategy {
      * @param {string} text - Text to embed
      * @returns {Promise<number[]|null>} Embedding vector or null if unavailable
      */
-    async getEmbedding(text) {
+    async getEmbedding(_text) {
         throw new Error('getEmbedding() must be implemented by subclass');
     }
 
