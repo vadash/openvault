@@ -17,7 +17,7 @@ const TRANSFORMERS_MODELS = {
     // Multilingual models
     'multilingual-e5-small': {
         name: 'Xenova/multilingual-e5-small',
-        dtypeWebGPU: 'q4f16',   // ~65MB, fast on GPU
+        dtypeWebGPU: 'fp16',    // fp16 for WebGPU compatibility (q4f16 fails silently)
         dtypeWASM: 'q8',        // ~120MB, accurate on CPU
         dimensions: 384,
         description: 'Best multilingual (100+ langs)',
@@ -290,7 +290,7 @@ async function getTransformersEmbedding(text) {
         const output = await pipe(text.trim(), { pooling: 'mean', normalize: true });
         return Array.from(output.data);
     } catch (error) {
-        log(`Transformers embedding error: ${error.message}`);
+        log(`Transformers embedding error: ${error?.message || error || 'unknown'}`);
         return null;
     }
 }
