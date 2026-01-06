@@ -10,6 +10,23 @@ import { log } from './utils.js';
 import { extensionName } from './constants.js';
 
 /**
+ * Process items in batches with parallel execution within each batch
+ * @param {Array} items - Items to process
+ * @param {number} batchSize - Number of items per batch
+ * @param {Function} fn - Async function to apply to each item
+ * @returns {Promise<Array>} Results in order
+ */
+async function processInBatches(items, batchSize, fn) {
+    const results = [];
+    for (let i = 0; i < items.length; i += batchSize) {
+        const batch = items.slice(i, i + batchSize);
+        const batchResults = await Promise.all(batch.map(fn));
+        results.push(...batchResults);
+    }
+    return results;
+}
+
+/**
  * Calculate cosine similarity between two vectors
  * @param {number[]} vecA - First vector
  * @param {number[]} vecB - Second vector
@@ -93,19 +110,21 @@ export async function generateEmbeddingsForMemories(memories) {
         return 0;
     }
 
+    // Filter to valid memories: have summary, no embedding yet
+    const validMemories = memories.filter(m => m.summary && !m.embedding);
+
+    if (validMemories.length === 0) {
+        return 0;
+    }
+
+    // Process in batches of 5 (safe for Ollama local instances)
+    const embeddings = await processInBatches(validMemories, 5, m => getEmbedding(m.summary));
+
+    // Assign results back to memory objects
     let count = 0;
-    for (const memory of memories) {
-        if (memory.embedding) {
-            continue; // Skip already embedded
-        }
-
-        if (!memory.summary) {
-            continue; // Skip memories without summary
-        }
-
-        const embedding = await getEmbedding(memory.summary);
-        if (embedding) {
-            memory.embedding = embedding;
+    for (let i = 0; i < validMemories.length; i++) {
+        if (embeddings[i]) {
+            validMemories[i].embedding = embeddings[i];
             count++;
         }
     }
