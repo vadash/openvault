@@ -1,0 +1,96 @@
+### 1. Critical: Unified JSON Parsing (Robustness & DRY)
+**Problem:** You have two different ways of parsing JSON.
+1. `src/extraction/parser.js` uses the robust `json-repair` library.
+2. `src/utils.js` uses a regex-based `parseJsonFromMarkdown` (wrapper around `JSON.parse`).
+3. `src/retrieval/scoring.js` uses the weaker `utils.js` version for Smart Retrieval.
+
+**Risk:** If the LLM generates slightly malformed JSON during "Smart Retrieval" (which happens frequently with smaller models), retrieval falls back to simple mode unnecessarily, whereas extraction handles errors gracefully.
+
+**Refactor:**
+Remove `parseJsonFromMarkdown` from `src/utils.js`. Export a wrapper around `repairJson` in `src/utils.js` (or a dedicated `src/json.js`) and use it in both Extraction and Retrieval.
+
+```javascript
+// src/utils.js
+import { repairJson } from './lib/json-repair.js';
+
+export function safeParseJSON(input) {
+    try {
+        return repairJson(input, { returnObject: true, extractJson: true });
+    } catch (e) {
+        console.error("JSON Parse failed", e);
+        return null;
+    }
+}
+```
+
+### 2. High: Decouple Extraction Logic (SRP)
+**Problem:** `src/extraction/extract.js` violates the Single Responsibility Principle. It currently:
+1. Validates state.
+2. selects messages.
+3. **Calculates complex token budgets and sorts memories** (Lines 84-114).
+4. Calls the LLM.
+5. **Calls the Embedding service directly** (Lines 125-135).
+6. Saves data.
+
+**Refactor:**
+1. Move the memory context selection logic (Lines 84-114) into `src/extraction/context-builder.js`.
+2. Move the embedding generation logic into `src/embeddings.js` as `enrichEventsWithEmbeddings(events)`.
+
+**Benefit:** Makes `extract.js` readable and testable. Currently, testing `extractMemories` requires mocking the entire universe.
+
+### 3. Medium: Chat ID Integrity Check (Bug Prevention)
+**Problem:** Javascript promises are asynchronous. In `src/events.js`, you check `getCurrentChatId()` before extraction, but in `src/extraction/extract.js`, there is a long `await callLLMForExtraction`. If the user switches chats *during* the LLM call, `extractMemories` continues and calls `saveOpenVaultData`.
+`saveOpenVaultData` calls `saveChatConditional`, which *usually* saves to the *current* chat context. You might overwrite the *new* chat's metadata with the *old* chat's extracted memories.
+
+**Refactor:**
+Pass the `targetChatId` into `extractMemories`. Before saving, check:
+```javascript
+if (getCurrentChatId() !== targetChatId) {
+    throw new Error("Chat changed during extraction");
+}
+```
+
+### 4. Medium: Cleanup UI Settings (KISS/SRP)
+**Problem:** `src/ui/settings.js` is a "God Object" for the UI. The `bindUIElements` function is massive and contains anonymous callbacks for every single setting.
+
+**Refactor:**
+Create a configuration map or a helper to bind settings to inputs to reduce boilerplate code.
+
+```javascript
+// Example helper to reduce lines of code
+const bindCheckbox = (id, settingKey) => {
+    $(`#${id}`).prop('checked', settings[settingKey]).on('change', function() {
+        settings[settingKey] = $(this).is(':checked');
+        saveSettingsDebounced();
+    });
+};
+
+// Usage
+bindCheckbox('openvault_enabled', 'enabled');
+bindCheckbox('openvault_debug', 'debugMode');
+```
+
+### 5. Low: Embedding Provider Abstraction (OCP)
+**Problem:** `src/embeddings.js` mixes logic for Transformers.js and Ollama with hardcoded checks. If you want to add OpenAI or generic OpenAI-compatible endpoints later, you have to rewrite `getEmbedding` and `isEmbeddingsEnabled` with more `if/else` statements.
+
+**Refactor:**
+Create a simple Strategy pattern.
+1. `LocalTransformerStrategy`
+2. `OllamaStrategy`
+
+`getEmbedding` should simply delegate: `return currentStrategy.getEmbedding(text)`.
+
+### 6. Code Duplication (DRY)
+**Problem:** Memory Scoring Logic.
+`src/retrieval/worker.js` duplicates logic found in `src/constants.js` regarding Forgetfulness calculation math. While `worker.js` needs to be standalone, it's currently hardcoding logic that implies if you change the math in `scoring.js` or `constants.js`, you might forget to update the worker string/file.
+
+**Refactor:**
+Since `worker.js` is imported via `new URL`, ensure it imports the constants or math functions from a shared file if your bundler/environment supports it. If strict separation is required (no imports in worker), keep as is but add heavy comments in `constants.js` pointing to the worker.
+
+### Summary Plan
+
+1.  **Fix JSON Parsing** (Consolidate on `json-repair`).
+2.  **Protect Data Integrity** (Pass `chatId` through async chains).
+3.  **Simplify `extract.js`** (Extract helper functions).
+4.  **Refactor `embeddings.js`** (Remove hard dependency in extract, use strategy pattern).
+5.  **Clean `settings.js`** (Use helper functions for binding).

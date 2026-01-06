@@ -76,7 +76,13 @@ vi.mock('../src/prompts.js', () => ({
 // Mock the utils module
 vi.mock('../src/utils.js', () => ({
     log: vi.fn(),
-    parseJsonFromMarkdown: vi.fn((str) => JSON.parse(str)),
+    safeParseJSON: vi.fn((str) => {
+        try {
+            return JSON.parse(str);
+        } catch {
+            return null;
+        }
+    }),
     sliceToTokenBudget: vi.fn((memories) => memories), // Return all memories by default
     estimateTokens: vi.fn((text) => Math.ceil((text || '').length / 3.5)),
 }));

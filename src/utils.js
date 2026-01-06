@@ -6,6 +6,7 @@
 
 import { getDeps } from './deps.js';
 import { extensionName, METADATA_KEY, MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, LAST_PROCESSED_KEY } from './constants.js';
+import { repairJson } from './lib/json-repair.js';
 
 /**
  * Wrap a promise with a timeout
@@ -224,7 +225,23 @@ export function sliceToTokenBudget(memories, tokenBudget) {
 }
 
 /**
+ * Safely parse JSON, handling markdown code blocks and malformed JSON
+ * Uses json-repair library for robust parsing
+ * @param {string} input - Raw JSON string potentially wrapped in markdown
+ * @returns {any} Parsed JSON object, or null on failure
+ */
+export function safeParseJSON(input) {
+    try {
+        return repairJson(input, { returnObject: true, extractJson: true });
+    } catch (e) {
+        getDeps().console.error('[OpenVault] JSON Parse failed', e);
+        return null;
+    }
+}
+
+/**
  * Parse JSON from a response that may be wrapped in markdown code blocks
+ * @deprecated Use safeParseJSON instead for more robust parsing
  * @param {string} response - Raw response potentially containing markdown
  * @returns {any} Parsed JSON object
  * @throws {Error} If JSON parsing fails

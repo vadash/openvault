@@ -17,6 +17,7 @@ import {
     getUnextractedMessageIds,
     isExtensionEnabled,
     isAutomaticMode,
+    safeParseJSON,
     parseJsonFromMarkdown,
     sortMemoriesBySequence,
 } from '../src/utils.js';
@@ -365,6 +366,49 @@ describe('utils', () => {
                 }),
             });
             expect(isAutomaticMode()).toBe(false);
+        });
+    });
+
+    describe('safeParseJSON', () => {
+        it('parses valid JSON', () => {
+            const result = safeParseJSON('{"key": "value"}');
+            expect(result).toEqual({ key: 'value' });
+        });
+
+        it('extracts JSON from markdown code block', () => {
+            const result = safeParseJSON('```json\n{"key": "value"}\n```');
+            expect(result).toEqual({ key: 'value' });
+        });
+
+        it('handles arrays', () => {
+            const result = safeParseJSON('[1, 2, 3]');
+            expect(result).toEqual([1, 2, 3]);
+        });
+
+        it('repairs malformed JSON with trailing comma', () => {
+            const result = safeParseJSON('{"key": "value",}');
+            expect(result).toEqual({ key: 'value' });
+        });
+
+        it('repairs JSON with unquoted keys', () => {
+            const result = safeParseJSON('{key: "value"}');
+            expect(result).toEqual({ key: 'value' });
+        });
+
+        it('repairs JSON with single quotes', () => {
+            const result = safeParseJSON("{'key': 'value'}");
+            expect(result).toEqual({ key: 'value' });
+        });
+
+        it('returns null on completely invalid input', () => {
+            const result = safeParseJSON('not json at all');
+            expect(result).toBeNull();
+            expect(mockConsole.error).toHaveBeenCalled();
+        });
+
+        it('handles nested objects', () => {
+            const result = safeParseJSON('{"outer": {"inner": "value"}}');
+            expect(result).toEqual({ outer: { inner: 'value' } });
         });
     });
 
