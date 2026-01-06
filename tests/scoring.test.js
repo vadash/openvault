@@ -73,6 +73,14 @@ vi.mock('../src/prompts.js', () => ({
     buildSmartRetrievalPrompt: vi.fn().mockReturnValue('smart retrieval prompt'),
 }));
 
+// Mock the utils module
+vi.mock('../src/utils.js', () => ({
+    log: vi.fn(),
+    parseJsonFromMarkdown: vi.fn((str) => JSON.parse(str)),
+    sliceToTokenBudget: vi.fn((memories) => memories), // Return all memories by default
+    estimateTokens: vi.fn((text) => Math.ceil((text || '').length / 3.5)),
+}));
+
 // Import after mocks are set up
 import {
     selectRelevantMemoriesSimple,
@@ -82,6 +90,7 @@ import {
 import { getEmbedding, cosineSimilarity, isEmbeddingsEnabled } from '../src/embeddings.js';
 import { callLLMForRetrieval } from '../src/llm.js';
 import { buildSmartRetrievalPrompt } from '../src/prompts.js';
+import { log } from '../src/utils.js';
 
 describe('scoring', () => {
     let mockConsole;
@@ -98,6 +107,8 @@ describe('scoring', () => {
             enabled: true,
             debugMode: true,
             smartRetrievalEnabled: false,
+            retrievalPreFilterTokens: 24000,
+            retrievalFinalTokens: 12000,
             vectorSimilarityWeight: 15,
             vectorSimilarityThreshold: 0.5,
         };
@@ -506,7 +517,7 @@ describe('scoring', () => {
 
             await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 1, 100);
 
-            expect(mockConsole.log).toHaveBeenCalledWith(
+            expect(log).toHaveBeenCalledWith(
                 expect.stringContaining('Memory 0 is most relevant')
             );
         });
@@ -547,7 +558,7 @@ describe('scoring', () => {
                 { id: '0', summary: 'Memory 0', importance: 3, message_ids: [50] },
             ];
 
-            await selectRelevantMemories(memories, 'context text', 'user messages', 'Alice', ['Bob'], 5, 200);
+            await selectRelevantMemories(memories, 'context text', 'user messages', 'Alice', ['Bob'], mockSettings, 200);
 
             // Simple mode doesn't call LLM
             expect(callLLMForRetrieval).not.toHaveBeenCalled();
@@ -555,21 +566,24 @@ describe('scoring', () => {
 
         it('passes correct parameters to smart mode', async () => {
             mockSettings.smartRetrievalEnabled = true;
+            // Use very low token budget to ensure targetCount is less than memory count
+            mockSettings.retrievalFinalTokens = 5;
             const memories = [
-                { id: '0', summary: 'Memory 0' },
-                { id: '1', summary: 'Memory 1' },
-                { id: '2', summary: 'Memory 2' },
+                { id: '0', summary: 'Memory zero' },
+                { id: '1', summary: 'Memory one' },
+                { id: '2', summary: 'Memory two' },
             ];
 
             callLLMForRetrieval.mockResolvedValue('{"selected": [1, 2]}');
 
-            await selectRelevantMemories(memories, 'context text', 'user messages', 'Alice', ['Bob'], 2, 200);
+            await selectRelevantMemories(memories, 'context text', 'user messages', 'Alice', ['Bob'], mockSettings, 200);
 
+            // Smart mode calls LLM with calculated target count (based on token budget)
             expect(buildSmartRetrievalPrompt).toHaveBeenCalledWith(
                 'context text',
                 expect.any(String),
                 'Alice',
-                2
+                expect.any(Number) // Target count calculated from token budget
             );
         });
     });

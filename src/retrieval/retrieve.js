@@ -50,7 +50,7 @@ async function selectFormatAndInject(memoriesToUse, data, recentMessages, userMe
         userMessages,
         primaryCharacter,
         activeCharacters,
-        settings.maxMemoriesPerRetrieval,
+        settings,  // Pass settings object for token budgets
         chatLength
     );
 
@@ -72,7 +72,7 @@ async function selectFormatAndInject(memoriesToUse, data, recentMessages, userMe
         relationshipContext,
         emotionalInfo,
         headerName,
-        settings.tokenBudget,
+        settings.retrievalFinalTokens,
         chatLength
     );
 

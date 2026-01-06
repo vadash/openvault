@@ -153,7 +153,7 @@ function registerCommands() {
             const settings = extension_settings[extensionName];
             const data = getOpenVaultData();
             const memoriesCount = data?.[MEMORIES_KEY]?.length || 0;
-            const status = `OpenVault: ${settings.enabled ? 'Enabled' : 'Disabled'}, Mode: ${settings.automaticMode ? 'Automatic' : 'Manual'}, Memories: ${memoriesCount}`;
+            const status = `OpenVault: ${settings.enabled ? 'Enabled' : 'Disabled'}, Memories: ${memoriesCount}`;
             showToast('info', status);
             return status;
         },

@@ -40,7 +40,7 @@ describe('utils', () => {
             console: mockConsole,
             getContext: () => mockContext,
             getExtensionSettings: () => ({
-                [extensionName]: { enabled: true, automaticMode: true, debugMode: true }
+                [extensionName]: { enabled: true, debugMode: true }
             }),
         });
     });
@@ -349,28 +349,19 @@ describe('utils', () => {
     });
 
     describe('isAutomaticMode', () => {
-        it('returns true when enabled and automaticMode both true', () => {
+        it('returns true when enabled is true (automatic mode is now implicit)', () => {
             setDeps({
                 getExtensionSettings: () => ({
-                    [extensionName]: { enabled: true, automaticMode: true }
+                    [extensionName]: { enabled: true }
                 }),
             });
             expect(isAutomaticMode()).toBe(true);
         });
 
-        it('returns false when enabled but automaticMode false', () => {
-            setDeps({
-                getExtensionSettings: () => ({
-                    [extensionName]: { enabled: true, automaticMode: false }
-                }),
-            });
-            expect(isAutomaticMode()).toBe(false);
-        });
-
         it('returns false when disabled', () => {
             setDeps({
                 getExtensionSettings: () => ({
-                    [extensionName]: { enabled: false, automaticMode: true }
+                    [extensionName]: { enabled: false }
                 }),
             });
             expect(isAutomaticMode()).toBe(false);

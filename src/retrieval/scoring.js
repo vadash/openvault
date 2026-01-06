@@ -6,7 +6,7 @@
  */
 
 import { getDeps } from '../deps.js';
-import { log, parseJsonFromMarkdown } from '../utils.js';
+import { log, parseJsonFromMarkdown, sliceToTokenBudget, estimateTokens } from '../utils.js';
 import { extensionName, FORGETFULNESS } from '../constants.js';
 import { callLLMForRetrieval } from '../llm.js';
 import { buildSmartRetrievalPrompt } from '../prompts.js';
@@ -151,23 +151,62 @@ export async function selectRelevantMemoriesSmart(memories, recentContext, userM
 }
 
 /**
- * Select relevant memories using LLM or simple matching (dispatcher)
- * Uses smart retrieval if enabled in settings
+ * Select relevant memories using Two-Stage Token-Based Pipeline
+ * Stage 1: Algorithmic scoring with token budget pre-filter
+ * Stage 2: Smart LLM selection OR simple token budget slice
  * @param {Object[]} memories - Available memories
  * @param {string} recentContext - Recent chat context
  * @param {string} userMessages - Last 3 user messages for embedding
  * @param {string} characterName - POV character name
- * @param {string[]} activeCharacters - List of active characters
- * @param {number} limit - Maximum memories to return
+ * @param {string[]} activeCharacters - List of active characters (unused, kept for API)
+ * @param {Object} settings - Extension settings with token budgets
  * @param {number} chatLength - Current chat length (for distance calculation)
  * @returns {Promise<Object[]>} Selected memories
  */
-export async function selectRelevantMemories(memories, recentContext, userMessages, characterName, activeCharacters, limit, chatLength) {
-    const settings = getDeps().getExtensionSettings()[extensionName];
+export async function selectRelevantMemories(memories, recentContext, userMessages, characterName, activeCharacters, settings, chatLength) {
+    if (!memories || memories.length === 0) return [];
 
+    const preFilterTokens = settings.retrievalPreFilterTokens || 24000;
+    const finalTokens = settings.retrievalFinalTokens || 12000;
+
+    // Stage 1: Algorithmic Filtering
+    // Get scored results (pass high count limit, we'll token-slice after)
+    const scored = await selectRelevantMemoriesSimple(
+        memories,
+        recentContext,
+        userMessages,
+        characterName,
+        activeCharacters,
+        1000, // High count limit - we'll apply token budget after
+        chatLength
+    );
+
+    // Apply Stage 1 token budget (pre-filter)
+    const stage1Results = sliceToTokenBudget(scored, preFilterTokens);
+    log(`Stage 1: ${memories.length} memories -> ${scored.length} scored -> ${stage1Results.length} after token filter (${preFilterTokens} budget)`);
+
+    if (stage1Results.length === 0) return [];
+
+    // Stage 2: Smart Selection OR Simple Slice
     if (settings.smartRetrievalEnabled) {
-        return selectRelevantMemoriesSmart(memories, recentContext, userMessages, characterName, limit, chatLength);
+        // Calculate target count based on average memory cost
+        const totalStage1Tokens = stage1Results.reduce((sum, m) => sum + estimateTokens(m.summary), 0);
+        const avgMemoryCost = totalStage1Tokens / stage1Results.length;
+        const targetCount = Math.max(1, Math.floor(finalTokens / avgMemoryCost));
+
+        log(`Stage 2 (Smart): avgCost=${avgMemoryCost.toFixed(0)}, targetCount=${targetCount}`);
+
+        // If we already have fewer than target, skip LLM call
+        if (stage1Results.length <= targetCount) {
+            log(`Stage 2: Skipping LLM (${stage1Results.length} <= ${targetCount})`);
+            return stage1Results;
+        }
+
+        return selectRelevantMemoriesSmart(stage1Results, recentContext, userMessages, characterName, targetCount, chatLength);
     } else {
-        return selectRelevantMemoriesSimple(memories, recentContext, userMessages, characterName, activeCharacters, limit, chatLength);
+        // Simple mode: just apply final token budget
+        const finalResults = sliceToTokenBudget(stage1Results, finalTokens);
+        log(`Stage 2 (Simple): ${stage1Results.length} -> ${finalResults.length} after final token filter (${finalTokens} budget)`);
+        return finalResults;
     }
 }

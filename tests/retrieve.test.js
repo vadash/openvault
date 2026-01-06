@@ -62,10 +62,10 @@ describe('retrieve', () => {
 
         mockSettings = {
             enabled: true,
-            automaticMode: true,
             debugMode: true,
-            maxMemoriesPerRetrieval: 10,
-            tokenBudget: 1000,
+            retrievalPreFilterTokens: 24000,
+            retrievalFinalTokens: 12000,
+            smartRetrievalEnabled: false,
         };
 
         mockContext = {
@@ -228,7 +228,7 @@ describe('retrieve', () => {
                 expect.any(String), // userMessages
                 'Alice',
                 ['Alice'],
-                10,
+                mockSettings,
                 2
             );
         });
@@ -261,7 +261,7 @@ describe('retrieve', () => {
                 'Relationship context',
                 { emotion: 'happy', fromMessages: [1] },
                 'Scene',
-                1000,
+                12000,
                 2
             );
         });

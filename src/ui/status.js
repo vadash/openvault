@@ -6,9 +6,9 @@
 
 import { getContext, extension_settings } from '../../../../../extensions.js';
 import { getOpenVaultData, log, getExtractedMessageIds } from '../utils.js';
-import { MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, extensionName } from '../constants.js';
-import { getStatusText, formatHiddenMessagesText } from './formatting.js';
-import { calculateExtractionStats, getBackfillStatusText, getNextAutoExtractionText } from './calculations.js';
+import { MEMORIES_KEY, CHARACTERS_KEY, extensionName } from '../constants.js';
+import { getStatusText } from './formatting.js';
+import { calculateExtractionStats } from './calculations.js';
 
 /**
  * Set the status indicator
@@ -27,21 +27,20 @@ export function setStatus(status) {
 export function refreshStats() {
     const data = getOpenVaultData();
     if (!data) {
-        $('#openvault_stat_events').text(0);
-        $('#openvault_stat_characters').text(0);
-        $('#openvault_stat_relationships').text(0);
-        $('#openvault_batch_messages').text('--');
-        $('#openvault_batch_processed').text('--');
-        $('#openvault_batch_status').text('No chat');
-        $('#openvault_batch_next').text('--');
+        $('#openvault_stat_events_badge').text('0 events');
+        $('#openvault_stat_characters_badge').text('0 chars');
+        $('#openvault_extraction_progress').css('width', '0%');
+        $('#openvault_extraction_label').text('No chat');
         return;
     }
 
-    $('#openvault_stat_events').text(data[MEMORIES_KEY]?.length || 0);
-    $('#openvault_stat_characters').text(Object.keys(data[CHARACTERS_KEY] || {}).length);
-    $('#openvault_stat_relationships').text(Object.keys(data[RELATIONSHIPS_KEY] || {}).length);
+    const eventCount = data[MEMORIES_KEY]?.length || 0;
+    const charCount = Object.keys(data[CHARACTERS_KEY] || {}).length;
 
-    // Calculate extraction progress using pure functions
+    $('#openvault_stat_events_badge').text(`${eventCount} events`);
+    $('#openvault_stat_characters_badge').text(`${charCount} chars`);
+
+    // Calculate extraction progress
     const settings = extension_settings[extensionName];
     const messageCount = settings?.messagesPerExtraction || 10;
 
@@ -51,25 +50,12 @@ export function refreshStats() {
 
     const stats = calculateExtractionStats(chat, extractedMessageIds, messageCount);
 
-    // Update UI with calculated stats
-    const hiddenText = formatHiddenMessagesText(stats.hiddenMessages);
-    $('#openvault_batch_messages').text(`${stats.totalMessages} total${hiddenText}`);
-    $('#openvault_batch_processed').text(`${stats.extractedCount} of ${stats.totalMessages}`);
+    // Update progress bar
+    const percentage = stats.totalMessages > 0
+        ? Math.round((stats.extractedCount / stats.totalMessages) * 100)
+        : 0;
+    $('#openvault_extraction_progress').css('width', `${percentage}%`);
+    $('#openvault_extraction_label').text(`${stats.extractedCount} / ${stats.totalMessages} extracted`);
 
-    // Backfill status using pure function
-    const backfillText = getBackfillStatusText(stats.totalMessages, stats.bufferSize, stats.unprocessedCount);
-    $('#openvault_batch_status').text(backfillText);
-
-    // Next automatic extraction using pure function
-    const nextAutoText = getNextAutoExtractionText({
-        totalMessages: stats.totalMessages,
-        bufferSize: stats.bufferSize,
-        bufferStart: stats.bufferStart,
-        extractedCount: stats.extractedCount,
-        extractedMessageIds,
-        messageCount,
-    });
-    $('#openvault_batch_next').text(nextAutoText);
-
-    log(`Stats: ${data[MEMORIES_KEY]?.length || 0} memories, ${Object.keys(data[CHARACTERS_KEY] || {}).length} characters`);
+    log(`Stats: ${eventCount} memories, ${charCount} characters, ${percentage}% extracted`);
 }

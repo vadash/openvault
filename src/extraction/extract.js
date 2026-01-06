@@ -5,7 +5,7 @@
  */
 
 import { getDeps } from '../deps.js';
-import { getOpenVaultData, saveOpenVaultData, showToast, log, sortMemoriesBySequence, isExtensionEnabled } from '../utils.js';
+import { getOpenVaultData, saveOpenVaultData, showToast, log, sortMemoriesBySequence, sliceToTokenBudget, isExtensionEnabled } from '../utils.js';
 import { extensionName, MEMORIES_KEY, LAST_PROCESSED_KEY } from '../constants.js';
 import { callLLMForExtraction } from '../llm.js';
 import { setStatus } from '../ui/status.js';
@@ -13,25 +13,6 @@ import { refreshAllUI } from '../ui/browser.js';
 import { buildExtractionPrompt } from '../prompts.js';
 import { parseExtractionResult, updateCharacterStatesFromEvents, updateRelationshipsFromEvents, applyRelationshipDecay } from './parser.js';
 import { getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
-
-/**
- * Get recent memories for context during extraction
- * @param {number} count - Number of recent memories to retrieve (-1 = all, 0 = none)
- * @returns {Object[]} - Array of recent memory objects
- */
-export function getRecentMemoriesForContext(count) {
-    if (count === 0) return [];
-
-    const data = getOpenVaultData();
-    if (!data) return [];
-    const memories = data[MEMORIES_KEY] || [];
-
-    // Sort by sequence/creation time (newest first)
-    const sorted = sortMemoriesBySequence(memories, false);
-
-    // Return all if count is -1, otherwise slice to count
-    return count < 0 ? sorted : sorted.slice(0, count);
-}
 
 /**
  * Extract memories from messages using LLM
@@ -104,9 +85,10 @@ export async function extractMemories(messageIds = null) {
             return `[${speaker}]: ${m.mes}`;
         }).join('\n\n');
 
-        // Get existing memories for context (to avoid duplicates and maintain consistency)
-        const memoryContextCount = settings.memoryContextCount || 0;
-        const existingMemories = getRecentMemoriesForContext(memoryContextCount);
+        // Get existing memories for context using token budget (sorted newest first)
+        const allMemories = data[MEMORIES_KEY] || [];
+        const sortedMemories = sortMemoriesBySequence(allMemories, false);
+        const existingMemories = sliceToTokenBudget(sortedMemories, settings.extractionRearviewTokens);
 
         const extractionPrompt = buildExtractionPrompt(messagesText, characterName, userName, existingMemories, characterDescription, personaDescription);
 

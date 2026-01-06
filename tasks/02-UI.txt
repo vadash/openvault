@@ -1,0 +1,90 @@
+## Refactoring Plan: Token-Based Pipeline
+
+### Phase 1: Foundation (Constants & Utilities)
+
+1.  **Update `src/constants.js`**
+    *   Modify `defaultSettings`:
+        *   **Remove**: `maxMemoriesPerRetrieval`, `automaticMode`, `tokenBudget`, `memoryContextCount`.
+        *   **Add**:
+            *   `retrievalPreFilterTokens`: `24000` (Stage 1 Algo limit).
+            *   `retrievalFinalTokens`: `12000` (Stage 2 LLM/Context limit).
+            *   `extractionRearviewTokens`: `12000` (Extraction history limit).
+    *   *Note*: `automaticMode` will now be implicit. If `enabled` is true, automatic mode is active.
+
+2.  **Update `src/utils.js`**
+    *   **Add Helper**: `estimateTokens(text)`
+        *   Logic: `Math.ceil((text || '').length / 3.5)`.
+    *   **Add Helper**: `sliceToTokenBudget(memories, tokenBudget)`
+        *   Logic: Iterate through the memory array. Sum `estimateTokens(memory.summary)`. Stop adding memories *before* the sum exceeds `tokenBudget`. **Do not truncate individual strings.**
+    *   **Update**: `isAutomaticMode()`
+        *   Change logic to simply return `settings.enabled`.
+    *   **Cleanup**: Remove `getRecentMemoriesForContext` (move logic to `extract.js` to rely on the new slice helper).
+
+### Phase 2: Logic Core (Retrieval & Extraction)
+
+3.  **Refactor `src/extraction/extract.js`**
+    *   Update `extractMemories`:
+        *   Replace the call to `getRecentMemoriesForContext(count)` with `sliceToTokenBudget(sortedMemories, settings.extractionRearviewTokens)`.
+        *   Ensure memories are sorted by sequence/date *before* slicing to keep the most relevant history.
+
+4.  **Refactor `src/retrieval/scoring.js`**
+    *   Modify `selectRelevantMemories` to implement the **Two-Stage Pipeline**:
+        *   **Stage 1 (Algorithmic Filtering)**:
+            *   Call `selectRelevantMemoriesSimple` (Score by Recency/Vector).
+            *   Sort results by Score.
+            *   Apply `sliceToTokenBudget(results, settings.retrievalPreFilterTokens)`.
+        *   **Stage 2 (Smart Selection)**:
+            *   **If Smart Mode OFF**:
+                *   Apply `sliceToTokenBudget(stage1Results, settings.retrievalFinalTokens)`.
+                *   Return result.
+            *   **If Smart Mode ON**:
+                *   Calculate `totalStage1Tokens` (sum of summaries).
+                *   Calculate `avgMemoryCost` = `totalStage1Tokens / stage1Results.length`.
+                *   Calculate `targetCount` = `Math.floor(settings.retrievalFinalTokens / avgMemoryCost)`.
+                *   Call `selectRelevantMemoriesSmart` passing `targetCount` as the limit.
+    *   *Note*: Ensure `selectRelevantMemoriesSmart` uses the passed `limit` strictly.
+
+5.  **Refactor `src/retrieval/retrieve.js`**
+    *   Update `retrieveAndInjectContext`:
+        *   Pass the new token settings to the scoring function.
+        *   Ensure the final injection uses `settings.retrievalFinalTokens` as the hard limit for context formatting.
+
+### Phase 3: User Interface (HTML & Bindings)
+
+6.  **Rewrite `templates/settings_panel.html` (via `src/ui/settings.js`)**
+    *   Rebuild the HTML structure completely using CSS Grid/Flexbox groups.
+    *   **Section 1: General**:
+        *   `Enable OpenVault` (Checkbox).
+    *   **Section 2: Extraction (The Rearview)**:
+        *   `Extraction Profile` (Dropdown).
+        *   `Messages per Extraction` (Slider: 10-50, step 5).
+        *   `Extraction Rearview` (Slider: 1000-32000 Tokens) -> *Tooltip: "How much past context the LLM sees when writing new memories".*
+    *   **Section 3: Retrieval Pipeline**:
+        *   `Stage 1: Pre-filter Budget` (Slider: 1000-32000 Tokens) -> *Label: "Algorithmic Filter".*
+        *   `Stage 2: Smart Retrieval` (Checkbox).
+        *   `Retrieval Profile` (Dropdown, visible only if Smart ON).
+        *   `Stage 3: Final Context Budget` (Slider: 1000-32000 Tokens) -> *Label: "injected into Chat".*
+    *   **Section 4: Vector & Storage**:
+        *   `Ollama URL`, `Embedding Model`.
+        *   `Auto-hide`, `Messages to keep visible`, `Backfill RPM`.
+        *   Buttons: `Backfill History`, `Generate Embeddings`, `Delete Data`.
+    *   **Section 5: Stats**:
+        *   Compact badges for Event/Char counts.
+        *   Gradient bar for Message Extracted ratio.
+
+7.  **Update `src/ui/settings.js`**
+    *   **Remove**: Logic/Bindings for "Manual Extract" and "Manual Retrieve" buttons.
+    *   **Add**: Bindings for the new token sliders.
+    *   **Visuals**: Add event listeners to all token sliders to update a neighbor `<span>` with "Approx. X words" (Tokens * 0.75).
+    *   **Logic**: Ensure "Smart Retrieval" profile selector visibility toggles based on the checkbox.
+
+8.  **Update `src/ui/formatting.js` & `src/ui/status.js`**
+    *   Refactor `refreshStats` to target the new compact UI elements.
+
+### Phase 4: Cleanup & Verification
+
+9.  **Clean `src/events.js`**
+    *   Remove any logic that conditionally checks for `automaticMode` (since it's now implicit).
+
+10. **Clean `src/prompts.js`**
+    *   Verify `buildSmartRetrievalPrompt` still works effectively with the calculated `targetCount` from Phase 2. (No changes needed if it accepts integer limits, but ensure the prompt wording doesn't conflict).

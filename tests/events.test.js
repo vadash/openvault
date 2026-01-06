@@ -108,7 +108,6 @@ describe('events', () => {
 
         mockSettings = {
             enabled: true,
-            automaticMode: true,
             debugMode: true,
             messagesPerExtraction: 5,
         };

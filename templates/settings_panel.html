@@ -6,154 +6,117 @@
             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
         <div class="inline-drawer-content">
-            <!-- Main Controls -->
+            <!-- Section 1: General -->
             <div class="openvault-section">
                 <label class="checkbox_label">
                     <input type="checkbox" id="openvault_enabled" checked />
                     <span>Enable OpenVault</span>
                 </label>
-                <label class="checkbox_label">
-                    <input type="checkbox" id="openvault_automatic" checked />
-                    <span>Automatic Mode</span>
-                    <small class="openvault-hint">(Retrieve before AI, extract after AI every N messages)</small>
-                </label>
             </div>
 
-            <!-- Manual Actions -->
+            <!-- Section 2: Extraction (The Rearview) -->
             <div class="openvault-section">
-                <h4>Manual Actions</h4>
-                <div class="openvault-button-row">
-                    <button id="openvault_extract_btn" class="menu_button">
-                        <i class="fa-solid fa-brain"></i> Extract Memories
-                    </button>
-                    <button id="openvault_retrieve_btn" class="menu_button">
-                        <i class="fa-solid fa-search"></i> Retrieve Context
-                    </button>
-                </div>
-                <button id="openvault_extract_all_btn" class="menu_button wide">
-                    <i class="fa-solid fa-layer-group"></i> Backfill Chat History
-                </button>
-            </div>
-
-            <!-- Settings -->
-            <div class="openvault-section">
-                <h4>Settings</h4>
+                <h4>Extraction</h4>
 
                 <label for="openvault_extraction_profile">Extraction Profile</label>
                 <select id="openvault_extraction_profile" class="text_pole">
                     <option value="">Use current connection</option>
                 </select>
-                <small class="openvault-hint">LLM profile used for memory extraction (quality summaries)</small>
-
-                <label for="openvault_retrieval_profile">Retrieval Profile</label>
-                <select id="openvault_retrieval_profile" class="text_pole">
-                    <option value="">Use current connection</option>
-                </select>
-                <small class="openvault-hint">LLM profile used for smart retrieval (can use faster model)</small>
-
-                <label for="openvault_token_budget">
-                    Token Budget: <span id="openvault_token_budget_value">1000</span>
-                </label>
-                <input type="range" id="openvault_token_budget" min="200" max="30000" step="100" value="1000" />
-                <small class="openvault-hint">Maximum tokens for injected context</small>
+                <small class="openvault-hint">LLM profile for memory extraction</small>
 
                 <label for="openvault_messages_per_extraction">
                     Messages per Extraction: <span id="openvault_messages_per_extraction_value">10</span>
                 </label>
-                <input type="range" id="openvault_messages_per_extraction" min="1" max="50" step="1" value="10" />
-                <small class="openvault-hint">Number of messages to analyze when extracting memories</small>
+                <input type="range" id="openvault_messages_per_extraction" min="10" max="50" step="5" value="10" />
 
-                <label for="openvault_memory_context_count">
-                    Memory Context: <span id="openvault_memory_context_count_value">All</span>
+                <label for="openvault_extraction_rearview">
+                    Extraction Rearview: <span id="openvault_extraction_rearview_value">12000</span> tokens
+                    <small class="openvault-words-hint">~<span id="openvault_extraction_rearview_words">9000</span> words</small>
                 </label>
-                <input type="range" id="openvault_memory_context_count" min="-1" max="200" step="1" value="-1" />
-                <small class="openvault-hint">Include memories in extraction for consistency (-1 = All, 0 = none)</small>
+                <input type="range" id="openvault_extraction_rearview" min="1000" max="32000" step="1000" value="12000" />
+                <small class="openvault-hint">How much past context the LLM sees when writing new memories</small>
+            </div>
+
+            <!-- Section 3: Retrieval Pipeline -->
+            <div class="openvault-section">
+                <h4>Retrieval Pipeline</h4>
+
+                <label for="openvault_prefilter_budget">
+                    Stage 1 - Pre-filter Budget: <span id="openvault_prefilter_budget_value">24000</span> tokens
+                    <small class="openvault-words-hint">~<span id="openvault_prefilter_budget_words">18000</span> words</small>
+                </label>
+                <input type="range" id="openvault_prefilter_budget" min="1000" max="32000" step="1000" value="24000" />
+                <small class="openvault-hint">Algorithmic filter (recency + vector similarity)</small>
 
                 <label class="checkbox_label">
                     <input type="checkbox" id="openvault_smart_retrieval" checked />
-                    <span>Smart Retrieval Mode</span>
-                    <small class="openvault-hint">(Use LLM to select most relevant memories)</small>
+                    <span>Stage 2 - Smart Retrieval</span>
                 </label>
+                <small class="openvault-hint">Use LLM to select most relevant memories</small>
 
-                <label for="openvault_max_memories">
-                    Max Memories per Retrieval: <span id="openvault_max_memories_value">100</span>
+                <div id="openvault_retrieval_profile_group">
+                    <label for="openvault_retrieval_profile">Retrieval Profile</label>
+                    <select id="openvault_retrieval_profile" class="text_pole">
+                        <option value="">Use current connection</option>
+                    </select>
+                    <small class="openvault-hint">LLM profile for smart retrieval (can use faster model)</small>
+                </div>
+
+                <label for="openvault_final_budget">
+                    Stage 3 - Final Context Budget: <span id="openvault_final_budget_value">12000</span> tokens
+                    <small class="openvault-words-hint">~<span id="openvault_final_budget_words">9000</span> words</small>
                 </label>
-                <input type="range" id="openvault_max_memories" min="5" max="200" step="5" value="100" />
-                <small class="openvault-hint">Maximum memories LLM can select from during smart retrieval</small>
+                <input type="range" id="openvault_final_budget" min="1000" max="32000" step="1000" value="12000" />
+                <small class="openvault-hint">Injected into chat context</small>
+            </div>
+
+            <!-- Section 4: Vector & Storage -->
+            <div class="openvault-section">
+                <h4>Vector & Storage</h4>
+
+                <label for="openvault_ollama_url">Ollama URL</label>
+                <input type="text" id="openvault_ollama_url" class="text_pole" placeholder="http://localhost:11434" />
+                <small class="openvault-hint">Local Ollama endpoint (leave empty to disable vectors)</small>
+
+                <label for="openvault_embedding_model">Embedding Model</label>
+                <input type="text" id="openvault_embedding_model" class="text_pole" placeholder="nomic-embed-text" />
 
                 <label class="checkbox_label">
                     <input type="checkbox" id="openvault_auto_hide" checked />
                     <span>Auto-hide old messages</span>
-                    <small class="openvault-hint">(Hide messages beyond threshold, memories still injected)</small>
                 </label>
 
                 <label for="openvault_auto_hide_threshold">
                     Messages to keep visible: <span id="openvault_auto_hide_threshold_value">50</span>
                 </label>
                 <input type="range" id="openvault_auto_hide_threshold" min="10" max="200" step="2" value="50" />
-                <small class="openvault-hint">Messages older than this are hidden (in pairs)</small>
 
                 <label for="openvault_backfill_rpm">Backfill Rate Limit (RPM)</label>
                 <input type="number" id="openvault_backfill_rpm" class="text_pole" min="1" max="600" value="30" />
-                <small class="openvault-hint">Max requests per minute during backfill (lower = safer for rate limits)</small>
+
+                <div class="openvault-button-row">
+                    <button id="openvault_extract_all_btn" class="menu_button">
+                        <i class="fa-solid fa-layer-group"></i> Backfill History
+                    </button>
+                    <button id="openvault_backfill_embeddings_btn" class="menu_button">
+                        <i class="fa-solid fa-vector-square"></i> Generate Embeddings
+                    </button>
+                </div>
             </div>
 
-            <!-- Vector Embeddings (Optional) -->
-            <div class="openvault-section">
-                <h4>Vector Embeddings (Optional)</h4>
-
-                <label for="openvault_ollama_url">Ollama URL</label>
-                <input type="text" id="openvault_ollama_url" class="text_pole" placeholder="http://localhost:11434" />
-                <small class="openvault-hint">Local Ollama server endpoint (leave empty to disable)</small>
-
-                <label for="openvault_embedding_model">Embedding Model</label>
-                <input type="text" id="openvault_embedding_model" class="text_pole" placeholder="nomic-embed-text" />
-                <small class="openvault-hint">Ollama model for embeddings (e.g., nomic-embed-text, mxbai-embed-large)</small>
-
-                <button id="openvault_backfill_embeddings_btn" class="menu_button wide">
-                    <i class="fa-solid fa-vector-square"></i> Generate Embeddings for Existing Memories
-                </button>
-                <small class="openvault-hint">Creates vector embeddings for semantic search</small>
-            </div>
-
-            <!-- Statistics -->
+            <!-- Section 5: Statistics -->
             <div class="openvault-section">
                 <h4>Statistics</h4>
-                <div class="openvault-stats">
-                    <div class="openvault-stat">
-                        <span class="openvault-stat-value" id="openvault_stat_events">--</span>
-                        <span class="openvault-stat-label">Events</span>
-                    </div>
-                    <div class="openvault-stat">
-                        <span class="openvault-stat-value" id="openvault_stat_characters">--</span>
-                        <span class="openvault-stat-label">Characters</span>
-                    </div>
-                    <div class="openvault-stat">
-                        <span class="openvault-stat-value" id="openvault_stat_relationships">--</span>
-                        <span class="openvault-stat-label">Relationships</span>
-                    </div>
+                <div class="openvault-stats-compact">
+                    <span class="openvault-badge" id="openvault_stat_events_badge">0 events</span>
+                    <span class="openvault-badge" id="openvault_stat_characters_badge">0 chars</span>
                 </div>
-                <!-- Batch Processing Info -->
-                <div class="openvault-batch-info">
-                    <div class="openvault-batch-row">
-                        <span class="openvault-batch-label">Messages:</span>
-                        <span class="openvault-batch-value" id="openvault_batch_messages">--</span>
-                    </div>
-                    <div class="openvault-batch-row">
-                        <span class="openvault-batch-label">Extracted:</span>
-                        <span class="openvault-batch-value" id="openvault_batch_processed">--</span>
-                    </div>
-                    <div class="openvault-batch-row">
-                        <span class="openvault-batch-label">Backfill:</span>
-                        <span class="openvault-batch-value" id="openvault_batch_status">--</span>
-                    </div>
-                    <div class="openvault-batch-row">
-                        <span class="openvault-batch-label">Next auto:</span>
-                        <span class="openvault-batch-value" id="openvault_batch_next">--</span>
-                    </div>
+                <div class="openvault-extraction-bar">
+                    <div class="openvault-extraction-progress" id="openvault_extraction_progress"></div>
+                    <span class="openvault-extraction-label" id="openvault_extraction_label">0 / 0 extracted</span>
                 </div>
                 <button id="openvault_refresh_stats_btn" class="menu_button">
-                    <i class="fa-solid fa-refresh"></i> Refresh Stats
+                    <i class="fa-solid fa-refresh"></i> Refresh
                 </button>
             </div>
 

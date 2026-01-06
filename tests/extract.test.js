@@ -12,6 +12,7 @@ vi.mock('../src/utils.js', () => ({
     showToast: vi.fn(),
     log: vi.fn(),
     sortMemoriesBySequence: vi.fn(),
+    sliceToTokenBudget: vi.fn(),
     isExtensionEnabled: vi.fn(),
 }));
 
@@ -45,10 +46,9 @@ vi.mock('../src/embeddings.js', () => ({
 
 // Import after mocks
 import {
-    getRecentMemoriesForContext,
     extractMemories,
 } from '../src/extraction/extract.js';
-import { getOpenVaultData, saveOpenVaultData, showToast, sortMemoriesBySequence, isExtensionEnabled } from '../src/utils.js';
+import { getOpenVaultData, saveOpenVaultData, showToast, sortMemoriesBySequence, sliceToTokenBudget, isExtensionEnabled } from '../src/utils.js';
 import { callLLMForExtraction } from '../src/llm.js';
 import { setStatus } from '../src/ui/status.js';
 import { refreshAllUI } from '../src/ui/browser.js';
@@ -73,7 +73,7 @@ describe('extract', () => {
             enabled: true,
             debugMode: true,
             messagesPerExtraction: 5,
-            memoryContextCount: 3,
+            extractionRearviewTokens: 12000,
         };
 
         mockContext = {
@@ -111,6 +111,7 @@ describe('extract', () => {
         sortMemoriesBySequence.mockImplementation((memories, asc) => {
             return [...memories].sort((a, b) => asc ? a.sequence - b.sequence : b.sequence - a.sequence);
         });
+        sliceToTokenBudget.mockImplementation((memories) => memories);
         isEmbeddingsEnabled.mockReturnValue(false);
         callLLMForExtraction.mockResolvedValue('{}');
         parseExtractionResult.mockReturnValue([]);
@@ -118,80 +119,6 @@ describe('extract', () => {
 
     afterEach(() => {
         resetDeps();
-    });
-
-    describe('getRecentMemoriesForContext', () => {
-        it('returns empty array when count is 0', () => {
-            mockData[MEMORIES_KEY] = [
-                { id: '1', summary: 'Memory 1', sequence: 1 },
-            ];
-
-            const result = getRecentMemoriesForContext(0);
-
-            expect(result).toEqual([]);
-        });
-
-        it('returns empty array when no data', () => {
-            getOpenVaultData.mockReturnValue(null);
-
-            const result = getRecentMemoriesForContext(5);
-
-            expect(result).toEqual([]);
-        });
-
-        it('returns empty array when no memories', () => {
-            mockData[MEMORIES_KEY] = [];
-
-            const result = getRecentMemoriesForContext(5);
-
-            expect(result).toEqual([]);
-        });
-
-        it('returns all memories when count is -1', () => {
-            mockData[MEMORIES_KEY] = [
-                { id: '1', summary: 'Memory 1', sequence: 1 },
-                { id: '2', summary: 'Memory 2', sequence: 2 },
-                { id: '3', summary: 'Memory 3', sequence: 3 },
-            ];
-
-            const result = getRecentMemoriesForContext(-1);
-
-            expect(result).toHaveLength(3);
-            expect(sortMemoriesBySequence).toHaveBeenCalledWith(mockData[MEMORIES_KEY], false);
-        });
-
-        it('returns limited memories when count > 0', () => {
-            mockData[MEMORIES_KEY] = [
-                { id: '1', summary: 'Memory 1', sequence: 1 },
-                { id: '2', summary: 'Memory 2', sequence: 2 },
-                { id: '3', summary: 'Memory 3', sequence: 3 },
-                { id: '4', summary: 'Memory 4', sequence: 4 },
-            ];
-            // Mock sort returns newest first
-            sortMemoriesBySequence.mockReturnValue([
-                { id: '4', summary: 'Memory 4', sequence: 4 },
-                { id: '3', summary: 'Memory 3', sequence: 3 },
-                { id: '2', summary: 'Memory 2', sequence: 2 },
-                { id: '1', summary: 'Memory 1', sequence: 1 },
-            ]);
-
-            const result = getRecentMemoriesForContext(2);
-
-            expect(result).toHaveLength(2);
-            expect(result[0].id).toBe('4');
-            expect(result[1].id).toBe('3');
-        });
-
-        it('sorts memories by sequence (newest first)', () => {
-            mockData[MEMORIES_KEY] = [
-                { id: '1', summary: 'Old', sequence: 1 },
-                { id: '2', summary: 'New', sequence: 5 },
-            ];
-
-            getRecentMemoriesForContext(5);
-
-            expect(sortMemoriesBySequence).toHaveBeenCalledWith(mockData[MEMORIES_KEY], false);
-        });
     });
 
     describe('extractMemories', () => {

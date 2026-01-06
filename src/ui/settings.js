@@ -8,13 +8,10 @@ import { saveSettingsDebounced } from '../../../../../../script.js';
 import { extension_settings } from '../../../../../extensions.js';
 import { extensionName, extensionFolderPath, defaultSettings } from '../constants.js';
 import { refreshAllUI, prevPage, nextPage, resetAndRender } from './browser.js';
-import { formatMemoryContextCount } from './formatting.js';
 import { validateRPM } from './calculations.js';
 
 // References to external functions (set during init)
 let updateEventListenersFn = null;
-let extractMemoriesFn = null;
-let retrieveAndInjectContextFn = null;
 let extractAllMessagesFn = null;
 let deleteCurrentChatDataFn = null;
 let deleteAllDataFn = null;
@@ -26,12 +23,28 @@ let backfillEmbeddingsFn = null;
  */
 export function setExternalFunctions(fns) {
     updateEventListenersFn = fns.updateEventListeners;
-    extractMemoriesFn = fns.extractMemories;
-    retrieveAndInjectContextFn = fns.retrieveAndInjectContext;
     extractAllMessagesFn = fns.extractAllMessages;
     deleteCurrentChatDataFn = fns.deleteCurrentChatData;
     deleteAllDataFn = fns.deleteAllData;
     backfillEmbeddingsFn = fns.backfillEmbeddings;
+}
+
+/**
+ * Convert tokens to approximate word count
+ * @param {number} tokens - Token count
+ * @returns {number} Approximate word count
+ */
+function tokensToWords(tokens) {
+    return Math.round(tokens * 0.75);
+}
+
+/**
+ * Update word count display for a token slider
+ * @param {number} tokens - Token value
+ * @param {string} wordsElementId - ID of the words span element
+ */
+function updateWordsDisplay(tokens, wordsElementId) {
+    $(`#${wordsElementId}`).text(tokensToWords(tokens));
 }
 
 /**
@@ -80,20 +93,6 @@ function bindUIElements() {
         if (updateEventListenersFn) updateEventListenersFn();
     });
 
-    // Automatic mode toggle
-    $('#openvault_automatic').on('change', function() {
-        settings.automaticMode = $(this).is(':checked');
-        saveSettingsDebounced();
-        if (updateEventListenersFn) updateEventListenersFn();
-    });
-
-    // Token budget slider
-    $('#openvault_token_budget').on('input', function() {
-        settings.tokenBudget = parseInt($(this).val());
-        $('#openvault_token_budget_value').text(settings.tokenBudget);
-        saveSettingsDebounced();
-    });
-
     // Debug mode toggle
     $('#openvault_debug').on('change', function() {
         settings.debugMode = $(this).is(':checked');
@@ -107,23 +106,35 @@ function bindUIElements() {
         saveSettingsDebounced();
     });
 
-    // Memory context count slider
-    $('#openvault_memory_context_count').on('input', function() {
-        settings.memoryContextCount = parseInt($(this).val());
-        $('#openvault_memory_context_count_value').text(formatMemoryContextCount(settings.memoryContextCount));
+    // Extraction rearview tokens slider
+    $('#openvault_extraction_rearview').on('input', function() {
+        settings.extractionRearviewTokens = parseInt($(this).val());
+        $('#openvault_extraction_rearview_value').text(settings.extractionRearviewTokens);
+        updateWordsDisplay(settings.extractionRearviewTokens, 'openvault_extraction_rearview_words');
+        saveSettingsDebounced();
+    });
+
+    // Pre-filter budget slider
+    $('#openvault_prefilter_budget').on('input', function() {
+        settings.retrievalPreFilterTokens = parseInt($(this).val());
+        $('#openvault_prefilter_budget_value').text(settings.retrievalPreFilterTokens);
+        updateWordsDisplay(settings.retrievalPreFilterTokens, 'openvault_prefilter_budget_words');
         saveSettingsDebounced();
     });
 
     // Smart retrieval toggle
     $('#openvault_smart_retrieval').on('change', function() {
         settings.smartRetrievalEnabled = $(this).is(':checked');
+        // Toggle retrieval profile visibility
+        $('#openvault_retrieval_profile_group').toggle(settings.smartRetrievalEnabled);
         saveSettingsDebounced();
     });
 
-    // Max memories per retrieval slider
-    $('#openvault_max_memories').on('input', function() {
-        settings.maxMemoriesPerRetrieval = parseInt($(this).val());
-        $('#openvault_max_memories_value').text(settings.maxMemoriesPerRetrieval);
+    // Final budget slider
+    $('#openvault_final_budget').on('input', function() {
+        settings.retrievalFinalTokens = parseInt($(this).val());
+        $('#openvault_final_budget_value').text(settings.retrievalFinalTokens);
+        updateWordsDisplay(settings.retrievalFinalTokens, 'openvault_final_budget_words');
         saveSettingsDebounced();
     });
 
@@ -164,16 +175,12 @@ function bindUIElements() {
         if (backfillEmbeddingsFn) backfillEmbeddingsFn();
     });
 
-    // Manual action buttons
-    $('#openvault_extract_btn').on('click', () => {
-        if (extractMemoriesFn) extractMemoriesFn();
-    });
-    $('#openvault_retrieve_btn').on('click', () => {
-        if (retrieveAndInjectContextFn) retrieveAndInjectContextFn();
-    });
+    // Backfill history button
     $('#openvault_extract_all_btn').on('click', () => {
         if (extractAllMessagesFn) extractAllMessagesFn();
     });
+
+    // Refresh stats button
     $('#openvault_refresh_stats_btn').on('click', () => refreshAllUI());
 
     // Danger zone buttons
@@ -211,19 +218,27 @@ export function updateUI() {
     const settings = extension_settings[extensionName];
 
     $('#openvault_enabled').prop('checked', settings.enabled);
-    $('#openvault_automatic').prop('checked', settings.automaticMode);
-    $('#openvault_token_budget').val(settings.tokenBudget);
-    $('#openvault_token_budget_value').text(settings.tokenBudget);
     $('#openvault_debug').prop('checked', settings.debugMode);
 
     // Extraction settings
     $('#openvault_messages_per_extraction').val(settings.messagesPerExtraction);
     $('#openvault_messages_per_extraction_value').text(settings.messagesPerExtraction);
-    $('#openvault_memory_context_count').val(settings.memoryContextCount);
-    $('#openvault_memory_context_count_value').text(formatMemoryContextCount(settings.memoryContextCount));
+
+    $('#openvault_extraction_rearview').val(settings.extractionRearviewTokens);
+    $('#openvault_extraction_rearview_value').text(settings.extractionRearviewTokens);
+    updateWordsDisplay(settings.extractionRearviewTokens, 'openvault_extraction_rearview_words');
+
+    // Retrieval pipeline settings
+    $('#openvault_prefilter_budget').val(settings.retrievalPreFilterTokens);
+    $('#openvault_prefilter_budget_value').text(settings.retrievalPreFilterTokens);
+    updateWordsDisplay(settings.retrievalPreFilterTokens, 'openvault_prefilter_budget_words');
+
     $('#openvault_smart_retrieval').prop('checked', settings.smartRetrievalEnabled);
-    $('#openvault_max_memories').val(settings.maxMemoriesPerRetrieval);
-    $('#openvault_max_memories_value').text(settings.maxMemoriesPerRetrieval);
+    $('#openvault_retrieval_profile_group').toggle(settings.smartRetrievalEnabled);
+
+    $('#openvault_final_budget').val(settings.retrievalFinalTokens);
+    $('#openvault_final_budget_value').text(settings.retrievalFinalTokens);
+    updateWordsDisplay(settings.retrievalFinalTokens, 'openvault_final_budget_words');
 
     // Auto-hide settings
     $('#openvault_auto_hide').prop('checked', settings.autoHideEnabled);

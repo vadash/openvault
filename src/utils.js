@@ -180,12 +180,47 @@ export function isExtensionEnabled() {
 }
 
 /**
- * Check if OpenVault extension is enabled AND in automatic mode
+ * Check if OpenVault extension is enabled (automatic mode is now implicit)
  * @returns {boolean}
  */
 export function isAutomaticMode() {
     const settings = getDeps().getExtensionSettings()[extensionName];
-    return settings?.enabled && settings?.automaticMode;
+    return settings?.enabled === true;
+}
+
+/**
+ * Estimate token count for a text string
+ * @param {string} text - Text to estimate
+ * @returns {number} Estimated token count
+ */
+export function estimateTokens(text) {
+    return Math.ceil((text || '').length / 3.5);
+}
+
+/**
+ * Slice memories array to fit within a token budget
+ * Does not truncate individual summaries - stops before budget is exceeded
+ * @param {Object[]} memories - Array of memory objects with summary field
+ * @param {number} tokenBudget - Maximum tokens to include
+ * @returns {Object[]} Sliced memories array that fits within budget
+ */
+export function sliceToTokenBudget(memories, tokenBudget) {
+    if (!memories || memories.length === 0) return [];
+    if (!tokenBudget || tokenBudget <= 0) return [];
+
+    const result = [];
+    let totalTokens = 0;
+
+    for (const memory of memories) {
+        const memoryTokens = estimateTokens(memory.summary);
+        if (totalTokens + memoryTokens > tokenBudget) {
+            break; // Stop before exceeding budget
+        }
+        result.push(memory);
+        totalTokens += memoryTokens;
+    }
+
+    return result;
 }
 
 /**
