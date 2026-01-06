@@ -60,14 +60,16 @@ async function isWebGPUAvailable() {
 
     try {
         if (!navigator.gpu) {
+            log('WebGPU: navigator.gpu not found');
             webGPUSupported = false;
             return false;
         }
         const adapter = await navigator.gpu.requestAdapter();
         webGPUSupported = !!adapter;
-        log(`WebGPU ${webGPUSupported ? 'available' : 'not available'}`);
+        log(`WebGPU ${webGPUSupported ? 'available' : 'adapter request failed'}`);
         return webGPUSupported;
-    } catch {
+    } catch (error) {
+        log(`WebGPU detection error: ${error.message}`);
         webGPUSupported = false;
         return false;
     }
