@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { setDeps, resetDeps } from '../src/deps.js';
-import { extensionName, FORGETFULNESS } from '../src/constants.js';
+import { extensionName, defaultSettings } from '../src/constants.js';
 
 // Store reference to cosineSimilarity mock for MockWorker
 let cosineSimilarityMock = vi.fn();
@@ -595,12 +595,12 @@ describe('scoring', () => {
     });
 
     describe('forgetfulness curve math', () => {
-        it('verifies BASE_LAMBDA constant', () => {
-            expect(FORGETFULNESS.BASE_LAMBDA).toBe(0.05);
+        it('verifies BASE_LAMBDA default setting', () => {
+            expect(defaultSettings.forgetfulnessBaseLambda).toBe(0.05);
         });
 
-        it('verifies IMPORTANCE_5_FLOOR constant', () => {
-            expect(FORGETFULNESS.IMPORTANCE_5_FLOOR).toBe(5);
+        it('verifies IMPORTANCE_5_FLOOR default setting', () => {
+            expect(defaultSettings.forgetfulnessImportance5Floor).toBe(5);
         });
 
         it('importance affects lambda quadratically', async () => {

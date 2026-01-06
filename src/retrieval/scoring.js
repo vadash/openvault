@@ -7,7 +7,7 @@
 
 import { getDeps } from '../deps.js';
 import { log, safeParseJSON, sliceToTokenBudget, estimateTokens } from '../utils.js';
-import { extensionName, FORGETFULNESS } from '../constants.js';
+import { extensionName } from '../constants.js';
 import { callLLMForRetrieval } from '../llm.js';
 import { buildSmartRetrievalPrompt } from '../prompts.js';
 import { getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
@@ -53,7 +53,10 @@ function runWorkerScoring(memories, contextEmbedding, chatLength, limit, setting
             contextEmbedding,
             chatLength,
             limit,
-            constants: FORGETFULNESS,
+            constants: {
+                BASE_LAMBDA: settings.forgetfulnessBaseLambda ?? 0.05,
+                IMPORTANCE_5_FLOOR: settings.forgetfulnessImportance5Floor ?? 5,
+            },
             settings: {
                 vectorSimilarityThreshold: settings.vectorSimilarityThreshold,
                 vectorSimilarityWeight: settings.vectorSimilarityWeight

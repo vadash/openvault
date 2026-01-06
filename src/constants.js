@@ -38,6 +38,13 @@ export const defaultSettings = {
     embeddingModel: '',
     vectorSimilarityWeight: 15,
     vectorSimilarityThreshold: 0.5,
+    // Forgetfulness curve settings (scoring)
+    forgetfulnessBaseLambda: 0.05,      // Base decay rate for exponential curve
+    forgetfulnessImportance5Floor: 5,   // Minimum score for importance-5 memories
+    // Relationship decay settings
+    relationshipDecayInterval: 50,      // Messages before decay triggers
+    tensionDecayRate: 0.5,              // Tension drops per interval
+    trustDecayRate: 0.1,                // High trust decay per interval
 };
 
 // Timeout constants
@@ -58,13 +65,3 @@ export const SCORING_WEIGHTS = {
     EVENT_TYPE_RELATIONSHIP: 2,   // bonus for relationship_change events
 };
 
-// Forgetfulness curve constants
-export const FORGETFULNESS = {
-    BASE_LAMBDA: 0.05,         // Base decay rate for exponential curve
-    IMPORTANCE_5_FLOOR: 5,     // Minimum score for importance-5 memories
-};
-
-// Relationship decay constants
-export const RELATIONSHIP_DECAY_INTERVAL = 50; // Messages before decay triggers
-export const TENSION_DECAY_RATE = 0.5;         // Tension drops per interval (dissipates naturally)
-export const TRUST_DECAY_RATE = 0.1;           // High trust decay per interval (trust is stickier)

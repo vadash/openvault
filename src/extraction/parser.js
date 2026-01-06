@@ -4,14 +4,13 @@
  * Parses LLM extraction results and updates character states and relationships.
  */
 
+import { getDeps } from '../deps.js';
 import { generateId, log } from '../utils.js';
 import { repairJson } from '../lib/json-repair.js';
 import {
+    extensionName,
     CHARACTERS_KEY,
     RELATIONSHIPS_KEY,
-    RELATIONSHIP_DECAY_INTERVAL,
-    TENSION_DECAY_RATE,
-    TRUST_DECAY_RATE,
 } from '../constants.js';
 
 /**
@@ -187,6 +186,12 @@ export function applyRelationshipDecay(data, currentMessageId) {
         return;
     }
 
+    // Get decay settings
+    const settings = getDeps().getExtensionSettings()[extensionName];
+    const decayInterval = settings?.relationshipDecayInterval ?? 50;
+    const tensionDecayRate = settings?.tensionDecayRate ?? 0.5;
+    const trustDecayRate = settings?.trustDecayRate ?? 0.1;
+
     for (const [key, relationship] of Object.entries(data[RELATIONSHIPS_KEY])) {
         const lastUpdated = relationship.last_updated_message_id;
 
@@ -198,23 +203,23 @@ export function applyRelationshipDecay(data, currentMessageId) {
         const delta = currentMessageId - lastUpdated;
 
         // Only decay if enough messages have passed
-        if (delta < RELATIONSHIP_DECAY_INTERVAL) {
+        if (delta < decayInterval) {
             continue;
         }
 
         // Calculate number of decay intervals passed
-        const intervals = Math.floor(delta / RELATIONSHIP_DECAY_INTERVAL);
+        const intervals = Math.floor(delta / decayInterval);
 
         // Decay tension toward 0
         if (relationship.tension_level > 0) {
-            const tensionDecay = TENSION_DECAY_RATE * intervals;
+            const tensionDecay = tensionDecayRate * intervals;
             relationship.tension_level = Math.max(0, relationship.tension_level - tensionDecay);
         }
 
         // Decay high trust (>5) toward neutral (5)
         // Low trust/distrust is "sticky" and doesn't auto-recover
         if (relationship.trust_level > 5) {
-            const trustDecay = TRUST_DECAY_RATE * intervals;
+            const trustDecay = trustDecayRate * intervals;
             relationship.trust_level = Math.max(5, relationship.trust_level - trustDecay);
         }
 
