@@ -1,72 +1,63 @@
-# CLAUDE.md
+## Project Context: OpenVault
+OpenVault is a **Retrieval-Augmented Generation (RAG)** extension for **SillyTavern**. It provides semantic long-term memory to characters by:
+1.  **Extraction:** Automatically parsing chat messages into structured JSON "events" (memories) via an LLM in the background.
+2.  **Storage:** Saving these events into SillyTavern's chat metadata.
+3.  **Retrieval:** Scoring and selecting relevant memories based on the current conversation context.
+4.  **Injection:** inserting these memories into the system prompt before the AI generates a reply.
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Architecture & Map
+The codebase uses ES Modules located in `src/`. No build step is required; SillyTavern loads `index.js`
 
-## Project Overview
+### Core Modules
+*   **Bridge (`src/deps.js`):** **CRITICAL.** All interactions with SillyTavern globals (`extension_settings`, `getContext`, `saveChatConditional`) and browser globals (`fetch`, `toastr`) MUST go through this file. This allows for dependency injection and testing.
+*   **Events (`src/events.js`):** Handles SillyTavern hooks (`MESSAGE_RECEIVED`, `GENERATION_AFTER_COMMANDS`). Orchestrates the flow.
+*   **State (`src/state.js`):** Manages locking mechanisms to prevent concurrent extraction/generation.
 
-OpenVault is a SillyTavern extension that provides POV-aware memory with witness tracking, relationship dynamics, and emotional continuity for roleplay conversations. All data is stored locally in chat metadata.
+### Logic Flows
+*   **Extraction (`src/extraction/`):**
+    *   `extract.js`: Main logic. Calls LLM to parse text into JSON.
+    *   `parser.js`: Validates JSON and updates character relationships/emotional states.
+    *   `batch.js`: Handles bulk backfilling of old chat history.
+*   **Retrieval (`src/retrieval/`):**
+    *   `retrieve.js`: Main entry point. Decides what to fetch.
+    *   `scoring.js`: Algorithms for relevance (Forgetfulness curve + Vector Similarity).
+    *   `worker.js`: Web Worker that runs heavy scoring math off the main thread.
+    *   `formatting.js`: Formats selected memories for prompt injection.
+*   **Vector Database (`src/embeddings.js`):** Handles local embedding generation via Ollama.
 
-## Commands
+### UI
+*   **Interface (`src/ui/`):** Handles settings panels, the memory browser, and status indicators. Uses jQuery.
 
-- `npm run lint` - Run ESLint
-- `npm test` - Run all tests (Vitest)
+## Development Rules
 
-## Architecture
+### 1. Dependency Injection
+**NEVER** access SillyTavern globals (like `SillyTavern.getContext`) directly in source files.
+*   **Correct:** Import `getDeps` from `src/deps.js` and use `getDeps().getContext()`.
+*   **Why:** Ensures the codebase remains testable and decoupled from the specific SillyTavern version implementation details.
 
-### Entry Point
-- `index.js` - Extension initialization, registers SillyTavern event listeners and slash commands
+### 2. Async & Locking
+*   The extension runs background LLM tasks while the user interacts.
+*   Check `src/state.js` before initiating operations.
+*   Respect `operationState.generationInProgress` and `operationState.extractionInProgress`.
+*   Use `src/utils.js` -> `withTimeout` for any LLM operations to prevent hanging the UI.
 
-### Core Modules (src/)
-- `deps.js` - Dependency injection for testability (all SillyTavern imports centralized here)
-- `constants.js` - All constants, default settings, and metadata keys
-- `utils.js` - Core utility functions (data access, toast notifications, logging)
-- `state.js` - Operation state management (locks, cooldowns)
-- `events.js` - SillyTavern event handlers (generation, chat change, message received)
-- `llm.js` - Unified LLM communication via SillyTavern's ConnectionManagerRequestService
-- `pov.js` - POV-aware filtering (witness tracking, group chat handling)
-- `embeddings.js` - Ollama embedding generation for semantic search
-- `prompts.js` - LLM prompt templates
-- `auto-hide.js` - Auto-hide old messages functionality
-- `backfill.js` - Extract memories from existing chat history
+### 3. Data Persistence
+*   Data is stored in `context.chatMetadata['openvault']`.
+*   Access this via `getOpenVaultData()` in `src/utils.js`.
+*   Save changes using `saveOpenVaultData()` (wraps `saveChatConditional`).
 
-### Extraction Pipeline (src/extraction/)
-- `extract.js` - Main extraction orchestration
-- `parser.js` - Parse LLM responses, update character states and relationships
-- `batch.js` - Batch extraction for backfill operations
+### 4. Tech Stack & Style
+*   **Runtime:** Browser-based JavaScript (ESM).
+*   **UI Library:** jQuery (Standard for SillyTavern extensions).
+*   **Styling:** FontAwesome for icons, Toastr for notifications.
+*   **Formatting:** Follow existing patterns. Do not refactor imports/exports unless necessary for functionality.
 
-### Retrieval Pipeline (src/retrieval/)
-- `retrieve.js` - Main retrieval and context injection
-- `scoring.js` - Relevance scoring (simple + optional LLM-based smart retrieval)
-- `formatting.js` - Format memories for prompt injection
-
-### UI (src/ui/)
-- `settings.js` - Settings panel and user interactions
-- `browser.js` - Memory browser with pagination and filtering
-- `status.js` - Status indicator management
-- `formatting.js` - UI-specific formatting helpers
-- `calculations.js` - Token and pagination calculations
-
-## Data Flow
-
-1. **Extraction** (after AI responds): Messages → LLM extraction → Parse events → Store in chatMetadata.openvault
-2. **Retrieval** (before AI generates): Filter by POV/recency → Score relevance → Format → Inject via setExtensionPrompt
-
-## Key Patterns
-
-- **Dependency Injection**: All SillyTavern dependencies are accessed via `src/deps.js`. Tests use `setDeps()` to inject mocks and `resetDeps()` in afterEach.
-- Uses SillyTavern's `eventSource` for event handling (GENERATION_AFTER_COMMANDS, MESSAGE_RECEIVED, etc.)
-- Data stored in `context.chatMetadata.openvault` with keys: `memories`, `character_states`, `relationships`
-- LLM calls use `ConnectionManagerRequestService.sendRequest()` with configurable profiles
-- Operation locks prevent concurrent extraction/retrieval via `operationState` object
-- Chat loading cooldown prevents extraction during chat load
+## Verification
+Since this is a browser extension without a CLI test runner:
+1.  **Console:** Check browser console for `[OpenVault]` tagged logs.
+2.  **Status:** The UI status indicator (`src/ui/status.js`) reflects the internal state machine.
+3.  **Debug Mode:** Enable "Debug Mode" in extension settings to see verbose logging of extraction/retrieval steps.
 
 ## Testing
 
 Tests are in `tests/` using Vitest with jsdom environment. SillyTavern dependencies are mocked via path aliases in `vitest.config.js` pointing to `tests/__mocks__/`.
-
-## SillyTavern Globals
-
-The code uses these SillyTavern globals (defined in eslint.config.js):
-- `jQuery`/`$` - DOM manipulation
-- `toastr` - Toast notifications
-- Context from `getContext()` - chat, characters, settings
