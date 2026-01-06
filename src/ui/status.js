@@ -8,7 +8,7 @@ import { getContext, extension_settings } from '../../../../../extensions.js';
 import { getOpenVaultData, log, getExtractedMessageIds } from '../utils.js';
 import { MEMORIES_KEY, CHARACTERS_KEY, extensionName } from '../constants.js';
 import { getStatusText } from './formatting.js';
-import { calculateExtractionStats } from './calculations.js';
+import { calculateExtractionStats, getNextAutoExtractionText } from './calculations.js';
 
 /**
  * Set the status indicator
@@ -29,6 +29,7 @@ export function refreshStats() {
     if (!data) {
         $('#openvault_stat_events_badge').text('0 events');
         $('#openvault_stat_characters_badge').text('0 chars');
+        $('#openvault_stat_next_extraction_badge').text('-');
         $('#openvault_extraction_progress').css('width', '0%');
         $('#openvault_extraction_label').text('No chat');
         return;
@@ -56,6 +57,17 @@ export function refreshStats() {
         : 0;
     $('#openvault_extraction_progress').css('width', `${percentage}%`);
     $('#openvault_extraction_label').text(`${stats.extractedCount} / ${stats.totalMessages} extracted`);
+
+    // Update next extraction badge
+    const nextExtractionText = getNextAutoExtractionText({
+        totalMessages: stats.totalMessages,
+        bufferSize: stats.bufferSize,
+        bufferStart: stats.bufferStart,
+        extractedCount: stats.extractedCount,
+        extractedMessageIds,
+        messageCount,
+    });
+    $('#openvault_stat_next_extraction_badge').text(nextExtractionText);
 
     log(`Stats: ${eventCount} memories, ${charCount} characters, ${percentage}% extracted`);
 }
