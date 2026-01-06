@@ -6,7 +6,7 @@
     "js": "index.js",
     "css": "style.css",
     "author": "OpenVault",
-    "version": "0.10.2",
+    "version": "1.00.0",
     "homePage": "https://github.com/vadash/openvault",
     "auto_update": false
 }
