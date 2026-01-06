@@ -5,7 +5,8 @@
  */
 
 import { getDeps } from './deps.js';
-import { getOpenVaultData, getCurrentChatId, showToast, log, getExtractedMessageIds, getUnextractedMessageIds, isAutomaticMode } from './utils.js';
+import { getOpenVaultData, getCurrentChatId, showToast, log, isAutomaticMode } from './utils.js';
+import { getBackfillStats } from './extraction/scheduler.js';
 import { extensionName } from './constants.js';
 import { extractAllMessages } from './extraction/batch.js';
 
@@ -32,18 +33,12 @@ export async function checkAndTriggerBackfill(updateEventListenersFn, targetChat
 
     const messageCount = settings.messagesPerExtraction || 10;
 
-    // Get already extracted message IDs
-    const extractedMessageIds = getExtractedMessageIds(data);
+    // Use scheduler to check for backfill work
+    const stats = getBackfillStats(chat, data, messageCount);
 
-    // Get unextracted message IDs (exclude last batch to check if there's work for backfill)
-    const messagesToBackfill = getUnextractedMessageIds(chat, extractedMessageIds, messageCount);
-
-    // Only trigger if we have at least one complete batch
-    const completeBatches = Math.floor(messagesToBackfill.length / messageCount);
-
-    if (completeBatches >= 1) {
-        log(`Auto-backfill: ${messagesToBackfill.length} messages ready (${completeBatches} batches)`);
-        showToast('info', `Auto-backfill: ${completeBatches} batches...`, 'OpenVault');
+    if (stats.completeBatches >= 1) {
+        log(`Auto-backfill: ${stats.totalUnextracted} messages ready (${stats.completeBatches} batches)`);
+        showToast('info', `Auto-backfill: ${stats.completeBatches} batches...`, 'OpenVault');
 
         try {
             await extractAllMessages(updateEventListenersFn);

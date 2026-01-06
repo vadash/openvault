@@ -5,7 +5,8 @@
  */
 
 import { getContext, extension_settings } from '../../../../../extensions.js';
-import { getOpenVaultData, log, getExtractedMessageIds } from '../utils.js';
+import { getOpenVaultData, log } from '../utils.js';
+import { getExtractedMessageIds } from '../extraction/scheduler.js';
 import { MEMORIES_KEY, CHARACTERS_KEY, extensionName } from '../constants.js';
 import { getStatusText } from './formatting.js';
 import { calculateExtractionStats, getBatchProgressInfo } from './calculations.js';

@@ -32,9 +32,12 @@ vi.mock('../src/utils.js', () => ({
     safeSetExtensionPrompt: vi.fn(),
     withTimeout: vi.fn(),
     log: vi.fn(),
-    getExtractedMessageIds: vi.fn(),
-    getUnextractedMessageIds: vi.fn(),
     isAutomaticMode: vi.fn(),
+}));
+
+vi.mock('../src/extraction/scheduler.js', () => ({
+    getExtractedMessageIds: vi.fn(),
+    getNextBatch: vi.fn(),
 }));
 
 vi.mock('../src/state.js', () => ({
@@ -84,7 +87,8 @@ import {
     updateEventListeners,
 } from '../src/events.js';
 import { eventSource, event_types } from '../../../../../script.js';
-import { getOpenVaultData, getCurrentChatId, showToast, safeSetExtensionPrompt, withTimeout, log, getExtractedMessageIds, getUnextractedMessageIds, isAutomaticMode } from '../src/utils.js';
+import { getOpenVaultData, getCurrentChatId, showToast, safeSetExtensionPrompt, withTimeout, log, isAutomaticMode } from '../src/utils.js';
+import { getExtractedMessageIds, getNextBatch } from '../src/extraction/scheduler.js';
 import { operationState, setGenerationLock, clearGenerationLock, isChatLoadingCooldown, setChatLoadingCooldown, resetOperationStatesIfSafe } from '../src/state.js';
 import { setStatus } from '../src/ui/status.js';
 import { refreshAllUI, resetMemoryBrowserPage } from '../src/ui/browser.js';
@@ -152,7 +156,7 @@ describe('events', () => {
         extractMemories.mockResolvedValue({ events_created: 1, messages_processed: 5 });
         isChatLoadingCooldown.mockReturnValue(false);
         getExtractedMessageIds.mockReturnValue(new Set());
-        getUnextractedMessageIds.mockReturnValue([]);
+        getNextBatch.mockReturnValue(null);
     });
 
     afterEach(() => {
@@ -407,7 +411,7 @@ describe('events', () => {
         });
 
         it('sets extraction flag immediately', async () => {
-            getUnextractedMessageIds.mockReturnValue([]);
+            getNextBatch.mockReturnValue(null);
 
             await onMessageReceived(1);
 
@@ -442,18 +446,17 @@ describe('events', () => {
 
         it('waits for complete batch before extracting', async () => {
             mockSettings.messagesPerExtraction = 5;
-            getUnextractedMessageIds.mockReturnValue([0, 1, 2]); // Only 3, need 5
+            getNextBatch.mockReturnValue(null); // No batch ready
 
             await onMessageReceived(1);
 
-            expect(log).toHaveBeenCalledWith(expect.stringContaining('need 2 more for next batch'));
+            expect(log).toHaveBeenCalledWith(expect.stringContaining('waiting for more messages'));
             expect(extractMemories).not.toHaveBeenCalled();
         });
 
         it('extracts when batch is complete', async () => {
             mockSettings.messagesPerExtraction = 3;
-            getUnextractedMessageIds.mockReturnValue([0, 1, 2, 3, 4]);
-            getExtractedMessageIds.mockReturnValue(new Set());
+            getNextBatch.mockReturnValue([0, 1, 2]); // Batch ready
 
             await onMessageReceived(1);
 
@@ -462,7 +465,7 @@ describe('events', () => {
 
         it('sets status to extracting', async () => {
             mockSettings.messagesPerExtraction = 2;
-            getUnextractedMessageIds.mockReturnValue([0, 1]);
+            getNextBatch.mockReturnValue([0, 1]);
 
             await onMessageReceived(1);
 
@@ -471,7 +474,7 @@ describe('events', () => {
 
         it('shows extracting toast', async () => {
             mockSettings.messagesPerExtraction = 2;
-            getUnextractedMessageIds.mockReturnValue([0, 1]);
+            getNextBatch.mockReturnValue([0, 1]);
 
             await onMessageReceived(1);
 
@@ -485,7 +488,7 @@ describe('events', () => {
 
         it('detects chat change during extraction', async () => {
             mockSettings.messagesPerExtraction = 2;
-            getUnextractedMessageIds.mockReturnValue([0, 1]);
+            getNextBatch.mockReturnValue([0, 1]);
             // extractMemories throws error when chat changes
             extractMemories.mockRejectedValue(new Error('Chat changed during extraction'));
 
@@ -497,7 +500,7 @@ describe('events', () => {
 
         it('shows success toast after extraction', async () => {
             mockSettings.messagesPerExtraction = 2;
-            getUnextractedMessageIds.mockReturnValue([0, 1]);
+            getNextBatch.mockReturnValue([0, 1]);
             extractMemories.mockResolvedValue({ events_created: 3, messages_processed: 2 });
 
             await onMessageReceived(1);
@@ -507,7 +510,7 @@ describe('events', () => {
 
         it('checks backfill after extraction', async () => {
             mockSettings.messagesPerExtraction = 2;
-            getUnextractedMessageIds.mockReturnValue([0, 1]);
+            getNextBatch.mockReturnValue([0, 1]);
 
             await onMessageReceived(1);
 
@@ -516,7 +519,7 @@ describe('events', () => {
 
         it('always clears extraction flag', async () => {
             mockSettings.messagesPerExtraction = 2;
-            getUnextractedMessageIds.mockReturnValue([0, 1]);
+            getNextBatch.mockReturnValue([0, 1]);
             extractMemories.mockRejectedValue(new Error('Failed'));
 
             await onMessageReceived(1);
@@ -526,7 +529,7 @@ describe('events', () => {
 
         it('handles extraction errors', async () => {
             mockSettings.messagesPerExtraction = 2;
-            getUnextractedMessageIds.mockReturnValue([0, 1]);
+            getNextBatch.mockReturnValue([0, 1]);
             extractMemories.mockRejectedValue(new Error('Extraction failed'));
 
             await onMessageReceived(1);
@@ -537,7 +540,7 @@ describe('events', () => {
 
         it('sets status to ready after completion', async () => {
             mockSettings.messagesPerExtraction = 2;
-            getUnextractedMessageIds.mockReturnValue([0, 1]);
+            getNextBatch.mockReturnValue([0, 1]);
 
             await onMessageReceived(1);
 

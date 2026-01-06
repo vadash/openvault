@@ -6,7 +6,8 @@
 
 import { getContext, extension_settings } from '../../../../../extensions.js';
 import { saveChatConditional } from '../../../../../../script.js';
-import { getOpenVaultData, showToast, log, getExtractedMessageIds, safeSetExtensionPrompt, getCurrentChatId } from '../utils.js';
+import { getOpenVaultData, showToast, log, safeSetExtensionPrompt, getCurrentChatId } from '../utils.js';
+import { getBackfillMessageIds, getExtractedMessageIds } from './scheduler.js';
 import { extensionName } from '../constants.js';
 import { setStatus } from '../ui/status.js';
 import { refreshAllUI } from '../ui/browser.js';
@@ -35,29 +36,12 @@ export async function extractAllMessages(updateEventListenersFn) {
         return;
     }
 
-    // Get all message IDs that already have memories extracted from them
+    // Use scheduler to get all messages for backfill
+    const { messageIds: messagesToExtract, batchCount: completeBatches } = getBackfillMessageIds(chat, data, messageCount);
     const alreadyExtractedIds = getExtractedMessageIds(data);
-
-    // Get all message indices (including hidden ones for import/backfill scenarios)
-    const allMessageIds = chat
-        .map((m, idx) => idx)
-        .filter(idx => !alreadyExtractedIds.has(idx));
 
     if (alreadyExtractedIds.size > 0) {
         log(`Backfill: Skipping ${alreadyExtractedIds.size} already-extracted messages`);
-    }
-
-    // No reserve - process all unextracted messages
-    let messagesToExtract = allMessageIds;
-
-    // Only extract complete batches - truncate to nearest multiple of batch size
-    const completeBatches = Math.floor(messagesToExtract.length / messageCount);
-    const completeMessageCount = completeBatches * messageCount;
-    const remainder = messagesToExtract.length - completeMessageCount;
-
-    if (remainder > 0) {
-        log(`Extracting ${completeBatches} complete batches (${completeMessageCount} messages), leaving ${remainder} for next batch`);
-        messagesToExtract = messagesToExtract.slice(0, completeMessageCount);
     }
 
     if (messagesToExtract.length === 0) {

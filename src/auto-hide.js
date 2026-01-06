@@ -5,7 +5,8 @@
  */
 
 import { getDeps } from './deps.js';
-import { getOpenVaultData, showToast, log, getExtractedMessageIds } from './utils.js';
+import { getOpenVaultData, showToast, log } from './utils.js';
+import { getExtractedMessageIds } from './extraction/scheduler.js';
 import { extensionName } from './constants.js';
 
 /**

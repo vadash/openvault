@@ -6,12 +6,14 @@
  */
 
 import { getDeps } from './deps.js';
-import { extensionName, MEMORIES_KEY } from './constants.js';
+import { extensionName } from './constants.js';
 
 // Re-export from submodules
 export { escapeHtml, showToast } from './utils/dom.js';
 export { getOpenVaultData, getCurrentChatId, saveOpenVaultData, generateId } from './utils/data.js';
 export { estimateTokens, sliceToTokenBudget, safeParseJSON, sortMemoriesBySequence } from './utils/text.js';
+// Re-export scheduler functions for backwards compatibility
+export { getExtractedMessageIds, getUnextractedMessageIds } from './extraction/scheduler.js';
 
 /**
  * Wrap a promise with a timeout
@@ -58,40 +60,6 @@ export function log(message) {
     if (settings?.debugMode) {
         getDeps().console.log(`[OpenVault] ${message}`);
     }
-}
-
-/**
- * Get set of message IDs that have been extracted into memories
- * @param {Object} data - OpenVault data object
- * @returns {Set<number>} Set of extracted message IDs
- */
-export function getExtractedMessageIds(data) {
-    const extractedIds = new Set();
-    if (!data) return extractedIds;
-
-    for (const memory of (data[MEMORIES_KEY] || [])) {
-        for (const msgId of (memory.message_ids || [])) {
-            extractedIds.add(msgId);
-        }
-    }
-    return extractedIds;
-}
-
-/**
- * Get array of message indices that have not been extracted yet
- * @param {Object[]} chat - Chat messages array
- * @param {Set<number>} extractedIds - Set of already extracted message IDs
- * @param {number} excludeLastN - Number of recent messages to exclude
- * @returns {number[]} Array of unextracted message indices
- */
-export function getUnextractedMessageIds(chat, extractedIds, excludeLastN = 0) {
-    const unextractedIds = [];
-    for (let i = 0; i < chat.length; i++) {
-        if (!extractedIds.has(i)) {
-            unextractedIds.push(i);
-        }
-    }
-    return excludeLastN > 0 ? unextractedIds.slice(0, -excludeLastN) : unextractedIds;
 }
 
 /**

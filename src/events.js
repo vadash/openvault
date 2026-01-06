@@ -6,7 +6,8 @@
 
 import { eventSource, event_types } from '../../../../../script.js';
 import { getDeps } from './deps.js';
-import { getOpenVaultData, getCurrentChatId, showToast, safeSetExtensionPrompt, withTimeout, log, getExtractedMessageIds, getUnextractedMessageIds, isAutomaticMode } from './utils.js';
+import { getOpenVaultData, getCurrentChatId, showToast, safeSetExtensionPrompt, withTimeout, log, isAutomaticMode } from './utils.js';
+import { getExtractedMessageIds, getNextBatch } from './extraction/scheduler.js';
 import { extensionName, MEMORIES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
 import { operationState, setGenerationLock, clearGenerationLock, isChatLoadingCooldown, setChatLoadingCooldown, resetOperationStatesIfSafe } from './state.js';
 import { setStatus } from './ui/status.js';
@@ -171,25 +172,16 @@ export async function onMessageReceived(messageId) {
         const settings = deps.getExtensionSettings()[extensionName];
         const messageCount = settings.messagesPerExtraction || 10;
 
-        // Use message-based tracking (works correctly with auto-hide)
-        const extractedMessageIds = getExtractedMessageIds(data);
-        const totalMessages = chat.length;
-        const extractedCount = extractedMessageIds.size;
+        // Use scheduler to get next batch
+        const batchToExtract = getNextBatch(chat, data, messageCount);
 
-        // Find unextracted message indices (no buffer - extract as soon as full batch ready)
-        const extractableIds = getUnextractedMessageIds(chat, extractedMessageIds, 0);
-
-        // Only extract if we have a complete batch ready
-        if (extractableIds.length < messageCount) {
-            const remaining = messageCount - extractableIds.length;
-            log(`Auto-extract: ${extractedCount}/${totalMessages} extracted, ${extractableIds.length} ready, need ${remaining} more for next batch`);
+        if (!batchToExtract) {
+            const extractedCount = getExtractedMessageIds(data).size;
+            log(`Auto-extract: ${extractedCount}/${chat.length} extracted, waiting for more messages`);
             return;
         }
 
-        // Get the oldest complete batch of unextracted messages
-        const batchToExtract = extractableIds.slice(0, messageCount);
-
-        log(`Auto-extract: ${extractedCount}/${totalMessages} extracted, extracting batch of ${batchToExtract.length} messages (indices ${batchToExtract[0]}-${batchToExtract[batchToExtract.length - 1]})`);
+        log(`Auto-extract: extracting batch of ${batchToExtract.length} messages (indices ${batchToExtract[0]}-${batchToExtract[batchToExtract.length - 1]})`);
 
         // Show extraction indicator
         setStatus('extracting');
