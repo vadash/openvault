@@ -457,7 +457,7 @@ describe('events', () => {
 
             await onMessageReceived(1);
 
-            expect(extractMemories).toHaveBeenCalledWith([0, 1, 2]);
+            expect(extractMemories).toHaveBeenCalledWith([0, 1, 2], 'chat_123');
         });
 
         it('sets status to extracting', async () => {

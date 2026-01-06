@@ -200,7 +200,8 @@ export async function onMessageReceived(messageId) {
             toastClass: 'toast openvault-extracting-toast'
         });
 
-        const result = await extractMemories(batchToExtract);
+        // Pass chatId to extractMemories for integrity check during long LLM calls
+        const result = await extractMemories(batchToExtract, chatIdBeforeExtraction);
 
         // Check if chat changed during extraction - don't save to wrong chat
         const chatIdAfterExtraction = getCurrentChatId();

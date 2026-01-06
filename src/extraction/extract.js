@@ -5,7 +5,7 @@
  */
 
 import { getDeps } from '../deps.js';
-import { getOpenVaultData, saveOpenVaultData, showToast, log, sortMemoriesBySequence, sliceToTokenBudget, isExtensionEnabled, estimateTokens } from '../utils.js';
+import { getOpenVaultData, saveOpenVaultData, showToast, log, sortMemoriesBySequence, sliceToTokenBudget, isExtensionEnabled, estimateTokens, getCurrentChatId } from '../utils.js';
 import { extensionName, MEMORIES_KEY, LAST_PROCESSED_KEY } from '../constants.js';
 import { callLLMForExtraction } from '../llm.js';
 import { setStatus } from '../ui/status.js';
@@ -17,9 +17,10 @@ import { getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 /**
  * Extract memories from messages using LLM
  * @param {number[]} messageIds - Optional specific message IDs to extract
+ * @param {string} targetChatId - Optional chat ID to verify before saving (prevents saving to wrong chat if user switches)
  * @returns {Promise<{events_created: number, messages_processed: number}|undefined>}
  */
-export async function extractMemories(messageIds = null) {
+export async function extractMemories(messageIds = null, targetChatId = null) {
     if (!isExtensionEnabled()) {
         showToast('warning', 'OpenVault is disabled');
         return;
@@ -166,6 +167,12 @@ export async function extractMemories(messageIds = null) {
             applyRelationshipDecay(data, maxId);
 
             data[LAST_PROCESSED_KEY] = Math.max(data[LAST_PROCESSED_KEY] || -1, maxId);
+
+            // Verify chat hasn't changed before saving (prevents saving to wrong chat)
+            if (targetChatId && getCurrentChatId() !== targetChatId) {
+                log(`Chat changed during extraction (target: ${targetChatId}, current: ${getCurrentChatId()}), aborting save`);
+                throw new Error('Chat changed during extraction');
+            }
 
             await saveOpenVaultData();
 

@@ -6,7 +6,7 @@
 
 import { getContext, extension_settings } from '../../../../../extensions.js';
 import { saveChatConditional } from '../../../../../../script.js';
-import { getOpenVaultData, showToast, log, getExtractedMessageIds, safeSetExtensionPrompt } from '../utils.js';
+import { getOpenVaultData, showToast, log, getExtractedMessageIds, safeSetExtensionPrompt, getCurrentChatId } from '../utils.js';
 import { extensionName } from '../constants.js';
 import { setStatus } from '../ui/status.js';
 import { refreshAllUI } from '../ui/browser.js';
@@ -82,6 +82,9 @@ export async function extractAllMessages(updateEventListenersFn) {
         }
     ));
 
+    // Capture chat ID to detect if user switches during backfill
+    const targetChatId = getCurrentChatId();
+
     // Process in batches
     let totalEvents = 0;
 
@@ -98,7 +101,7 @@ export async function extractAllMessages(updateEventListenersFn) {
 
         try {
             log(`Processing batch ${batchNum}/${completeBatches} (batch index ${i})...`);
-            const result = await extractMemories(batch);
+            const result = await extractMemories(batch, targetChatId);
             totalEvents += result?.events_created || 0;
 
             // Delay between batches based on rate limit setting
@@ -109,6 +112,15 @@ export async function extractAllMessages(updateEventListenersFn) {
                 await new Promise(resolve => setTimeout(resolve, delayMs));
             }
         } catch (error) {
+            // If chat changed, stop backfill entirely
+            if (error.message === 'Chat changed during extraction') {
+                log('Chat changed during backfill, aborting');
+                $('.openvault-backfill-toast').remove();
+                showToast('warning', 'Backfill aborted: chat changed', 'OpenVault');
+                clearAllLocks();
+                setStatus('ready');
+                return;
+            }
             console.error('[OpenVault] Batch extraction error:', error);
             $('.openvault-backfill-toast .toast-message').text(
                 `Backfill: ${i}/${completeBatches} - Batch ${batchNum} failed, continuing...`

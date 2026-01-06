@@ -14,6 +14,8 @@ vi.mock('../src/utils.js', () => ({
     sortMemoriesBySequence: vi.fn(),
     sliceToTokenBudget: vi.fn(),
     isExtensionEnabled: vi.fn(),
+    estimateTokens: vi.fn((text) => Math.ceil((text || '').length / 3.5)),
+    getCurrentChatId: vi.fn(),
 }));
 
 vi.mock('../src/llm.js', () => ({
@@ -48,7 +50,7 @@ vi.mock('../src/embeddings.js', () => ({
 import {
     extractMemories,
 } from '../src/extraction/extract.js';
-import { getOpenVaultData, saveOpenVaultData, showToast, sortMemoriesBySequence, sliceToTokenBudget, isExtensionEnabled } from '../src/utils.js';
+import { getOpenVaultData, saveOpenVaultData, showToast, sortMemoriesBySequence, sliceToTokenBudget, isExtensionEnabled, getCurrentChatId } from '../src/utils.js';
 import { callLLMForExtraction } from '../src/llm.js';
 import { setStatus } from '../src/ui/status.js';
 import { refreshAllUI } from '../src/ui/browser.js';
@@ -108,6 +110,7 @@ describe('extract', () => {
         isExtensionEnabled.mockReturnValue(true);
         getOpenVaultData.mockReturnValue(mockData);
         saveOpenVaultData.mockResolvedValue();
+        getCurrentChatId.mockReturnValue('test-chat-123');
         sortMemoriesBySequence.mockImplementation((memories, asc) => {
             return [...memories].sort((a, b) => asc ? a.sequence - b.sequence : b.sequence - a.sequence);
         });
@@ -385,6 +388,36 @@ describe('extract', () => {
                 expect.any(String),
                 expect.any(String)
             );
+        });
+
+        it('throws error if chat changes during extraction when targetChatId provided', async () => {
+            const newEvents = [{ id: 'evt1', summary: 'Event 1' }];
+            parseExtractionResult.mockReturnValue(newEvents);
+
+            // Chat ID matches at start, changes during save check
+            getCurrentChatId.mockReturnValue('different-chat');
+
+            await expect(extractMemories([0, 1], 'original-chat')).rejects.toThrow('Chat changed during extraction');
+            expect(saveOpenVaultData).not.toHaveBeenCalled();
+        });
+
+        it('saves normally when chat ID matches targetChatId', async () => {
+            const newEvents = [{ id: 'evt1', summary: 'Event 1' }];
+            parseExtractionResult.mockReturnValue(newEvents);
+            getCurrentChatId.mockReturnValue('same-chat');
+
+            await extractMemories([0, 1], 'same-chat');
+
+            expect(saveOpenVaultData).toHaveBeenCalled();
+        });
+
+        it('saves normally when no targetChatId provided (backwards compatible)', async () => {
+            const newEvents = [{ id: 'evt1', summary: 'Event 1' }];
+            parseExtractionResult.mockReturnValue(newEvents);
+
+            await extractMemories([0, 1]);
+
+            expect(saveOpenVaultData).toHaveBeenCalled();
         });
     });
 });
