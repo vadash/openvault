@@ -158,7 +158,7 @@ export function getExtractedMessageIds(data) {
  * Get array of message indices that have not been extracted yet
  * @param {Object[]} chat - Chat messages array
  * @param {Set<number>} extractedIds - Set of already extracted message IDs
- * @param {number} excludeLastN - Number of recent messages to exclude (buffer)
+ * @param {number} excludeLastN - Number of recent messages to exclude
  * @returns {number[]} Array of unextracted message indices
  */
 export function getUnextractedMessageIds(chat, extractedIds, excludeLastN = 0) {

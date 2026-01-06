@@ -14,9 +14,8 @@ import { clearAllLocks } from '../state.js';
 import { extractMemories } from './extract.js';
 
 /**
- * Extract memories from all messages EXCEPT the last N in current chat
- * N is determined by the messagesPerExtraction setting
- * This backfills chat history, leaving recent messages for automatic extraction
+ * Extract memories from all unextracted messages in current chat
+ * Processes in batches determined by messagesPerExtraction setting
  * @param {function} updateEventListenersFn - Function to update event listeners after backfill
  */
 export async function extractAllMessages(updateEventListenersFn) {
@@ -48,8 +47,8 @@ export async function extractAllMessages(updateEventListenersFn) {
         log(`Backfill: Skipping ${alreadyExtractedIds.size} already-extracted messages`);
     }
 
-    // Exclude the last N messages (they'll be handled by regular/automatic extraction)
-    let messagesToExtract = allMessageIds.slice(0, -messageCount);
+    // No reserve - process all unextracted messages
+    let messagesToExtract = allMessageIds;
 
     // Only extract complete batches - truncate to nearest multiple of batch size
     const completeBatches = Math.floor(messagesToExtract.length / messageCount);
@@ -57,7 +56,7 @@ export async function extractAllMessages(updateEventListenersFn) {
     const remainder = messagesToExtract.length - completeMessageCount;
 
     if (remainder > 0) {
-        log(`Truncating to ${completeBatches} complete batches (${completeMessageCount} messages), leaving ${remainder} for next batch`);
+        log(`Extracting ${completeBatches} complete batches (${completeMessageCount} messages), leaving ${remainder} for next batch`);
         messagesToExtract = messagesToExtract.slice(0, completeMessageCount);
     }
 
@@ -65,7 +64,7 @@ export async function extractAllMessages(updateEventListenersFn) {
         if (alreadyExtractedIds.size > 0) {
             showToast('info', `All eligible messages already extracted (${alreadyExtractedIds.size} messages have memories)`);
         } else {
-            showToast('warning', `No complete batches to extract (need ${messageCount} messages)`);
+            showToast('warning', `Not enough messages for a complete batch (need ${messageCount})`);
         }
         return;
     }

@@ -31,7 +31,7 @@ export async function checkAndTriggerBackfill(updateEventListenersFn) {
     // Get already extracted message IDs
     const extractedMessageIds = getExtractedMessageIds(data);
 
-    // Get unextracted message IDs (excluding last N as buffer for automatic extraction)
+    // Get unextracted message IDs (exclude last batch to check if there's work for backfill)
     const messagesToBackfill = getUnextractedMessageIds(chat, extractedMessageIds, messageCount);
 
     // Only trigger if we have at least one complete batch
