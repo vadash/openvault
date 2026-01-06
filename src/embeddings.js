@@ -59,12 +59,14 @@ async function isWebGPUAvailable() {
     }
 
     try {
-        if (!navigator.gpu) {
-            log('WebGPU: navigator.gpu not found');
+        // Try multiple ways to access WebGPU (iframe/context issues)
+        const gpu = navigator.gpu || window.navigator?.gpu || globalThis.navigator?.gpu;
+        if (!gpu) {
+            log('WebGPU: not available in this context');
             webGPUSupported = false;
             return false;
         }
-        const adapter = await navigator.gpu.requestAdapter();
+        const adapter = await gpu.requestAdapter();
         webGPUSupported = !!adapter;
         log(`WebGPU ${webGPUSupported ? 'available' : 'adapter request failed'}`);
         return webGPUSupported;
