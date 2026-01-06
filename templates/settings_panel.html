@@ -88,8 +88,29 @@
                         <option value="ollama">Ollama (Custom server)</option>
                     </optgroup>
                 </select>
-                <small class="openvault-hint">Auto-detects WebGPU for optimal performance, falls back to WASM</small>
+                <small class="openvault-hint">Auto-detects WebGPU (10-100x faster), falls back to WASM</small>
                 <div id="openvault_embedding_status" class="openvault-badge" style="margin-top: 5px;">Not loaded</div>
+
+                <!-- WebGPU Help -->
+                <details class="openvault-details">
+                    <summary><i class="fa-solid fa-bolt"></i> Enable WebGPU (optional)</summary>
+                    <div class="openvault-help-content">
+                        <p>WebGPU requires <strong>secure context</strong> (HTTPS or localhost). For HTTP:</p>
+                        <ol>
+                            <li>Go to <code>chrome://flags</code> (or <code>brave://flags</code>)</li>
+                            <li>Enable <code>#enable-unsafe-webgpu</code></li>
+                            <li>Enable <code>#enable-webgpu-developer-features</code></li>
+                            <li>In <code>#unsafely-treat-insecure-origin-as-secure</code> add your SillyTavern URL (e.g. <code>http://localhost:8000</code>)</li>
+                            <li>Restart browser</li>
+                        </ol>
+                        <p><strong>Optional for better performance:</strong></p>
+                        <ul>
+                            <li><code>#ignore-gpu-blocklist</code> → Enabled</li>
+                            <li><code>#enable-gpu-rasterization</code> → Enabled</li>
+                            <li><code>#skia-graphite</code> → Enabled</li>
+                        </ul>
+                    </div>
+                </details>
 
                 <div id="openvault_ollama_settings" style="display: none;">
                     <label for="openvault_ollama_url">Ollama URL</label>
