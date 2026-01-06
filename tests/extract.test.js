@@ -193,7 +193,7 @@ describe('extract', () => {
             // Build extraction prompt should be called with messages excluding system
             expect(buildExtractionPrompt).toHaveBeenCalled();
             const promptCall = buildExtractionPrompt.mock.calls[0][0];
-            expect(promptCall).not.toContain('System message');
+            expect(promptCall.messages).not.toContain('System message');
         });
 
         it('extracts specific messageIds when provided', async () => {
@@ -209,10 +209,10 @@ describe('extract', () => {
 
             expect(buildExtractionPrompt).toHaveBeenCalled();
             const promptCall = buildExtractionPrompt.mock.calls[0][0];
-            expect(promptCall).toContain('Message 1');
-            expect(promptCall).toContain('Message 3');
-            expect(promptCall).not.toContain('Message 0');
-            expect(promptCall).not.toContain('Message 2');
+            expect(promptCall.messages).toContain('Message 1');
+            expect(promptCall.messages).toContain('Message 3');
+            expect(promptCall.messages).not.toContain('Message 0');
+            expect(promptCall.messages).not.toContain('Message 2');
         });
 
         it('sets status to extracting during extraction', async () => {
@@ -228,14 +228,15 @@ describe('extract', () => {
 
             await extractMemories();
 
-            expect(buildExtractionPrompt).toHaveBeenCalledWith(
-                expect.any(String),
-                'Alice',
-                'User',
-                expect.any(Array),
-                'A friendly character',
-                'A helpful persona'
-            );
+            expect(buildExtractionPrompt).toHaveBeenCalledWith({
+                messages: expect.any(String),
+                names: { char: 'Alice', user: 'User' },
+                context: {
+                    memories: expect.any(Array),
+                    charDesc: 'A friendly character',
+                    personaDesc: 'A helpful persona',
+                },
+            });
         });
 
         it('calls LLM for extraction', async () => {
@@ -389,14 +390,15 @@ describe('extract', () => {
             await extractMemories();
 
             expect(selectMemoriesForExtraction).toHaveBeenCalledWith(mockData, mockSettings);
-            expect(buildExtractionPrompt).toHaveBeenCalledWith(
-                expect.any(String),
-                'Alice',
-                'User',
-                expect.arrayContaining([expect.objectContaining({ id: '1' })]),
-                expect.any(String),
-                expect.any(String)
-            );
+            expect(buildExtractionPrompt).toHaveBeenCalledWith({
+                messages: expect.any(String),
+                names: { char: 'Alice', user: 'User' },
+                context: {
+                    memories: expect.arrayContaining([expect.objectContaining({ id: '1' })]),
+                    charDesc: expect.any(String),
+                    personaDesc: expect.any(String),
+                },
+            });
         });
 
         it('throws error if chat changes during extraction when targetChatId provided', async () => {

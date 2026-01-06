@@ -30,15 +30,21 @@ Output valid JSON only. No markdown, no explanatory text.`
 
 /**
  * Build the extraction prompt
- * @param {string} messagesText - Formatted messages to analyze
- * @param {string} characterName - Main character name
- * @param {string} userName - User character name
- * @param {Object[]} existingMemories - Recent memories for context (optional)
- * @param {string} characterDescription - Character card description (optional)
- * @param {string} personaDescription - User persona description (optional)
+ * @param {Object} options - Extraction prompt options
+ * @param {string} options.messages - Formatted messages to analyze
+ * @param {Object} options.names - Character names
+ * @param {string} options.names.char - Main character name
+ * @param {string} options.names.user - User character name
+ * @param {Object} [options.context] - Additional context
+ * @param {Object[]} [options.context.memories] - Recent memories for context
+ * @param {string} [options.context.charDesc] - Character card description
+ * @param {string} [options.context.personaDesc] - User persona description
  * @returns {string} The extraction prompt
  */
-export function buildExtractionPrompt(messagesText, characterName, userName, existingMemories = [], characterDescription = '', personaDescription = '') {
+export function buildExtractionPrompt({ messages, names, context = {} }) {
+    const { char: characterName, user: userName } = names;
+    const { memories: existingMemories = [], charDesc: characterDescription = '', personaDesc: personaDescription = '' } = context;
+
     // Build character context section if we have descriptions
     let characterContextSection = '';
     if (characterDescription || personaDescription) {
@@ -78,7 +84,7 @@ DEDUPLICATION RULES:
     }
 
     return `${characterContextSection}${memoryContextSection}<messages>
-${messagesText}
+${messages}
 </messages>
 
 <task>

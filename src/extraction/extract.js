@@ -90,7 +90,15 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
         // Select relevant memories using hybrid recency/importance strategy
         const existingMemories = selectMemoriesForExtraction(data, settings);
 
-        const extractionPrompt = buildExtractionPrompt(messagesText, characterName, userName, existingMemories, characterDescription, personaDescription);
+        const extractionPrompt = buildExtractionPrompt({
+            messages: messagesText,
+            names: { char: characterName, user: userName },
+            context: {
+                memories: existingMemories,
+                charDesc: characterDescription,
+                personaDesc: personaDescription,
+            },
+        });
 
         // Call LLM for extraction (throws on error)
         const extractedJson = await callLLMForExtraction(extractionPrompt);
