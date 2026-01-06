@@ -240,22 +240,6 @@ export function safeParseJSON(input) {
 }
 
 /**
- * Parse JSON from a response that may be wrapped in markdown code blocks
- * @deprecated Use safeParseJSON instead for more robust parsing
- * @param {string} response - Raw response potentially containing markdown
- * @returns {any} Parsed JSON object
- * @throws {Error} If JSON parsing fails
- */
-export function parseJsonFromMarkdown(response) {
-    let cleaned = response;
-    const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-        cleaned = jsonMatch[1];
-    }
-    return JSON.parse(cleaned.trim());
-}
-
-/**
  * Sort memories by sequence number or creation time
  * @param {Object[]} memories - Array of memory objects
  * @param {boolean} ascending - Sort ascending (oldest first) or descending (newest first)

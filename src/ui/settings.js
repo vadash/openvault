@@ -103,6 +103,22 @@ function bindTextInput(elementId, settingKey, transform = (v) => v) {
 }
 
 /**
+ * Bind a number input to a numeric setting
+ * @param {string} elementId - jQuery selector for the input
+ * @param {string} settingKey - Key in settings object
+ * @param {Function} validator - Optional validator function that returns the validated value
+ */
+function bindNumberInput(elementId, settingKey, validator) {
+    $(`#${elementId}`).on('change', function() {
+        let value = $(this).val();
+        if (validator) value = validator(value);
+        extension_settings[extensionName][settingKey] = value;
+        $(this).val(value); // Update UI in case validator changed it
+        saveSettingsDebounced();
+    });
+}
+
+/**
  * Bind a select dropdown to a setting
  * @param {string} elementId - jQuery selector for the select
  * @param {string} settingKey - Key in settings object
@@ -191,11 +207,7 @@ function bindUIElements() {
     bindSlider('openvault_auto_hide_threshold', 'autoHideThreshold', 'openvault_auto_hide_threshold_value');
 
     // Backfill settings
-    $('#openvault_backfill_rpm').on('change', function() {
-        extension_settings[extensionName].backfillMaxRPM = validateRPM($(this).val(), 30);
-        $(this).val(extension_settings[extensionName].backfillMaxRPM);
-        saveSettingsDebounced();
-    });
+    bindNumberInput('openvault_backfill_rpm', 'backfillMaxRPM', (v) => validateRPM(v, 30));
 
     // Embedding settings
     bindTextInput('openvault_ollama_url', 'ollamaUrl', (v) => v.trim());

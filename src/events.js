@@ -203,15 +203,6 @@ export async function onMessageReceived(messageId) {
         // Pass chatId to extractMemories for integrity check during long LLM calls
         const result = await extractMemories(batchToExtract, chatIdBeforeExtraction);
 
-        // Check if chat changed during extraction - don't save to wrong chat
-        const chatIdAfterExtraction = getCurrentChatId();
-        if (chatIdBeforeExtraction !== chatIdAfterExtraction) {
-            log(`Chat changed during extraction (${chatIdBeforeExtraction} -> ${chatIdAfterExtraction}), not marking batch`);
-            $('.openvault-extracting-toast').remove();
-            showToast('warning', 'Chat changed during extraction, results may be incomplete', 'OpenVault');
-            return;
-        }
-
         // Clear the persistent toast and show success
         $('.openvault-extracting-toast').remove();
         if (result && result.events_created > 0) {
@@ -227,7 +218,7 @@ export async function onMessageReceived(messageId) {
         setStatus('ready');
 
         // Check for backfill after each generation cycle
-        checkAndTriggerBackfill(updateEventListeners);
+        checkAndTriggerBackfill(updateEventListeners, chatIdBeforeExtraction);
     }
 }
 

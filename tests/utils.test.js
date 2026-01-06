@@ -18,7 +18,6 @@ import {
     isExtensionEnabled,
     isAutomaticMode,
     safeParseJSON,
-    parseJsonFromMarkdown,
     sortMemoriesBySequence,
 } from '../src/utils.js';
 import { extensionName, METADATA_KEY, MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, LAST_PROCESSED_KEY } from '../src/constants.js';
@@ -409,37 +408,6 @@ describe('utils', () => {
         it('handles nested objects', () => {
             const result = safeParseJSON('{"outer": {"inner": "value"}}');
             expect(result).toEqual({ outer: { inner: 'value' } });
-        });
-    });
-
-    describe('parseJsonFromMarkdown', () => {
-        it('parses raw JSON', () => {
-            const result = parseJsonFromMarkdown('{"key": "value"}');
-            expect(result).toEqual({ key: 'value' });
-        });
-
-        it('extracts JSON from markdown code block', () => {
-            const result = parseJsonFromMarkdown('```json\n{"key": "value"}\n```');
-            expect(result).toEqual({ key: 'value' });
-        });
-
-        it('extracts JSON from untyped code block', () => {
-            const result = parseJsonFromMarkdown('```\n{"key": "value"}\n```');
-            expect(result).toEqual({ key: 'value' });
-        });
-
-        it('handles arrays', () => {
-            const result = parseJsonFromMarkdown('[1, 2, 3]');
-            expect(result).toEqual([1, 2, 3]);
-        });
-
-        it('throws on invalid JSON', () => {
-            expect(() => parseJsonFromMarkdown('not json')).toThrow();
-        });
-
-        it('handles whitespace around JSON', () => {
-            const result = parseJsonFromMarkdown('  \n  {"key": "value"}  \n  ');
-            expect(result).toEqual({ key: 'value' });
         });
     });
 

@@ -5,7 +5,7 @@
  */
 
 import { getDeps } from './deps.js';
-import { getOpenVaultData, showToast, log, getExtractedMessageIds, getUnextractedMessageIds, isAutomaticMode } from './utils.js';
+import { getOpenVaultData, getCurrentChatId, showToast, log, getExtractedMessageIds, getUnextractedMessageIds, isAutomaticMode } from './utils.js';
 import { extensionName } from './constants.js';
 import { extractAllMessages } from './extraction/batch.js';
 
@@ -13,9 +13,13 @@ import { extractAllMessages } from './extraction/batch.js';
  * Check and trigger automatic backfill if there are enough unprocessed messages
  * Uses same logic as manual "Backfill Chat History" button
  * @param {function} updateEventListenersFn - Function to update event listeners after backfill
+ * @param {string} targetChatId - Optional chat ID to verify we haven't switched chats
  */
-export async function checkAndTriggerBackfill(updateEventListenersFn) {
+export async function checkAndTriggerBackfill(updateEventListenersFn, targetChatId) {
     if (!isAutomaticMode()) return;
+
+    // Don't backfill if chat has changed since this was queued
+    if (targetChatId && getCurrentChatId() !== targetChatId) return;
 
     const deps = getDeps();
     const settings = deps.getExtensionSettings()[extensionName];

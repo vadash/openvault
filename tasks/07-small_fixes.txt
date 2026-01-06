@@ -1,0 +1,76 @@
+### 🔍 Code Review & Minor Polish
+
+Here are the final specific adjustments I recommend to make the code "Production Ready."
+
+#### 1. Remove Redundant Logic in `src/events.js`
+In `onMessageReceived`, you check for chat ID changes **twice**: once via the error thrown by `extractMemories`, and again manually in `events.js`.
+
+**Current Code (`src/events.js`):**
+```javascript
+// Inside onMessageReceived
+try {
+    // ...
+    const result = await extractMemories(batchToExtract, chatIdBeforeExtraction);
+    
+    // REDUNDANT BLOCK START
+    const chatIdAfterExtraction = getCurrentChatId();
+    if (chatIdBeforeExtraction !== chatIdAfterExtraction) {
+        // ... logging ...
+        return;
+    }
+    // REDUNDANT BLOCK END
+    
+    // ... success handling ...
+} catch (error) {
+    // ... error handling ...
+}
+```
+
+**Why fix?** `extractMemories` now throws an Error if the chat changes (lines 1293-1296 of `extract.js`). The code execution will jump straight to the `catch` block, making the manual check in `events.js` dead code.
+
+**Fix:** Remove the redundant check in `src/events.js` and handle the specific error message in the catch block if you want specific logging.
+
+#### 2. Deprecate/Remove `parseJsonFromMarkdown`
+In `src/utils.js`, you still have the old `parseJsonFromMarkdown` function (Line 1421), though you marked it deprecated.
+
+**Fix:** Since you have updated all calls to use `safeParseJSON` (which uses `repairJson`), you should delete `parseJsonFromMarkdown` entirely to strictly enforce the DRY principle.
+
+#### 3. Standardize Number Input Binding
+In `src/ui/settings.js`, you created helpers for Checkboxes and Sliders, but you manually bound the "Backfill RPM" number input (Line 2021).
+
+**Refactor:** Add a `bindNumberInput` helper to keep `settings.js` consistent.
+
+```javascript
+// src/ui/settings.js
+
+function bindNumberInput(elementId, settingKey, validator) {
+    $(`#${elementId}`).on('change', function() {
+        let value = $(this).val();
+        if (validator) value = validator(value);
+        extension_settings[extensionName][settingKey] = value;
+        $(this).val(value); // Update UI in case validator changed it
+        saveSettingsDebounced();
+    });
+}
+
+// In bindUIElements:
+bindNumberInput('openvault_backfill_rpm', 'backfillMaxRPM', (v) => validateRPM(v, 30));
+```
+
+#### 4. Optimize `checkAndTriggerBackfill` logic
+In `src/backfill.js` (and `events.js`), `checkAndTriggerBackfill` runs in the `finally` block of `onMessageReceived`.
+
+**Edge Case:** If the user switches chats, `onMessageReceived` stops (correctly). However, the `finally` block runs `checkAndTriggerBackfill`.
+*   `checkAndTriggerBackfill` gets `getOpenVaultData()`.
+*   Since the chat switched, it gets the data for the **new** chat.
+*   If the new chat has unextracted messages, it might auto-start a backfill immediately upon switching chats, which might be jarring/laggy for the user.
+
+**Fix:** Pass the `chatId` to `checkAndTriggerBackfill` and verify it matches `getCurrentChatId()` before running.
+
+```javascript
+// src/backfill.js
+export async function checkAndTriggerBackfill(updateEventListenersFn, targetChatId) {
+    if (targetChatId && getCurrentChatId() !== targetChatId) return; // Don't backfill if we switched
+    // ... rest of function
+}
+```

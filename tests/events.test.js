@@ -486,14 +486,13 @@ describe('events', () => {
         it('detects chat change during extraction', async () => {
             mockSettings.messagesPerExtraction = 2;
             getUnextractedMessageIds.mockReturnValue([0, 1]);
-            getCurrentChatId
-                .mockReturnValueOnce('chat_123')
-                .mockReturnValueOnce('chat_456');
+            // extractMemories throws error when chat changes
+            extractMemories.mockRejectedValue(new Error('Chat changed during extraction'));
 
             await onMessageReceived(1);
 
-            expect(log).toHaveBeenCalledWith(expect.stringContaining('Chat changed during extraction'));
-            expect(showToast).toHaveBeenCalledWith('warning', expect.stringContaining('Chat changed during extraction'), 'OpenVault');
+            expect(mockConsole.error).toHaveBeenCalled();
+            expect(showToast).toHaveBeenCalledWith('error', expect.stringContaining('Chat changed during extraction'), 'OpenVault');
         });
 
         it('shows success toast after extraction', async () => {
@@ -512,7 +511,7 @@ describe('events', () => {
 
             await onMessageReceived(1);
 
-            expect(checkAndTriggerBackfill).toHaveBeenCalledWith(updateEventListeners);
+            expect(checkAndTriggerBackfill).toHaveBeenCalledWith(updateEventListeners, 'chat_123');
         });
 
         it('always clears extraction flag', async () => {
