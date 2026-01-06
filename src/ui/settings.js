@@ -15,7 +15,7 @@ import { setEmbeddingStatusCallback, getEmbeddingStatus } from '../embeddings.js
 let updateEventListenersFn = null;
 let extractAllMessagesFn = null;
 let deleteCurrentChatDataFn = null;
-let deleteAllDataFn = null;
+let deleteCurrentChatEmbeddingsFn = null;
 let backfillEmbeddingsFn = null;
 
 /**
@@ -26,7 +26,7 @@ export function setExternalFunctions(fns) {
     updateEventListenersFn = fns.updateEventListeners;
     extractAllMessagesFn = fns.extractAllMessages;
     deleteCurrentChatDataFn = fns.deleteCurrentChatData;
-    deleteAllDataFn = fns.deleteAllData;
+    deleteCurrentChatEmbeddingsFn = fns.deleteCurrentChatEmbeddings;
     backfillEmbeddingsFn = fns.backfillEmbeddings;
 }
 
@@ -196,8 +196,8 @@ function bindUIElements() {
     $('#openvault_delete_chat_btn').on('click', () => {
         if (deleteCurrentChatDataFn) deleteCurrentChatDataFn();
     });
-    $('#openvault_delete_all_btn').on('click', () => {
-        if (deleteAllDataFn) deleteAllDataFn();
+    $('#openvault_delete_embeddings_btn').on('click', () => {
+        if (deleteCurrentChatEmbeddingsFn) deleteCurrentChatEmbeddingsFn();
     });
 
     // Profile selectors

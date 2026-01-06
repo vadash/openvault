@@ -46,23 +46,29 @@ async function deleteCurrentChatData() {
 }
 
 /**
- * Delete all OpenVault data (requires typing DELETE)
+ * Delete embeddings from current chat's memories
  */
-async function deleteAllData() {
-    const confirmation = prompt('Type DELETE to confirm deletion of all OpenVault data:');
-    if (confirmation !== 'DELETE') {
-        showToast('warning', 'Deletion cancelled');
+async function deleteCurrentChatEmbeddings() {
+    if (!confirm('Are you sure you want to delete all embeddings for this chat?')) {
         return;
     }
 
-    // This would need to iterate through all chats - for now just clear current
-    const context = getContext();
-    if (context.chatMetadata) {
-        delete context.chatMetadata[METADATA_KEY];
-        await saveChatConditional();
+    const data = getOpenVaultData();
+    if (!data || !data[MEMORIES_KEY]) {
+        showToast('warning', 'No memories found');
+        return;
     }
 
-    showToast('success', 'All data deleted');
+    let count = 0;
+    for (const memory of data[MEMORIES_KEY]) {
+        if (memory.embedding) {
+            delete memory.embedding;
+            count++;
+        }
+    }
+
+    await saveChatConditional();
+    showToast('success', `Deleted ${count} embeddings`);
     refreshAllUI();
 }
 
@@ -195,7 +201,7 @@ jQuery(() => {
             retrieveAndInjectContext,
             extractAllMessages: extractAllMessagesWrapper,
             deleteCurrentChatData,
-            deleteAllData,
+            deleteCurrentChatEmbeddings,
             backfillEmbeddings,
         });
 
