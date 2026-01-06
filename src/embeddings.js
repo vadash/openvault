@@ -9,27 +9,61 @@ import { getDeps } from './deps.js';
 import { log } from './utils.js';
 import { extensionName } from './constants.js';
 
-// Model configuration
+// Model configuration with quantization options
+// Keys are "modelKey:dtype" format for combined selection
 const TRANSFORMERS_MODELS = {
-    'multilingual-e5-small': {
+    // Multilingual E5 Small - Best multilingual accuracy
+    'multilingual-e5-small:q8': {
         name: 'Xenova/multilingual-e5-small',
-        size: '~470MB',
+        dtype: 'q8',
+        size: '~120MB',
         dimensions: 384,
+        description: 'Best multilingual (100+ langs) - Balanced',
     },
-    'paraphrase-multilingual-MiniLM-L12-v2': {
+    'multilingual-e5-small:q4': {
+        name: 'Xenova/multilingual-e5-small',
+        dtype: 'q4',
+        size: '~65MB',
+        dimensions: 384,
+        description: 'Best multilingual (100+ langs) - Smallest',
+    },
+    // Paraphrase Multilingual MiniLM - Cross-lingual similarity
+    'paraphrase-multilingual-MiniLM-L12-v2:q8': {
         name: 'Xenova/paraphrase-multilingual-MiniLM-L12-v2',
-        size: '~470MB',
+        dtype: 'q8',
+        size: '~120MB',
         dimensions: 384,
+        description: 'Cross-lingual similarity (50+ langs) - Balanced',
     },
-    'all-MiniLM-L6-v2': {
+    // All MiniLM L6 v2 - Smallest English model
+    'all-MiniLM-L6-v2:fp32': {
         name: 'Xenova/all-MiniLM-L6-v2',
+        dtype: 'fp32',
         size: '~25MB',
         dimensions: 384,
+        description: 'English only - Fastest load, max accuracy',
     },
-    'bge-small-en-v1.5': {
-        name: 'Xenova/bge-small-en-v1.5',
-        size: '~130MB',
+    'all-MiniLM-L6-v2:q8': {
+        name: 'Xenova/all-MiniLM-L6-v2',
+        dtype: 'q8',
+        size: '~12MB',
         dimensions: 384,
+        description: 'English only - Tiny footprint',
+    },
+    // BGE Small EN - Best RAG performance for English
+    'bge-small-en-v1.5:q8': {
+        name: 'Xenova/bge-small-en-v1.5',
+        dtype: 'q8',
+        size: '~35MB',
+        dimensions: 384,
+        description: 'English RAG optimized - Best retrieval quality',
+    },
+    'bge-small-en-v1.5:q4': {
+        name: 'Xenova/bge-small-en-v1.5',
+        dtype: 'q4',
+        size: '~20MB',
+        dimensions: 384,
+        description: 'English RAG optimized - Smallest',
     },
 };
 
@@ -66,7 +100,7 @@ function updateStatus(status) {
  */
 export function getEmbeddingStatus() {
     const settings = getDeps().getExtensionSettings()[extensionName];
-    const source = settings?.embeddingSource || 'multilingual-e5-small';
+    const source = settings?.embeddingSource || 'multilingual-e5-small:q8';
 
     if (source === 'ollama') {
         if (settings?.ollamaUrl && settings?.embeddingModel) {
@@ -80,15 +114,19 @@ export function getEmbeddingStatus() {
         return 'Unknown model';
     }
 
+    // Extract display name (model:dtype -> shorter label)
+    const [modelName, dtype] = source.split(':');
+    const shortName = modelName.split('-').slice(0, 2).join('-'); // e.g. "multilingual-e5"
+
     if (cachedPipeline && cachedModelId === source) {
-        return `${source} (${modelConfig.size}) ✓`;
+        return `${shortName} (${dtype}) ✓`;
     }
 
     if (loadingPromise && cachedModelId === source) {
-        return `Loading ${source}...`;
+        return `Loading ${shortName}...`;
     }
 
-    return `${source} (${modelConfig.size})`;
+    return `${shortName} (${dtype}, ${modelConfig.size})`;
 }
 
 /**
@@ -126,6 +164,7 @@ async function loadTransformersPipeline(modelKey) {
             const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1');
 
             const pipe = await pipeline('feature-extraction', modelConfig.name, {
+                dtype: modelConfig.dtype || 'fp32',
                 progress_callback: (progress) => {
                     if (progress.status === 'progress' && progress.total) {
                         const pct = Math.round((progress.loaded / progress.total) * 100);
@@ -196,7 +235,7 @@ export function cosineSimilarity(vecA, vecB) {
  */
 export function isEmbeddingsEnabled() {
     const settings = getDeps().getExtensionSettings()[extensionName];
-    const source = settings?.embeddingSource || 'multilingual-e5-small';
+    const source = settings?.embeddingSource || 'multilingual-e5-small:q8';
 
     if (source === 'ollama') {
         return !!(settings?.ollamaUrl && settings?.embeddingModel);
@@ -213,7 +252,7 @@ export function isEmbeddingsEnabled() {
  */
 async function getTransformersEmbedding(text) {
     const settings = getDeps().getExtensionSettings()[extensionName];
-    const source = settings?.embeddingSource || 'multilingual-e5-small';
+    const source = settings?.embeddingSource || 'multilingual-e5-small:q8';
 
     if (!text || text.trim().length === 0) {
         return null;
@@ -276,7 +315,7 @@ async function getOllamaEmbedding(text) {
  */
 export async function getEmbedding(text) {
     const settings = getDeps().getExtensionSettings()[extensionName];
-    const source = settings?.embeddingSource || 'multilingual-e5-small';
+    const source = settings?.embeddingSource || 'multilingual-e5-small:q8';
 
     if (source === 'ollama') {
         return getOllamaEmbedding(text);
