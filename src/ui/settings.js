@@ -48,6 +48,87 @@ function updateWordsDisplay(tokens, wordsElementId) {
     $(`#${wordsElementId}`).text(tokensToWords(tokens));
 }
 
+// =============================================================================
+// UI Binding Helpers
+// =============================================================================
+
+/**
+ * Bind a checkbox to a boolean setting
+ * @param {string} elementId - jQuery selector for the checkbox
+ * @param {string} settingKey - Key in settings object
+ * @param {Function} onChange - Optional callback after value change
+ */
+function bindCheckbox(elementId, settingKey, onChange) {
+    $(`#${elementId}`).on('change', function() {
+        extension_settings[extensionName][settingKey] = $(this).is(':checked');
+        saveSettingsDebounced();
+        if (onChange) onChange();
+    });
+}
+
+/**
+ * Bind a slider (range input) to a numeric setting
+ * @param {string} elementId - jQuery selector for the slider
+ * @param {string} settingKey - Key in settings object
+ * @param {string} displayId - Element ID to show the value (optional)
+ * @param {Function} onChange - Optional callback after value change
+ * @param {string} wordsId - Element ID to show word count (optional)
+ */
+function bindSlider(elementId, settingKey, displayId, onChange, wordsId) {
+    $(`#${elementId}`).on('input', function() {
+        const value = parseInt($(this).val());
+        extension_settings[extensionName][settingKey] = value;
+        if (displayId) {
+            $(`#${displayId}`).text(value);
+        }
+        if (wordsId) {
+            updateWordsDisplay(value, wordsId);
+        }
+        saveSettingsDebounced();
+        if (onChange) onChange(value);
+    });
+}
+
+/**
+ * Bind a text input to a string setting
+ * @param {string} elementId - jQuery selector for the input
+ * @param {string} settingKey - Key in settings object
+ * @param {Function} transform - Optional transform function (e.g., trim)
+ */
+function bindTextInput(elementId, settingKey, transform = (v) => v) {
+    $(`#${elementId}`).on('change', function() {
+        extension_settings[extensionName][settingKey] = transform($(this).val());
+        saveSettingsDebounced();
+    });
+}
+
+/**
+ * Bind a select dropdown to a setting
+ * @param {string} elementId - jQuery selector for the select
+ * @param {string} settingKey - Key in settings object
+ * @param {Function} onChange - Optional callback after value change
+ */
+function bindSelect(elementId, settingKey, onChange) {
+    $(`#${elementId}`).on('change', function() {
+        extension_settings[extensionName][settingKey] = $(this).val();
+        saveSettingsDebounced();
+        if (onChange) onChange($(this).val());
+    });
+}
+
+/**
+ * Bind a button click handler
+ * @param {string} elementId - jQuery selector for the button
+ * @param {Function} handler - Click handler function
+ */
+function bindButton(elementId, handler) {
+    $(`#${elementId}`).on('click', handler);
+}
+
+// =============================================================================
+// Settings Loading
+// =============================================================================
+
 /**
  * Load extension settings
  */
@@ -85,139 +166,74 @@ export async function loadSettings() {
  * Bind UI elements to settings
  */
 function bindUIElements() {
-    const settings = extension_settings[extensionName];
-
-    // Enabled toggle
-    $('#openvault_enabled').on('change', function() {
-        settings.enabled = $(this).is(':checked');
-        saveSettingsDebounced();
+    // Basic toggles
+    bindCheckbox('openvault_enabled', 'enabled', () => {
         if (updateEventListenersFn) updateEventListenersFn();
     });
+    bindCheckbox('openvault_debug', 'debugMode');
 
-    // Debug mode toggle
-    $('#openvault_debug').on('change', function() {
-        settings.debugMode = $(this).is(':checked');
-        saveSettingsDebounced();
-    });
+    // Extraction settings
+    bindSlider('openvault_messages_per_extraction', 'messagesPerExtraction', 'openvault_messages_per_extraction_value');
+    bindSlider('openvault_extraction_rearview', 'extractionRearviewTokens', 'openvault_extraction_rearview_value', null, 'openvault_extraction_rearview_words');
 
-    // Messages per extraction slider
-    $('#openvault_messages_per_extraction').on('input', function() {
-        settings.messagesPerExtraction = parseInt($(this).val());
-        $('#openvault_messages_per_extraction_value').text(settings.messagesPerExtraction);
-        saveSettingsDebounced();
-    });
+    // Retrieval pipeline settings
+    bindSlider('openvault_prefilter_budget', 'retrievalPreFilterTokens', 'openvault_prefilter_budget_value', null, 'openvault_prefilter_budget_words');
 
-    // Extraction rearview tokens slider
-    $('#openvault_extraction_rearview').on('input', function() {
-        settings.extractionRearviewTokens = parseInt($(this).val());
-        $('#openvault_extraction_rearview_value').text(settings.extractionRearviewTokens);
-        updateWordsDisplay(settings.extractionRearviewTokens, 'openvault_extraction_rearview_words');
-        saveSettingsDebounced();
-    });
-
-    // Pre-filter budget slider
-    $('#openvault_prefilter_budget').on('input', function() {
-        settings.retrievalPreFilterTokens = parseInt($(this).val());
-        $('#openvault_prefilter_budget_value').text(settings.retrievalPreFilterTokens);
-        updateWordsDisplay(settings.retrievalPreFilterTokens, 'openvault_prefilter_budget_words');
-        saveSettingsDebounced();
-    });
-
-    // Smart retrieval toggle
-    $('#openvault_smart_retrieval').on('change', function() {
-        settings.smartRetrievalEnabled = $(this).is(':checked');
-        // Toggle retrieval profile visibility
+    bindCheckbox('openvault_smart_retrieval', 'smartRetrievalEnabled', () => {
+        const settings = extension_settings[extensionName];
         $('#openvault_retrieval_profile_group').toggle(settings.smartRetrievalEnabled);
-        saveSettingsDebounced();
     });
 
-    // Final budget slider
-    $('#openvault_final_budget').on('input', function() {
-        settings.retrievalFinalTokens = parseInt($(this).val());
-        $('#openvault_final_budget_value').text(settings.retrievalFinalTokens);
-        updateWordsDisplay(settings.retrievalFinalTokens, 'openvault_final_budget_words');
-        saveSettingsDebounced();
-    });
+    bindSlider('openvault_final_budget', 'retrievalFinalTokens', 'openvault_final_budget_value', null, 'openvault_final_budget_words');
 
-    // Auto-hide toggle
-    $('#openvault_auto_hide').on('change', function() {
-        settings.autoHideEnabled = $(this).is(':checked');
-        saveSettingsDebounced();
-    });
+    // Auto-hide settings
+    bindCheckbox('openvault_auto_hide', 'autoHideEnabled');
+    bindSlider('openvault_auto_hide_threshold', 'autoHideThreshold', 'openvault_auto_hide_threshold_value');
 
-    // Auto-hide threshold slider
-    $('#openvault_auto_hide_threshold').on('input', function() {
-        settings.autoHideThreshold = parseInt($(this).val());
-        $('#openvault_auto_hide_threshold_value').text(settings.autoHideThreshold);
-        saveSettingsDebounced();
-    });
-
-    // Backfill rate limit input
+    // Backfill settings
     $('#openvault_backfill_rpm').on('change', function() {
-        settings.backfillMaxRPM = validateRPM($(this).val(), 30);
-        $(this).val(settings.backfillMaxRPM);
+        extension_settings[extensionName].backfillMaxRPM = validateRPM($(this).val(), 30);
+        $(this).val(extension_settings[extensionName].backfillMaxRPM);
         saveSettingsDebounced();
     });
 
-    // Ollama URL input
-    $('#openvault_ollama_url').on('change', function() {
-        settings.ollamaUrl = $(this).val().trim();
-        saveSettingsDebounced();
-    });
+    // Embedding settings
+    bindTextInput('openvault_ollama_url', 'ollamaUrl', (v) => v.trim());
+    bindTextInput('openvault_embedding_model', 'embeddingModel', (v) => v.trim());
 
-    // Embedding model input
-    $('#openvault_embedding_model').on('change', function() {
-        settings.embeddingModel = $(this).val().trim();
-        saveSettingsDebounced();
-    });
-
-    // Embedding source dropdown
-    $('#openvault_embedding_source').on('change', function() {
-        settings.embeddingSource = $(this).val();
-        $('#openvault_ollama_settings').toggle(settings.embeddingSource === 'ollama');
+    bindSelect('openvault_embedding_source', 'embeddingSource', (value) => {
+        $('#openvault_ollama_settings').toggle(value === 'ollama');
         $('#openvault_embedding_status').text(getEmbeddingStatus());
-        saveSettingsDebounced();
     });
 
-    // Backfill embeddings button
-    $('#openvault_backfill_embeddings_btn').on('click', () => {
+    // Action buttons
+    bindButton('openvault_backfill_embeddings_btn', () => {
         if (backfillEmbeddingsFn) backfillEmbeddingsFn();
     });
-
-    // Backfill history button
-    $('#openvault_extract_all_btn').on('click', () => {
+    bindButton('openvault_extract_all_btn', () => {
         if (extractAllMessagesFn) extractAllMessagesFn();
     });
-
-    // Refresh stats button
-    $('#openvault_refresh_stats_btn').on('click', () => refreshAllUI());
+    bindButton('openvault_refresh_stats_btn', () => refreshAllUI());
 
     // Danger zone buttons
-    $('#openvault_delete_chat_btn').on('click', () => {
+    bindButton('openvault_delete_chat_btn', () => {
         if (deleteCurrentChatDataFn) deleteCurrentChatDataFn();
     });
-    $('#openvault_delete_embeddings_btn').on('click', () => {
+    bindButton('openvault_delete_embeddings_btn', () => {
         if (deleteCurrentChatEmbeddingsFn) deleteCurrentChatEmbeddingsFn();
     });
 
     // Profile selectors
-    $('#openvault_extraction_profile').on('change', function() {
-        settings.extractionProfile = $(this).val();
-        saveSettingsDebounced();
-    });
-
-    $('#openvault_retrieval_profile').on('change', function() {
-        settings.retrievalProfile = $(this).val();
-        saveSettingsDebounced();
-    });
+    bindSelect('openvault_extraction_profile', 'extractionProfile');
+    bindSelect('openvault_retrieval_profile', 'retrievalProfile');
 
     // Memory browser pagination
-    $('#openvault_prev_page').on('click', () => prevPage());
-    $('#openvault_next_page').on('click', () => nextPage());
+    bindButton('openvault_prev_page', () => prevPage());
+    bindButton('openvault_next_page', () => nextPage());
 
     // Memory browser filters
-    $('#openvault_filter_type').on('change', () => resetAndRender());
-    $('#openvault_filter_character').on('change', () => resetAndRender());
+    bindSelect('openvault_filter_type', 'filter_type', () => resetAndRender());
+    bindSelect('openvault_filter_character', 'filter_character', () => resetAndRender());
 
     // Embedding status callback
     setEmbeddingStatusCallback((status) => {
@@ -231,6 +247,7 @@ function bindUIElements() {
 export function updateUI() {
     const settings = extension_settings[extensionName];
 
+    // Basic toggles
     $('#openvault_enabled').prop('checked', settings.enabled);
     $('#openvault_debug').prop('checked', settings.debugMode);
 
