@@ -149,12 +149,14 @@
                 <h4>Statistics</h4>
                 <div class="openvault-stats-compact">
                     <span class="openvault-badge" id="openvault_stat_events_badge">0 events</span>
+                    <span class="openvault-badge" id="openvault_stat_embeddings_badge">0 embeddings</span>
                     <span class="openvault-badge" id="openvault_stat_characters_badge">0 chars</span>
-                    <span class="openvault-badge" id="openvault_stat_next_extraction_badge">-</span>
                 </div>
-                <div class="openvault-extraction-bar">
-                    <div class="openvault-extraction-progress" id="openvault_extraction_progress"></div>
-                    <span class="openvault-extraction-label" id="openvault_extraction_label">0 / 0 extracted</span>
+                <div class="openvault-batch-progress">
+                    <div class="openvault-batch-progress-bar">
+                        <div class="openvault-batch-progress-fill" id="openvault_batch_progress_fill"></div>
+                    </div>
+                    <span class="openvault-batch-progress-label" id="openvault_batch_progress_label">0/30</span>
                 </div>
                 <button id="openvault_refresh_stats_btn" class="menu_button">
                     <i class="fa-solid fa-refresh"></i> Refresh

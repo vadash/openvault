@@ -471,3 +471,33 @@
     border-radius: 3px;
     font-size: 0.9em;
 }
+
+/* Batch progress bar */
+.openvault-batch-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.openvault-batch-progress-bar {
+    flex: 1;
+    height: 20px;
+    background: var(--SmartThemeBorderColor, #333);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.openvault-batch-progress-fill {
+    height: 100%;
+    background: var(--SmartThemeEmColor, #48c);
+    transition: width 0.3s ease;
+    min-width: 0;
+}
+
+.openvault-batch-progress-label {
+    font-size: 0.85em;
+    color: var(--SmartThemeBodyColor, #ccc);
+    min-width: 60px;
+    text-align: right;
+}

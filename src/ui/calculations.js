@@ -127,79 +127,58 @@ export function calculateExtractionStats(chat, extractedMessageIds, messageCount
     const hiddenMessages = chat.filter(m => m.is_system).length;
     const extractedCount = extractedMessageIds.size;
 
-    // Buffer zone: last N messages reserved for automatic extraction (1 batch)
-    const bufferSize = messageCount;
-    const bufferStart = Math.max(0, totalMessages - bufferSize);
+    // Calculate unextracted messages
+    const unextractedCount = totalMessages - extractedCount;
 
-    // Unprocessed: messages before buffer that haven't been extracted
-    let unprocessedCount = 0;
-    for (let i = 0; i < bufferStart; i++) {
-        if (!extractedMessageIds.has(i)) {
-            unprocessedCount++;
-        }
-    }
+    // Batch progress: how many messages in current partial batch
+    const batchProgress = unextractedCount % messageCount;
+    const messagesNeeded = batchProgress === 0 && unextractedCount > 0 ? 0 : messageCount - batchProgress;
 
     return {
         totalMessages,
         hiddenMessages,
         extractedCount,
-        bufferSize,
-        bufferStart,
-        unprocessedCount,
+        unextractedCount,
+        batchProgress,
+        messagesNeeded,
+        messageCount,
     };
 }
 
 /**
- * Get backfill status text
- * @param {number} totalMessages - Total message count
- * @param {number} bufferSize - Buffer zone size
- * @param {number} unprocessedCount - Unprocessed messages before buffer
- * @returns {string} Status text
+ * Get batch progress info for display
+ * @param {Object} stats - Stats from calculateExtractionStats
+ * @returns {Object} { current, total, percentage, label }
  */
-export function getBackfillStatusText(totalMessages, bufferSize, unprocessedCount) {
-    if (totalMessages < bufferSize) {
-        return 'Waiting for more messages';
-    } else if (unprocessedCount > 0) {
-        return `${unprocessedCount} msgs ready`;
-    } else {
-        return 'Up to date';
-    }
-}
+export function getBatchProgressInfo(stats) {
+    const { batchProgress, messagesNeeded, messageCount, unextractedCount } = stats;
 
-/**
- * Calculate next auto-extraction text
- * @param {Object} params - Calculation parameters
- * @param {number} params.totalMessages - Total messages
- * @param {number} params.bufferSize - Buffer zone size
- * @param {number} params.bufferStart - Buffer start index
- * @param {number} params.extractedCount - Total extracted count
- * @param {Set} params.extractedMessageIds - Set of extracted message IDs
- * @param {number} params.messageCount - Messages per extraction
- * @returns {string} Next auto-extraction text
- */
-export function getNextAutoExtractionText(params) {
-    const { totalMessages, bufferSize, bufferStart, extractedCount, extractedMessageIds, messageCount } = params;
-
-    if (totalMessages < bufferSize) {
-        const needed = bufferSize - totalMessages;
-        return `Need ${needed} more msgs`;
+    // If all extracted, show full bar
+    if (unextractedCount === 0) {
+        return {
+            current: messageCount,
+            total: messageCount,
+            percentage: 100,
+            label: 'Up to date',
+        };
     }
 
-    const messagesInBuffer = Math.min(totalMessages, bufferSize);
-    const messagesBeforeBuffer = totalMessages - messagesInBuffer;
-
-    if (messagesBeforeBuffer > extractedCount) {
-        return 'Backfill pending';
+    // If ready to extract (full batch waiting), show full bar
+    if (messagesNeeded === 0) {
+        return {
+            current: messageCount,
+            total: messageCount,
+            percentage: 100,
+            label: 'Ready!',
+        };
     }
 
-    const extractedInBuffer = [...extractedMessageIds].filter(id => id >= bufferStart).length;
-    const remainder = extractedInBuffer % messageCount;
-    const messagesUntilNextBatch = remainder === 0 ? 0 : messageCount - remainder;
-
-    if (messagesUntilNextBatch === 0) {
-        return 'Ready on next AI msg';
-    }
-    return `In ${messagesUntilNextBatch} msgs`;
+    return {
+        current: batchProgress,
+        total: messageCount,
+        percentage: Math.round((batchProgress / messageCount) * 100),
+        label: `${batchProgress}/${messageCount} (+${messagesNeeded})`,
+    };
 }
 
 /**

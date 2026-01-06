@@ -10,8 +10,7 @@ import {
     buildCharacterStateData,
     buildRelationshipData,
     calculateExtractionStats,
-    getBackfillStatusText,
-    getNextAutoExtractionText,
+    getBatchProgressInfo,
     validateRPM,
     buildProfileOptions,
 } from '../src/ui/calculations.js';
@@ -278,94 +277,89 @@ describe('ui/calculations', () => {
             expect(result.totalMessages).toBe(5);
             expect(result.hiddenMessages).toBe(1);
             expect(result.extractedCount).toBe(2);
-            expect(result.bufferSize).toBe(2); // messageCount (1 batch)
-            expect(result.bufferStart).toBe(3); // max(0, 5-2)
+            expect(result.unextractedCount).toBe(3);
+            expect(result.batchProgress).toBe(1); // 3 % 2 = 1
+            expect(result.messagesNeeded).toBe(1); // 2 - 1 = 1
         });
 
-        it('counts unprocessed messages before buffer', () => {
+        it('calculates batch progress correctly', () => {
             const chat = new Array(20).fill({ is_system: false });
             const extractedIds = new Set([0, 1, 2]); // Only first 3 extracted
 
             const result = calculateExtractionStats(chat, extractedIds, 5);
 
-            // bufferSize = 5, bufferStart = 15
-            // Messages 3-14 are before buffer and not extracted = 12 unprocessed
-            expect(result.unprocessedCount).toBe(12);
+            // 20 - 3 = 17 unextracted
+            // 17 % 5 = 2 in current batch
+            // 5 - 2 = 3 needed
+            expect(result.unextractedCount).toBe(17);
+            expect(result.batchProgress).toBe(2);
+            expect(result.messagesNeeded).toBe(3);
         });
 
         it('handles empty chat', () => {
             const result = calculateExtractionStats([], new Set(), 10);
 
             expect(result.totalMessages).toBe(0);
-            expect(result.unprocessedCount).toBe(0);
+            expect(result.unextractedCount).toBe(0);
+            expect(result.batchProgress).toBe(0);
+        });
+
+        it('shows ready when full batch waiting', () => {
+            const chat = new Array(30).fill({ is_system: false });
+            const extractedIds = new Set(); // None extracted
+
+            const result = calculateExtractionStats(chat, extractedIds, 10);
+
+            // 30 unextracted, 30 % 10 = 0, but unextracted > 0 so ready
+            expect(result.unextractedCount).toBe(30);
+            expect(result.batchProgress).toBe(0);
+            expect(result.messagesNeeded).toBe(0); // Ready!
         });
     });
 
-    describe('getBackfillStatusText', () => {
-        it('returns waiting message when not enough messages', () => {
-            expect(getBackfillStatusText(5, 20, 0)).toBe('Waiting for more messages');
-        });
-
-        it('returns count when unprocessed messages exist', () => {
-            expect(getBackfillStatusText(30, 20, 5)).toBe('5 msgs ready');
-        });
-
-        it('returns up to date when fully processed', () => {
-            expect(getBackfillStatusText(30, 20, 0)).toBe('Up to date');
-        });
-    });
-
-    describe('getNextAutoExtractionText', () => {
-        it('returns need more messages when below buffer size', () => {
-            const result = getNextAutoExtractionText({
-                totalMessages: 10,
-                bufferSize: 20,
-                bufferStart: 0,
-                extractedCount: 0,
-                extractedMessageIds: new Set(),
+    describe('getBatchProgressInfo', () => {
+        it('returns up to date when all extracted', () => {
+            const stats = {
+                batchProgress: 0,
+                messagesNeeded: 10,
                 messageCount: 10,
-            });
+                unextractedCount: 0,
+            };
 
-            expect(result).toBe('Need 10 more msgs');
+            const result = getBatchProgressInfo(stats);
+
+            expect(result.label).toBe('Up to date');
+            expect(result.percentage).toBe(100);
         });
 
-        it('returns backfill pending when messages before buffer unextracted', () => {
-            const result = getNextAutoExtractionText({
-                totalMessages: 30,
-                bufferSize: 20,
-                bufferStart: 10,
-                extractedCount: 5,
-                extractedMessageIds: new Set([0, 1, 2, 3, 4]),
+        it('returns ready when full batch waiting', () => {
+            const stats = {
+                batchProgress: 0,
+                messagesNeeded: 0,
                 messageCount: 10,
-            });
+                unextractedCount: 30,
+            };
 
-            expect(result).toBe('Backfill pending');
+            const result = getBatchProgressInfo(stats);
+
+            expect(result.label).toBe('Ready!');
+            expect(result.percentage).toBe(100);
         });
 
-        it('returns ready on next AI msg when at batch boundary', () => {
-            const result = getNextAutoExtractionText({
-                totalMessages: 30,
-                bufferSize: 20,
-                bufferStart: 10,
-                extractedCount: 10,
-                extractedMessageIds: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
+        it('returns progress when partial batch', () => {
+            const stats = {
+                batchProgress: 7,
+                messagesNeeded: 3,
                 messageCount: 10,
-            });
+                unextractedCount: 7,
+            };
 
-            expect(result).toBe('Ready on next AI msg');
-        });
+            const result = getBatchProgressInfo(stats);
 
-        it('returns countdown when within batch', () => {
-            const result = getNextAutoExtractionText({
-                totalMessages: 30,
-                bufferSize: 20,
-                bufferStart: 10,
-                extractedCount: 10,
-                extractedMessageIds: new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
-                messageCount: 10,
-            });
-
-            expect(result).toMatch(/In \d+ msgs/);
+            expect(result.label).toBe('7/10 (+3)');
+            expect(result.percentage).toBe(70);
+            expect(result.current).toBe(7);
+            expect(result.total).toBe(10);
         });
     });
 

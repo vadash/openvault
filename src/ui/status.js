@@ -8,7 +8,7 @@ import { getContext, extension_settings } from '../../../../../extensions.js';
 import { getOpenVaultData, log, getExtractedMessageIds } from '../utils.js';
 import { MEMORIES_KEY, CHARACTERS_KEY, extensionName } from '../constants.js';
 import { getStatusText } from './formatting.js';
-import { calculateExtractionStats, getNextAutoExtractionText } from './calculations.js';
+import { calculateExtractionStats, getBatchProgressInfo } from './calculations.js';
 
 /**
  * Set the status indicator
@@ -28,20 +28,23 @@ export function refreshStats() {
     const data = getOpenVaultData();
     if (!data) {
         $('#openvault_stat_events_badge').text('0 events');
+        $('#openvault_stat_embeddings_badge').text('0 embeddings');
         $('#openvault_stat_characters_badge').text('0 chars');
-        $('#openvault_stat_next_extraction_badge').text('-');
-        $('#openvault_extraction_progress').css('width', '0%');
-        $('#openvault_extraction_label').text('No chat');
+        $('#openvault_batch_progress_fill').css('width', '0%');
+        $('#openvault_batch_progress_label').text('No chat');
         return;
     }
 
-    const eventCount = data[MEMORIES_KEY]?.length || 0;
+    const memories = data[MEMORIES_KEY] || [];
+    const eventCount = memories.length;
+    const embeddingCount = memories.filter(m => m.embedding?.length > 0).length;
     const charCount = Object.keys(data[CHARACTERS_KEY] || {}).length;
 
     $('#openvault_stat_events_badge').text(`${eventCount} events`);
+    $('#openvault_stat_embeddings_badge').text(`${embeddingCount} embeddings`);
     $('#openvault_stat_characters_badge').text(`${charCount} chars`);
 
-    // Calculate extraction progress
+    // Calculate batch progress
     const settings = extension_settings[extensionName];
     const messageCount = settings?.messagesPerExtraction || 10;
 
@@ -50,24 +53,11 @@ export function refreshStats() {
     const extractedMessageIds = getExtractedMessageIds(data);
 
     const stats = calculateExtractionStats(chat, extractedMessageIds, messageCount);
+    const progressInfo = getBatchProgressInfo(stats);
 
-    // Update progress bar
-    const percentage = stats.totalMessages > 0
-        ? Math.round((stats.extractedCount / stats.totalMessages) * 100)
-        : 0;
-    $('#openvault_extraction_progress').css('width', `${percentage}%`);
-    $('#openvault_extraction_label').text(`${stats.extractedCount} / ${stats.totalMessages} extracted`);
+    // Update batch progress bar
+    $('#openvault_batch_progress_fill').css('width', `${progressInfo.percentage}%`);
+    $('#openvault_batch_progress_label').text(progressInfo.label);
 
-    // Update next extraction badge
-    const nextExtractionText = getNextAutoExtractionText({
-        totalMessages: stats.totalMessages,
-        bufferSize: stats.bufferSize,
-        bufferStart: stats.bufferStart,
-        extractedCount: stats.extractedCount,
-        extractedMessageIds,
-        messageCount,
-    });
-    $('#openvault_stat_next_extraction_badge').text(nextExtractionText);
-
-    log(`Stats: ${eventCount} memories, ${charCount} characters, ${percentage}% extracted`);
+    log(`Stats: ${eventCount} memories, ${embeddingCount} embeddings, ${charCount} characters`);
 }
