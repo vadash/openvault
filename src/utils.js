@@ -2,11 +2,16 @@
  * OpenVault Utilities
  *
  * Core utility functions used throughout the extension.
+ * Re-exports from submodules for backwards compatibility.
  */
 
 import { getDeps } from './deps.js';
-import { extensionName, METADATA_KEY, MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, LAST_PROCESSED_KEY } from './constants.js';
-import { repairJson } from './lib/json-repair.js';
+import { extensionName, MEMORIES_KEY } from './constants.js';
+
+// Re-export from submodules
+export { escapeHtml, showToast } from './utils/dom.js';
+export { getOpenVaultData, getCurrentChatId, saveOpenVaultData, generateId } from './utils/data.js';
+export { estimateTokens, sliceToTokenBudget, safeParseJSON, sortMemoriesBySequence } from './utils/text.js';
 
 /**
  * Wrap a promise with a timeout
@@ -21,76 +26,6 @@ export function withTimeout(promise, ms, operation = 'Operation') {
             setTimeout(() => reject(new Error(`${operation} timed out after ${ms}ms`)), ms)
         )
     ]);
-}
-
-/**
- * Get OpenVault data from chat metadata
- * @returns {Object|null} Returns null if context is not available
- */
-export function getOpenVaultData() {
-    const context = getDeps().getContext();
-    if (!context) {
-        getDeps().console.warn('[OpenVault] getContext() returned null/undefined');
-        return null;
-    }
-    if (!context.chatMetadata) {
-        context.chatMetadata = {};
-    }
-    if (!context.chatMetadata[METADATA_KEY]) {
-        context.chatMetadata[METADATA_KEY] = {
-            [MEMORIES_KEY]: [],
-            [CHARACTERS_KEY]: {},
-            [RELATIONSHIPS_KEY]: {},
-            [LAST_PROCESSED_KEY]: -1,
-        };
-    }
-    return context.chatMetadata[METADATA_KEY];
-}
-
-/**
- * Get current chat ID for tracking across async operations
- * @returns {string|null}
- */
-export function getCurrentChatId() {
-    const context = getDeps().getContext();
-    return context?.chatId || context?.chat_metadata?.chat_id || null;
-}
-
-/**
- * Save OpenVault data to chat metadata
- * @param {string} [expectedChatId] - If provided, verify chat hasn't changed before saving
- * @returns {Promise<boolean>} True if save succeeded, false otherwise
- */
-export async function saveOpenVaultData(expectedChatId = null) {
-    // If expectedChatId provided, verify we're still on the same chat
-    if (expectedChatId !== null) {
-        const currentId = getCurrentChatId();
-        if (currentId !== expectedChatId) {
-            getDeps().console.warn(`[OpenVault] Chat changed during operation (expected: ${expectedChatId}, current: ${currentId}), aborting save`);
-            return false;
-        }
-    }
-
-    try {
-        await getDeps().saveChatConditional();
-        log('Data saved to chat metadata');
-        return true;
-    } catch (error) {
-        getDeps().console.error('[OpenVault] Failed to save data:', error);
-        showToast('error', `Failed to save data: ${error.message}`);
-        return false;
-    }
-}
-
-/**
- * Safe wrapper for toastr to handle cases where it might not be available
- * @param {string} type - 'success', 'error', 'warning', 'info'
- * @param {string} message - Message to display
- * @param {string} title - Toast title (default: 'OpenVault')
- * @param {object} options - Additional toastr options
- */
-export function showToast(type, message, title = 'OpenVault', options = {}) {
-    getDeps().showToast(type, message, title, options);
 }
 
 /**
@@ -112,29 +47,6 @@ export function safeSetExtensionPrompt(content) {
         getDeps().console.error('[OpenVault] Failed to set extension prompt:', error);
         return false;
     }
-}
-
-/**
- * Generate a unique ID
- * @returns {string}
- */
-export function generateId() {
-    return `${getDeps().Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
-
-/**
- * Escape HTML to prevent XSS
- * @param {string} str - String to escape
- * @returns {string}
- */
-export function escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
 }
 
 /**
@@ -197,68 +109,4 @@ export function isExtensionEnabled() {
 export function isAutomaticMode() {
     const settings = getDeps().getExtensionSettings()[extensionName];
     return settings?.enabled === true;
-}
-
-/**
- * Estimate token count for a text string
- * @param {string} text - Text to estimate
- * @returns {number} Estimated token count
- */
-export function estimateTokens(text) {
-    return Math.ceil((text || '').length / 3.5);
-}
-
-/**
- * Slice memories array to fit within a token budget
- * Does not truncate individual summaries - stops before budget is exceeded
- * @param {Object[]} memories - Array of memory objects with summary field
- * @param {number} tokenBudget - Maximum tokens to include
- * @returns {Object[]} Sliced memories array that fits within budget
- */
-export function sliceToTokenBudget(memories, tokenBudget) {
-    if (!memories || memories.length === 0) return [];
-    if (!tokenBudget || tokenBudget <= 0) return [];
-
-    const result = [];
-    let totalTokens = 0;
-
-    for (const memory of memories) {
-        const memoryTokens = estimateTokens(memory.summary);
-        if (totalTokens + memoryTokens > tokenBudget) {
-            break; // Stop before exceeding budget
-        }
-        result.push(memory);
-        totalTokens += memoryTokens;
-    }
-
-    return result;
-}
-
-/**
- * Safely parse JSON, handling markdown code blocks and malformed JSON
- * Uses json-repair library for robust parsing
- * @param {string} input - Raw JSON string potentially wrapped in markdown
- * @returns {any} Parsed JSON object, or null on failure
- */
-export function safeParseJSON(input) {
-    try {
-        return repairJson(input, { returnObject: true, extractJson: true });
-    } catch (e) {
-        getDeps().console.error('[OpenVault] JSON Parse failed', e);
-        return null;
-    }
-}
-
-/**
- * Sort memories by sequence number or creation time
- * @param {Object[]} memories - Array of memory objects
- * @param {boolean} ascending - Sort ascending (oldest first) or descending (newest first)
- * @returns {Object[]} Sorted copy of memories array
- */
-export function sortMemoriesBySequence(memories, ascending = true) {
-    return [...memories].sort((a, b) => {
-        const seqA = a.sequence ?? a.created_at ?? 0;
-        const seqB = b.sequence ?? b.created_at ?? 0;
-        return ascending ? seqA - seqB : seqB - seqA;
-    });
 }
