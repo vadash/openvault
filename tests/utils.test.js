@@ -150,6 +150,35 @@ describe('utils', () => {
             expect(mockConsole.error).toHaveBeenCalled();
             expect(mockShowToast).toHaveBeenCalledWith('error', 'Failed to save data: Save failed', 'OpenVault', {});
         });
+
+        it('returns false if expectedChatId does not match current chat', async () => {
+            const mockSave = vi.fn().mockResolvedValue(undefined);
+            setDeps({
+                console: mockConsole,
+                getContext: () => mockContext,
+                getExtensionSettings: () => ({ [extensionName]: { debugMode: false } }),
+                saveChatConditional: mockSave,
+            });
+
+            const result = await saveOpenVaultData('different-chat-id');
+            expect(result).toBe(false);
+            expect(mockSave).not.toHaveBeenCalled();
+            expect(mockConsole.warn).toHaveBeenCalled();
+        });
+
+        it('saves when expectedChatId matches current chat', async () => {
+            const mockSave = vi.fn().mockResolvedValue(undefined);
+            setDeps({
+                console: mockConsole,
+                getContext: () => mockContext,
+                getExtensionSettings: () => ({ [extensionName]: { debugMode: true } }),
+                saveChatConditional: mockSave,
+            });
+
+            const result = await saveOpenVaultData('test-chat-123');
+            expect(result).toBe(true);
+            expect(mockSave).toHaveBeenCalled();
+        });
     });
 
     describe('showToast', () => {

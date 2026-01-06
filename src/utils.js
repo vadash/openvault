@@ -58,9 +58,19 @@ export function getCurrentChatId() {
 
 /**
  * Save OpenVault data to chat metadata
+ * @param {string} [expectedChatId] - If provided, verify chat hasn't changed before saving
  * @returns {Promise<boolean>} True if save succeeded, false otherwise
  */
-export async function saveOpenVaultData() {
+export async function saveOpenVaultData(expectedChatId = null) {
+    // If expectedChatId provided, verify we're still on the same chat
+    if (expectedChatId !== null) {
+        const currentId = getCurrentChatId();
+        if (currentId !== expectedChatId) {
+            getDeps().console.warn(`[OpenVault] Chat changed during operation (expected: ${expectedChatId}, current: ${currentId}), aborting save`);
+            return false;
+        }
+    }
+
     try {
         await getDeps().saveChatConditional();
         log('Data saved to chat metadata');

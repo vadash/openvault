@@ -5,7 +5,7 @@
  */
 
 import { getDeps } from '../deps.js';
-import { getOpenVaultData, saveOpenVaultData, showToast, log, isExtensionEnabled, getCurrentChatId } from '../utils.js';
+import { getOpenVaultData, saveOpenVaultData, showToast, log, isExtensionEnabled } from '../utils.js';
 import { extensionName, MEMORIES_KEY, LAST_PROCESSED_KEY } from '../constants.js';
 import { callLLMForExtraction } from '../llm.js';
 import { setStatus } from '../ui/status.js';
@@ -118,13 +118,11 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
 
             data[LAST_PROCESSED_KEY] = Math.max(data[LAST_PROCESSED_KEY] || -1, maxId);
 
-            // Verify chat hasn't changed before saving (prevents saving to wrong chat)
-            if (targetChatId && getCurrentChatId() !== targetChatId) {
-                log(`Chat changed during extraction (target: ${targetChatId}, current: ${getCurrentChatId()}), aborting save`);
+            // Save with chat ID verification to prevent saving to wrong chat
+            const saved = await saveOpenVaultData(targetChatId);
+            if (!saved && targetChatId) {
                 throw new Error('Chat changed during extraction');
             }
-
-            await saveOpenVaultData();
 
             log(`Extracted ${events.length} events`);
             showToast('success', `Extracted ${events.length} memory events`);

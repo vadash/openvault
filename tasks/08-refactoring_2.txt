@@ -1,0 +1,73 @@
+### 1. Critical Fixes (Safety & Bugs)
+
+**The "Chat Switch" Race Condition**
+*   **Problem:** In `src/extraction/extract.js`, you check `getCurrentChatId() !== targetChatId` before saving. However, `saveOpenVaultData` (in `utils.js`) calls `getDeps().getContext()` internally. If the user switches chats *during* an LLM generation:
+    1. `extractMemories` detects the switch and throws an error (Good).
+    2. *However*, `saveOpenVaultData` is called in other places or might be called before the check in future refactors.
+    3. More importantly, `updateCharacterStatesFromEvents` modifies `data` in place. `data` comes from `getOpenVaultData()`. If `getOpenVaultData` is called *after* a chat switch (inside a callback), it returns the **new** chat's metadata.
+*   **Refactor:**
+    1. `saveOpenVaultData` should accept the `chatId` as an argument and throw/return false if it doesn't match the current context's ID.
+    2. Pass the `data` object *explicitly* to save functions rather than re-fetching it from the global context at the moment of saving.
+
+### 2. DRY (Don't Repeat Yourself) & SRP (Single Responsibility)
+
+**Consolidate Batch/Message Selection Logic**
+*   **Problem:** The logic to determine "Which messages need extracting?" and "Do we have enough for a batch?" is scattered across:
+    *   `src/events.js` (`onMessageReceived`)
+    *   `src/backfill.js` (`checkAndTriggerBackfill`)
+    *   `src/extraction/extract.js` (slicing logic)
+    *   `src/extraction/batch.js`
+*   **Refactor:** Create a `src/extraction/scheduler.js` (or `selector.js`).
+    *   Move `getUnextractedMessageIds` here (out of `utils.js`).
+    *   Add functions like `getNextBatch(chat, data, batchSize)` and `isBatchReady(...)`.
+    *   Make `onMessageReceived` and `backfill.js` simply call this service to get the IDs, then pass those IDs to `extractMemories`.
+
+**Split the "God Object" (`src/utils.js`)**
+*   **Problem:** `utils.js` handles DOM escaping, Toast UI, JSON repair, Metadata access, ID generation, and Token counting. This violates SRP.
+*   **Refactor:** Split into:
+    *   `src/utils/dom.js`: `escapeHtml`, `showToast`.
+    *   `src/utils/data.js`: `getOpenVaultData`, `saveOpenVaultData`, `generateId`.
+    *   `src/utils/text.js`: `estimateTokens`, `safeParseJSON`, `sliceToTokenBudget`.
+
+### 3. Clean Code & KISS
+
+**Parameter Objects for Prompts**
+*   **Problem:** `buildExtractionPrompt` in `src/prompts.js` accepts 6 positional arguments. This is fragile; adding a 7th makes it worse.
+    ```javascript
+    // Current
+    buildExtractionPrompt(msgs, charName, userName, memories, charDesc, personaDesc)
+    ```
+*   **Refactor:** Use a single Context Object.
+    ```javascript
+    // Proposed
+    buildExtractionPrompt({
+        messages: ...,
+        names: { char: ..., user: ... },
+        context: { memories: ..., charDesc: ..., personaDesc: ... }
+    })
+    ```
+
+**Simplify `extractMemories` Signature**
+*   **Problem:** `extractMemories` in `src/extraction/extract.js` tries to be too smart. It handles specific IDs (for backfill) AND auto-detection (for new messages).
+*   **Refactor:**
+    *   Keep `extractMemories(messageIds, chatId)` focused purely on extracting the specific IDs provided.
+    *   Move the logic for "Finding the last N messages" out to the Event Handler or the Scheduler mentioned in point #2.
+
+### 4. Code Duplication (Acceptable/YAGNI check)
+
+**Vector Math (`cosineSimilarity`)**
+*   **Observation:** `cosineSimilarity` exists in `src/embeddings.js` and `src/retrieval/worker.js`.
+*   **Decision:** **Do NOT Refactor.** While this violates DRY, Web Workers in a non-bundled environment (standard SillyTavern extensions) cannot easily import modules without setting up complex module workers or build steps. Duplicating one math function is better than introducing a build step (Webpack/Vite) or complex worker loading logic. Keep it simple (KISS).
+
+### 5. Constants Management
+
+**Hardcoded Prompts and Weights**
+*   **Problem:** Weights for scoring (`RECENCY_MAX_POINTS`, `SCORING_WEIGHTS` in `constants.js`) are fixed constants.
+*   **Refactor:** Move these into `defaultSettings` in `constants.js` and expose them (at least internally) via `extension_settings`. This allows power users to tweak scoring without editing source code, preparing for a future "Advanced Settings" UI.
+
+### Summary Plan
+
+1.  **Safety First:** Modify `saveOpenVaultData` to enforce Chat ID integrity.
+2.  **Organize Utils:** Split `src/utils.js` into semantic modules.
+3.  **Centralize Logic:** Create a `scheduler.js` to handle message selection logic, removing duplicates from `events.js` and `backfill.js`.
+4.  **Clean Signatures:** Convert Prompt builders to use objects; simplify `extractMemories` to only execute, not select.

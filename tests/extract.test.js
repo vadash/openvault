@@ -115,7 +115,7 @@ describe('extract', () => {
         // Default mock behaviors
         isExtensionEnabled.mockReturnValue(true);
         getOpenVaultData.mockReturnValue(mockData);
-        saveOpenVaultData.mockResolvedValue();
+        saveOpenVaultData.mockResolvedValue(true);
         getCurrentChatId.mockReturnValue('test-chat-123');
         sortMemoriesBySequence.mockImplementation((memories, asc) => {
             return [...memories].sort((a, b) => asc ? a.sequence - b.sequence : b.sequence - a.sequence);
@@ -403,21 +403,21 @@ describe('extract', () => {
             const newEvents = [{ id: 'evt1', summary: 'Event 1' }];
             parseExtractionResult.mockReturnValue(newEvents);
 
-            // Chat ID matches at start, changes during save check
-            getCurrentChatId.mockReturnValue('different-chat');
+            // saveOpenVaultData returns false when chat ID doesn't match
+            saveOpenVaultData.mockResolvedValue(false);
 
             await expect(extractMemories([0, 1], 'original-chat')).rejects.toThrow('Chat changed during extraction');
-            expect(saveOpenVaultData).not.toHaveBeenCalled();
+            expect(saveOpenVaultData).toHaveBeenCalledWith('original-chat');
         });
 
         it('saves normally when chat ID matches targetChatId', async () => {
             const newEvents = [{ id: 'evt1', summary: 'Event 1' }];
             parseExtractionResult.mockReturnValue(newEvents);
-            getCurrentChatId.mockReturnValue('same-chat');
+            saveOpenVaultData.mockResolvedValue(true);
 
             await extractMemories([0, 1], 'same-chat');
 
-            expect(saveOpenVaultData).toHaveBeenCalled();
+            expect(saveOpenVaultData).toHaveBeenCalledWith('same-chat');
         });
 
         it('saves normally when no targetChatId provided (backwards compatible)', async () => {
