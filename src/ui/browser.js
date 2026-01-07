@@ -15,13 +15,32 @@ import { filterMemories, sortMemoriesByDate, getPaginationInfo, extractCharacter
 
 // Pagination state for memory browser
 let memoryBrowserPage = 0;
+let memorySearchQuery = '';
+
+// Event type icons mapping
+const EVENT_TYPE_ICONS = {
+    action: 'fa-solid fa-bolt',
+    revelation: 'fa-solid fa-lightbulb',
+    emotion_shift: 'fa-solid fa-heart',
+    relationship_change: 'fa-solid fa-people-arrows',
+    default: 'fa-solid fa-bookmark'
+};
 
 // =============================================================================
 // Template Functions
 // =============================================================================
 
 /**
- * Render a single memory item as HTML
+ * Get icon class for event type
+ * @param {string} eventType - Event type
+ * @returns {string} Font Awesome icon class
+ */
+function getEventTypeIcon(eventType) {
+    return EVENT_TYPE_ICONS[eventType] || EVENT_TYPE_ICONS.default;
+}
+
+/**
+ * Render a single memory item as a card
  * @param {Object} memory - Memory object
  * @returns {string} HTML string
  */
@@ -31,25 +50,45 @@ function renderMemoryItemTemplate(memory) {
     const stars = formatMemoryImportance(importance);
     const date = formatMemoryDate(memory.created_at);
     const witnessText = formatWitnesses(memory.witnesses);
+    const iconClass = getEventTypeIcon(memory.event_type);
+    const location = memory.location || '';
+
+    // Build badges
+    const badges = [];
+    badges.push(`<span class="openvault-memory-card-badge importance">${stars}</span>`);
+    if (witnessText) {
+        badges.push(`<span class="openvault-memory-card-badge witness"><i class="fa-solid fa-eye"></i> ${escapeHtml(witnessText)}</span>`);
+    }
+    if (location) {
+        badges.push(`<span class="openvault-memory-card-badge location"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(location)}</span>`);
+    }
+
+    // Build character tags
     const characters = (memory.characters_involved || [])
         .map(c => `<span class="openvault-character-tag">${escapeHtml(c)}</span>`)
         .join('');
 
     return `
-        <div class="openvault-memory-item ${typeClass}" data-id="${escapeHtml(memory.id)}">
-            <div class="openvault-memory-header">
-                <span class="openvault-memory-type">${escapeHtml(memory.event_type || 'event')}</span>
-                <span class="openvault-memory-importance" title="Importance: ${importance}/5">${stars}</span>
-                <span class="openvault-memory-date">${escapeHtml(date)}</span>
+        <div class="openvault-memory-card ${typeClass}" data-id="${escapeHtml(memory.id)}">
+            <div class="openvault-memory-card-header">
+                <div class="openvault-memory-card-icon ${typeClass}">
+                    <i class="${iconClass}"></i>
+                </div>
+                <div class="openvault-memory-card-meta">
+                    <span class="openvault-memory-card-type">${escapeHtml(memory.event_type || 'event')}</span>
+                    <span class="openvault-memory-card-date">${escapeHtml(date)}</span>
+                </div>
             </div>
-            <div class="openvault-memory-summary">${escapeHtml(memory.summary || 'No summary')}</div>
-            <div class="openvault-memory-characters">${characters}</div>
-            ${witnessText ? `<div class="openvault-memory-witnesses">${escapeHtml(witnessText)}</div>` : ''}
-            <div class="openvault-memory-actions">
-                <button class="menu_button openvault-delete-memory" data-id="${escapeHtml(memory.id)}">
-                    <i class="fa-solid fa-trash"></i> Delete
+            <div class="openvault-memory-card-summary">${escapeHtml(memory.summary || 'No summary')}</div>
+            <div class="openvault-memory-card-footer">
+                <div class="openvault-memory-card-badges">
+                    ${badges.join('')}
+                </div>
+                <button class="menu_button openvault-delete-memory" data-id="${escapeHtml(memory.id)}" title="Delete memory">
+                    <i class="fa-solid fa-trash"></i>
                 </button>
             </div>
+            ${characters ? `<div class="openvault-memory-characters" style="margin-top: 8px;">${characters}</div>` : ''}
         </div>
     `;
 }
@@ -116,6 +155,18 @@ export function initBrowser() {
         const id = $(this).data('id');
         await deleteMemory(id);
     });
+
+    // Search input handler with debounce
+    let searchTimeout;
+    $('#openvault_memory_search').on('input', function() {
+        clearTimeout(searchTimeout);
+        const query = $(this).val();
+        searchTimeout = setTimeout(() => {
+            memorySearchQuery = query.toLowerCase().trim();
+            memoryBrowserPage = 0;
+            renderMemoryBrowser();
+        }, 200);
+    });
 }
 
 /**
@@ -156,6 +207,26 @@ export function resetAndRender() {
 // =============================================================================
 
 /**
+ * Filter memories by search query
+ * @param {Object[]} memories - Array of memories
+ * @param {string} query - Search query (lowercase)
+ * @returns {Object[]} Filtered memories
+ */
+function filterBySearch(memories, query) {
+    if (!query) return memories;
+    return memories.filter(m => {
+        const summary = (m.summary || '').toLowerCase();
+        const characters = (m.characters_involved || []).join(' ').toLowerCase();
+        const location = (m.location || '').toLowerCase();
+        const eventType = (m.event_type || '').toLowerCase();
+        return summary.includes(query) ||
+               characters.includes(query) ||
+               location.includes(query) ||
+               eventType.includes(query);
+    });
+}
+
+/**
  * Render the memory browser list
  */
 export function renderMemoryBrowser() {
@@ -176,8 +247,10 @@ export function renderMemoryBrowser() {
     const typeFilter = $('#openvault_filter_type').val();
     const characterFilter = $('#openvault_filter_character').val();
 
-    // Filter and sort using pure functions
-    const filteredMemories = sortMemoriesByDate(filterMemories(memories, typeFilter, characterFilter));
+    // Filter, search, and sort using pure functions
+    let filteredMemories = filterMemories(memories, typeFilter, characterFilter);
+    filteredMemories = filterBySearch(filteredMemories, memorySearchQuery);
+    filteredMemories = sortMemoriesByDate(filteredMemories);
 
     // Pagination using pure function
     const pagination = getPaginationInfo(filteredMemories.length, memoryBrowserPage, MEMORIES_PER_PAGE);
@@ -186,7 +259,8 @@ export function renderMemoryBrowser() {
 
     // Render memories using template
     if (pageMemories.length === 0) {
-        $list.html('<p class="openvault-placeholder">No memories yet</p>');
+        const message = memorySearchQuery ? 'No memories match your search' : 'No memories yet';
+        $list.html(`<p class="openvault-placeholder">${message}</p>`);
     } else {
         const html = pageMemories.map(renderMemoryItemTemplate).join('');
         $list.html(html);

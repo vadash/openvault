@@ -1,0 +1,134 @@
+# 🎨 OpenVault UI/UX Modernization Plan
+
+## 1. High-Level Vision
+Move from a linear "Settings List" to a **"Command Center"** layout.
+*   **Current:** Single column, heavy text, accordions for everything.
+*   **Target:** A Tabbed Interface containing:
+    1.  **Dashboard:** Status, quick stats, and active tasks.
+    2.  **The Vault:** The memory browser (full width).
+    3.  **Configuration:** Settings grouped logically (Extraction, Retrieval, Embeddings).
+    4.  **System:** Debug logs, backups, danger zone.
+
+## 2. Implementation Steps for Claude Code
+
+### Step 1: Create the Tab Infrastructure
+**Target File:** `src/ui/settings.js`, `style.css`
+
+We need to replace the appended HTML structure with a tab container.
+
+*   **Action:** Modify `loadSettings` in `src/ui/settings.js`. Instead of appending `settings_panel.html` directly, we need a wrapper.
+*   **UX Goal:** Immediate separation of concerns.
+*   **CSS Class:** `.openvault-tab-nav`, `.openvault-tab-content`.
+
+**Prompt for Claude Code:**
+> "Refactor `src/ui/settings.js` to render a tabbed container inside `#extensions_settings2` instead of a flat list. Create four tabs: 'Dashboard', 'Memory Bank', 'Configuration', 'System'. Update `style.css` to style these tabs to match SillyTavern's `inline-drawer` style but horizontally."
+
+### Step 2: Build the "Dashboard" Tab
+**Target File:** `templates/dashboard.html` (New), `src/ui/status.js`
+
+The current top section (checkboxes + sliders) is overwhelming. The Dashboard should be read-only status with quick toggles.
+
+*   **Components:**
+    *   **Status Card:** A large, visual indicator (Green "Ready", Blue pulsing "Extracting").
+    *   **Stats Grid:** Move the current text-based stats (`83 events`, `83 embeddings`) into graphical cards.
+    *   **Active Pipeline:** A visual flow showing: `Chat -> Extraction -> Embedding -> Storage`. Highlight the active step.
+    *   **Quick Toggles:** `Enable OpenVault`, `Auto-Hide Messages`.
+
+**Prompt for Claude Code:**
+> "Create a dashboard view that displays the current status and statistics. Move the 'Statistics' section from the current layout into 3 distinct cards: 'Memories', 'Characters', 'Relationships'. Add a visual progress bar for the 'Batch Backfill' status that is always visible on this tab."
+
+### Step 3: Redesign "The Vault" (Memory Browser)
+**Target File:** `src/ui/browser.js`, `style.css`
+
+The current memory browser is cramped inside an accordion. It needs breathing room.
+
+*   **Layout:** Full-width list.
+*   **Visuals:**
+    *   Replace standard list items with **"Memory Cards"**.
+    *   Use icons for event types:
+        *   ⚔️ Action
+        *   💬 Dialogue
+        *   ❤️ Emotion
+        *   💡 Revelation
+    *   Color-code the left border based on Importance (1-5 stars).
+*   **Filtering:** Move filters (Type, Character) to a sticky top bar within the tab.
+*   **Search:** Add a text search input that filters memories client-side.
+
+**Prompt for Claude Code:**
+> "Revamp `src/ui/browser.js` to render inside the 'Memory Bank' tab. Change the rendering logic to create 'Memory Cards' instead of list items. Each card should show the summary prominently, with badges for 'Witnesses' and 'Location'. Add a text search input field that filters the displayed memories in real-time."
+
+### Step 4: Refactor Configuration (Settings)
+**Target File:** `src/ui/settings.js`
+
+Split the giant settings list into sub-sections within the Configuration tab using **Progressive Disclosure**.
+
+*   **Group 1: Strategy (The "Brain")**
+    *   LLM Profiles (Extraction/Retrieval).
+    *   Embedding Model selection.
+    *   *Improvement:* If "Ollama" is selected, show a connection test button immediately.
+*   **Group 2: Pipeline Tuning (The "Gears")**
+    *   Hide the complex sliders (budgets, thresholds) behind an "Advanced Tuning" toggle. Most users don't need to tweak `Base Lambda` or `Vector Similarity Weight`.
+    *   Rename "Extraction Rearview" to "Context Window Size" for clarity.
+
+**Prompt for Claude Code:**
+> "In the Configuration tab, group settings into 'LLM Strategy' and 'Pipeline Tuning'. Hide the specific token sliders and math constants (Lambda, thresholds) inside an HTML `<details>` element labeled 'Advanced Parameters'. Add a 'Test Connection' button next to the Ollama URL input."
+
+### Step 5: Visual Feedback & Micro-Interactions
+**Target File:** `style.css`, `src/ui/status.js`
+
+*   **Loading States:** When `extractMemories` is running, the tab icon for "Dashboard" should spin.
+*   **WebGPU Status:** The Embedding model dropdown currently says "WebGPU only". This should be a distinct status indicator: "🟢 WebGPU Active" or "asd WASM Fallback".
+*   **Toasts:** The current toasts are good, but a permanent status footer in the extension panel is less intrusive.
+
+**Prompt for Claude Code:**
+> "Update `src/ui/status.js` to toggle a CSS class `.working` on the main container when `operationState.generationInProgress` or `extractionInProgress` is true. In `style.css`, add a pulsing animation to the status indicator when this class is active."
+
+## 3. Recommended Design System (CSS Snippets)
+
+To match SillyTavern but look modern, use these variables in `style.css`:
+
+```css
+/* Card UI */
+.openvault-card {
+    background: var(--SmartThemeBlurTintColor);
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+
+/* Event Type Icons */
+.ov-icon-action::before { content: "\f6de"; font-family: "Font Awesome 6 Free"; } /* Fist/Sword */
+.ov-icon-emotion::before { content: "\f004"; font-family: "Font Awesome 6 Free"; } /* Heart */
+.ov-icon-revelation::before { content: "\f0eb"; font-family: "Font Awesome 6 Free"; } /* Lightbulb */
+
+/* Tab Navigation */
+.openvault-tab-nav {
+    display: flex;
+    border-bottom: 2px solid var(--SmartThemeBorderColor);
+    margin-bottom: 15px;
+}
+.openvault-tab-btn {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: all 0.2s;
+}
+.openvault-tab-btn.active {
+    opacity: 1;
+    border-bottom: 2px solid var(--SmartThemeEmColor);
+    font-weight: bold;
+}
+```
+
+## 4. Execution Order for the Agent
+
+1.  **Refactor CSS:** Establish the card and tab styles first so layout changes look correct immediately.
+2.  **Split Settings:** Modify `settings.js` to group inputs into logical HTML blocks.
+3.  **Implement Tabs:** Wrap those blocks in the tab logic.
+4.  **Enhance Browser:** Rewrite the `renderMemoryItemTemplate` function in `browser.js`.
+5.  **Simplify:** Add the "Advanced" toggle to hide the math/token sliders.

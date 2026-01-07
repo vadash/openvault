@@ -9,6 +9,7 @@ import { extensionName, extensionFolderPath, defaultSettings } from '../constant
 import { refreshAllUI, prevPage, nextPage, resetAndRender, initBrowser } from './browser.js';
 import { validateRPM } from './calculations.js';
 import { setEmbeddingStatusCallback, getEmbeddingStatus } from '../embeddings.js';
+import { updateEmbeddingStatusDisplay } from './status.js';
 
 // References to external functions (set during init)
 let updateEventListenersFn = null;
@@ -161,6 +162,9 @@ export async function loadSettings() {
     const settingsHtml = await $.get(`${extensionFolderPath}/templates/settings_panel.html`);
     $('#extensions_settings2').append(settingsHtml);
 
+    // Initialize tab navigation
+    initTabs();
+
     // Initialize browser event delegation (must be after HTML is loaded)
     initBrowser();
 
@@ -179,6 +183,23 @@ export async function loadSettings() {
     updateUI();
 
     console.log('[OpenVault] Settings loaded');
+}
+
+/**
+ * Initialize tab navigation
+ */
+function initTabs() {
+    $('.openvault-tab-btn').on('click', function() {
+        const tabId = $(this).data('tab');
+
+        // Update tab buttons
+        $('.openvault-tab-btn').removeClass('active');
+        $(this).addClass('active');
+
+        // Update tab content
+        $('.openvault-tab-content').removeClass('active');
+        $(`.openvault-tab-content[data-tab="${tabId}"]`).addClass('active');
+    });
 }
 
 /**
@@ -218,7 +239,7 @@ function bindUIElements() {
 
     bindSelect('openvault_embedding_source', 'embeddingSource', (value) => {
         $('#openvault_ollama_settings').toggle(value === 'ollama');
-        $('#openvault_embedding_status').text(getEmbeddingStatus());
+        updateEmbeddingStatusDisplay(getEmbeddingStatus());
     });
 
     // Action buttons
@@ -252,8 +273,52 @@ function bindUIElements() {
 
     // Embedding status callback
     setEmbeddingStatusCallback((status) => {
-        $('#openvault_embedding_status').text(status);
+        updateEmbeddingStatusDisplay(status);
     });
+
+    // Test Ollama connection button
+    bindButton('openvault_test_ollama_btn', testOllamaConnection);
+}
+
+/**
+ * Test Ollama connection
+ */
+async function testOllamaConnection() {
+    const $btn = $('#openvault_test_ollama_btn');
+    const url = $('#openvault_ollama_url').val().trim();
+
+    if (!url) {
+        $btn.removeClass('success').addClass('error');
+        $btn.html('<i class="fa-solid fa-xmark"></i> No URL');
+        return;
+    }
+
+    $btn.removeClass('success error');
+    $btn.html('<i class="fa-solid fa-spinner fa-spin"></i> Testing...');
+
+    try {
+        const response = await fetch(`${url}/api/tags`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (response.ok) {
+            $btn.removeClass('error').addClass('success');
+            $btn.html('<i class="fa-solid fa-check"></i> Connected');
+        } else {
+            throw new Error(`HTTP ${response.status}`);
+        }
+    } catch (err) {
+        $btn.removeClass('success').addClass('error');
+        $btn.html('<i class="fa-solid fa-xmark"></i> Failed');
+        console.error('[OpenVault] Ollama test failed:', err);
+    }
+
+    // Reset button after 3 seconds
+    setTimeout(() => {
+        $btn.removeClass('success error');
+        $btn.html('<i class="fa-solid fa-plug"></i> Test');
+    }, 3000);
 }
 
 /**
@@ -299,7 +364,7 @@ export function updateUI() {
     $('#openvault_ollama_settings').toggle(settings.embeddingSource === 'ollama');
     $('#openvault_ollama_url').val(settings.ollamaUrl || '');
     $('#openvault_embedding_model').val(settings.embeddingModel || '');
-    $('#openvault_embedding_status').text(getEmbeddingStatus());
+    updateEmbeddingStatusDisplay(getEmbeddingStatus());
 
     // Populate profile selector
     populateProfileSelector();
