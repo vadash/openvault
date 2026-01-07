@@ -9,7 +9,8 @@ OpenVault provides POV-aware memory with witness tracking, relationship dynamics
 - **Automatic Memory Extraction**: Analyzes conversations to extract significant events, emotions, and relationship changes
 - **POV-Aware Retrieval**: Filters memories based on which characters witnessed events (no meta-gaming)
 - **Character Context**: Uses character card and persona descriptions for more accurate memory extraction
-- **Relationship Tracking**: Monitors and records relationship dynamics between characters
+- **Relationship Tracking**: Monitors and records relationship dynamics (Trust/Tension) between characters
+- **Relationship Decay**: Automatically decays high tension and high trust over time if not reinforced
 - **Emotional Continuity**: Tracks emotional states and shifts across conversations
 - **Auto-Hide**: Automatically hides old messages from context while preserving their memories
 - **Smart Retrieval**: Optional LLM-powered selection of the most relevant memories
@@ -63,6 +64,7 @@ Use the buttons in the settings panel:
 | **Similarity Weight** | Max bonus points for similarity | 15 |
 | **Auto-hide old messages** | Hide messages beyond threshold | On |
 | **Messages to keep visible** | Auto-hide threshold | 50 |
+| **Backfill Speed** | Max requests per minute during backfill | 30 |
 
 ## How It Works
 
@@ -81,6 +83,17 @@ The LLM extracts structured events with:
 - **Witnesses**: Who observed (for POV filtering)
 - **Location**: Where it happened
 - **Emotional/Relationship impact**: How characters were affected
+
+### Relationship Dynamics
+
+OpenVault tracks two axes for every character pair:
+1. **Trust (0-10)**: How much characters rely on each other.
+2. **Tension (0-10)**: The level of conflict or stress between them.
+
+**Decay Mechanics**: Relationships are dynamic. If characters do not interact for a long period (default 50 messages):
+- **Tension** slowly decays toward 0 (calming down).
+- **High Trust (>5)** slowly decays toward neutral 5 (drifting apart).
+- **Low Trust (<5)** is "sticky" and does not auto-recover; it requires active repair.
 
 ### Memory Retrieval
 
@@ -167,4 +180,4 @@ See [LICENSE](LICENSE) for details.
 
 ## Version
 
-v0.2.0
+1.16
