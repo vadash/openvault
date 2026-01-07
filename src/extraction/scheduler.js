@@ -109,13 +109,8 @@ export function getBackfillStats(chat, data, batchSize, excludeLastN = null) {
 export function getBackfillMessageIds(chat, data, batchSize) {
     const extractedIds = getExtractedMessageIds(data);
 
-    // Get all unextracted message indices
-    const allUnextracted = [];
-    for (let i = 0; i < chat.length; i++) {
-        if (!extractedIds.has(i)) {
-            allUnextracted.push(i);
-        }
-    }
+    // Reuse getUnextractedMessageIds to find all unextracted messages (no exclusions)
+    const allUnextracted = getUnextractedMessageIds(chat, extractedIds, 0);
 
     // Only return complete batches worth of messages
     const completeBatches = Math.floor(allUnextracted.length / batchSize);
