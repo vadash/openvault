@@ -6,7 +6,7 @@
  */
 
 import { getContext as stGetContext, extension_settings as stExtensionSettings } from '../../../../extensions.js';
-import { saveChatConditional as stSaveChatConditional, setExtensionPrompt as stSetExtensionPrompt, extension_prompt_types as stPromptTypes } from '../../../../../script.js';
+import { saveChatConditional as stSaveChatConditional, setExtensionPrompt as stSetExtensionPrompt, extension_prompt_types as stPromptTypes, saveSettingsDebounced as stSaveSettingsDebounced, eventSource as stEventSource, event_types as stEventTypes } from '../../../../../script.js';
 import { ConnectionManagerRequestService as stConnectionManager } from '../../../shared.js';
 
 /**
@@ -19,6 +19,11 @@ const defaultDeps = {
 
     // Chat operations
     saveChatConditional: () => stSaveChatConditional(),
+    saveSettingsDebounced: () => stSaveSettingsDebounced(),
+
+    // Event system
+    eventSource: stEventSource,
+    event_types: stEventTypes,
 
     // Prompt injection
     setExtensionPrompt: (name, content, type, position) =>

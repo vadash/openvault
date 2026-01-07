@@ -1,0 +1,223 @@
+### 1. Fix Broken Dependency Injection (Critical / Testing)
+**The Problem:** The codebase attempts to use `src/deps.js` for dependency injection to make the code testable. However, several files bypass this and import directly from SillyTavern files or globals.
+*   **Violations:** `src/ui/settings.js` imports `extension_settings` directly. `src/extraction/batch.js` imports `getContext` directly. `index.js` imports `saveChatConditional` directly.
+*   **Why refactor:** This makes unit tests unreliable because they rely on mocks in some places but hit (or fail to find) real globals in others.
+*   **Action:** Update all files to import *only* from `src/deps.js`.
+
+```javascript
+// src/ui/settings.js (Before)
+import { extension_settings } from '../../../../../extensions.js';
+
+// src/ui/settings.js (After)
+import { getDeps } from '../deps.js';
+// Usage: getDeps().getExtensionSettings()[extensionName]
+```
+
+### 2. Implement a Data Repository Pattern (SOLID / DRY)
+**The Problem:** Direct access and mutation of `chatMetadata.openvault` is scattered across `utils.js`, `parser.js`, `extract.js`, and `browser.js`.
+*   **Violations:** **Single Responsibility Principle**. `parser.js` shouldn't be responsible for deciding how character state is stored. `browser.js` shouldn't be manually splicing arrays to delete memories.
+*   **Why refactor:** If you decide to change the data structure (e.g., move relationships to a separate file), you have to change code in 5 different places.
+*   **Action:** Create `src/repository.js`. Move all CRUD operations there.
+
+```javascript
+// src/repository.js (New File)
+import { getOpenVaultData, saveOpenVaultData } from './utils/data.js';
+
+export const MemoryRepository = {
+    addEvents: async (events) => {
+        const data = getOpenVaultData();
+        data.memories.push(...events);
+        await saveOpenVaultData();
+    },
+    deleteMemory: async (id) => {
+        const data = getOpenVaultData();
+        const idx = data.memories.findIndex(m => m.id === id);
+        if (idx !== -1) {
+            data.memories.splice(idx, 1);
+            await saveOpenVaultData();
+        }
+    },
+    // ... methods for character states and relationships
+};
+```
+
+### 3. De-duplicate Scoring Logic (DRY)
+**The Problem:** The mathematical formula for the "Forgetfulness Curve" exists in `src/retrieval/worker.js`. If you want to use this logic on the main thread (for small batches or fallbacks) or test it, you can't easily access it without copying it.
+*   **Violations:** **DRY**. Logic is locked inside the Worker definition.
+*   **Action:** Extract the pure scoring function into `src/retrieval/math.js`. Import this file in both `scoring.js` and `worker.js`.
+
+### 4. Sanitize UI Construction (Security / KISS)
+**The Problem:** `src/ui/browser.js` and `src/ui/settings.js` build HTML using template literals.
+*   **Violations:** **Security**. While `escapeHtml` is used, manual string concatenation is prone to XSS errors if one variable is missed. It is also hard to read and maintain.
+*   **Action:** Since you are using jQuery, use jQuery's object creation syntax or `<template>` elements.
+
+```javascript
+// Before
+$list.append(`
+    <div class="openvault-memory-item ${typeClass}" data-id="${memory.id}">
+        <div class="openvault-memory-summary">${escapeHtml(memory.summary)}</div>
+    </div>
+`);
+
+// After
+const $item = $('<div>', { class: `openvault-memory-item ${typeClass}`, 'data-id': memory.id })
+    .append($('<div>', { class: 'openvault-memory-summary', text: memory.summary }));
+$list.append($item);
+```
+
+### 5. Fix Fragile Relative Imports (Maintainability)
+**The Problem:** Files use imports like `../../../../../../script.js`.
+*   **Violations:** **Maintainability**. If you move a file one folder deeper, the imports break.
+*   **Action:** Since this is a browser extension without a bundler (webpack/vite) that supports aliases (at runtime), you are limited. However, you should strictly enforce that *only* `src/deps.js` performs these "deep" imports. All other modules should import from `../deps.js`.
+
+### 6. Logic Simplification in `src/events.js` (KISS)
+**The Problem:** `onBeforeGeneration` has nested checks for `isAutomaticMode`, `dryRun`, `generationInProgress`, etc.
+*   **Violations:** **Cyclomatic Complexity**. It's hard to verify all states.
+*   **Action:** Use "Guard Clauses" more aggressively to flatten the logic.
+
+```javascript
+// src/events.js
+export async function onBeforeGeneration(type, options, dryRun = false) {
+    if (!isAutomaticMode() || dryRun) return;
+    if (operationState.generationInProgress) return log('Skipping: Generation active');
+    if (operationState.retrievalInProgress) return log('Skipping: Retrieval active');
+    
+    // ... proceed with logic
+}
+```
+
+### 7. Remove Dead/Redundant Code (YAGNI)
+*   **`src/lib/json-repair.js`**: This is a minified third-party library pasted into the source.
+    *   *Action:* Move this to a `vendor/` folder to exclude it from linting and clarify it is not your code.
+*   **`src/constants.js`**: `SCORING_WEIGHTS` is defined but seemingly unused in the main `worker.js` logic (which uses hardcoded math or settings).
+    *   *Action:* Either implement the weights in `worker.js` or delete the constant.
+
+### 8. Bug Fix: Worker Lifecycle
+**The Problem:** In `src/retrieval/scoring.js`, the worker is created once: `if (!scoringWorker) scoringWorker = new Worker(...)`.
+*   **Bug:** If the user disables/re-enables the extension or updates settings that require a worker restart (rare but possible), the old worker persists. More importantly, there is no error handling if the worker crashes silently.
+*   **Action:** Implement a timeout/termination logic. If the worker doesn't respond in X seconds, terminate it and spawn a new one.
+
+### Summary of Tasks
+
+1.  **High Priority:** Centralize all external imports into `src/deps.js` to fix the broken Dependency Injection implementation.
+2.  **High Priority:** Extract the "Forgetfulness Curve" math from `worker.js` to a shared pure function file.
+3.  **Medium Priority:** Create `src/repository.js` to abstract data access and stop direct `chatMetadata` mutation scattered across files.
+4.  **Medium Priority:** Refactor `src/ui/browser.js` to use `$('<div>', ...)` syntax instead of HTML strings.
+5.  **Low Priority:** Move `json-repair.js` to `src/vendor/`.
+
+---
+
+Yes, it **will work** without Webpack, but only if you make one small change to how the Worker is created.
+
+Modern browsers support **Module Workers**. This allows a Web Worker to use `import` statements just like the main thread.
+
+Here is the refactoring plan to make it work natively:
+
+### 1. Create `src/retrieval/math.js`
+Extract the pure math logic here. This file is a standard ES Module.
+
+```javascript
+// src/retrieval/math.js
+
+/**
+ * Calculate cosine similarity between two vectors
+ */
+export function cosineSimilarity(vecA, vecB) {
+    if (!vecA || !vecB || vecA.length !== vecB.length || vecA.length === 0) {
+        return 0;
+    }
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < vecA.length; i++) {
+        dotProduct += vecA[i] * vecB[i];
+        normA += vecA[i] * vecA[i];
+        normB += vecB[i] * vecB[i];
+    }
+    const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
+    return magnitude === 0 ? 0 : dotProduct / magnitude;
+}
+
+/**
+ * Calculate memory score based on forgetfulness and relevance
+ */
+export function calculateScore(memory, contextEmbedding, chatLength, constants, settings) {
+    // === Forgetfulness Curve ===
+    const messageIds = memory.message_ids || [0];
+    const maxMessageId = Math.max(...messageIds);
+    const distance = Math.max(0, chatLength - maxMessageId);
+    
+    const importance = memory.importance || 3;
+    const lambda = constants.BASE_LAMBDA / (importance * importance);
+    
+    let score = importance * Math.exp(-lambda * distance);
+    
+    if (importance === 5) {
+        score = Math.max(score, constants.IMPORTANCE_5_FLOOR);
+    }
+
+    // === Vector Similarity Bonus ===
+    if (contextEmbedding && memory.embedding) {
+        const similarity = cosineSimilarity(contextEmbedding, memory.embedding);
+        const threshold = settings.vectorSimilarityThreshold || 0.5;
+        const maxBonus = settings.vectorSimilarityWeight || 15;
+
+        if (similarity > threshold) {
+            const normalizedSim = (similarity - threshold) / (1 - threshold);
+            score += normalizedSim * maxBonus;
+        }
+    }
+    
+    return score;
+}
+```
+
+### 2. Update `src/retrieval/worker.js`
+Import the math logic. Because this is now a module, we use `import`.
+
+```javascript
+// src/retrieval/worker.js
+import { calculateScore } from './math.js';
+
+self.onmessage = function(e) {
+    const { memories, contextEmbedding, chatLength, limit, constants, settings } = e.data;
+    try {
+        // Map and score using the imported function
+        const scored = memories.map(memory => {
+            const score = calculateScore(memory, contextEmbedding, chatLength, constants, settings);
+            return { memory, score };
+        });
+
+        scored.sort((a, b) => b.score - a.score);
+        const results = scored.slice(0, limit).map(s => s.memory);
+        
+        self.postMessage({ success: true, results });
+    } catch (error) {
+        self.postMessage({ success: false, error: error.message });
+    }
+};
+```
+
+### 3. Update `src/retrieval/scoring.js` (CRITICAL STEP)
+You must pass `{ type: 'module' }` when creating the worker. This tells the browser to treat `worker.js` as an ES Module, allowing the `import` statement inside it to work.
+
+```javascript
+// src/retrieval/scoring.js
+
+// ... imports
+
+function getScoringWorker() {
+    if (!scoringWorker) {
+        // ADD { type: 'module' } HERE
+        scoringWorker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+    }
+    return scoringWorker;
+}
+
+// ... rest of the file
+```
+
+### Benefits of this Refactor
+1.  **Testing:** You can now write unit tests for `math.js` directly in Vitest without needing to mock the `Worker` environment or copy-paste math into your test files.
+2.  **DRY:** If you ever need to calculate a score on the main thread (e.g., for a UI tooltip explaining why a memory was picked), you can import `calculateScore` in `browser.js` directly.
+3.  **No Bundler:** This relies on native browser features, maintaining your "No Webpack" rule.

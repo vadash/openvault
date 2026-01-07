@@ -4,8 +4,7 @@
  * Handles loading settings, binding UI elements, and updating the interface.
  */
 
-import { saveSettingsDebounced } from '../../../../../../script.js';
-import { extension_settings } from '../../../../../extensions.js';
+import { getDeps } from '../deps.js';
 import { extensionName, extensionFolderPath, defaultSettings } from '../constants.js';
 import { refreshAllUI, prevPage, nextPage, resetAndRender } from './browser.js';
 import { validateRPM } from './calculations.js';
@@ -60,8 +59,8 @@ function updateWordsDisplay(tokens, wordsElementId) {
  */
 function bindCheckbox(elementId, settingKey, onChange) {
     $(`#${elementId}`).on('change', function() {
-        extension_settings[extensionName][settingKey] = $(this).is(':checked');
-        saveSettingsDebounced();
+        getDeps().getExtensionSettings()[extensionName][settingKey] = $(this).is(':checked');
+        getDeps().saveSettingsDebounced();
         if (onChange) onChange();
     });
 }
@@ -77,14 +76,14 @@ function bindCheckbox(elementId, settingKey, onChange) {
 function bindSlider(elementId, settingKey, displayId, onChange, wordsId) {
     $(`#${elementId}`).on('input', function() {
         const value = parseInt($(this).val());
-        extension_settings[extensionName][settingKey] = value;
+        getDeps().getExtensionSettings()[extensionName][settingKey] = value;
         if (displayId) {
             $(`#${displayId}`).text(value);
         }
         if (wordsId) {
             updateWordsDisplay(value, wordsId);
         }
-        saveSettingsDebounced();
+        getDeps().saveSettingsDebounced();
         if (onChange) onChange(value);
     });
 }
@@ -97,8 +96,8 @@ function bindSlider(elementId, settingKey, displayId, onChange, wordsId) {
  */
 function bindTextInput(elementId, settingKey, transform = (v) => v) {
     $(`#${elementId}`).on('change', function() {
-        extension_settings[extensionName][settingKey] = transform($(this).val());
-        saveSettingsDebounced();
+        getDeps().getExtensionSettings()[extensionName][settingKey] = transform($(this).val());
+        getDeps().saveSettingsDebounced();
     });
 }
 
@@ -112,9 +111,9 @@ function bindNumberInput(elementId, settingKey, validator) {
     $(`#${elementId}`).on('change', function() {
         let value = $(this).val();
         if (validator) value = validator(value);
-        extension_settings[extensionName][settingKey] = value;
+        getDeps().getExtensionSettings()[extensionName][settingKey] = value;
         $(this).val(value); // Update UI in case validator changed it
-        saveSettingsDebounced();
+        getDeps().saveSettingsDebounced();
     });
 }
 
@@ -126,8 +125,8 @@ function bindNumberInput(elementId, settingKey, validator) {
  */
 function bindSelect(elementId, settingKey, onChange) {
     $(`#${elementId}`).on('change', function() {
-        extension_settings[extensionName][settingKey] = $(this).val();
-        saveSettingsDebounced();
+        getDeps().getExtensionSettings()[extensionName][settingKey] = $(this).val();
+        getDeps().saveSettingsDebounced();
         if (onChange) onChange($(this).val());
     });
 }
@@ -149,6 +148,7 @@ function bindButton(elementId, handler) {
  * Load extension settings
  */
 export async function loadSettings() {
+    const extension_settings = getDeps().getExtensionSettings();
     extension_settings[extensionName] = extension_settings[extensionName] || {};
 
     // Apply defaults for any missing settings
@@ -196,7 +196,7 @@ function bindUIElements() {
     bindSlider('openvault_prefilter_budget', 'retrievalPreFilterTokens', 'openvault_prefilter_budget_value', null, 'openvault_prefilter_budget_words');
 
     bindCheckbox('openvault_smart_retrieval', 'smartRetrievalEnabled', () => {
-        const settings = extension_settings[extensionName];
+        const settings = getDeps().getExtensionSettings()[extensionName];
         $('#openvault_retrieval_profile_group').toggle(settings.smartRetrievalEnabled);
     });
 
@@ -257,7 +257,7 @@ function bindUIElements() {
  * Update UI to match current settings
  */
 export function updateUI() {
-    const settings = extension_settings[extensionName];
+    const settings = getDeps().getExtensionSettings()[extensionName];
 
     // Basic toggles
     $('#openvault_enabled').prop('checked', settings.enabled);
@@ -324,6 +324,7 @@ function populateProfileDropdown($selector, profiles, currentValue) {
  * Populate the connection profile selectors (extraction and retrieval)
  */
 export function populateProfileSelector() {
+    const extension_settings = getDeps().getExtensionSettings();
     const settings = extension_settings[extensionName];
     const profiles = extension_settings.connectionManager?.profiles || [];
 

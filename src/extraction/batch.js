@@ -4,8 +4,7 @@
  * Handles backfill extraction of all messages in batches.
  */
 
-import { getContext, extension_settings } from '../../../../../extensions.js';
-import { saveChatConditional } from '../../../../../../script.js';
+import { getDeps } from '../deps.js';
 import { getOpenVaultData, showToast, log, safeSetExtensionPrompt, getCurrentChatId } from '../utils.js';
 import { getBackfillMessageIds, getExtractedMessageIds } from './scheduler.js';
 import { extensionName } from '../constants.js';
@@ -20,7 +19,7 @@ import { extractMemories } from './extract.js';
  * @param {function} updateEventListenersFn - Function to update event listeners after backfill
  */
 export async function extractAllMessages(updateEventListenersFn) {
-    const context = getContext();
+    const context = getDeps().getContext();
     const chat = context.chat;
 
     if (!chat || chat.length === 0) {
@@ -28,7 +27,7 @@ export async function extractAllMessages(updateEventListenersFn) {
         return;
     }
 
-    const settings = extension_settings[extensionName];
+    const settings = getDeps().getExtensionSettings()[extensionName];
     const messageCount = settings.messagesPerExtraction || 5;
     const data = getOpenVaultData();
     if (!data) {
@@ -120,7 +119,7 @@ export async function extractAllMessages(updateEventListenersFn) {
 
     // Clear injection and save
     safeSetExtensionPrompt('');
-    await saveChatConditional();
+    await getDeps().saveChatConditional();
 
     // Re-register event listeners
     if (updateEventListenersFn) {

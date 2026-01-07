@@ -7,8 +7,7 @@
  * All data is stored in chatMetadata - no external services required.
  */
 
-import { eventSource, event_types, saveChatConditional } from '../../../../script.js';
-import { getContext, extension_settings } from '../../../extensions.js';
+import { getDeps } from './src/deps.js';
 
 // Import from modular structure
 import { extensionName, METADATA_KEY } from './src/constants.js';
@@ -35,10 +34,10 @@ async function deleteCurrentChatData() {
         return;
     }
 
-    const context = getContext();
+    const context = getDeps().getContext();
     if (context.chatMetadata) {
         delete context.chatMetadata[METADATA_KEY];
-        await saveChatConditional();
+        await getDeps().saveChatConditional();
     }
 
     showToast('success', 'Chat memories deleted');
@@ -67,7 +66,7 @@ async function deleteCurrentChatEmbeddings() {
         }
     }
 
-    await saveChatConditional();
+    await getDeps().saveChatConditional();
     showToast('success', `Deleted ${count} embeddings`);
     refreshAllUI();
 }
@@ -109,7 +108,7 @@ async function backfillEmbeddings() {
         const count = await generateEmbeddingsForMemories(needsEmbedding);
 
         if (count > 0) {
-            await saveChatConditional();
+            await getDeps().saveChatConditional();
             showToast('success', `Generated ${count} embeddings`);
             log(`Backfill complete: generated ${count} embeddings for existing memories`);
         } else {
@@ -128,7 +127,7 @@ async function backfillEmbeddings() {
  * Register slash commands
  */
 function registerCommands() {
-    const context = getContext();
+    const context = getDeps().getContext();
     const parser = context.SlashCommandParser;
     const command = context.SlashCommand;
 
@@ -156,7 +155,7 @@ function registerCommands() {
     parser.addCommandObject(command.fromProps({
         name: 'openvault-status',
         callback: async () => {
-            const settings = extension_settings[extensionName];
+            const settings = getDeps().getExtensionSettings()[extensionName];
             const data = getOpenVaultData();
             const memoriesCount = data?.[MEMORIES_KEY]?.length || 0;
             const status = `OpenVault: ${settings.enabled ? 'Enabled' : 'Disabled'}, Memories: ${memoriesCount}`;
@@ -177,6 +176,7 @@ function registerCommands() {
  */
 jQuery(() => {
     // Register APP_READY listener synchronously to avoid race conditions
+    const { eventSource, event_types } = getDeps();
     eventSource.on(event_types.APP_READY, async () => {
         // Check SillyTavern version
         try {
