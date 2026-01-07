@@ -22,7 +22,7 @@ import { getRelationshipContext, formatContextForInjection } from './formatting.
 function _getHiddenMemories(chat, memories) {
     return memories.filter(m =>
         m.message_ids?.length > 0 &&
-        m.message_ids.every(id => chat[id]?.is_system)
+        m.message_ids.every(id => chat[id] && chat[id].is_system)
     );
 }
 
