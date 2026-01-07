@@ -77,13 +77,11 @@
                 <label for="openvault_embedding_source">Embedding Model</label>
                 <select id="openvault_embedding_source" class="text_pole">
                     <optgroup label="Multilingual">
-                        <option value="multilingual-e5-small">multilingual-e5-small - Best quality (100+ langs)</option>
-                        <option value="paraphrase-multilingual-MiniLM-L12-v2">paraphrase-MiniLM - Cross-lingual similarity (50+ langs)</option>
-                        <option value="embeddinggemma-300m">embeddinggemma-300m - Google Gemma (768d, WebGPU only)</option>
+                        <option value="multilingual-e5-small">multilingual-e5-small - 384d · 118M · 100+ langs · MTEB: 55.8</option>
+                        <option value="embeddinggemma-300m">embeddinggemma-300m - 768d · 300M · 100+ langs · MTEB: 61.2 (WebGPU)</option>
                     </optgroup>
                     <optgroup label="English Only">
-                        <option value="all-MiniLM-L6-v2">all-MiniLM-L6-v2 - Fastest load (~25MB)</option>
-                        <option value="bge-small-en-v1.5">bge-small-en-v1.5 - Best RAG retrieval</option>
+                        <option value="bge-small-en-v1.5">bge-small-en-v1.5 - 384d · 133MB · MTEB: 62.17 · SOTA RAG</option>
                     </optgroup>
                     <optgroup label="External">
                         <option value="ollama">Ollama (Custom server)</option>

@@ -72,35 +72,21 @@ const TRANSFORMERS_MODELS = {
         dtypeWebGPU: 'fp16',
         dtypeWASM: 'q8',
         dimensions: 384,
-        description: 'Best multilingual (100+ langs)',
-    },
-    'paraphrase-multilingual-MiniLM-L12-v2': {
-        name: 'Xenova/paraphrase-multilingual-MiniLM-L12-v2',
-        dtypeWebGPU: 'fp16',
-        dtypeWASM: 'q8',
-        dimensions: 384,
-        description: 'Cross-lingual similarity (50+ langs)',
-    },
-    'all-MiniLM-L6-v2': {
-        name: 'Xenova/all-MiniLM-L6-v2',
-        dtypeWebGPU: 'fp32',
-        dtypeWASM: 'fp32',
-        dimensions: 384,
-        description: 'English only - Fastest load (~25MB)',
+        description: '384d · 118M params · 100+ langs · MTEB: 55.8',
     },
     'bge-small-en-v1.5': {
         name: 'Xenova/bge-small-en-v1.5',
         dtypeWebGPU: 'q4f16',
         dtypeWASM: 'q8',
         dimensions: 384,
-        description: 'English only - Best RAG retrieval',
+        description: '384d · 133MB · English · MTEB: 62.17 · SOTA RAG',
     },
     'embeddinggemma-300m': {
         name: 'onnx-community/embeddinggemma-300m-ONNX',
         dtypeWebGPU: 'q4', // fp16 not supported; q4 is fast and compact
         dtypeWASM: null, // Not supported on WASM - requires WebGPU
         dimensions: 768,
-        description: 'Google Gemma - Multilingual (768d, WebGPU only)',
+        description: '768d · 300M params · 100+ langs · MTEB: 61.2 · WebGPU only',
         requiresWebGPU: true,
     },
 };
@@ -354,8 +340,6 @@ class OllamaStrategy extends EmbeddingStrategy {
 
 const strategies = {
     'multilingual-e5-small': new TransformersStrategy(),
-    'paraphrase-multilingual-MiniLM-L12-v2': new TransformersStrategy(),
-    'all-MiniLM-L6-v2': new TransformersStrategy(),
     'bge-small-en-v1.5': new TransformersStrategy(),
     'embeddinggemma-300m': new TransformersStrategy(),
     'ollama': new OllamaStrategy(),
@@ -363,8 +347,6 @@ const strategies = {
 
 // Configure model-specific transformers strategies
 strategies['multilingual-e5-small'].setModelKey('multilingual-e5-small');
-strategies['paraphrase-multilingual-MiniLM-L12-v2'].setModelKey('paraphrase-multilingual-MiniLM-L12-v2');
-strategies['all-MiniLM-L6-v2'].setModelKey('all-MiniLM-L6-v2');
 strategies['bge-small-en-v1.5'].setModelKey('bge-small-en-v1.5');
 strategies['embeddinggemma-300m'].setModelKey('embeddinggemma-300m');
 

@@ -73,15 +73,13 @@ OpenVault supports browser-based embeddings via Transformers.js with automatic W
 ### Multilingual
 | Model | Description |
 |-------|-------------|
-| **multilingual-e5-small** | Best quality (100+ languages) |
-| **paraphrase-multilingual-MiniLM** | Cross-lingual similarity (50+ languages) |
-| **embeddinggemma-300m** | Google Gemma, 768 dimensions (WebGPU only) |
+| **multilingual-e5-small** | 384d · 118M params · 100+ langs · MTEB: 55.8 |
+| **embeddinggemma-300m** | 768d · 300M params · 100+ langs · MTEB: 61.2 (WebGPU only) |
 
 ### English Only
 | Model | Description |
 |-------|-------------|
-| **all-MiniLM-L6-v2** | Fastest load (~25MB) |
-| **bge-small-en-v1.5** | Best RAG retrieval quality |
+| **bge-small-en-v1.5** | 384d · 133MB · MTEB: 62.17 · SOTA RAG |
 
 ### External
 | Model | Description |
