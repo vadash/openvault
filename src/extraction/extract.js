@@ -11,7 +11,8 @@ import { callLLMForExtraction } from '../llm.js';
 import { setStatus } from '../ui/status.js';
 import { refreshAllUI } from '../ui/browser.js';
 import { buildExtractionPrompt } from '../prompts.js';
-import { parseExtractionResult, updateCharacterStatesFromEvents, updateRelationshipsFromEvents, applyRelationshipDecay } from './parser.js';
+import { parseExtractionResult, updateCharacterStatesFromEvents, updateRelationshipsFromEvents } from './parser.js';
+import { applyRelationshipDecay } from '../simulation.js';
 import { selectMemoriesForExtraction } from './context-builder.js';
 import { enrichEventsWithEmbeddings } from '../embeddings.js';
 

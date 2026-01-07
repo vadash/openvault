@@ -38,6 +38,9 @@ vi.mock('../src/extraction/parser.js', () => ({
     parseExtractionResult: vi.fn(),
     updateCharacterStatesFromEvents: vi.fn(),
     updateRelationshipsFromEvents: vi.fn(),
+}));
+
+vi.mock('../src/simulation.js', () => ({
     applyRelationshipDecay: vi.fn(),
 }));
 
