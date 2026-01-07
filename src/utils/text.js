@@ -5,7 +5,7 @@
  */
 
 import { getDeps } from '../deps.js';
-import { repairJson } from '../vendor/json-repair.js';
+import { jsonrepair } from '../vendor/json-repair.js';
 
 /**
  * Estimate token count for a text string
@@ -46,11 +46,19 @@ export function sliceToTokenBudget(memories, tokenBudget) {
  * Safely parse JSON, handling markdown code blocks and malformed JSON
  * Uses json-repair library for robust parsing
  * @param {string} input - Raw JSON string potentially wrapped in markdown
- * @returns {any} Parsed JSON object, or null on failure
+ * @returns {any} Parsed JSON object/array, or null on failure
  */
 export function safeParseJSON(input) {
     try {
-        return repairJson(input, { returnObject: true, extractJson: true });
+        const repaired = jsonrepair(input);
+        const parsed = JSON.parse(repaired);
+        // Only accept objects and arrays - reject primitives (string, number, boolean, null)
+        if (parsed === null || typeof parsed !== 'object') {
+            getDeps().console.error('[OpenVault] JSON Parse returned non-object/array:', typeof parsed);
+            getDeps().console.error('[OpenVault] Raw LLM response:', input);
+            return null;
+        }
+        return parsed;
     } catch (e) {
         getDeps().console.error('[OpenVault] JSON Parse failed', e);
         getDeps().console.error('[OpenVault] Raw LLM response:', input);
