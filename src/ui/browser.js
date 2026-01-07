@@ -186,7 +186,7 @@ export function populateCharacterFilter() {
     const currentValue = $filter.val();
     $filter.find('option:not(:first)').remove();
 
-    if (characters.size > 0) {
+    if (characters.length > 0) {
         // Use DocumentFragment to batch option insertions
         const fragment = document.createDocumentFragment();
         for (const char of characters) {
@@ -199,7 +199,7 @@ export function populateCharacterFilter() {
     }
 
     // Restore selection if still valid
-    if (currentValue && characters.has(currentValue)) {
+    if (currentValue && characters.includes(currentValue)) {
         $filter.val(currentValue);
     }
 }
