@@ -9,14 +9,12 @@ OpenVault provides POV-aware memory with witness tracking, relationship dynamics
 - **Automatic Memory Extraction**: Analyzes conversations to extract significant events, emotions, and relationship changes
 - **POV-Aware Retrieval**: Filters memories based on which characters witnessed events (no meta-gaming)
 - **Character Context**: Uses character card and persona descriptions for more accurate memory extraction
-- **Relationship Tracking**: Monitors and records relationship dynamics (Trust/Tension) between characters
-- **Relationship Decay**: Automatically decays high tension and high trust over time if not reinforced
+- **Relationship Tracking**: Monitors Trust/Tension dynamics between characters with automatic decay
 - **Emotional Continuity**: Tracks emotional states and shifts across conversations
+- **Three-Stage Retrieval Pipeline**: Algorithmic pre-filtering → Smart LLM selection → Token-budgeted injection
+- **Local Vector Embeddings**: Browser-based semantic search via Transformers.js (WebGPU/WASM) or Ollama
 - **Auto-Hide**: Automatically hides old messages from context while preserving their memories
-- **Smart Retrieval**: Optional LLM-powered selection of the most relevant memories
-- **Vector Embeddings**: Optional Ollama-powered semantic similarity for memory ranking
 - **Memory Browser**: View, filter, and manage extracted memories
-- **Backfill**: Extract memories from existing chat history
 
 ## Installation
 
@@ -34,37 +32,73 @@ git clone https://github.com/vadash/openvault
 
 ## Usage
 
-### Automatic Mode (Default)
-
 When enabled, OpenVault automatically:
 1. **Before AI response**: Retrieves relevant memories and injects them as context
-2. **After AI response**: Extracts new memories from the conversation (every N messages)
-
-### Manual Mode
-
-Use the buttons in the settings panel:
-- **Extract Memories**: Analyze recent messages for significant events
-- **Retrieve Context**: Manually inject relevant memories into context
-- **Backfill Chat History**: Extract memories from the entire chat history
+2. **After AI response**: Extracts new memories from the conversation
 
 ## Settings
 
+### Extraction
+
 | Setting | Description | Default |
 |---------|-------------|---------|
-| **Enable OpenVault** | Toggle the extension on/off | On |
-| **Automatic Mode** | Auto-extract and retrieve memories | On |
-| **Extraction Profile** | LLM connection profile for extraction | Current |
-| **Token Budget** | Max tokens for injected memory context | 1000 |
-| **Messages per Extraction** | Messages to analyze per extraction | 5 |
-| **Memory Context** | Memories shown to extraction LLM (-1 = All) | All |
-| **Smart Retrieval** | Use LLM to select relevant memories | Off |
-| **Ollama URL** | Ollama server URL for embeddings | - |
-| **Embedding Model** | Ollama model for vector embeddings | - |
-| **Similarity Threshold** | Minimum similarity for bonus (0-1) | 0.5 |
-| **Similarity Weight** | Max bonus points for similarity | 15 |
+| **Extraction Profile** | LLM connection profile for memory extraction | Current |
+| **Messages per Extraction** | Messages to analyze per extraction batch | 10 |
+| **Extraction Rearview** | Token budget for past memories shown to extraction LLM | 12000 |
+
+### Retrieval Pipeline
+
+OpenVault uses a three-stage pipeline for memory selection:
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| **Stage 1 - Pre-filter Budget** | Algorithmic filter using recency + vector similarity | 24000 tokens |
+| **Stage 2 - Smart Retrieval** | LLM-powered selection of most relevant memories | On |
+| **Retrieval Profile** | LLM profile for smart retrieval (can use faster model) | Current |
+| **Stage 3 - Final Budget** | Maximum tokens injected into chat context | 12000 tokens |
+
+### Vector & Storage
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| **Embedding Model** | Model for semantic similarity (see below) | multilingual-e5-small |
 | **Auto-hide old messages** | Hide messages beyond threshold | On |
 | **Messages to keep visible** | Auto-hide threshold | 50 |
-| **Backfill Speed** | Max requests per minute during backfill | 30 |
+| **Backfill Rate Limit** | Max requests per minute during backfill | 30 RPM |
+
+## Embedding Models
+
+OpenVault supports browser-based embeddings via Transformers.js with automatic WebGPU detection:
+
+### Multilingual
+| Model | Description |
+|-------|-------------|
+| **multilingual-e5-small** | Best quality (100+ languages) |
+| **paraphrase-multilingual-MiniLM** | Cross-lingual similarity (50+ languages) |
+| **embeddinggemma-300m** | Google Gemma, 768 dimensions (WebGPU only) |
+
+### English Only
+| Model | Description |
+|-------|-------------|
+| **all-MiniLM-L6-v2** | Fastest load (~25MB) |
+| **bge-small-en-v1.5** | Best RAG retrieval quality |
+
+### External
+| Model | Description |
+|-------|-------------|
+| **Ollama** | Custom server with any Ollama embedding model |
+
+### WebGPU Acceleration
+
+WebGPU provides 10-100x faster embeddings. It requires a **secure context** (HTTPS or localhost). For HTTP access:
+
+1. Go to `chrome://flags` (or `brave://flags`)
+2. Enable `#enable-unsafe-webgpu`
+3. Enable `#enable-webgpu-developer-features`
+4. In `#unsafely-treat-insecure-origin-as-secure` add your SillyTavern URL
+5. Restart browser
+
+If WebGPU is unavailable, OpenVault falls back to WASM (slower but universal).
 
 ## How It Works
 
@@ -73,7 +107,7 @@ Use the buttons in the settings panel:
 OpenVault sends recent messages to an LLM with:
 - Character descriptions (from character card)
 - Persona description (your character)
-- Existing memories (for consistency)
+- Existing memories (within rearview token budget)
 
 The LLM extracts structured events with:
 - **Event type**: action, revelation, emotion_shift, relationship_change
@@ -84,66 +118,61 @@ The LLM extracts structured events with:
 - **Location**: Where it happened
 - **Emotional/Relationship impact**: How characters were affected
 
-### Relationship Dynamics
+### Retrieval Pipeline
 
-OpenVault tracks two axes for every character pair:
-1. **Trust (0-10)**: How much characters rely on each other.
-2. **Tension (0-10)**: The level of conflict or stress between them.
+```
+All Memories
+     ↓
+[Stage 1: Algorithmic Scoring]
+  - Forgetfulness curve (exponential decay)
+  - Vector similarity bonus (if embeddings enabled)
+  - POV/witness filtering
+  → Pre-filter budget (24000 tokens default)
+     ↓
+[Stage 2: Smart Selection] (optional)
+  - LLM analyzes pre-filtered memories
+  - Selects most relevant for current context
+     ↓
+[Stage 3: Token Budget]
+  - Final context budget (12000 tokens default)
+  → Injected into chat
+```
 
-**Decay Mechanics**: Relationships are dynamic. If characters do not interact for a long period (default 50 messages):
-- **Tension** slowly decays toward 0 (calming down).
-- **High Trust (>5)** slowly decays toward neutral 5 (drifting apart).
-- **Low Trust (<5)** is "sticky" and does not auto-recover; it requires active repair.
+### Forgetfulness Curve
 
-### Memory Retrieval
-
-Before the AI responds, OpenVault:
-1. Filters memories by POV/witnesses
-2. Scores and ranks memories by relevance
-3. Injects top memories as context within the token budget
-
-### Memory Ranking Algorithm
-
-OpenVault uses a two-part scoring system to select the most relevant memories:
-
-#### 1. Forgetfulness Curve (Base Score)
-
-Memories naturally decay over time using an exponential forgetfulness curve:
-
+Memories decay over narrative time using:
 ```
 Score = Importance × e^(-λ × Distance)
 ```
 
-- **Distance**: Number of messages since the memory was created (narrative time, not real time)
-- **Importance**: Memory importance rating (1-5 scale)
-- **λ (lambda)**: Decay rate, calculated as `0.05 / (importance²)`
+- **Distance**: Messages since memory creation
+- **λ (lambda)**: `0.05 / (importance²)` - higher importance decays slower
+- **Importance 5**: Floor score ensures critical memories never fully fade
 
-This means:
-- **Importance 5** memories decay very slowly (λ = 0.002) and have a floor score they never drop below
-- **Importance 1** memories decay quickly (λ = 0.05) and fade from relevance faster
-- Recent memories score higher than older ones of the same importance
+### Vector Similarity Bonus
 
-#### 2. Vector Similarity Bonus (Optional)
-
-When Ollama embeddings are configured, memories get a relevance boost based on semantic similarity:
-
-1. The last 3 user messages are embedded (capped at 1000 chars) - user intent matters most for retrieval
-2. Each memory's summary is compared using **cosine similarity**
-3. If similarity exceeds the threshold (default 0.5), bonus points are added:
-
+When embeddings are enabled:
+1. Last 3 user messages are embedded (capped at 1000 chars)
+2. Each memory's summary is compared using cosine similarity
+3. Memories above threshold get bonus points:
 ```
-Bonus = ((similarity - threshold) / (1 - threshold)) × maxBonus
+Bonus = ((similarity - 0.5) / 0.5) × 15
 ```
 
-Default `maxBonus` is 15 points. This allows semantically relevant older memories to surface above recent but unrelated ones.
+### Relationship Dynamics
 
-#### 3. Smart Retrieval (Alternative)
+OpenVault tracks two axes for every character pair:
+- **Trust (0-10)**: How much characters rely on each other
+- **Tension (0-10)**: Level of conflict or stress
 
-When Smart Retrieval is enabled, instead of the algorithm above, an LLM analyzes the memory list and current context to select the most relevant memories. This is more accurate but slower and uses additional tokens.
+**Decay Mechanics** (after 50 messages without interaction):
+- Tension slowly decays toward 0
+- High Trust (>5) decays toward neutral 5
+- Low Trust (<5) is sticky and requires active repair
 
 ### Auto-Hide
 
-When enabled, messages older than the threshold are hidden from context (in user-assistant pairs). The memories extracted from these messages are still retrieved and injected, effectively providing summaries of hidden content.
+Messages older than the threshold are hidden from context (in user-assistant pairs). Memories extracted from hidden messages are still retrieved, effectively providing summaries.
 
 ## Data Storage
 
@@ -165,12 +194,12 @@ Data is per-chat and persists with the chat file.
 
 ## Danger Zone
 
-- **Delete Current Chat Memories**: Removes all OpenVault data for the current chat
-- **Delete All Data**: Removes all OpenVault data across all chats
+- **Delete Current Chat Memories**: Removes all OpenVault memory data for the current chat
+- **Delete Current Chat Embeddings**: Removes only vector embeddings (keeps memories)
 
 ## Debug Mode
 
-Enable debug mode to see detailed logs in the browser console (F12 > Console).
+Enable debug mode to see detailed logs in the browser console (F12 > Console). Logs are tagged with `[OpenVault]`.
 
 ## License
 
@@ -180,4 +209,4 @@ See [LICENSE](LICENSE) for details.
 
 ## Version
 
-1.16
+1.18
