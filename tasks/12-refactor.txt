@@ -1,0 +1,78 @@
+### 1. Fix Memory Leak in `src/embeddings.js` (Robustness)
+**The Problem:** The `embeddingCache` is a simple `Map` that grows indefinitely as long as the session is open. If a user has a long session or processes many chats, this will consume excessive memory.
+**The Fix:**
+1.  Implement a simple **LRU (Least Recently Used)** eviction strategy or a hard limit (e.g., max 1000 entries).
+2.  Clear the cache when the chat changes (in `index.js` or `events.js` -> `onChatChanged`).
+
+```javascript
+// src/embeddings.js
+const MAX_CACHE_SIZE = 500;
+const embeddingCache = new Map();
+
+export async function getEmbedding(text) {
+    if (!text) return null;
+    if (embeddingCache.has(text)) {
+        // Refresh key for LRU behavior
+        const val = embeddingCache.get(text);
+        embeddingCache.delete(text);
+        embeddingCache.set(text, val);
+        return val;
+    }
+
+    // ... fetch logic ...
+
+    if (result) {
+        if (embeddingCache.size >= MAX_CACHE_SIZE) {
+            const firstKey = embeddingCache.keys().next().value;
+            embeddingCache.delete(firstKey);
+        }
+        embeddingCache.set(text, result);
+    }
+    return result;
+}
+```
+
+### 2. Decouple UI from Data Logic (SOLID - Single Responsibility)
+**The Problem:** `src/ui/browser.js` contains direct data manipulation logic. Specifically, `deleteMemory` modifies `data[MEMORIES_KEY]` and calls `saveChatConditional`. The View layer should not know how to persist data.
+**The Fix:**
+1.  Create a `src/data/actions.js` or `src/manager.js`.
+2.  Move `deleteMemory`, `deleteCurrentChatData`, and similar logic there.
+3.  Have the UI import `actions.js` only to trigger changes, then re-render based on the updated data.
+
+### 3. Move Simulation Logic out of Parser (SOLID)
+**The Problem:** `src/extraction/parser.js` contains `applyRelationshipDecay`.
+*   **Why it's wrong:** A "Parser" should only transform raw LLM output into internal objects. It should not contain game simulation logic like "relationship decay over time."
+**The Fix:**
+1.  Create `src/simulation.js` or `src/mechanics.js`.
+2.  Move `applyRelationshipDecay` there.
+3.  Call it from `extract.js` after the parsing phase.
+
+### 4. Fix Array Bounds Safety in Retrieval (Bug Fix)
+**The Problem:** In `src/retrieval/retrieve.js`, the function `_getHiddenMemories` accesses `chat[id]?.is_system`.
+**The Risk:** If `id` (from a memory) refers to a message index that no longer exists (e.g., the user deleted messages or truncated the chat history manually), `chat[id]` is `undefined`. While `?.` handles the crash, relying on array indices for persistent storage reference in SillyTavern is notoriously brittle.
+**The Fix:**
+Add a bounds check.
+```javascript
+function _getHiddenMemories(chat, memories) {
+    return memories.filter(m =>
+        m.message_ids?.length > 0 &&
+        m.message_ids.every(id => chat[id] && chat[id].is_system) // Ensure chat[id] exists
+    );
+}
+```
+
+### 5. Clean up `src/utils.js` (Separation of Concerns)
+**The Problem:** `src/utils.js` is a "God Object" utility. It acts as a barrel file (re-exporting from `utils/data.js`, `utils/dom.js`) but *also* contains implementation logic like `withTimeout`, `safeSetExtensionPrompt`, and `log`.
+**The Fix:**
+1.  Move `withTimeout` to `src/utils/async.js`.
+2.  Move `safeSetExtensionPrompt` to `src/utils/st-helpers.js` (SillyTavern helpers).
+3.  Keep `src/utils.js` strictly as a barrel file (only `export * from ...`). This prevents circular dependencies and makes imports cleaner.
+
+### 6. DRY up `src/extraction/scheduler.js`
+**The Problem:** `getUnextractedMessageIds` and `getBackfillMessageIds` perform very similar loop logic over chat indices to find gaps.
+**The Fix:** Create a generic generator or iterator that yields unextracted message indices, then let specific functions consume that iterator with specific limits (buffer size, batch size).
+
+### Summary of "STOP" (What NOT to refactor)
+*   **Do not** refactor `src/deps.js`. The Dependency Injection pattern used here is excellent for unit testing and isolating SillyTavern globals.
+*   **Do not** replace jQuery with a Virtual DOM framework (React/Vue). It adds unnecessary build complexity for a SillyTavern extension. The current `DocumentFragment` approach in `browser.js` is performant enough.
+*   **Do not** refactor `src/retrieval/worker.js` to eliminate the Worker. Offloading scoring to a thread is the correct architectural decision for performance (YAGNI applied to "simplifying" it back to main thread).

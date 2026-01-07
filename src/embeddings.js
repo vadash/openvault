@@ -45,22 +45,29 @@ export function isEmbeddingsEnabled() {
     return strategy.isEnabled();
 }
 
-// Simple cache for embedding results to avoid redundant API calls
+// LRU cache for embedding results to avoid redundant API calls
+// Maximum cache size prevents unbounded memory growth during long sessions
+const MAX_CACHE_SIZE = 500;
 const embeddingCache = new Map();
 
 /**
  * Get embedding for text using configured source
  * Delegates to the appropriate strategy based on settings.
  * Results are cached to avoid redundant API calls for the same text.
+ * Uses LRU eviction when cache reaches MAX_CACHE_SIZE.
  * @param {string} text - Text to embed
  * @returns {Promise<number[]|null>} Embedding vector or null if unavailable
  */
 export async function getEmbedding(text) {
     if (!text) return null;
 
-    // Check cache first
+    // Check cache first - refresh position for LRU behavior
     if (embeddingCache.has(text)) {
-        return embeddingCache.get(text);
+        const value = embeddingCache.get(text);
+        // Delete and re-insert to mark as recently used
+        embeddingCache.delete(text);
+        embeddingCache.set(text, value);
+        return value;
     }
 
     const settings = getDeps().getExtensionSettings()[extensionName];
@@ -69,6 +76,13 @@ export async function getEmbedding(text) {
     const result = await strategy.getEmbedding(text);
 
     // Cache successful results (cache failures as null to avoid retrying)
+    // Evict oldest entry if at capacity
+    if (embeddingCache.size >= MAX_CACHE_SIZE) {
+        const firstKey = embeddingCache.keys().next().value;
+        if (firstKey !== undefined) {
+            embeddingCache.delete(firstKey);
+        }
+    }
     embeddingCache.set(text, result);
     return result;
 }

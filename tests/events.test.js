@@ -78,6 +78,10 @@ vi.mock('../src/backfill.js', () => ({
     checkAndTriggerBackfill: vi.fn(),
 }));
 
+vi.mock('../src/embeddings.js', () => ({
+    clearEmbeddingCache: vi.fn(),
+}));
+
 // Import after mocks
 import {
     onBeforeGeneration,
@@ -96,6 +100,7 @@ import { extractMemories } from '../src/extraction/extract.js';
 import { updateInjection } from '../src/retrieval/retrieve.js';
 import { autoHideOldMessages } from '../src/auto-hide.js';
 import { checkAndTriggerBackfill } from '../src/backfill.js';
+import { clearEmbeddingCache } from '../src/embeddings.js';
 
 describe('events', () => {
     let mockConsole;
@@ -372,7 +377,13 @@ describe('events', () => {
         it('logs chat change', () => {
             onChatChanged();
 
-            expect(log).toHaveBeenCalledWith('Chat changed, clearing injection and setting load cooldown');
+            expect(log).toHaveBeenCalledWith('Chat changed, clearing injection, cache and setting load cooldown');
+        });
+
+        it('clears embedding cache', () => {
+            onChatChanged();
+
+            expect(clearEmbeddingCache).toHaveBeenCalled();
         });
     });
 

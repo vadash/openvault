@@ -6,6 +6,7 @@
 
 import { getDeps } from './deps.js';
 import { getOpenVaultData, getCurrentChatId, showToast, safeSetExtensionPrompt, withTimeout, log, isAutomaticMode } from './utils.js';
+import { clearEmbeddingCache } from './embeddings.js';
 import { getExtractedMessageIds, getNextBatch } from './extraction/scheduler.js';
 import { extensionName, MEMORIES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
 import { operationState, setGenerationLock, clearGenerationLock, isChatLoadingCooldown, setChatLoadingCooldown, resetOperationStatesIfSafe } from './state.js';
@@ -105,7 +106,10 @@ export function onGenerationEnded() {
 export function onChatChanged() {
     if (!isAutomaticMode()) return;
 
-    log('Chat changed, clearing injection and setting load cooldown');
+    log('Chat changed, clearing injection, cache and setting load cooldown');
+
+    // Clear embedding cache to free memory when switching chats
+    clearEmbeddingCache();
 
     // Reset memoryBrowserPage to prevent showing wrong page after chat switch
     resetMemoryBrowserPage();
