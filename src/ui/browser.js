@@ -4,7 +4,7 @@
  * Handles memory list rendering, character states, and relationship displays.
  */
 
-import { saveChatConditional } from '../../../../../../script.js';
+import { getDeps } from '../deps.js';
 import { getOpenVaultData, escapeHtml, showToast } from '../utils.js';
 import { MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, MEMORIES_PER_PAGE } from '../constants.js';
 import { refreshStats } from './status.js';
@@ -144,7 +144,7 @@ async function deleteMemory(id) {
     const idx = data[MEMORIES_KEY]?.findIndex(m => m.id === id);
     if (idx !== -1) {
         data[MEMORIES_KEY].splice(idx, 1);
-        await saveChatConditional();
+        await getDeps().saveChatConditional();
         refreshAllUI();
         showToast('success', 'Memory deleted');
     }

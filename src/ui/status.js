@@ -4,7 +4,7 @@
  * Handles status indicator and statistics display.
  */
 
-import { getContext, extension_settings } from '../../../../../extensions.js';
+import { getDeps } from '../deps.js';
 import { getOpenVaultData, log } from '../utils.js';
 import { getExtractedMessageIds } from '../extraction/scheduler.js';
 import { MEMORIES_KEY, CHARACTERS_KEY, extensionName } from '../constants.js';
@@ -46,10 +46,10 @@ export function refreshStats() {
     $('#openvault_stat_characters_badge').text(`${charCount} chars`);
 
     // Calculate batch progress
-    const settings = extension_settings[extensionName];
+    const settings = getDeps().getExtensionSettings()[extensionName];
     const messageCount = settings?.messagesPerExtraction || 10;
 
-    const context = getContext();
+    const context = getDeps().getContext();
     const chat = context.chat || [];
     const extractedMessageIds = getExtractedMessageIds(data);
 

@@ -4,7 +4,6 @@
  * Handles all SillyTavern event subscriptions and processing.
  */
 
-import { eventSource, event_types } from '../../../../../script.js';
 import { getDeps } from './deps.js';
 import { getOpenVaultData, getCurrentChatId, showToast, safeSetExtensionPrompt, withTimeout, log, isAutomaticMode } from './utils.js';
 import { getExtractedMessageIds, getNextBatch } from './extraction/scheduler.js';
@@ -219,6 +218,8 @@ export async function onMessageReceived(messageId) {
  * Update event listeners based on settings
  */
 export function updateEventListeners(_skipInitialization = false) {
+    const { eventSource, event_types } = getDeps();
+
     // Remove old event listeners first to prevent duplicates
     eventSource.removeListener(event_types.GENERATION_AFTER_COMMANDS, onBeforeGeneration);
     eventSource.removeListener(event_types.GENERATION_ENDED, onGenerationEnded);
