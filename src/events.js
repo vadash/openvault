@@ -171,9 +171,10 @@ export async function onMessageReceived(messageId) {
 
         const settings = deps.getExtensionSettings()[extensionName];
         const messageCount = settings.messagesPerExtraction || 10;
+        const bufferSize = settings.extractionBuffer || 5;
 
-        // Use scheduler to get next batch
-        const batchToExtract = getNextBatch(chat, data, messageCount);
+        // Use scheduler to get next batch (excluding recent messages in buffer)
+        const batchToExtract = getNextBatch(chat, data, messageCount, bufferSize);
 
         if (!batchToExtract) {
             const extractedCount = getExtractedMessageIds(data).size;

@@ -59,11 +59,12 @@ export function isBatchReady(chat, data, batchSize) {
  * @param {Object[]} chat - Chat messages array
  * @param {Object} data - OpenVault data object
  * @param {number} batchSize - Number of messages per batch
+ * @param {number} bufferSize - Number of recent messages to exclude (default 0)
  * @returns {number[]|null} Array of message IDs for next batch, or null if no complete batch ready
  */
-export function getNextBatch(chat, data, batchSize) {
+export function getNextBatch(chat, data, batchSize, bufferSize = 0) {
     const extractedIds = getExtractedMessageIds(data);
-    const unextractedIds = getUnextractedMessageIds(chat, extractedIds, 0);
+    const unextractedIds = getUnextractedMessageIds(chat, extractedIds, bufferSize);
 
     if (unextractedIds.length < batchSize) {
         return null;

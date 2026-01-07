@@ -22,6 +22,7 @@ export const defaultSettings = {
     debugMode: false,
     // Extraction settings
     messagesPerExtraction: 10,
+    extractionBuffer: 5,         // Recent messages to exclude from auto-extraction
     extractionRearviewTokens: 12000, // Token budget for extraction memory context
     // Retrieval pipeline settings (token-based)
     retrievalPreFilterTokens: 24000, // Stage 1: Algorithmic filter budget
