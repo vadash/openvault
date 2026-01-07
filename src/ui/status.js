@@ -60,7 +60,7 @@ export function setStatus(status) {
  * @param {string} statusText - Status text to display
  */
 export function updateEmbeddingStatusDisplay(statusText) {
-    const $container = $('#openvault_embedding_status');
+    const $containers = $('#openvault_embedding_status, #openvault_dashboard_embedding_status');
     const lowerStatus = statusText.toLowerCase();
 
     // Determine status type from text
@@ -81,9 +81,9 @@ export function updateEmbeddingStatusDisplay(statusText) {
         icon = 'fa-solid fa-xmark';
     }
 
-    $container.removeClass('loading webgpu wasm');
-    $container.addClass(statusClass);
-    $container.html(`<i class="${icon}"></i> <span>${statusText}</span>`);
+    $containers.removeClass('loading webgpu wasm');
+    $containers.addClass(statusClass);
+    $containers.html(`<i class="${icon}"></i> <span>${statusText}</span>`);
 }
 
 /**
