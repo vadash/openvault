@@ -273,6 +273,11 @@
                     <input type="range" id="openvault_final_budget" min="1000" max="32000" step="1000" value="12000" />
                     <small class="openvault-hint">Memory budget injected into chat context</small>
 
+                    <label for="openvault_auto_hide_threshold">
+                        Messages to keep visible: <span id="openvault_auto_hide_threshold_value">50</span>
+                    </label>
+                    <input type="range" id="openvault_auto_hide_threshold" min="10" max="200" step="2" value="50" />
+
                     <!-- Advanced Parameters (collapsed) -->
                     <details class="openvault-advanced-toggle">
                         <summary><i class="fa-solid fa-sliders"></i> Advanced Parameters</summary>
@@ -290,11 +295,6 @@
                             </label>
                             <input type="range" id="openvault_prefilter_budget" min="1000" max="32000" step="1000" value="24000" />
                             <small class="openvault-hint">Algorithmic filter (recency + vector similarity)</small>
-
-                            <label for="openvault_auto_hide_threshold" style="margin-top: 10px;">
-                                Messages to keep visible: <span id="openvault_auto_hide_threshold_value">50</span>
-                            </label>
-                            <input type="range" id="openvault_auto_hide_threshold" min="10" max="200" step="2" value="50" />
 
                             <label for="openvault_backfill_rpm" style="margin-top: 10px;">Backfill Rate Limit (RPM)</label>
                             <input type="number" id="openvault_backfill_rpm" class="text_pole" min="1" max="600" value="30" />
