@@ -120,7 +120,9 @@ export function updateRelationshipsFromEvents(events, data) {
                 if (!match) continue;
 
                 const [, charA, charB] = match;
-                const key = `${charA}<->${charB}`;
+                // Sort names alphabetically to ensure unique key regardless of direction
+                const sortedNames = [charA, charB].sort();
+                const key = `${sortedNames[0]}<->${sortedNames[1]}`;
 
                 if (!data[RELATIONSHIPS_KEY][key]) {
                     data[RELATIONSHIPS_KEY][key] = {
