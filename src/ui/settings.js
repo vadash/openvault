@@ -5,11 +5,13 @@
  */
 
 import { getDeps } from '../deps.js';
-import { extensionName, extensionFolderPath, defaultSettings } from '../constants.js';
+import { extensionName, extensionFolderPath, defaultSettings, MEMORIES_KEY } from '../constants.js';
 import { refreshAllUI, prevPage, nextPage, resetAndRender, initBrowser } from './browser.js';
 import { validateRPM } from './calculations.js';
-import { setEmbeddingStatusCallback, getEmbeddingStatus } from '../embeddings.js';
+import { setEmbeddingStatusCallback, getEmbeddingStatus, getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { updateEmbeddingStatusDisplay } from './status.js';
+import { getOpenVaultData, showToast } from '../utils.js';
+import { scoreMemories } from '../retrieval/math.js';
 
 // References to external functions (set during init)
 let updateEventListenersFn = null;
@@ -278,6 +280,9 @@ function bindUIElements() {
 
     // Test Ollama connection button
     bindButton('openvault_test_ollama_btn', testOllamaConnection);
+
+    // Debug: copy memory weights button
+    bindButton('openvault_copy_weights_btn', copyMemoryWeights);
 }
 
 /**
@@ -319,6 +324,72 @@ async function testOllamaConnection() {
         $btn.removeClass('success error');
         $btn.html('<i class="fa-solid fa-plug"></i> Test');
     }, 3000);
+}
+
+/**
+ * Calculate and copy all memory weights to clipboard
+ */
+async function copyMemoryWeights() {
+    const $btn = $('#openvault_copy_weights_btn');
+    $btn.html('<i class="fa-solid fa-spinner fa-spin"></i> Calculating...');
+
+    try {
+        const data = getOpenVaultData();
+        if (!data || !data[MEMORIES_KEY] || data[MEMORIES_KEY].length === 0) {
+            showToast('warning', 'No memories to score');
+            $btn.html('<i class="fa-solid fa-copy"></i> Copy Memory Weights');
+            return;
+        }
+
+        const settings = getDeps().getExtensionSettings()[extensionName];
+        const context = getDeps().getContext();
+        const chat = context.chat || [];
+        const chatLength = chat.length;
+        const memories = data[MEMORIES_KEY];
+
+        // Get embedding for user messages if enabled
+        let contextEmbedding = null;
+        if (isEmbeddingsEnabled()) {
+            const userMessages = chat.filter(m => !m.is_system && m.is_user).slice(-3).map(m => m.mes).join('\n').slice(-1000);
+            if (userMessages) {
+                contextEmbedding = await getEmbedding(userMessages);
+            }
+        }
+
+        // Score all memories
+        const constants = {
+            BASE_LAMBDA: settings.forgetfulnessBaseLambda ?? 0.05,
+            IMPORTANCE_5_FLOOR: settings.forgetfulnessImportance5Floor ?? 5,
+        };
+        const scoringSettings = {
+            vectorSimilarityThreshold: settings.vectorSimilarityThreshold,
+            vectorSimilarityWeight: settings.vectorSimilarityWeight
+        };
+
+        const scored = scoreMemories(memories, contextEmbedding, chatLength, constants, scoringSettings);
+
+        // Build score lookup map
+        const scoreMap = new Map(scored.map(({ memory, score }) => [memory.id, score]));
+
+        // Format output in chronological order (original array order)
+        const output = memories.map(memory => {
+            const score = scoreMap.get(memory.id) ?? 0;
+            const stars = '*'.repeat(memory.importance || 3);
+            return `[${score.toFixed(1)}] [${stars}] ${memory.summary}`;
+        }).join('\n');
+
+        await navigator.clipboard.writeText(output);
+        showToast('success', `Copied ${scored.length} memories with weights`);
+        $btn.html('<i class="fa-solid fa-check"></i> Copied!');
+    } catch (err) {
+        console.error('[OpenVault] Copy weights failed:', err);
+        showToast('error', 'Failed to copy weights');
+        $btn.html('<i class="fa-solid fa-xmark"></i> Failed');
+    }
+
+    setTimeout(() => {
+        $btn.html('<i class="fa-solid fa-copy"></i> Copy Memory Weights');
+    }, 2000);
 }
 
 /**
