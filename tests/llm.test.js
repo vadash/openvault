@@ -78,7 +78,6 @@ describe('llm', () => {
             expect(mockConnectionManager.sendRequest).toHaveBeenCalledWith(
                 'extraction-profile-123',
                 [
-                    { role: 'system', content: expect.any(String) },
                     { role: 'user', content: 'test prompt' },
                 ],
                 2000,

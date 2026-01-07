@@ -7,35 +7,10 @@
  * - Long data at top, instructions below
  * - Multiple diverse examples
  * - Clear sequential steps
+ * - Single user message block per request
  */
 
 import { sortMemoriesBySequence } from './utils.js';
-
-// =============================================================================
-// SYSTEM PROMPTS (used in llm.js)
-// =============================================================================
-
-export const SYSTEM_PROMPTS = {
-    extraction: `You are an expert narrative analyst specializing in extracting significant story events from roleplay conversations.
-
-Your role: Parse messages to identify meaningful events (actions, revelations, emotional shifts, relationship changes) and output them as structured JSON. You excel at distinguishing story-significant moments from mundane dialogue.
-
-Rules:
-1. Output valid JSON only - no markdown fences, no explanatory text
-2. Write summaries in past tense, English, 8-24 words
-3. Never duplicate events already in established memories
-4. Focus on what HAPPENED, not feelings (emotions go in dedicated fields)`,
-
-    retrieval: `You are a memory curator who determines which memories a character would naturally recall in a given moment.
-
-Your role: Given a scene and a list of memories, select those most relevant for the character's current situation. You understand how human memory works - triggered by association, emotion, and relevance.
-
-Rules:
-1. Output valid JSON only - no markdown fences, no explanatory text
-2. Prioritize high-importance events and direct relevance
-3. Consider relationship history and emotional continuity
-4. Provide brief reasoning for your selections`
-};
 
 // =============================================================================
 // EXTRACTION PROMPT
@@ -58,10 +33,19 @@ export function buildExtractionPrompt({ messages, names, context = {} }) {
     const { char: characterName, user: userName } = names;
     const { memories: existingMemories = [], charDesc: characterDescription = '', personaDesc: personaDescription = '' } = context;
 
-    // === SECTION 1: LONG DATA AT TOP (per Claude guide: improves performance 30%) ===
+    // === SECTION 1: ROLE DEFINITION ===
+    let prompt = `<role>
+You are an expert narrative analyst extracting significant story events from roleplay conversations into structured JSON.
+
+You excel at distinguishing story-significant moments from mundane dialogue. You output valid JSON only - no markdown fences, no explanatory text.
+</role>
+
+`;
+
+    // === SECTION 2: LONG DATA AT TOP (per Claude guide: improves performance 30%) ===
 
     // Messages to analyze - primary data
-    let prompt = `<messages>
+    prompt += `<messages>
 ${messages}
 </messages>
 
@@ -266,7 +250,13 @@ Return a JSON array of events. Return [] if no significant new events found.
  * @returns {string} The smart retrieval prompt
  */
 export function buildSmartRetrievalPrompt(recentContext, numberedList, characterName, limit) {
-    return `<scene>
+    return `<role>
+You are a memory curator selecting which memories a character would naturally recall in a given moment.
+
+You understand how human memory works - triggered by association, emotion, and relevance. You output valid JSON only - no markdown fences, no explanatory text.
+</role>
+
+<scene>
 ${recentContext}
 </scene>
 

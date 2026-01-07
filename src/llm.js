@@ -2,12 +2,12 @@
  * OpenVault LLM Service
  *
  * Unified LLM communication for extraction and retrieval operations.
+ * All prompts are sent as single user messages (role embedded in prompt via XML tags).
  */
 
 import { getDeps } from './deps.js';
 import { log, showToast } from './utils.js';
 import { extensionName } from './constants.js';
-import { SYSTEM_PROMPTS } from './prompts.js';
 
 /**
  * LLM configuration presets
@@ -15,13 +15,11 @@ import { SYSTEM_PROMPTS } from './prompts.js';
 export const LLM_CONFIGS = {
     extraction: {
         profileSettingKey: 'extractionProfile',
-        systemPrompt: SYSTEM_PROMPTS.extraction,
         maxTokens: 2000,
         errorContext: 'Extraction'
     },
     retrieval: {
         profileSettingKey: 'retrievalProfile',
-        systemPrompt: SYSTEM_PROMPTS.retrieval,
         maxTokens: 1000,
         errorContext: 'Smart retrieval'
     }
@@ -29,13 +27,13 @@ export const LLM_CONFIGS = {
 
 /**
  * Call LLM with unified request handling
- * @param {string} prompt - The user prompt
+ * @param {string} prompt - The user prompt (includes role via XML tags)
  * @param {Object} config - Request configuration from LLM_CONFIGS
  * @returns {Promise<string>} The LLM response content
  * @throws {Error} If the LLM call fails or no profile is available
  */
 export async function callLLM(prompt, config) {
-    const { profileSettingKey, systemPrompt, maxTokens, errorContext } = config;
+    const { profileSettingKey, maxTokens, errorContext } = config;
     const deps = getDeps();
     const extension_settings = deps.getExtensionSettings();
     const settings = extension_settings[extensionName];
@@ -59,8 +57,8 @@ export async function callLLM(prompt, config) {
     try {
         log(`Using ConnectionManagerRequestService with profile: ${profileId}`);
 
+        // Single user message - role is embedded in prompt via <role> XML tag
         const messages = [
-            { role: 'system', content: systemPrompt },
             { role: 'user', content: prompt }
         ];
 
