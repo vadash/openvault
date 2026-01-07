@@ -15,15 +15,21 @@ import { getRelationshipContext, formatContextForInjection } from './formatting.
 /**
  * Get memories from hidden (system) messages that need retrieval
  * Memories from visible messages are already in context and don't need injection.
+ *
+ * Uses MIN message_id check: memory is injectable once the oldest message in its
+ * batch is hidden. This is more aggressive than checking all message_ids, allowing
+ * earlier injection with minimal overlap risk.
+ *
  * @param {Object[]} chat - Chat messages array
  * @param {Object[]} memories - All memories
- * @returns {Object[]} Memories whose source messages are all hidden
+ * @returns {Object[]} Memories whose oldest source message is hidden
  */
 function _getHiddenMemories(chat, memories) {
-    return memories.filter(m =>
-        m.message_ids?.length > 0 &&
-        m.message_ids.every(id => chat[id] && chat[id].is_system)
-    );
+    return memories.filter(m => {
+        if (!m.message_ids?.length) return false;
+        const minId = Math.min(...m.message_ids);
+        return chat[minId]?.is_system;
+    });
 }
 
 /**
