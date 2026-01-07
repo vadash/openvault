@@ -2,6 +2,11 @@
  * OpenVault Prompts
  *
  * All LLM prompts centralized in one file.
+ * Follows Claude prompt engineering best practices:
+ * - XML tags for structure
+ * - Long data at top, instructions below
+ * - Multiple diverse examples
+ * - Clear sequential steps
  */
 
 import { sortMemoriesBySequence } from './utils.js';
@@ -11,17 +16,25 @@ import { sortMemoriesBySequence } from './utils.js';
 // =============================================================================
 
 export const SYSTEM_PROMPTS = {
-    extraction: `You extract narrative events from roleplay messages into structured JSON.
+    extraction: `You are an expert narrative analyst specializing in extracting significant story events from roleplay conversations.
 
-Your task: Identify significant events (actions, revelations, emotional shifts, relationship changes) and record them as past-tense factual summaries. Skip mundane dialogue and already-recorded events.
+Your role: Parse messages to identify meaningful events (actions, revelations, emotional shifts, relationship changes) and output them as structured JSON. You excel at distinguishing story-significant moments from mundane dialogue.
 
-Output valid JSON only. No markdown, no explanatory text.`,
+Rules:
+1. Output valid JSON only - no markdown fences, no explanatory text
+2. Write summaries in past tense, English, 8-24 words
+3. Never duplicate events already in established memories
+4. Focus on what HAPPENED, not feelings (emotions go in dedicated fields)`,
 
-    retrieval: `You select which memories a character would naturally recall given the current scene.
+    retrieval: `You are a memory curator who determines which memories a character would naturally recall in a given moment.
 
-Prioritize: high-importance events, direct relevance to current topics, relationship history with present characters, emotional continuity, and recent context.
+Your role: Given a scene and a list of memories, select those most relevant for the character's current situation. You understand how human memory works - triggered by association, emotion, and relevance.
 
-Output valid JSON only. No markdown, no explanatory text.`
+Rules:
+1. Output valid JSON only - no markdown fences, no explanatory text
+2. Prioritize high-importance events and direct relevance
+3. Consider relationship history and emotional continuity
+4. Provide brief reasoning for your selections`
 };
 
 // =============================================================================
@@ -45,51 +58,52 @@ export function buildExtractionPrompt({ messages, names, context = {} }) {
     const { char: characterName, user: userName } = names;
     const { memories: existingMemories = [], charDesc: characterDescription = '', personaDesc: personaDescription = '' } = context;
 
-    // Build character context section if we have descriptions
-    let characterContextSection = '';
-    if (characterDescription || personaDescription) {
-        characterContextSection = '<characters>\n';
-        if (characterDescription) {
-            characterContextSection += `<character name="${characterName}" role="main">\n${characterDescription}\n</character>\n`;
-        }
-        if (personaDescription) {
-            characterContextSection += `<character name="${userName}" role="user">\n${personaDescription}\n</character>\n`;
-        }
-        characterContextSection += '</characters>\n\n';
-    } else {
-        characterContextSection = `<characters>
-<character name="${characterName}" role="main"/>
-<character name="${userName}" role="user"/>
-</characters>\n\n`;
-    }
+    // === SECTION 1: LONG DATA AT TOP (per Claude guide: improves performance 30%) ===
 
-    // Build memory context section if we have existing memories
-    let memoryContextSection = '';
+    // Messages to analyze - primary data
+    let prompt = `<messages>
+${messages}
+</messages>
+
+`;
+
+    // Established memories (if any) - deduplication reference
     if (existingMemories && existingMemories.length > 0) {
         const memorySummaries = sortMemoriesBySequence(existingMemories, true)
             .map((m, i) => `${i + 1}. [${m.event_type || 'event'}] ${m.summary}`)
             .join('\n');
 
-        memoryContextSection = `<established_memories>
-Events already recorded - DO NOT extract duplicates.
-A duplicate is any event with the SAME core action, even if worded differently.
-
+        prompt += `<established_memories>
 ${memorySummaries}
+</established_memories>
 
-DEDUPLICATION RULES:
-- Same action + same characters = SKIP even if new details mentioned
-- Progression of same event = SKIP, don't create new entry
-- Only extract if fundamentally NEW action occurred
-</established_memories>\n\n`;
+`;
     }
 
-    return `${characterContextSection}${memoryContextSection}<messages>
-${messages}
-</messages>
+    // === SECTION 2: CONTEXT ===
 
-<task>
-Extract NEW significant events from the messages above. For each event, provide:
+    // Character definitions
+    if (characterDescription || personaDescription) {
+        prompt += '<characters>\n';
+        if (characterDescription) {
+            prompt += `<character name="${characterName}" role="main">\n${characterDescription}\n</character>\n`;
+        }
+        if (personaDescription) {
+            prompt += `<character name="${userName}" role="user">\n${personaDescription}\n</character>\n`;
+        }
+        prompt += '</characters>\n\n';
+    } else {
+        prompt += `<characters>
+<character name="${characterName}" role="main"/>
+<character name="${userName}" role="user"/>
+</characters>
 
+`;
+    }
+
+    // === SECTION 3: SCHEMA DEFINITIONS ===
+
+    prompt += `<schema>
 <event_types>
 <type name="action">Physical actions, movements, combat, significant gestures</type>
 <type name="revelation">New information disclosed, secrets shared, backstory revealed</type>
@@ -98,72 +112,40 @@ Extract NEW significant events from the messages above. For each event, provide:
 </event_types>
 
 <importance_scale>
-1 = Minor detail (passing mention)
-2 = Notable (worth remembering)
-3 = Significant (affects story)
-4 = Major event (turning point)
-5 = Critical (story-changing moment)
+<level value="1">Minor detail - passing mention, flavor text</level>
+<level value="2">Notable - worth remembering for continuity</level>
+<level value="3">Significant - affects ongoing story</level>
+<level value="4">Major - turning point or key development</level>
+<level value="5">Critical - story-changing, cannot be forgotten</level>
 </importance_scale>
 
-<summary_guidelines>
-Write summaries that are:
-- Maximum 24 words, typically 12
-- English only (more token-efficient)
-- Past tense ALWAYS: describe what HAPPENED, not what is happening
-  BAD: "Elena confesses to the crime." (present tense - implies occurring now)
-  GOOD: "Elena confessed to the crime during the interrogation." (past tense)
-- Temporal context: anchor the event when possible
-  BAD: "Elena killed her brother."
-  GOOD: "Elena killed her brother to prevent Empire betrayal."
-- Action-focused: describe WHAT happened, not feelings
-- Non-redundant: don't repeat event_type in summary
-  BAD: "Elena reveals she killed her brother" (redundant "reveals")
-  GOOD: "Elena killed her brother to prevent Empire betrayal"
-- Factual: emotions go in emotional_impact, not summary
-  BAD: "Elena breaks down crying, overwhelmed with guilt, confessing..."
-  GOOD: "Elena confessed to killing her brother"
-</summary_guidelines>
-
-<character_name_rules>
-CRITICAL: Use EXACTLY the character names from <characters> section above.
-- Never transliterate names (keep original language/spelling)
-- Never use nicknames, aliases, or personas - always use main character name
-- For witnesses/involved: use exact names, not descriptions like "shoppers" or "staff"
-
-Example - if <characters> defines names as "Катя" and "Дима":
-CORRECT: "characters_involved": ["Катя", "Дима"]
-WRONG: "characters_involved": ["Katya", "Dima"] (transliterated)
-WRONG: "characters_involved": ["Kate", "shoppers"] (anglicized, unnamed NPC)
-
-Example - if character "Дима" adopts persona "Лили":
-CORRECT: "characters_involved": ["Дима"] (always use main name)
-WRONG: "characters_involved": ["Лили"] (alias - use main name instead)
-WRONG: "characters_involved": ["Дима/Лили"] (don't combine names)
-</character_name_rules>
-
-<output_schema>
+<output_format>
 {
   "event_type": "action|revelation|emotion_shift|relationship_change",
   "importance": 1-5,
-  "summary": "24 words max, factual, English only",
-  "characters_involved": ["names"],
-  "witnesses": ["names who observed"],
-  "location": "where or null",
+  "summary": "8-24 words, past tense, English, factual",
+  "characters_involved": ["exact names from <characters>"],
+  "witnesses": ["names who observed this event"],
+  "location": "where it happened or null",
   "is_secret": true/false,
-  "emotional_impact": {"Name": "1-3 word emotion"},
-  "relationship_impact": {"A->B": "1-3 word change"}
+  "emotional_impact": {"CharacterName": "1-3 word emotion"},
+  "relationship_impact": {"A->B": "1-3 word change description"}
 }
-</output_schema>
+</output_format>
+</schema>
 
-<example>
-Input: "[Elena]: *She finally breaks down, tears streaming* I killed him. My own brother. He was going to betray us all to the Empire."
+`;
 
-Output:
-[
+    // === SECTION 4: EXAMPLES (3-5 diverse examples per Claude guide) ===
+
+    prompt += `<examples>
+<example type="revelation_confession">
+<input>[Elena]: *She finally breaks down, tears streaming* I killed him. My own brother. He was going to betray us all to the Empire.</input>
+<output>[
   {
     "event_type": "revelation",
     "importance": 5,
-    "summary": "Elena confessed to killing her brother to prevent betrayal.",
+    "summary": "Elena confessed to killing her brother to prevent Empire betrayal.",
     "characters_involved": ["Elena"],
     "witnesses": ["Elena", "Marcus"],
     "location": null,
@@ -171,14 +153,47 @@ Output:
     "emotional_impact": {"Elena": "guilt, grief"},
     "relationship_impact": {"Elena->Marcus": "trust deepened"}
   }
-]
+]</output>
 </example>
 
-<example>
-Input: "[Катя]: *краснея* Я видела твой дневник... Ты писал обо мне."
+<example type="action_combat">
+<input>[Marcus]: *draws his sword and lunges at the assassin, blade catching moonlight* You won't touch her!</input>
+<output>[
+  {
+    "event_type": "action",
+    "importance": 4,
+    "summary": "Marcus attacked the assassin with his sword to protect Elena.",
+    "characters_involved": ["Marcus"],
+    "witnesses": ["Marcus", "Elena", "Assassin"],
+    "location": null,
+    "is_secret": false,
+    "emotional_impact": {"Marcus": "protective fury"},
+    "relationship_impact": {"Marcus->Elena": "devotion shown"}
+  }
+]</output>
+</example>
 
-Output:
-[
+<example type="relationship_change">
+<input>[Sarah]: *extends her hand slowly* I know we've been rivals, but... maybe we don't have to be enemies. Alliance?
+[Tom]: *hesitates, then clasps her hand firmly* Alliance. But I'm watching you.</input>
+<output>[
+  {
+    "event_type": "relationship_change",
+    "importance": 4,
+    "summary": "Sarah and Tom formed an uneasy alliance despite their rivalry.",
+    "characters_involved": ["Sarah", "Tom"],
+    "witnesses": ["Sarah", "Tom"],
+    "location": null,
+    "is_secret": false,
+    "emotional_impact": {"Sarah": "cautious hope", "Tom": "wary"},
+    "relationship_impact": {"Sarah->Tom": "rivals to allies", "Tom->Sarah": "grudging cooperation"}
+  }
+]</output>
+</example>
+
+<example type="non_latin_names">
+<input>[Катя]: *краснея* Я видела твой дневник... Ты писал обо мне.</input>
+<output>[
   {
     "event_type": "revelation",
     "importance": 4,
@@ -190,32 +205,52 @@ Output:
     "emotional_impact": {"Катя": "embarrassed"},
     "relationship_impact": {"Катя->Дима": "vulnerability shown"}
   }
-]
+]</output>
 </example>
 
-<negative_examples>
-DO NOT extract:
-- Mundane dialogue: greetings, small talk, filler
-- Already-recorded events with minor new details
-- Internal thoughts without external action
-- Events implied but not explicitly shown
+<example type="empty_result">
+<input>[Alice]: Hey, how's it going?
+[Bob]: Not bad, just got back from lunch. You?
+[Alice]: Same old, same old. Weather's nice today.</input>
+<output>[]</output>
+<note>No significant events - just small talk</note>
+</example>
+</examples>
 
-BAD summary examples:
-- "Elena finally breaks down, tears streaming as she confesses..." (too long, emotional)
-- "A shocking revelation occurs when Elena admits..." (meta-commentary)
-- "Elena reveals important information about..." (vague, redundant with event_type)
-</negative_examples>
+`;
 
-Instructions:
-1. Extract only significant events for story continuity
-2. Skip mundane exchanges, small talk, and internal monologue
-3. Write summaries in PAST TENSE, English, 8-24 words, action-focused
-4. Include temporal context when possible (during X, after Y)
-5. Put emotions in emotional_impact field, not summary
-6. Use witnesses field to track who knows about each event${existingMemories.length > 0 ? '\n7. Check <established_memories> - skip semantic duplicates' : ''}
+    // === SECTION 5: INSTRUCTIONS (numbered steps at end per Claude guide) ===
 
-Return JSON array. Empty array [] if no significant NEW events.
-</task>`;
+    prompt += `<instructions>
+Extract significant events from <messages> following these steps:
+
+1. SCAN messages for story-significant moments:
+   - Actions with consequences
+   - Information reveals or secrets shared
+   - Emotional turning points
+   - Relationship status changes
+
+2. FILTER OUT mundane content:
+   - Greetings and small talk
+   - Internal thoughts without external action
+   - Events only implied, not shown
+   - Anything already in <established_memories>
+
+3. For each significant event, COMPOSE output:
+   - Use exact character names from <characters> (no transliteration)
+   - Write summary in PAST TENSE, 8-24 words, English
+   - Put emotions in emotional_impact, NOT in summary
+   - Assign importance 1-5 based on story impact
+
+4. DEDUPLICATE against <established_memories>:
+   - Same core action + same characters = SKIP
+   - Progression of recorded event = SKIP
+   - Only extract if fundamentally NEW action occurred
+
+Return a JSON array of events. Return [] if no significant new events found.
+</instructions>`;
+
+    return prompt;
 }
 
 // =============================================================================
@@ -239,28 +274,91 @@ ${recentContext}
 ${numberedList}
 </memories>
 
-<task>
-Select up to ${limit} memories that ${characterName} would most naturally recall for this scene.
+<character>${characterName}</character>
 
-<selection_criteria>
-- High importance (★★★★★) events take priority over low importance ones
-- Direct relevance to current conversation topics or characters mentioned
-- Relationship history with characters present in the scene
-- Emotional continuity (past feelings toward people/places being discussed)
-- Secrets or private knowledge relevant to the situation
-- Recent events that provide immediate context
-</selection_criteria>
-
+<schema>
 <output_format>
-{"selected": [1, 4, 7], "reasoning": "Brief explanation"}
+{
+  "selected": [1, 4, 7],
+  "reasoning": "1-2 sentence explanation of why these memories are relevant"
+}
 </output_format>
 
-<example>
-Scene mentions: Elena asking about the old castle
-Available: 1. [★★] Visited market yesterday, 2. [★★★★] Discovered hidden passage in castle, 3. [★] Had breakfast
-Output: {"selected": [2], "reasoning": "The hidden passage discovery is directly relevant to discussing the castle"}
+<selection_criteria>
+<criterion priority="1">High importance events (★★★★★) over low importance</criterion>
+<criterion priority="2">Direct relevance to current conversation topics</criterion>
+<criterion priority="3">Relationship history with characters in scene</criterion>
+<criterion priority="4">Emotional continuity with current mood/situation</criterion>
+<criterion priority="5">Secrets or private knowledge relevant to situation</criterion>
+<criterion priority="6">Recent events providing immediate context</criterion>
+</selection_criteria>
+</schema>
+
+<examples>
+<example type="topic_relevance">
+<scene_summary>Elena asks about the old castle's history</scene_summary>
+<available_memories>
+1. [★★] Visited the market yesterday
+2. [★★★★] Discovered a hidden passage in the castle's east wing
+3. [★] Had breakfast at the inn
+</available_memories>
+<output>{"selected": [2], "reasoning": "The hidden passage discovery is directly relevant to discussing the castle"}</output>
 </example>
 
-Return only the JSON object with selected memory numbers (1-indexed) and reasoning.
-</task>`;
+<example type="relationship_history">
+<scene_summary>Marcus appears after months away; tension is palpable</scene_summary>
+<available_memories>
+1. [★★★] Marcus and Elena argued about the mission
+2. [★★] Bought supplies for the journey
+3. [★★★★★] Marcus betrayed the group's location to enemies
+4. [★★★] Elena saved Marcus from drowning
+</available_memories>
+<output>{"selected": [3, 1, 4], "reasoning": "The betrayal is critical context for tension; their argument and rescue show relationship complexity"}</output>
+</example>
+
+<example type="emotional_continuity">
+<scene_summary>Walking through the forest where her mother died</scene_summary>
+<available_memories>
+1. [★★★★★] Mother was killed by bandits in this forest
+2. [★★] Learned to track animals here as a child
+3. [★★★] Promised mother to become a healer
+4. [★] Found edible berries yesterday
+</available_memories>
+<output>{"selected": [1, 3, 2], "reasoning": "Mother's death is primary emotional trigger; the promise and childhood memory provide depth"}</output>
+</example>
+
+<example type="secret_knowledge">
+<scene_summary>The king asks who can be trusted among the advisors</scene_summary>
+<available_memories>
+1. [★★★★] Overheard Advisor Crane plotting with enemy agents
+2. [★★] Attended the royal banquet
+3. [★★★] Duke promised loyalty in exchange for land
+4. [★★★★★] Discovered Crane is the spy through stolen letters
+</available_memories>
+<output>{"selected": [4, 1, 3], "reasoning": "Secret knowledge of Crane's treachery is critical; Duke's conditional loyalty also relevant"}</output>
+</example>
+</examples>
+
+<instructions>
+Select up to ${limit} memories that ${characterName} would naturally recall for this scene.
+
+1. ANALYZE the scene for:
+   - Topics being discussed
+   - Characters present or mentioned
+   - Emotional tone and context
+   - Questions being asked or decisions being made
+
+2. MATCH memories that:
+   - Connect directly to scene topics
+   - Involve characters present
+   - Explain current emotional state
+   - Provide relevant secrets or knowledge
+
+3. PRIORITIZE by:
+   - Importance rating (more ★ = higher priority)
+   - Direct relevance over tangential connection
+   - Recent events when recency matters
+
+Return JSON with selected memory numbers (1-indexed) and brief reasoning.
+</instructions>`;
 }
