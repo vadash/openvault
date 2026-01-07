@@ -1,0 +1,251 @@
+/* Dashboard Components - Status, Stats, Toggles, Batch */
+
+/* Dashboard Status Card */
+.openvault-status-card {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+}
+
+.openvault-status-indicator {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5em;
+    flex-shrink: 0;
+}
+
+.openvault-status-indicator.ready {
+    background: linear-gradient(135deg, #4a4, #3a3);
+    color: white;
+}
+
+.openvault-status-indicator.extracting {
+    background: linear-gradient(135deg, #48c, #38b);
+    color: white;
+    animation: pulse-glow 1.5s infinite;
+}
+
+.openvault-status-indicator.retrieving {
+    background: linear-gradient(135deg, #c84, #b73);
+    color: white;
+    animation: pulse-glow 1.5s infinite;
+}
+
+.openvault-status-indicator.error {
+    background: linear-gradient(135deg, #c44, #b33);
+    color: white;
+}
+
+.openvault-status-info {
+    flex: 1;
+}
+
+.openvault-status-text {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.openvault-status-subtext {
+    font-size: 0.85em;
+    color: var(--SmartThemeEmColor, #888);
+}
+
+/* Stats Grid */
+.openvault-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.openvault-stat-card {
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+}
+
+.openvault-stat-card .stat-icon {
+    font-size: 1.3em;
+    margin-bottom: 6px;
+    color: var(--SmartThemeEmColor, #48c);
+}
+
+.openvault-stat-card .stat-value {
+    font-size: 1.4em;
+    font-weight: bold;
+    color: var(--SmartThemeBodyColor, #ccc);
+}
+
+.openvault-stat-card .stat-label {
+    font-size: 0.75em;
+    color: var(--SmartThemeEmColor, #888);
+    margin-top: 2px;
+}
+
+/* Quick Toggles */
+.openvault-quick-toggles {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.openvault-quick-toggle {
+    flex: 1;
+    min-width: 140px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.openvault-quick-toggle:hover {
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.3));
+}
+
+.openvault-quick-toggle input[type="checkbox"] {
+    margin: 0;
+}
+
+.openvault-quick-toggle span {
+    font-size: 0.9em;
+}
+
+/* Statistics */
+.openvault-stats {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.openvault-stat {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    border-radius: 4px;
+}
+
+.openvault-stat-value {
+    display: block;
+    font-size: 1.5em;
+    font-weight: bold;
+    color: var(--SmartThemeEmColor, #48c);
+}
+
+.openvault-stat-label {
+    display: block;
+    font-size: 0.8em;
+    color: var(--SmartThemeEmColor, #888);
+}
+
+/* Batch Processing Info */
+.openvault-batch-info {
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    font-size: 0.85em;
+}
+
+.openvault-batch-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+}
+
+.openvault-batch-label {
+    color: var(--SmartThemeEmColor, #888);
+}
+
+.openvault-batch-value {
+    font-weight: 500;
+}
+
+/* Batch progress bar */
+.openvault-batch-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.openvault-batch-progress-bar {
+    flex: 1;
+    height: 20px;
+    background: var(--SmartThemeBorderColor, #333);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.openvault-batch-progress-fill {
+    height: 100%;
+    background: var(--SmartThemeEmColor, #48c);
+    transition: width 0.3s ease;
+    min-width: 0;
+}
+
+.openvault-batch-progress-label {
+    font-size: 0.85em;
+    color: var(--SmartThemeBodyColor, #ccc);
+    min-width: 60px;
+    text-align: right;
+}
+
+/* Compact stats row */
+.openvault-stats-compact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+/* WebGPU/Embedding Status */
+.openvault-embedding-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    margin-top: 5px;
+}
+
+.openvault-embedding-status.webgpu {
+    background: rgba(74, 170, 74, 0.15);
+    color: #4a4;
+}
+
+.openvault-embedding-status.wasm {
+    background: rgba(200, 132, 68, 0.15);
+    color: #c84;
+}
+
+.openvault-embedding-status.loading {
+    background: rgba(72, 136, 204, 0.15);
+    color: #48c;
+}
+
+.openvault-embedding-status i {
+    font-size: 0.9em;
+}
+
+/* Working State Animation */
+#openvault_settings.working .openvault-status-indicator {
+    animation: pulse-glow 1.5s infinite;
+}
+
+#openvault_settings.working .openvault-tab-btn[data-tab="dashboard"] i {
+    animation: spin 1s linear infinite;
+}

@@ -1,13 +1,14 @@
 {
   "name": "openvault",
-  "version": "1.19",
+  "version": "1.20",
   "type": "module",
-  "description": "SillyTavern extension",
+  "description": "SillyTavern memory extension",
   "scripts": {
     "clear": "node -e \"process.stdout.write('\\u001B[2J\\u001B[0;0f')\"",
     "lint": "eslint .",
-    "test": "npm run clear && npm run sync-version && vitest run",
-    "sync-version": "node scripts/sync-version.js"
+    "test": "npm run clear && npm run sync-version && npm run build:css && vitest run",
+    "sync-version": "node scripts/sync-version.js",
+    "build:css": "node scripts/build-css.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

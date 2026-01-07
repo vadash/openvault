@@ -1,0 +1,27 @@
+/* OpenVault Extension Styles - Variables & Animations */
+
+#openvault_settings {
+    margin-bottom: 10px;
+}
+
+/* Keyframe Animations */
+@keyframes pulse-glow {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 10px rgba(72, 136, 204, 0.5);
+    }
+    50% {
+        opacity: 0.7;
+        box-shadow: 0 0 20px rgba(72, 136, 204, 0.8);
+    }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}

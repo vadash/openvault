@@ -1,0 +1,123 @@
+/* Form Components - Inputs, Settings, Checkboxes */
+
+/* Search Input */
+.openvault-search-container {
+    position: relative;
+    margin-bottom: 10px;
+}
+
+.openvault-search-container i {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--SmartThemeEmColor, #888);
+}
+
+.openvault-search-input {
+    width: 100%;
+    padding: 8px 10px 8px 32px;
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 6px;
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    color: var(--SmartThemeBodyColor, #ccc);
+}
+
+.openvault-search-input:focus {
+    outline: none;
+    border-color: var(--SmartThemeEmColor, #48c);
+}
+
+/* Settings Groups */
+.openvault-settings-group {
+    margin-bottom: 15px;
+}
+
+.openvault-settings-group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #333);
+}
+
+.openvault-settings-group-header i {
+    color: var(--SmartThemeEmColor, #48c);
+}
+
+.openvault-settings-group-header span {
+    font-weight: bold;
+    font-size: 0.95em;
+}
+
+/* Advanced Parameters Toggle */
+.openvault-advanced-toggle {
+    margin-top: 10px;
+}
+
+.openvault-advanced-toggle summary {
+    cursor: pointer;
+    padding: 8px 12px;
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.15));
+    border-radius: 6px;
+    font-size: 0.85em;
+    color: var(--SmartThemeEmColor, #888);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.openvault-advanced-toggle summary:hover {
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.25));
+}
+
+.openvault-advanced-toggle[open] summary {
+    border-radius: 6px 6px 0 0;
+}
+
+.openvault-advanced-content {
+    padding: 12px;
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.1));
+    border-radius: 0 0 6px 6px;
+}
+
+/* Checkbox styling */
+#openvault_settings .checkbox_label {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+
+#openvault_settings .checkbox_label input[type="checkbox"] {
+    margin-top: 3px;
+}
+
+#openvault_settings .checkbox_label small {
+    margin-left: 24px;
+}
+
+/* Range input */
+#openvault_settings input[type="range"] {
+    width: 100%;
+    margin: 5px 0;
+}
+
+/* Select styling */
+#openvault_settings select.text_pole {
+    width: 100%;
+    margin-bottom: 5px;
+}
+
+/* Filters */
+.openvault-filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.openvault-filters select {
+    flex: 1;
+}

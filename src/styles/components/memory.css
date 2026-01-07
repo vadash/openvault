@@ -1,0 +1,195 @@
+/* Memory Components - List, Characters, Relationships */
+
+/* Memory list */
+.openvault-memory-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+}
+
+.openvault-memory-item {
+    padding: 8px;
+    margin-bottom: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    border-radius: 4px;
+    border-left: 3px solid var(--SmartThemeEmColor, #48c);
+}
+
+.openvault-memory-item.action {
+    border-left-color: #4a4;
+}
+
+.openvault-memory-item.revelation {
+    border-left-color: #c84;
+}
+
+.openvault-memory-item.emotion_shift {
+    border-left-color: #84c;
+}
+
+.openvault-memory-item.relationship_change {
+    border-left-color: #c4a;
+}
+
+.openvault-memory-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.openvault-memory-type {
+    font-size: 0.75em;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--SmartThemeEmColor, rgba(72, 136, 204, 0.3));
+}
+
+.openvault-memory-date {
+    font-size: 0.75em;
+    color: var(--SmartThemeEmColor, #888);
+}
+
+.openvault-memory-importance {
+    font-size: 0.75em;
+    color: var(--SmartThemeQuoteColor, #c90);
+    letter-spacing: -1px;
+}
+
+.openvault-memory-summary {
+    font-size: 0.9em;
+    margin-bottom: 4px;
+}
+
+.openvault-memory-characters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.openvault-character-tag {
+    font-size: 0.7em;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: var(--SmartThemeQuoteColor, rgba(74, 170, 74, 0.3));
+}
+
+.openvault-memory-witnesses {
+    font-size: 0.75em;
+    color: var(--SmartThemeEmColor, #888);
+    margin-top: 4px;
+}
+
+.openvault-memory-actions {
+    margin-top: 6px;
+    text-align: right;
+}
+
+.openvault-memory-actions button {
+    font-size: 0.75em;
+    padding: 2px 8px;
+}
+
+/* Character states */
+.openvault-character-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.openvault-character-item {
+    padding: 10px;
+    margin-bottom: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    border-radius: 4px;
+}
+
+.openvault-character-name {
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.openvault-emotion {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.openvault-emotion-label {
+    font-size: 0.85em;
+}
+
+.openvault-emotion-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--SmartThemeBorderColor, #333);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.openvault-emotion-fill {
+    height: 100%;
+    background: var(--SmartThemeEmColor, #48c);
+    transition: width 0.3s;
+}
+
+/* Relationships */
+.openvault-relationship-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.openvault-relationship-item {
+    padding: 10px;
+    margin-bottom: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    border-radius: 4px;
+}
+
+.openvault-relationship-pair {
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.openvault-relationship-type {
+    font-size: 0.8em;
+    color: var(--SmartThemeEmColor, #888);
+    margin-bottom: 6px;
+}
+
+.openvault-relationship-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.openvault-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.openvault-bar-label {
+    font-size: 0.8em;
+    width: 60px;
+}
+
+.openvault-bar-container {
+    flex: 1;
+    height: 8px;
+    background: var(--SmartThemeBorderColor, #333);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.openvault-bar-fill {
+    height: 100%;
+    transition: width 0.3s;
+}
+
+.openvault-bar-fill.trust {
+    background: #4a4;
+}
+
+.openvault-bar-fill.tension {
+    background: #c44;
+}
