@@ -45,17 +45,39 @@ export function isEmbeddingsEnabled() {
     return strategy.isEnabled();
 }
 
+// Simple cache for embedding results to avoid redundant API calls
+const embeddingCache = new Map();
+
 /**
  * Get embedding for text using configured source
  * Delegates to the appropriate strategy based on settings.
+ * Results are cached to avoid redundant API calls for the same text.
  * @param {string} text - Text to embed
  * @returns {Promise<number[]|null>} Embedding vector or null if unavailable
  */
 export async function getEmbedding(text) {
+    if (!text) return null;
+
+    // Check cache first
+    if (embeddingCache.has(text)) {
+        return embeddingCache.get(text);
+    }
+
     const settings = getDeps().getExtensionSettings()[extensionName];
     const source = settings?.embeddingSource || 'multilingual-e5-small';
     const strategy = getStrategy(source);
-    return strategy.getEmbedding(text);
+    const result = await strategy.getEmbedding(text);
+
+    // Cache successful results (cache failures as null to avoid retrying)
+    embeddingCache.set(text, result);
+    return result;
+}
+
+/**
+ * Clear the embedding cache. Useful for testing or when settings change.
+ */
+export function clearEmbeddingCache() {
+    embeddingCache.clear();
 }
 
 // =============================================================================

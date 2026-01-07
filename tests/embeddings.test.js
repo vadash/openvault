@@ -8,6 +8,7 @@ import {
     isEmbeddingsEnabled,
     getEmbedding,
     generateEmbeddingsForMemories,
+    clearEmbeddingCache,
 } from '../src/embeddings.js';
 import { extensionName } from '../src/constants.js';
 
@@ -35,6 +36,7 @@ describe('embeddings', () => {
 
     afterEach(() => {
         resetDeps();
+        clearEmbeddingCache();
     });
 
     describe('cosineSimilarity', () => {
