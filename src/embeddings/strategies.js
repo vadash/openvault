@@ -95,6 +95,14 @@ const TRANSFORMERS_MODELS = {
         dimensions: 384,
         description: 'English only - Best RAG retrieval',
     },
+    'embeddinggemma-300m': {
+        name: 'onnx-community/embeddinggemma-300m-ONNX',
+        dtypeWebGPU: 'q4', // fp16 not supported; q4 is fast and compact
+        dtypeWASM: null, // Not supported on WASM - requires WebGPU
+        dimensions: 768,
+        description: 'Google Gemma - Multilingual (768d, WebGPU only)',
+        requiresWebGPU: true,
+    },
 };
 
 let webGPUSupported = null;
@@ -199,6 +207,12 @@ class TransformersStrategy extends EmbeddingStrategy {
         this.#loadingPromise = (async () => {
             try {
                 const useWebGPU = await isWebGPUAvailable();
+
+                // Check if model requires WebGPU
+                if (modelConfig.requiresWebGPU && !useWebGPU) {
+                    throw new Error(`${modelKey} requires WebGPU which is not available`);
+                }
+
                 const device = useWebGPU ? 'webgpu' : 'wasm';
                 const dtype = useWebGPU ? modelConfig.dtypeWebGPU : modelConfig.dtypeWASM;
 
@@ -343,6 +357,7 @@ const strategies = {
     'paraphrase-multilingual-MiniLM-L12-v2': new TransformersStrategy(),
     'all-MiniLM-L6-v2': new TransformersStrategy(),
     'bge-small-en-v1.5': new TransformersStrategy(),
+    'embeddinggemma-300m': new TransformersStrategy(),
     'ollama': new OllamaStrategy(),
 };
 
@@ -351,6 +366,7 @@ strategies['multilingual-e5-small'].setModelKey('multilingual-e5-small');
 strategies['paraphrase-multilingual-MiniLM-L12-v2'].setModelKey('paraphrase-multilingual-MiniLM-L12-v2');
 strategies['all-MiniLM-L6-v2'].setModelKey('all-MiniLM-L6-v2');
 strategies['bge-small-en-v1.5'].setModelKey('bge-small-en-v1.5');
+strategies['embeddinggemma-300m'].setModelKey('embeddinggemma-300m');
 
 /**
  * Get the strategy for a given source key
