@@ -18,7 +18,7 @@ import { sortMemoriesBySequence } from './utils.js';
 
 function _extractionRole() {
     return `<role>
-You are an expert narrative analyst extracting significant story events from roleplay conversations into structured JSON.
+You are an expert narrative analyst extracting significant story events from roleplay conversations, with a particular focus on character interactions, developing intimacy, and emotional shifts within adult-themed narratives, into structured JSON.
 
 You excel at distinguishing story-significant moments from mundane dialogue. You output valid JSON only - no markdown fences, no explanatory text.
 </role>`;
@@ -64,10 +64,10 @@ function _extractionCharacters(characterName, userName, characterDescription, pe
 function _extractionSchema() {
     return `<schema>
 <event_types>
-<type name="action">Physical actions, movements, combat, significant gestures</type>
-<type name="revelation">New information disclosed, secrets shared, backstory revealed</type>
-<type name="emotion_shift">Significant emotional changes, mood shifts, reactions</type>
-<type name="relationship_change">Trust gained/lost, bonds formed/broken, status changes</type>
+<type name="action">Physical actions, movements, combat, significant gestures (e.g., intimate touch, sexual acts, physical restraint)</type>
+<type name="revelation">New information disclosed, secrets shared, backstory revealed (e.g., deep desires, past intimate experiences, hidden vulnerabilities)</type>
+<type name="emotion_shift">Significant emotional changes, mood shifts, reactions (e.g., arousal, vulnerability, ecstasy, shyness, dominant/submissive feelings, consent/discomfort)</type>
+<type name="relationship_change">Trust gained/lost, bonds formed/broken, status changes (e.g., deepening intimacy, negotiation of consent, establishment/testing of boundaries, shift in power dynamics, commitment)</type>
 </event_types>
 
 <importance_scale>
@@ -165,6 +165,59 @@ function _extractionExamples() {
 ]</output>
 </example>
 
+<example type="action_intimacy">
+<input>[Liam]: *leans in, a slow smile playing on his lips, then gently brushes his thumb over her cheek, trailing it down to her jawline* You're exquisite, Anya. May I kiss you?
+[Anya]: *her breath hitches, eyes fluttering* Yes... oh god, yes.</input>
+<output>[
+  {
+    "event_type": "action",
+    "importance": 3,
+    "summary": "Liam caressed Anya's cheek and requested a kiss, which she eagerly accepted.",
+    "characters_involved": ["Liam", "Anya"],
+    "witnesses": ["Liam", "Anya"],
+    "location": null,
+    "is_secret": true,
+    "emotional_impact": {"Liam": "desire, tender", "Anya": "aroused, eager"},
+    "relationship_impact": {"Liam->Anya": "desire expressed", "Anya->Liam": "consent given"}
+  }
+]</output>
+</example>
+
+<example type="revelation_vulnerability">
+<input>[Zoe]: *whispering against his skin, after a moment of intense passion* I... I've never felt this safe with anyone before, Kai. Not like this.</input>
+<output>[
+  {
+    "event_type": "revelation",
+    "importance": 4,
+    "summary": "Zoe confessed feeling unprecedented safety and vulnerability with Kai.",
+    "characters_involved": ["Zoe"],
+    "witnesses": ["Zoe", "Kai"],
+    "location": null,
+    "is_secret": true,
+    "emotional_impact": {"Zoe": "vulnerable, trusting", "Kai": "tender, moved"},
+    "relationship_impact": {"Zoe->Kai": "intimacy deepened"}
+  }
+]</output>
+</example>
+
+<example type="emotion_shift_consent">
+<input>[Jax]: *After she pulls away slightly, a flicker of uncertainty in her eyes* Is this okay? Truly? We can stop anytime.
+[Chloe]: *reaches out, pulling him back closer with a soft moan* More than okay. Don't stop. Please.</input>
+<output>[
+  {
+    "event_type": "emotion_shift",
+    "importance": 4,
+    "summary": "Jax sought confirmation of consent, and Chloe reaffirmed her desire for intimacy.",
+    "characters_involved": ["Jax", "Chloe"],
+    "witnesses": ["Jax", "Chloe"],
+    "location": null,
+    "is_secret": true,
+    "emotional_impact": {"Jax": "concerned, relieved", "Chloe": "reassured, desirous"},
+    "relationship_impact": {"Jax->Chloe": "respect shown", "Chloe->Jax": "trust confirmed"}
+  }
+]</output>
+</example>
+
 <example type="empty_result">
 <input>[Alice]: Hey, how's it going?
 [Bob]: Not bad, just got back from lunch. You?
@@ -179,11 +232,11 @@ function _extractionInstructions() {
     return `<instructions>
 Extract significant events from <messages> following these steps:
 
-1. SCAN messages for story-significant moments:
-   - Actions with consequences
-   - Information reveals or secrets shared
-   - Emotional turning points
-   - Relationship status changes
+1. SCAN messages for story-significant moments, paying close attention to:
+   - Actions with consequences, especially intimate physical contact or sexual acts
+   - Information reveals or secrets shared, including personal desires or vulnerabilities
+   - Emotional turning points, such as shifts in arousal, consent, or emotional intimacy
+   - Relationship status changes, including deepening bonds or boundary adjustments
 
 2. FILTER OUT mundane content:
    - Greetings and small talk
@@ -193,9 +246,10 @@ Extract significant events from <messages> following these steps:
 
 3. For each significant event, COMPOSE output:
    - Use exact character names from <characters> (no transliteration)
-   - Write summary in PAST TENSE, 8-24 words, English
+   - Write summary in PAST TENSE, 8-24 words, English, factual and concise (avoid suggestive language)
    - Put emotions in emotional_impact, NOT in summary
    - Assign importance 1-5 based on story impact
+   - Ensure summary and impacts accurately reflect consent, character agency, and any established boundaries
 
 4. DEDUPLICATE against <established_memories>:
    - Same core action + same characters = SKIP
@@ -212,7 +266,7 @@ Return a JSON array of events. Return [] if no significant new events found.
 
 function _retrievalRole() {
     return `<role>
-You are a memory curator selecting which memories a character would naturally recall in a given moment.
+You are a memory curator selecting which memories a character would naturally recall in a given moment, especially considering emotional intimacy and relationship dynamics.
 
 You understand how human memory works - triggered by association, emotion, and relevance. You output valid JSON only - no markdown fences, no explanatory text.
 </role>`;
@@ -298,6 +352,30 @@ function _retrievalExamples() {
 </available_memories>
 <output>{"selected": [4, 1, 3], "reasoning": "Secret knowledge of Crane's treachery is critical; Duke's conditional loyalty also relevant"}</output>
 </example>
+
+<example type="intimate_context">
+<scene_summary>After a tender kiss, Kai gently holds Zoe's hand, looking into her eyes.</scene_summary>
+<available_memories>
+1. [★★★] Zoe shared her fear of abandonment with Kai.
+2. [★★★★★] Kai confessed his deep feelings for Zoe during an intimate moment.
+3. [★★] They discussed their favorite books last week.
+4. [★★★★] Zoe previously expressed a strong physical attraction to Kai.
+5. [★★★] Kai helped Zoe with a difficult task.
+</available_memories>
+<output>{"selected": [2, 1, 4], "reasoning": "The intimate scene naturally triggers memories of their mutual confessions of feelings, Zoe's vulnerabilities shared with Kai, and her explicit attraction, which all provide crucial context for their deepening bond."}</output>
+</example>
+
+<example type="boundary_testing">
+<scene_summary>Liam teases Anya about a past boundary she set, a playful smirk on his face.</scene_summary>
+<available_memories>
+1. [★★★★] Anya explicitly stated her discomfort with public displays of affection.
+2. [★★★] Liam once brought Anya flowers after an argument.
+3. [★★] They explored a new part of the city together.
+4. [★★★★★] Anya established a clear 'safe word' with Liam during a scene.
+5. [★★★] Liam expressed his dominant tendencies to Anya.
+</available_memories>
+<output>{"selected": [1, 4, 5], "reasoning": "Liam's teasing about boundaries immediately makes Anya recall her explicit discomforts, their agreed-upon safe word, and Liam's expressed tendencies, all relevant to the current dynamic."}</output>
+</example>
 </examples>`;
 }
 
@@ -308,14 +386,16 @@ Select up to ${limit} memories that ${characterName} would naturally recall for 
 1. ANALYZE the scene for:
    - Topics being discussed
    - Characters present or mentioned
-   - Emotional tone and context
+   - Emotional tone and context, including any intimate or sexual undertones
    - Questions being asked or decisions being made
+   - Any implied or explicit physical contact or expressions of desire
 
 2. MATCH memories that:
    - Connect directly to scene topics
    - Involve characters present
    - Explain current emotional state
    - Provide relevant secrets or knowledge
+   - Illuminate the history of intimacy, consent, or boundaries between characters
 
 3. PRIORITIZE by:
    - Importance rating (more ★ = higher priority)
