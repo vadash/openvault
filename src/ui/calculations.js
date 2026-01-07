@@ -120,15 +120,19 @@ export function buildRelationshipData(key, relData) {
  * @param {Array} chat - Chat messages array
  * @param {Set} extractedMessageIds - Set of extracted message indices
  * @param {number} messageCount - Messages per extraction setting
+ * @param {number} bufferSize - Recent messages excluded from extraction
  * @returns {Object} Extraction statistics
  */
-export function calculateExtractionStats(chat, extractedMessageIds, messageCount) {
+export function calculateExtractionStats(chat, extractedMessageIds, messageCount, bufferSize = 0) {
     const totalMessages = chat.length;
     const hiddenMessages = chat.filter(m => m.is_system).length;
     const extractedCount = extractedMessageIds.size;
 
-    // Calculate unextracted messages
-    const unextractedCount = totalMessages - extractedCount;
+    // Calculate extractable messages (total minus buffer)
+    const extractableMessages = Math.max(0, totalMessages - bufferSize);
+
+    // Calculate unextracted messages (only from extractable pool)
+    const unextractedCount = Math.max(0, extractableMessages - extractedCount);
 
     // Batch progress: how many messages in current partial batch
     const batchProgress = unextractedCount % messageCount;
@@ -138,10 +142,12 @@ export function calculateExtractionStats(chat, extractedMessageIds, messageCount
         totalMessages,
         hiddenMessages,
         extractedCount,
+        extractableMessages,
         unextractedCount,
         batchProgress,
         messagesNeeded,
         messageCount,
+        bufferSize,
     };
 }
 
@@ -151,7 +157,9 @@ export function calculateExtractionStats(chat, extractedMessageIds, messageCount
  * @returns {Object} { current, total, percentage, label }
  */
 export function getBatchProgressInfo(stats) {
-    const { batchProgress, messagesNeeded, messageCount, unextractedCount } = stats;
+    const { batchProgress, messagesNeeded, messageCount, unextractedCount, bufferSize = 0 } = stats;
+
+    const bufferLabel = bufferSize > 0 ? ` [${bufferSize} buffered]` : '';
 
     // If all extracted, show full bar
     if (unextractedCount === 0) {
@@ -159,7 +167,7 @@ export function getBatchProgressInfo(stats) {
             current: messageCount,
             total: messageCount,
             percentage: 100,
-            label: 'Up to date',
+            label: `Up to date${bufferLabel}`,
         };
     }
 
@@ -169,7 +177,7 @@ export function getBatchProgressInfo(stats) {
             current: messageCount,
             total: messageCount,
             percentage: 100,
-            label: 'Ready!',
+            label: `Ready!${bufferLabel}`,
         };
     }
 
@@ -177,7 +185,7 @@ export function getBatchProgressInfo(stats) {
         current: batchProgress,
         total: messageCount,
         percentage: Math.round((batchProgress / messageCount) * 100),
-        label: `${batchProgress}/${messageCount} (+${messagesNeeded})`,
+        label: `${batchProgress}/${messageCount} (+${messagesNeeded})${bufferLabel}`,
     };
 }
 

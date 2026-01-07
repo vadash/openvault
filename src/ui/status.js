@@ -7,7 +7,7 @@
 import { getDeps } from '../deps.js';
 import { getOpenVaultData, log } from '../utils.js';
 import { getExtractedMessageIds } from '../extraction/scheduler.js';
-import { MEMORIES_KEY, CHARACTERS_KEY, extensionName } from '../constants.js';
+import { MEMORIES_KEY, CHARACTERS_KEY, extensionName, defaultSettings } from '../constants.js';
 import { getStatusText } from './formatting.js';
 import { calculateExtractionStats, getBatchProgressInfo } from './calculations.js';
 
@@ -123,13 +123,14 @@ export function refreshStats() {
 
     // Calculate batch progress
     const settings = getDeps().getExtensionSettings()[extensionName];
-    const messageCount = settings?.messagesPerExtraction || 10;
+    const messageCount = settings?.messagesPerExtraction || defaultSettings.messagesPerExtraction;
+    const bufferSize = settings?.extractionBuffer ?? defaultSettings.extractionBuffer;
 
     const context = getDeps().getContext();
     const chat = context.chat || [];
     const extractedMessageIds = getExtractedMessageIds(data);
 
-    const stats = calculateExtractionStats(chat, extractedMessageIds, messageCount);
+    const stats = calculateExtractionStats(chat, extractedMessageIds, messageCount, bufferSize);
     const progressInfo = getBatchProgressInfo(stats);
 
     // Update batch progress bar

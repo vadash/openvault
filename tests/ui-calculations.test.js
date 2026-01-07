@@ -315,6 +315,31 @@ describe('ui/calculations', () => {
             expect(result.batchProgress).toBe(0);
             expect(result.messagesNeeded).toBe(0); // Ready!
         });
+
+        it('excludes buffer from extractable messages', () => {
+            const chat = new Array(20).fill({ is_system: false });
+            const extractedIds = new Set([0, 1, 2, 3, 4]); // 5 extracted
+
+            const result = calculateExtractionStats(chat, extractedIds, 10, 5);
+
+            // 20 total - 5 buffer = 15 extractable
+            // 15 extractable - 5 extracted = 10 unextracted
+            expect(result.extractableMessages).toBe(15);
+            expect(result.unextractedCount).toBe(10);
+            expect(result.bufferSize).toBe(5);
+        });
+
+        it('handles buffer larger than unextracted messages', () => {
+            const chat = new Array(10).fill({ is_system: false });
+            const extractedIds = new Set([0, 1, 2, 3, 4, 5, 6]); // 7 extracted
+
+            const result = calculateExtractionStats(chat, extractedIds, 5, 5);
+
+            // 10 total - 5 buffer = 5 extractable
+            // 5 extractable - 7 extracted = -2, clamped to 0
+            expect(result.extractableMessages).toBe(5);
+            expect(result.unextractedCount).toBe(0);
+        });
     });
 
     describe('getBatchProgressInfo', () => {
@@ -360,6 +385,48 @@ describe('ui/calculations', () => {
             expect(result.percentage).toBe(70);
             expect(result.current).toBe(7);
             expect(result.total).toBe(10);
+        });
+
+        it('includes buffer label when buffer is set', () => {
+            const stats = {
+                batchProgress: 5,
+                messagesNeeded: 5,
+                messageCount: 10,
+                unextractedCount: 5,
+                bufferSize: 5,
+            };
+
+            const result = getBatchProgressInfo(stats);
+
+            expect(result.label).toBe('5/10 (+5) [5 buffered]');
+        });
+
+        it('includes buffer label when up to date', () => {
+            const stats = {
+                batchProgress: 0,
+                messagesNeeded: 10,
+                messageCount: 10,
+                unextractedCount: 0,
+                bufferSize: 5,
+            };
+
+            const result = getBatchProgressInfo(stats);
+
+            expect(result.label).toBe('Up to date [5 buffered]');
+        });
+
+        it('omits buffer label when buffer is 0', () => {
+            const stats = {
+                batchProgress: 0,
+                messagesNeeded: 10,
+                messageCount: 10,
+                unextractedCount: 0,
+                bufferSize: 0,
+            };
+
+            const result = getBatchProgressInfo(stats);
+
+            expect(result.label).toBe('Up to date');
         });
     });
 
