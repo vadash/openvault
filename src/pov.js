@@ -127,9 +127,11 @@ export function detectPresentCharactersFromMessages(messageCount = 2) {
             presentCharacters.add(name);
         }
 
-        // Scan message content for character names
+        // Scan message content for character names (use word boundaries to avoid false positives)
         for (const charName of knownCharacters) {
-            if (text.includes(charName)) {
+            const escapedName = charName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`\\b${escapedName}\\b`, 'i');
+            if (regex.test(text)) {
                 presentCharacters.add(charName);
             }
         }
