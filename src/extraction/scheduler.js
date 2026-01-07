@@ -5,21 +5,26 @@
  * Determines which messages need extracting and whether batches are ready.
  */
 
-import { MEMORIES_KEY } from '../constants.js';
+import { MEMORIES_KEY, PROCESSED_MESSAGES_KEY } from '../constants.js';
 
 /**
- * Get set of message IDs that have been extracted into memories
+ * Get set of message IDs that have been processed (extracted or attempted)
  * @param {Object} data - OpenVault data object
- * @returns {Set<number>} Set of extracted message IDs
+ * @returns {Set<number>} Set of processed message IDs
  */
 export function getExtractedMessageIds(data) {
     const extractedIds = new Set();
     if (!data) return extractedIds;
 
+    // From memories (legacy tracking)
     for (const memory of (data[MEMORIES_KEY] || [])) {
         for (const msgId of (memory.message_ids || [])) {
             extractedIds.add(msgId);
         }
+    }
+    // From processed message tracking (includes messages with no events)
+    for (const msgId of (data[PROCESSED_MESSAGES_KEY] || [])) {
+        extractedIds.add(msgId);
     }
     return extractedIds;
 }

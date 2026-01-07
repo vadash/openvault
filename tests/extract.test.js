@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { setDeps, resetDeps } from '../src/deps.js';
-import { extensionName, MEMORIES_KEY, LAST_PROCESSED_KEY } from '../src/constants.js';
+import { extensionName, MEMORIES_KEY, LAST_PROCESSED_KEY, PROCESSED_MESSAGES_KEY } from '../src/constants.js';
 
 // Mock dependencies
 vi.mock('../src/utils.js', () => ({
@@ -341,12 +341,18 @@ describe('extract', () => {
             expect(refreshAllUI).toHaveBeenCalled();
         });
 
-        it('shows info toast when no events extracted', async () => {
+        it('tracks processed IDs and saves even when no events extracted', async () => {
             parseExtractionResult.mockReturnValue([]);
 
             await extractMemories();
 
-            expect(showToast).toHaveBeenCalledWith('info', 'No significant events found in messages');
+            // Should NOT show success toast (no events created)
+            expect(showToast).not.toHaveBeenCalledWith('success', expect.any(String));
+            // Should still save data (to track processed message IDs)
+            expect(saveOpenVaultData).toHaveBeenCalled();
+            // Should track processed message IDs
+            expect(mockData[PROCESSED_MESSAGES_KEY]).toBeDefined();
+            expect(mockData[PROCESSED_MESSAGES_KEY].length).toBeGreaterThan(0);
         });
 
         it('returns result with events count and messages processed', async () => {

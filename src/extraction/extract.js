@@ -6,7 +6,7 @@
 
 import { getDeps } from '../deps.js';
 import { getOpenVaultData, saveOpenVaultData, showToast, log, isExtensionEnabled } from '../utils.js';
-import { extensionName, MEMORIES_KEY, LAST_PROCESSED_KEY } from '../constants.js';
+import { extensionName, MEMORIES_KEY, LAST_PROCESSED_KEY, PROCESSED_MESSAGES_KEY } from '../constants.js';
 import { callLLMForExtraction } from '../llm.js';
 import { setStatus } from '../ui/status.js';
 import { refreshAllUI } from '../ui/browser.js';
@@ -106,6 +106,11 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
         // Parse and store extracted events
         const events = parseExtractionResult(extractedJson, messagesToExtract, characterName, userName, batchId);
 
+        // Track processed message IDs (prevents re-extraction on backfill)
+        const processedIds = messagesToExtract.map(m => m.id);
+        data[PROCESSED_MESSAGES_KEY] = data[PROCESSED_MESSAGES_KEY] || [];
+        data[PROCESSED_MESSAGES_KEY].push(...processedIds);
+
         if (events.length > 0) {
             // Generate embeddings for new events
             await enrichEventsWithEmbeddings(events);
@@ -119,23 +124,26 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
             updateRelationshipsFromEvents(events, data);
 
             // Update last processed message ID
-            const maxId = Math.max(...messagesToExtract.map(m => m.id));
+            const maxId = Math.max(...processedIds);
 
             // Apply relationship decay based on message intervals
             applyRelationshipDecay(data, maxId);
 
             data[LAST_PROCESSED_KEY] = Math.max(data[LAST_PROCESSED_KEY] || -1, maxId);
 
-            // Save with chat ID verification to prevent saving to wrong chat
-            const saved = await saveOpenVaultData(targetChatId);
-            if (!saved && targetChatId) {
-                throw new Error('Chat changed during extraction');
-            }
-
             log(`Extracted ${events.length} events`);
-            showToast('success', `Extracted ${events.length} memory events`);
         } else {
-            showToast('info', 'No significant events found in messages');
+            log('No significant events found in messages');
+        }
+
+        // Save with chat ID verification to prevent saving to wrong chat
+        const saved = await saveOpenVaultData(targetChatId);
+        if (!saved && targetChatId) {
+            throw new Error('Chat changed during extraction');
+        }
+
+        if (events.length > 0) {
+            showToast('success', `Extracted ${events.length} memory events`);
         }
 
         setStatus('ready');

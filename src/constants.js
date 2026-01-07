@@ -13,6 +13,7 @@ export const MEMORIES_KEY = 'memories';
 export const CHARACTERS_KEY = 'character_states';
 export const RELATIONSHIPS_KEY = 'relationships';
 export const LAST_PROCESSED_KEY = 'last_processed_message_id';
+export const PROCESSED_MESSAGES_KEY = 'processed_message_ids';
 
 // Default settings
 export const defaultSettings = {
