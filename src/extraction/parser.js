@@ -5,8 +5,7 @@
  */
 
 import { getDeps } from '../deps.js';
-import { generateId, log } from '../utils.js';
-import { repairJson } from '../vendor/json-repair.js';
+import { generateId, log, safeParseJSON } from '../utils.js';
 import {
     extensionName,
     CHARACTERS_KEY,
@@ -23,39 +22,33 @@ import {
  * @returns {Array} Array of parsed event objects
  */
 export function parseExtractionResult(jsonString, messages, characterName, userName, batchId = null) {
-    try {
-        const parsed = repairJson(jsonString, { returnObject: true, extractJson: true });
-        if (parsed === null || parsed === undefined) {
-            log('JSON repair returned null/undefined');
-            return [];
-        }
-        const events = Array.isArray(parsed) ? parsed : [parsed];
-
-        // Get message IDs for sequence ordering
-        const messageIds = messages.map(m => m.id);
-        const minMessageId = Math.min(...messageIds);
-
-        // Enrich events with metadata
-        return events.map((event, index) => ({
-            id: generateId(),
-            ...event,
-            message_ids: messageIds,
-            // Sequence is based on the earliest message ID, with sub-index for multiple events from same batch
-            sequence: minMessageId * 1000 + index,
-            created_at: Date.now(),
-            batch_id: batchId,
-            characters_involved: event.characters_involved || [],
-            witnesses: event.witnesses || event.characters_involved || [],
-            location: event.location || 'unknown',
-            is_secret: event.is_secret || false,
-            importance: Math.min(5, Math.max(1, event.importance || 3)), // Clamp to 1-5, default 3
-            emotional_impact: event.emotional_impact || {},
-            relationship_impact: event.relationship_impact || {},
-        }));
-    } catch (error) {
-        log(`Failed to parse extraction result: ${error.message}`);
+    const parsed = safeParseJSON(jsonString);
+    if (!parsed) {
         return [];
     }
+    const events = Array.isArray(parsed) ? parsed : [parsed];
+
+    // Get message IDs for sequence ordering
+    const messageIds = messages.map(m => m.id);
+    const minMessageId = Math.min(...messageIds);
+
+    // Enrich events with metadata
+    return events.map((event, index) => ({
+        id: generateId(),
+        ...event,
+        message_ids: messageIds,
+        // Sequence is based on the earliest message ID, with sub-index for multiple events from same batch
+        sequence: minMessageId * 1000 + index,
+        created_at: Date.now(),
+        batch_id: batchId,
+        characters_involved: event.characters_involved || [],
+        witnesses: event.witnesses || event.characters_involved || [],
+        location: event.location || 'unknown',
+        is_secret: event.is_secret || false,
+        importance: Math.min(5, Math.max(1, event.importance || 3)), // Clamp to 1-5, default 3
+        emotional_impact: event.emotional_impact || {},
+        relationship_impact: event.relationship_impact || {},
+    }));
 }
 
 /**
