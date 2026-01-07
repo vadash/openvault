@@ -5,7 +5,7 @@
  */
 
 import { getDeps } from '../deps.js';
-import { getOpenVaultData, escapeHtml, showToast } from '../utils.js';
+import { getOpenVaultData, showToast } from '../utils.js';
 import { MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, MEMORIES_PER_PAGE } from '../constants.js';
 import { refreshStats } from './status.js';
 import { formatMemoryImportance, formatMemoryDate, formatWitnesses } from './formatting.js';
@@ -83,36 +83,50 @@ export function renderMemoryBrowser() {
     } else {
         for (const memory of pageMemories) {
             const date = formatMemoryDate(memory.created_at);
-            const typeClass = memory.event_type || 'action';
-            const characters = (memory.characters_involved || []).map(c =>
-                `<span class="openvault-character-tag">${escapeHtml(c)}</span>`
-            ).join('');
-            const witnessText = formatWitnesses(memory.witnesses);
-            const witnesses = witnessText
-                ? `<div class="openvault-memory-witnesses">${witnessText}</div>`
-                : '';
-
-            // Importance stars using pure function
+            // Sanitize event_type for use as CSS class (alphanumeric and hyphens only)
+            const typeClass = (memory.event_type || 'action').replace(/[^a-zA-Z0-9-]/g, '');
             const importance = memory.importance || 3;
             const stars = formatMemoryImportance(importance);
 
-            $list.append(`
-                <div class="openvault-memory-item ${typeClass}" data-id="${memory.id}">
-                    <div class="openvault-memory-header">
-                        <span class="openvault-memory-type">${escapeHtml(memory.event_type || 'event')}</span>
-                        <span class="openvault-memory-importance" title="Importance: ${importance}/5">${stars}</span>
-                        <span class="openvault-memory-date">${date}</span>
-                    </div>
-                    <div class="openvault-memory-summary">${escapeHtml(memory.summary || 'No summary')}</div>
-                    <div class="openvault-memory-characters">${characters}</div>
-                    ${witnesses}
-                    <div class="openvault-memory-actions">
-                        <button class="menu_button openvault-delete-memory" data-id="${memory.id}">
-                            <i class="fa-solid fa-trash"></i> Delete
-                        </button>
-                    </div>
-                </div>
-            `);
+            // Build memory item using jQuery for safety
+            const $item = $('<div>', {
+                class: `openvault-memory-item ${typeClass}`,
+                'data-id': memory.id
+            });
+
+            // Header
+            const $header = $('<div>', { class: 'openvault-memory-header' })
+                .append($('<span>', { class: 'openvault-memory-type', text: memory.event_type || 'event' }))
+                .append($('<span>', { class: 'openvault-memory-importance', title: `Importance: ${importance}/5`, text: stars }))
+                .append($('<span>', { class: 'openvault-memory-date', text: date }));
+            $item.append($header);
+
+            // Summary
+            $item.append($('<div>', { class: 'openvault-memory-summary', text: memory.summary || 'No summary' }));
+
+            // Characters
+            const $characters = $('<div>', { class: 'openvault-memory-characters' });
+            for (const c of (memory.characters_involved || [])) {
+                $characters.append($('<span>', { class: 'openvault-character-tag', text: c }));
+            }
+            $item.append($characters);
+
+            // Witnesses
+            const witnessText = formatWitnesses(memory.witnesses);
+            if (witnessText) {
+                $item.append($('<div>', { class: 'openvault-memory-witnesses', text: witnessText }));
+            }
+
+            // Actions
+            const $actions = $('<div>', { class: 'openvault-memory-actions' });
+            const $deleteBtn = $('<button>', {
+                class: 'menu_button openvault-delete-memory',
+                'data-id': memory.id
+            }).append($('<i>', { class: 'fa-solid fa-trash' })).append(' Delete');
+            $actions.append($deleteBtn);
+            $item.append($actions);
+
+            $list.append($item);
         }
 
         // Bind delete buttons
@@ -167,7 +181,7 @@ export function populateCharacterFilter() {
     $filter.find('option:not(:first)').remove();
 
     for (const char of characters) {
-        $filter.append(`<option value="${escapeHtml(char)}">${escapeHtml(char)}</option>`);
+        $filter.append($('<option>', { value: char, text: char }));
     }
 
     // Restore selection if still valid
@@ -199,18 +213,24 @@ export function renderCharacterStates() {
     for (const name of charNames.sort()) {
         const charData = buildCharacterStateData(name, characters[name]);
 
-        $container.append(`
-            <div class="openvault-character-item">
-                <div class="openvault-character-name">${escapeHtml(charData.name)}</div>
-                <div class="openvault-emotion">
-                    <span class="openvault-emotion-label">${escapeHtml(charData.emotion)}${charData.emotionSource}</span>
-                    <div class="openvault-emotion-bar">
-                        <div class="openvault-emotion-fill" style="width: ${charData.intensityPercent}%"></div>
-                    </div>
-                </div>
-                <div class="openvault-memory-witnesses">Known events: ${charData.knownCount}</div>
-            </div>
-        `);
+        const $item = $('<div>', { class: 'openvault-character-item' });
+        $item.append($('<div>', { class: 'openvault-character-name', text: charData.name }));
+
+        const $emotion = $('<div>', { class: 'openvault-emotion' });
+        // emotionSource may contain HTML for styling, but emotion is text
+        const $label = $('<span>', { class: 'openvault-emotion-label', text: charData.emotion });
+        if (charData.emotionSource) {
+            $label.append(charData.emotionSource);
+        }
+        $emotion.append($label);
+
+        const $emotionBar = $('<div>', { class: 'openvault-emotion-bar' });
+        $emotionBar.append($('<div>', { class: 'openvault-emotion-fill', css: { width: `${charData.intensityPercent}%` } }));
+        $emotion.append($emotionBar);
+        $item.append($emotion);
+
+        $item.append($('<div>', { class: 'openvault-memory-witnesses', text: `Known events: ${charData.knownCount}` }));
+        $container.append($item);
     }
 }
 
@@ -237,26 +257,30 @@ export function renderRelationships() {
     for (const key of relKeys.sort()) {
         const relData = buildRelationshipData(key, relationships[key]);
 
-        $container.append(`
-            <div class="openvault-relationship-item">
-                <div class="openvault-relationship-pair">${escapeHtml(relData.characterA)} \u2194 ${escapeHtml(relData.characterB)}</div>
-                <div class="openvault-relationship-type">${escapeHtml(relData.type)}</div>
-                <div class="openvault-relationship-bars">
-                    <div class="openvault-bar-row">
-                        <span class="openvault-bar-label">Trust</span>
-                        <div class="openvault-bar-container">
-                            <div class="openvault-bar-fill trust" style="width: ${relData.trustPercent}%"></div>
-                        </div>
-                    </div>
-                    <div class="openvault-bar-row">
-                        <span class="openvault-bar-label">Tension</span>
-                        <div class="openvault-bar-container">
-                            <div class="openvault-bar-fill tension" style="width: ${relData.tensionPercent}%"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `);
+        const $item = $('<div>', { class: 'openvault-relationship-item' });
+        $item.append($('<div>', { class: 'openvault-relationship-pair', text: `${relData.characterA} \u2194 ${relData.characterB}` }));
+        $item.append($('<div>', { class: 'openvault-relationship-type', text: relData.type }));
+
+        const $bars = $('<div>', { class: 'openvault-relationship-bars' });
+
+        // Trust bar
+        const $trustRow = $('<div>', { class: 'openvault-bar-row' });
+        $trustRow.append($('<span>', { class: 'openvault-bar-label', text: 'Trust' }));
+        const $trustContainer = $('<div>', { class: 'openvault-bar-container' });
+        $trustContainer.append($('<div>', { class: 'openvault-bar-fill trust', css: { width: `${relData.trustPercent}%` } }));
+        $trustRow.append($trustContainer);
+        $bars.append($trustRow);
+
+        // Tension bar
+        const $tensionRow = $('<div>', { class: 'openvault-bar-row' });
+        $tensionRow.append($('<span>', { class: 'openvault-bar-label', text: 'Tension' }));
+        const $tensionContainer = $('<div>', { class: 'openvault-bar-container' });
+        $tensionContainer.append($('<div>', { class: 'openvault-bar-fill tension', css: { width: `${relData.tensionPercent}%` } }));
+        $tensionRow.append($tensionContainer);
+        $bars.append($tensionRow);
+
+        $item.append($bars);
+        $container.append($item);
     }
 }
 
