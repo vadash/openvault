@@ -15,6 +15,18 @@ import { filterMemories, sortMemoriesByDate, getPaginationInfo, extractCharacter
 let memoryBrowserPage = 0;
 
 /**
+ * Initialize browser event handlers using event delegation.
+ * Call once after HTML is loaded.
+ */
+export function initBrowser() {
+    // Event delegation: attach once to container, not per-render to children
+    $('#openvault_memory_list').on('click', '.openvault-delete-memory', async function() {
+        const id = $(this).data('id');
+        await deleteMemory(id);
+    });
+}
+
+/**
  * Reset memory browser page (called on chat change)
  */
 export function resetMemoryBrowserPage() {
@@ -134,12 +146,6 @@ export function renderMemoryBrowser() {
 
         // Single DOM insertion
         $list[0].appendChild(fragment);
-
-        // Bind delete buttons
-        $list.find('.openvault-delete-memory').on('click', async function() {
-            const id = $(this).data('id');
-            await deleteMemory(id);
-        });
     }
 
     // Update pagination

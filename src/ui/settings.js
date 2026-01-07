@@ -6,7 +6,7 @@
 
 import { getDeps } from '../deps.js';
 import { extensionName, extensionFolderPath, defaultSettings } from '../constants.js';
-import { refreshAllUI, prevPage, nextPage, resetAndRender } from './browser.js';
+import { refreshAllUI, prevPage, nextPage, resetAndRender, initBrowser } from './browser.js';
 import { validateRPM } from './calculations.js';
 import { setEmbeddingStatusCallback, getEmbeddingStatus } from '../embeddings.js';
 
@@ -160,6 +160,9 @@ export async function loadSettings() {
     // Load HTML template
     const settingsHtml = await $.get(`${extensionFolderPath}/templates/settings_panel.html`);
     $('#extensions_settings2').append(settingsHtml);
+
+    // Initialize browser event delegation (must be after HTML is loaded)
+    initBrowser();
 
     // Inject version from manifest.json
     try {

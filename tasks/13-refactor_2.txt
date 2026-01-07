@@ -1,0 +1,165 @@
+### 1. Refactor UI Rendering (SRP & KISS)
+**Location:** `src/ui/browser.js` and `src/ui/settings.js`
+
+**The Problem:**
+These files rely heavily on imperative jQuery DOM manipulation (`$('<div>').append(...)`). This mixes presentation logic with data logic, making it hard to read and maintain. If the HTML structure changes, you have to rewrite complex JS chains.
+
+**Recommendation:**
+Separate the HTML template from the data. Since you are using jQuery, use a small, lightweight templating approach (even template literals) instead of building DOM trees line-by-line.
+
+**Refactoring:**
+Create simple functional components that return HTML strings, then inject them once.
+
+*Before (src/ui/browser.js):*
+```javascript
+const $item = $('<div>', { class: `openvault-memory-item ${typeClass}`, 'data-id': memory.id });
+const $header = $('<div>', { class: 'openvault-memory-header' })
+    .append($('<span>', { class: 'openvault-memory-type', text: memory.event_type || 'event' }))
+    // ... 10 more lines of appending ...
+$item.append($header);
+fragment.appendChild($item[0]);
+```
+
+*After:*
+```javascript
+function renderMemoryItem(memory) {
+    const typeClass = (memory.event_type || 'action').replace(/[^a-zA-Z0-9-]/g, '');
+    const importanceStars = formatMemoryImportance(memory.importance);
+    
+    return `
+        <div class="openvault-memory-item ${typeClass}" data-id="${memory.id}">
+            <div class="openvault-memory-header">
+                <span class="openvault-memory-type">${escapeHtml(memory.event_type || 'event')}</span>
+                <span class="openvault-memory-importance" title="Importance: ${memory.importance}/5">${importanceStars}</span>
+                <span class="openvault-memory-date">${formatMemoryDate(memory.created_at)}</span>
+            </div>
+            <div class="openvault-memory-summary">${escapeHtml(memory.summary || 'No summary')}</div>
+            <div class="openvault-memory-actions">
+                <button class="menu_button openvault-delete-memory" data-id="${memory.id}">
+                    <i class="fa-solid fa-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// In renderMemoryBrowser:
+const html = pageMemories.map(renderMemoryItem).join('');
+$('#openvault_memory_list').html(html || '<p class="openvault-placeholder">No memories yet</p>');
+```
+
+### 2. Decouple Logic from UI Status Updates (SOLID - Separation of Concerns)
+**Location:** `src/extraction/extract.js`, `src/retrieval/retrieve.js`
+
+**The Problem:**
+Core logic functions like `extractMemories` and `retrieveAndInjectContext` are directly calling `setStatus('extracting')` and `showToast()`. This tightly couples your business logic to the UI. If you ever wanted to run extraction in a headless background process (or unit test it without mocking UI), this becomes problematic.
+
+**Recommendation:**
+Return data or throw errors from logic functions. Let the caller (the event handlers or UI controllers) decide how to notify the user.
+
+*Refactoring:*
+1. Remove `setStatus` and `showToast` calls from `src/extraction/extract.js`.
+2. Move that responsibility to `src/events.js` (controller layer) or `src/ui/settings.js` (button handlers).
+
+**Example (`src/extraction/extract.js`):**
+*Change:*
+```javascript
+// Remove this:
+// setStatus('extracting');
+// showToast('info', 'No new messages...');
+
+// Just return result or throw:
+if (messagesToExtract.length === 0) return { status: 'skipped', reason: 'no_messages' };
+```
+
+### 3. Organize Prompts (DRY & SRP)
+**Location:** `src/prompts.js`
+
+**The Problem:**
+This file is becoming a "magic string" dump. The XML schema definitions, examples, and instructions are concatenated dynamically. While better than hardcoding them in `llm.js`, the definitions of schemas (like the JSON output format) are implicit strings.
+
+**Recommendation:**
+Extract static data (Schema definitions, Examples) into constant objects or separate files. This makes it easier to read the *structure* of the prompt without scrolling through pages of text examples.
+
+**Refactoring:**
+Create `src/data/schemas.js` and `src/data/examples.js`.
+`src/prompts.js` should only contain the logic to *assemble* these parts based on context.
+
+### 4. Fix Logic Bug / Race Condition Risk
+**Location:** `src/ui/browser.js` -> `renderMemoryBrowser`
+
+**The Bug:**
+Inside `renderMemoryBrowser`, you attach event listeners inside the render loop (or right after):
+```javascript
+$list.find('.openvault-delete-memory').on('click', async function() { ... });
+```
+If `renderMemoryBrowser` is called multiple times rapidly (e.g., rapid status updates), you might be creating memory leaks or race conditions where the DOM is replaced while an async operation is pending.
+
+**Fix:**
+Use **Event Delegation**. Attach the listener *once* to the container parent, not the dynamic children.
+
+```javascript
+// Do this ONCE in an init function, not inside renderMemoryBrowser
+$('#openvault_memory_list').on('click', '.openvault-delete-memory', async function() {
+    const id = $(this).data('id');
+    await deleteMemory(id);
+});
+```
+
+### 5. Combine Logic in Events (YAGNI / Simplification)
+**Location:** `src/events.js`
+
+**The Problem:**
+`onBeforeGeneration` checks `operationState`, `isAutomaticMode`, `dryRun`, gets data, sets locks, sets status, calls `updateInjection`, handles errors, and finally clears locks. It is doing too much.
+
+**Recommendation:**
+The check logic (`shouldRunRetrieval`) should be extracted.
+Also, `updateInjection` in `src/retrieval/retrieve.js` duplicates some of the "check if enabled/check if chat exists" logic found in `onBeforeGeneration`.
+
+**Refactoring:**
+Centralize the "Guard Clauses" (is enabled? is chat loaded? is lock active?) into a single utility or state helper to ensure consistency between manual triggers and automatic triggers.
+
+### 6. Remove Redundant Settings Binding (DRY)
+**Location:** `src/ui/settings.js`
+
+**The Problem:**
+You have `bindCheckbox`, `bindSlider`, `bindTextInput`, `bindNumberInput`, `bindSelect`. They all do essentially the same thing:
+1. Listen for event.
+2. Update global settings object.
+3. Call `saveSettingsDebounced`.
+4. Run optional callback.
+
+**Recommendation:**
+Create a single data-driven binding function.
+
+```javascript
+const bindings = [
+    { id: 'openvault_enabled', key: 'enabled', type: 'checkbox', onChange: updateEventListenersFn },
+    { id: 'openvault_messages_per_extraction', key: 'messagesPerExtraction', type: 'slider', displayId: '...value' },
+    // ...
+];
+
+bindings.forEach(bindSetting);
+
+function bindSetting(config) {
+    const $el = $(`#${config.id}`);
+    const eventType = config.type === 'slider' ? 'input' : 'change';
+    
+    $el.on(eventType, function() {
+        let val = config.type === 'checkbox' ? $(this).is(':checked') : $(this).val();
+        if (config.type === 'number' || config.type === 'slider') val = parseInt(val);
+        
+        getDeps().getExtensionSettings()[extensionName][config.key] = val;
+        getDeps().saveSettingsDebounced();
+        
+        if (config.displayId) $(`#${config.displayId}`).text(val);
+        if (config.onChange) config.onChange(val);
+    });
+}
+```
+
+### Summary of What NOT to Refactor (YAGNI)
+
+1.  **The Worker (`src/retrieval/worker.js`):** It works. It's complex to move code between main thread and worker in a browser extension context without a bundler. Leave it alone unless performance is actually an issue.
+2.  **`src/deps.js`:** This Dependency Injection implementation is excellent for testing. Keep it exactly as is.
+3.  **`src/embeddings/strategies.js`:** The Strategy pattern is implemented correctly here. It's extensible and clean.
