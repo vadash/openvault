@@ -59,14 +59,14 @@ describe('llm', () => {
         it('has extraction config', () => {
             expect(LLM_CONFIGS.extraction).toBeDefined();
             expect(LLM_CONFIGS.extraction.profileSettingKey).toBe('extractionProfile');
-            expect(LLM_CONFIGS.extraction.maxTokens).toBe(2000);
+            expect(LLM_CONFIGS.extraction.maxTokens).toBe(4000);
             expect(LLM_CONFIGS.extraction.errorContext).toBe('Extraction');
         });
 
         it('has retrieval config', () => {
             expect(LLM_CONFIGS.retrieval).toBeDefined();
             expect(LLM_CONFIGS.retrieval.profileSettingKey).toBe('retrievalProfile');
-            expect(LLM_CONFIGS.retrieval.maxTokens).toBe(1000);
+            expect(LLM_CONFIGS.retrieval.maxTokens).toBe(4000);
             expect(LLM_CONFIGS.retrieval.errorContext).toBe('Smart retrieval');
         });
     });
@@ -80,7 +80,7 @@ describe('llm', () => {
                 [
                     { role: 'user', content: 'test prompt' },
                 ],
-                2000,
+                4000,
                 {
                     includePreset: true,
                     includeInstruct: true,
@@ -224,7 +224,7 @@ describe('llm', () => {
             expect(mockConnectionManager.sendRequest).toHaveBeenCalledWith(
                 expect.any(String),
                 expect.any(Array),
-                1000, // retrieval maxTokens
+                4000, // retrieval maxTokens
                 expect.any(Object),
                 expect.any(Object)
             );
@@ -240,7 +240,7 @@ describe('llm', () => {
                 expect.arrayContaining([
                     expect.objectContaining({ role: 'user', content: 'extract this' }),
                 ]),
-                2000,
+                4000,
                 expect.any(Object),
                 expect.any(Object)
             );
@@ -270,7 +270,7 @@ describe('llm', () => {
                 expect.arrayContaining([
                     expect.objectContaining({ role: 'user', content: 'select memories' }),
                 ]),
-                1000,
+                4000,
                 expect.any(Object),
                 expect.any(Object)
             );
