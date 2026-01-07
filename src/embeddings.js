@@ -9,6 +9,7 @@ import { getStrategy, setGlobalStatusCallback, TRANSFORMERS_MODELS } from './emb
 import { getDeps } from './deps.js';
 import { log } from './utils.js';
 import { extensionName } from './constants.js';
+import { cosineSimilarity } from './retrieval/math.js';
 
 // =============================================================================
 // Public API - Strategy Delegation
@@ -78,30 +79,7 @@ async function processInBatches(items, batchSize, fn) {
     return results;
 }
 
-/**
- * Calculate cosine similarity between two vectors
- * @param {number[]} vecA - First vector
- * @param {number[]} vecB - Second vector
- * @returns {number} Similarity score between -1 and 1 (0 if invalid)
- */
-export function cosineSimilarity(vecA, vecB) {
-    if (!vecA || !vecB || vecA.length !== vecB.length || vecA.length === 0) {
-        return 0;
-    }
-
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < vecA.length; i++) {
-        dotProduct += vecA[i] * vecB[i];
-        normA += vecA[i] * vecA[i];
-        normB += vecB[i] * vecB[i];
-    }
-
-    const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
-    return magnitude === 0 ? 0 : dotProduct / magnitude;
-}
+// cosineSimilarity imported from ./retrieval/math.js for DRY
 
 // =============================================================================
 // Batch Operations
@@ -171,4 +149,4 @@ export async function enrichEventsWithEmbeddings(events) {
 // Re-exports for backward compatibility
 // =============================================================================
 
-export { TRANSFORMERS_MODELS };
+export { TRANSFORMERS_MODELS, cosineSimilarity };
