@@ -33,7 +33,7 @@ export default [
         }
     },
     {
-        ignores: ["node_modules/**", "types/**"]
+        ignores: ["node_modules/**", "types/**", "src/vendor/**"]
     },
     {
         files: ["**/worker.js"],
