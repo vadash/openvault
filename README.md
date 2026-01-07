@@ -2,9 +2,13 @@
 
 **Agentic Memory Extension for SillyTavern**
 
-<p align="center">
-<img width="633" alt="OpenVault UI" src="https://github.com/user-attachments/assets/9c73f282-648b-49b5-89bc-40556742d01e" /> <img width="654" alt="Memory Browser" src="https://github.com/user-attachments/assets/2903287b-32af-44db-b0fe-26dd2905af0c" /> <img width="635" alt="Settings" src="https://github.com/user-attachments/assets/85cb3ea6-5f33-4e79-a263-69705844eda4" />
-</p>
+<table>
+<tr>
+<td><img src="https://github.com/user-attachments/assets/9c73f282-648b-49b5-89bc-40556742d01e" alt="Dashboard" /></td>
+<td><img src="https://github.com/user-attachments/assets/2903287b-32af-44db-b0fe-26dd2905af0c" alt="Config" /></td>
+<td><img src="https://github.com/user-attachments/assets/85cb3ea6-5f33-4e79-a263-69705844eda4" alt="Memory Browser" /></td>
+</tr>
+</table>
 
 OpenVault provides POV-aware memory with witness tracking, relationship dynamics, and emotional continuity for roleplay conversations. All data is stored locally in chat metadata - no external services required.
 
