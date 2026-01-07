@@ -17,7 +17,7 @@ let scoringWorker = null;
 
 function getScoringWorker() {
     if (!scoringWorker) {
-        scoringWorker = new Worker(new URL('./worker.js', import.meta.url));
+        scoringWorker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
     }
     return scoringWorker;
 }
