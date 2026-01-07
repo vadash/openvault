@@ -4,7 +4,6 @@
  * Handles memory list rendering, character states, and relationship displays.
  */
 
-import { getDeps } from '../deps.js';
 import { getOpenVaultData, showToast } from '../utils.js';
 import { MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, MEMORIES_PER_PAGE } from '../constants.js';
 import { deleteMemory as deleteMemoryAction } from '../data/actions.js';

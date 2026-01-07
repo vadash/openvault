@@ -10,7 +10,7 @@
 import { getDeps } from './src/deps.js';
 
 // Import from modular structure
-import { extensionName, METADATA_KEY } from './src/constants.js';
+import { extensionName } from './src/constants.js';
 import { getOpenVaultData, showToast, log } from './src/utils.js';
 import { deleteCurrentChatData, deleteCurrentChatEmbeddings } from './src/data/actions.js';
 import { setChatLoadingCooldown } from './src/state.js';

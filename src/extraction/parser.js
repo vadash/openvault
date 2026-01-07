@@ -4,7 +4,7 @@
  * Parses LLM extraction results and updates character states and relationships.
  */
 
-import { generateId, log, safeParseJSON } from '../utils.js';
+import { generateId, safeParseJSON } from '../utils.js';
 import { CHARACTERS_KEY, RELATIONSHIPS_KEY } from '../constants.js';
 
 /**
