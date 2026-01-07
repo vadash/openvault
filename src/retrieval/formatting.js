@@ -5,7 +5,7 @@
  */
 
 import { RELATIONSHIPS_KEY } from '../constants.js';
-import { sortMemoriesBySequence } from '../utils.js';
+import { sortMemoriesBySequence, estimateTokens } from '../utils.js';
 
 /**
  * Get relationship context for active characters
@@ -100,7 +100,7 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
     const footerLine = '</scene_memory>';
 
     // Calculate overhead tokens (header + footer)
-    const overheadTokens = (headerLines.join('\n').length + footerLine.length) / 4;
+    const overheadTokens = estimateTokens(headerLines.join('\n') + footerLine);
     const availableForMemories = tokenBudget - overheadTokens;
 
     // Pre-truncate memories to fit within budget
@@ -110,7 +110,7 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
         let currentTokens = 0;
 
         for (const memory of memoriesToFormat) {
-            const memoryTokens = (memory.summary?.length || 0) / 4 + 5;
+            const memoryTokens = estimateTokens(memory.summary || '') + 5; // +5 for formatting overhead
             if (currentTokens + memoryTokens <= availableForMemories) {
                 truncatedMemories.push(memory);
                 currentTokens += memoryTokens;
