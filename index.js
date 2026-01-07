@@ -12,6 +12,7 @@ import { getDeps } from './src/deps.js';
 // Import from modular structure
 import { extensionName, METADATA_KEY } from './src/constants.js';
 import { getOpenVaultData, showToast, log } from './src/utils.js';
+import { deleteCurrentChatData, deleteCurrentChatEmbeddings } from './src/data/actions.js';
 import { setChatLoadingCooldown } from './src/state.js';
 import { loadSettings, setExternalFunctions } from './src/ui/settings.js';
 import { setStatus } from './src/ui/status.js';
@@ -27,27 +28,24 @@ import { generateEmbeddingsForMemories, isEmbeddingsEnabled } from './src/embedd
 export { extensionName };
 
 /**
- * Delete current chat's OpenVault data
+ * Delete current chat's OpenVault data (UI wrapper for data action)
  */
-async function deleteCurrentChatData() {
+async function handleDeleteCurrentChatData() {
     if (!confirm('Are you sure you want to delete all OpenVault data for this chat?')) {
         return;
     }
 
-    const context = getDeps().getContext();
-    if (context.chatMetadata) {
-        delete context.chatMetadata[METADATA_KEY];
-        await getDeps().saveChatConditional();
+    const deleted = await deleteCurrentChatData();
+    if (deleted) {
+        showToast('success', 'Chat memories deleted');
+        refreshAllUI();
     }
-
-    showToast('success', 'Chat memories deleted');
-    refreshAllUI();
 }
 
 /**
- * Delete embeddings from current chat's memories
+ * Delete embeddings from current chat's memories (UI wrapper for data action)
  */
-async function deleteCurrentChatEmbeddings() {
+async function handleDeleteCurrentChatEmbeddings() {
     if (!confirm('Are you sure you want to delete all embeddings for this chat?')) {
         return;
     }
@@ -58,17 +56,13 @@ async function deleteCurrentChatEmbeddings() {
         return;
     }
 
-    let count = 0;
-    for (const memory of data[MEMORIES_KEY]) {
-        if (memory.embedding) {
-            delete memory.embedding;
-            count++;
-        }
+    const count = await deleteCurrentChatEmbeddings();
+    if (count > 0) {
+        showToast('success', `Deleted ${count} embeddings`);
+        refreshAllUI();
+    } else {
+        showToast('info', 'No embeddings to delete');
     }
-
-    await getDeps().saveChatConditional();
-    showToast('success', `Deleted ${count} embeddings`);
-    refreshAllUI();
 }
 
 /**
@@ -200,8 +194,8 @@ jQuery(() => {
             extractMemories,
             retrieveAndInjectContext,
             extractAllMessages: extractAllMessagesWrapper,
-            deleteCurrentChatData,
-            deleteCurrentChatEmbeddings,
+            deleteCurrentChatData: handleDeleteCurrentChatData,
+            deleteCurrentChatEmbeddings: handleDeleteCurrentChatEmbeddings,
             backfillEmbeddings,
         });
 

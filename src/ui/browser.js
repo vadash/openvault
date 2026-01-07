@@ -7,6 +7,7 @@
 import { getDeps } from '../deps.js';
 import { getOpenVaultData, showToast } from '../utils.js';
 import { MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, MEMORIES_PER_PAGE } from '../constants.js';
+import { deleteMemory as deleteMemoryAction } from '../data/actions.js';
 import { refreshStats } from './status.js';
 import { formatMemoryImportance, formatMemoryDate, formatWitnesses } from './formatting.js';
 import { filterMemories, sortMemoriesByDate, getPaginationInfo, extractCharactersSet, buildCharacterStateData, buildRelationshipData } from './calculations.js';
@@ -152,19 +153,12 @@ export function renderMemoryBrowser() {
 }
 
 /**
- * Delete a memory by ID
+ * Delete a memory by ID (UI wrapper for data action)
  * @param {string} id - Memory ID to delete
  */
 async function deleteMemory(id) {
-    const data = getOpenVaultData();
-    if (!data) {
-        showToast('warning', 'No chat loaded');
-        return;
-    }
-    const idx = data[MEMORIES_KEY]?.findIndex(m => m.id === id);
-    if (idx !== -1) {
-        data[MEMORIES_KEY].splice(idx, 1);
-        await getDeps().saveChatConditional();
+    const deleted = await deleteMemoryAction(id);
+    if (deleted) {
         refreshAllUI();
         showToast('success', 'Memory deleted');
     }
