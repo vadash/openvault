@@ -15,6 +15,20 @@ import { getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 // Lazy-initialized worker
 let scoringWorker = null;
 
+// Worker timeout in milliseconds (10 seconds should be plenty for scoring)
+const WORKER_TIMEOUT_MS = 10000;
+
+/**
+ * Terminate the current worker and clear reference
+ */
+function terminateWorker() {
+    if (scoringWorker) {
+        scoringWorker.terminate();
+        scoringWorker = null;
+        log('Scoring worker terminated');
+    }
+}
+
 function getScoringWorker() {
     if (!scoringWorker) {
         scoringWorker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
@@ -23,15 +37,24 @@ function getScoringWorker() {
 }
 
 /**
- * Run scoring in web worker
+ * Run scoring in web worker with timeout and error recovery
  */
 function runWorkerScoring(memories, contextEmbedding, chatLength, limit, settings) {
     return new Promise((resolve, reject) => {
         const worker = getScoringWorker();
+        let timeoutId = null;
 
-        const handler = (e) => {
+        const cleanup = () => {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
             worker.removeEventListener('message', handler);
             worker.removeEventListener('error', errorHandler);
+        };
+
+        const handler = (e) => {
+            cleanup();
             if (e.data.success) {
                 resolve(e.data.results);
             } else {
@@ -40,13 +63,25 @@ function runWorkerScoring(memories, contextEmbedding, chatLength, limit, setting
         };
 
         const errorHandler = (e) => {
-            worker.removeEventListener('message', handler);
-            worker.removeEventListener('error', errorHandler);
-            reject(e);
+            cleanup();
+            // Worker crashed - terminate and let it respawn on next call
+            terminateWorker();
+            reject(new Error(`Worker error: ${e.message || 'Unknown error'}`));
+        };
+
+        const timeoutHandler = () => {
+            cleanup();
+            // Worker timed out - terminate and respawn
+            log('Scoring worker timed out, terminating');
+            terminateWorker();
+            reject(new Error('Worker scoring timed out'));
         };
 
         worker.addEventListener('message', handler);
         worker.addEventListener('error', errorHandler);
+
+        // Set timeout
+        timeoutId = setTimeout(timeoutHandler, WORKER_TIMEOUT_MS);
 
         worker.postMessage({
             memories,
