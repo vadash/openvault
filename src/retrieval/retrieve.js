@@ -13,6 +13,20 @@ import { selectRelevantMemories } from './scoring.js';
 import { getRelationshipContext, formatContextForInjection } from './formatting.js';
 
 /**
+ * Get memories from hidden (system) messages that need retrieval
+ * Memories from visible messages are already in context and don't need injection.
+ * @param {Object[]} chat - Chat messages array
+ * @param {Object[]} memories - All memories
+ * @returns {Object[]} Memories whose source messages are all hidden
+ */
+function _getHiddenMemories(chat, memories) {
+    return memories.filter(m =>
+        m.message_ids?.length > 0 &&
+        m.message_ids.every(id => chat[id]?.is_system)
+    );
+}
+
+/**
  * Inject retrieved context into the prompt
  * @param {string} contextText - Formatted context to inject
  */
@@ -122,10 +136,7 @@ export async function retrieveAndInjectContext() {
         const { povCharacters, isGroupChat } = getPOVContext();
 
         // Filter to memories from hidden messages only (visible messages are already in context)
-        const hiddenMemories = memories.filter(m =>
-            m.message_ids?.length > 0 &&
-            m.message_ids.every(id => chat[id]?.is_system)
-        );
+        const hiddenMemories = _getHiddenMemories(chat, memories);
 
         // Filter memories by POV
         const accessibleMemories = filterMemoriesByPOV(hiddenMemories, povCharacters, data);
@@ -208,10 +219,7 @@ export async function updateInjection(pendingUserMessage = '') {
     const { povCharacters, isGroupChat } = getPOVContext();
 
     // Filter to memories from hidden messages only (visible messages are already in context)
-    const hiddenMemories = memories.filter(m =>
-        m.message_ids?.length > 0 &&
-        m.message_ids.every(id => context.chat[id]?.is_system)
-    );
+    const hiddenMemories = _getHiddenMemories(context.chat, memories);
 
     // Filter memories by POV
     const accessibleMemories = filterMemoriesByPOV(hiddenMemories, povCharacters, data);
