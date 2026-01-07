@@ -13,81 +13,56 @@
 import { sortMemoriesBySequence } from './utils.js';
 
 // =============================================================================
-// EXTRACTION PROMPT
+// EXTRACTION PROMPT - Private Helpers
 // =============================================================================
 
-/**
- * Build the extraction prompt
- * @param {Object} options - Extraction prompt options
- * @param {string} options.messages - Formatted messages to analyze
- * @param {Object} options.names - Character names
- * @param {string} options.names.char - Main character name
- * @param {string} options.names.user - User character name
- * @param {Object} [options.context] - Additional context
- * @param {Object[]} [options.context.memories] - Recent memories for context
- * @param {string} [options.context.charDesc] - Character card description
- * @param {string} [options.context.personaDesc] - User persona description
- * @returns {string} The extraction prompt
- */
-export function buildExtractionPrompt({ messages, names, context = {} }) {
-    const { char: characterName, user: userName } = names;
-    const { memories: existingMemories = [], charDesc: characterDescription = '', personaDesc: personaDescription = '' } = context;
-
-    // === SECTION 1: ROLE DEFINITION ===
-    let prompt = `<role>
+function _extractionRole() {
+    return `<role>
 You are an expert narrative analyst extracting significant story events from roleplay conversations into structured JSON.
 
 You excel at distinguishing story-significant moments from mundane dialogue. You output valid JSON only - no markdown fences, no explanatory text.
-</role>
+</role>`;
+}
 
-`;
-
-    // === SECTION 2: LONG DATA AT TOP (per Claude guide: improves performance 30%) ===
-
-    // Messages to analyze - primary data
-    prompt += `<messages>
+function _extractionMessages(messages) {
+    return `<messages>
 ${messages}
-</messages>
+</messages>`;
+}
 
-`;
+function _extractionMemories(existingMemories) {
+    if (!existingMemories?.length) return null;
 
-    // Established memories (if any) - deduplication reference
-    if (existingMemories && existingMemories.length > 0) {
-        const memorySummaries = sortMemoriesBySequence(existingMemories, true)
-            .map((m, i) => `${i + 1}. [${m.event_type || 'event'}] ${m.summary}`)
-            .join('\n');
+    const memorySummaries = sortMemoriesBySequence(existingMemories, true)
+        .map((m, i) => `${i + 1}. [${m.event_type || 'event'}] ${m.summary}`)
+        .join('\n');
 
-        prompt += `<established_memories>
+    return `<established_memories>
 ${memorySummaries}
-</established_memories>
+</established_memories>`;
+}
 
-`;
-    }
-
-    // === SECTION 2: CONTEXT ===
-
-    // Character definitions
+function _extractionCharacters(characterName, userName, characterDescription, personaDescription) {
     if (characterDescription || personaDescription) {
-        prompt += '<characters>\n';
+        const parts = ['<characters>'];
         if (characterDescription) {
-            prompt += `<character name="${characterName}" role="main">\n${characterDescription}\n</character>\n`;
+            parts.push(`<character name="${characterName}" role="main">\n${characterDescription}\n</character>`);
         }
         if (personaDescription) {
-            prompt += `<character name="${userName}" role="user">\n${personaDescription}\n</character>\n`;
+            parts.push(`<character name="${userName}" role="user">\n${personaDescription}\n</character>`);
         }
-        prompt += '</characters>\n\n';
-    } else {
-        prompt += `<characters>
-<character name="${characterName}" role="main"/>
-<character name="${userName}" role="user"/>
-</characters>
-
-`;
+        parts.push('</characters>');
+        return parts.join('\n');
     }
 
-    // === SECTION 3: SCHEMA DEFINITIONS ===
+    return `<characters>
+<character name="${characterName}" role="main"/>
+<character name="${userName}" role="user"/>
+</characters>`;
+}
 
-    prompt += `<schema>
+function _extractionSchema() {
+    return `<schema>
 <event_types>
 <type name="action">Physical actions, movements, combat, significant gestures</type>
 <type name="revelation">New information disclosed, secrets shared, backstory revealed</type>
@@ -116,13 +91,11 @@ ${memorySummaries}
   "relationship_impact": {"A->B": "1-3 word change description"}
 }
 </output_format>
-</schema>
+</schema>`;
+}
 
-`;
-
-    // === SECTION 4: EXAMPLES (3-5 diverse examples per Claude guide) ===
-
-    prompt += `<examples>
+function _extractionExamples() {
+    return `<examples>
 <example type="revelation_confession">
 <input>[Elena]: *She finally breaks down, tears streaming* I killed him. My own brother. He was going to betray us all to the Empire.</input>
 <output>[
@@ -199,13 +172,11 @@ ${memorySummaries}
 <output>[]</output>
 <note>No significant events - just small talk</note>
 </example>
-</examples>
+</examples>`;
+}
 
-`;
-
-    // === SECTION 5: INSTRUCTIONS (numbered steps at end per Claude guide) ===
-
-    prompt += `<instructions>
+function _extractionInstructions() {
+    return `<instructions>
 Extract significant events from <messages> following these steps:
 
 1. SCAN messages for story-significant moments:
@@ -233,40 +204,38 @@ Extract significant events from <messages> following these steps:
 
 Return a JSON array of events. Return [] if no significant new events found.
 </instructions>`;
-
-    return prompt;
 }
 
 // =============================================================================
-// SMART RETRIEVAL PROMPT
+// SMART RETRIEVAL PROMPT - Private Helpers
 // =============================================================================
 
-/**
- * Build the smart retrieval prompt
- * @param {string} recentContext - Recent chat context
- * @param {string} numberedList - Numbered list of memories
- * @param {string} characterName - POV character name
- * @param {number} limit - Maximum memories to select
- * @returns {string} The smart retrieval prompt
- */
-export function buildSmartRetrievalPrompt(recentContext, numberedList, characterName, limit) {
+function _retrievalRole() {
     return `<role>
 You are a memory curator selecting which memories a character would naturally recall in a given moment.
 
 You understand how human memory works - triggered by association, emotion, and relevance. You output valid JSON only - no markdown fences, no explanatory text.
-</role>
+</role>`;
+}
 
-<scene>
+function _retrievalScene(recentContext) {
+    return `<scene>
 ${recentContext}
-</scene>
+</scene>`;
+}
 
-<memories>
+function _retrievalMemories(numberedList) {
+    return `<memories>
 ${numberedList}
-</memories>
+</memories>`;
+}
 
-<character>${characterName}</character>
+function _retrievalCharacter(characterName) {
+    return `<character>${characterName}</character>`;
+}
 
-<schema>
+function _retrievalSchema() {
+    return `<schema>
 <output_format>
 {
   "selected": [1, 4, 7],
@@ -282,9 +251,11 @@ ${numberedList}
 <criterion priority="5">Secrets or private knowledge relevant to situation</criterion>
 <criterion priority="6">Recent events providing immediate context</criterion>
 </selection_criteria>
-</schema>
+</schema>`;
+}
 
-<examples>
+function _retrievalExamples() {
+    return `<examples>
 <example type="topic_relevance">
 <scene_summary>Elena asks about the old castle's history</scene_summary>
 <available_memories>
@@ -327,9 +298,11 @@ ${numberedList}
 </available_memories>
 <output>{"selected": [4, 1, 3], "reasoning": "Secret knowledge of Crane's treachery is critical; Duke's conditional loyalty also relevant"}</output>
 </example>
-</examples>
+</examples>`;
+}
 
-<instructions>
+function _retrievalInstructions(limit, characterName) {
+    return `<instructions>
 Select up to ${limit} memories that ${characterName} would naturally recall for this scene.
 
 1. ANALYZE the scene for:
@@ -351,4 +324,60 @@ Select up to ${limit} memories that ${characterName} would naturally recall for 
 
 Return JSON with selected memory numbers (1-indexed) and brief reasoning.
 </instructions>`;
+}
+
+// =============================================================================
+// PUBLIC API
+// =============================================================================
+
+/**
+ * Build the extraction prompt
+ * @param {Object} options - Extraction prompt options
+ * @param {string} options.messages - Formatted messages to analyze
+ * @param {Object} options.names - Character names
+ * @param {string} options.names.char - Main character name
+ * @param {string} options.names.user - User character name
+ * @param {Object} [options.context] - Additional context
+ * @param {Object[]} [options.context.memories] - Recent memories for context
+ * @param {string} [options.context.charDesc] - Character card description
+ * @param {string} [options.context.personaDesc] - User persona description
+ * @returns {string} The extraction prompt
+ */
+export function buildExtractionPrompt({ messages, names, context = {} }) {
+    const { char: characterName, user: userName } = names;
+    const { memories: existingMemories = [], charDesc: characterDescription = '', personaDesc: personaDescription = '' } = context;
+
+    const sections = [
+        _extractionRole(),
+        _extractionMessages(messages),
+        _extractionMemories(existingMemories),
+        _extractionCharacters(characterName, userName, characterDescription, personaDescription),
+        _extractionSchema(),
+        _extractionExamples(),
+        _extractionInstructions(),
+    ].filter(Boolean);
+
+    return sections.join('\n\n');
+}
+
+/**
+ * Build the smart retrieval prompt
+ * @param {string} recentContext - Recent chat context
+ * @param {string} numberedList - Numbered list of memories
+ * @param {string} characterName - POV character name
+ * @param {number} limit - Maximum memories to select
+ * @returns {string} The smart retrieval prompt
+ */
+export function buildSmartRetrievalPrompt(recentContext, numberedList, characterName, limit) {
+    const sections = [
+        _retrievalRole(),
+        _retrievalScene(recentContext),
+        _retrievalMemories(numberedList),
+        _retrievalCharacter(characterName),
+        _retrievalSchema(),
+        _retrievalExamples(),
+        _retrievalInstructions(limit, characterName),
+    ];
+
+    return sections.join('\n\n');
 }
