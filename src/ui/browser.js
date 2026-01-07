@@ -75,12 +75,15 @@ export function renderMemoryBrowser() {
     memoryBrowserPage = pagination.currentPage;
     const pageMemories = filteredMemories.slice(pagination.startIdx, pagination.endIdx);
 
-    // Clear and render
+    // Clear and render using DocumentFragment for performance
     $list.empty();
 
     if (pageMemories.length === 0) {
         $list.html('<p class="openvault-placeholder">No memories yet</p>');
     } else {
+        // Use DocumentFragment to batch DOM insertions
+        const fragment = document.createDocumentFragment();
+
         for (const memory of pageMemories) {
             const date = formatMemoryDate(memory.created_at);
             // Sanitize event_type for use as CSS class (alphanumeric and hyphens only)
@@ -126,8 +129,11 @@ export function renderMemoryBrowser() {
             $actions.append($deleteBtn);
             $item.append($actions);
 
-            $list.append($item);
+            fragment.appendChild($item[0]);
         }
+
+        // Single DOM insertion
+        $list[0].appendChild(fragment);
 
         // Bind delete buttons
         $list.find('.openvault-delete-memory').on('click', async function() {
@@ -165,7 +171,7 @@ async function deleteMemory(id) {
 }
 
 /**
- * Populate the character filter dropdown
+ * Populate the character filter dropdown using DocumentFragment for performance
  */
 export function populateCharacterFilter() {
     const data = getOpenVaultData();
@@ -180,18 +186,26 @@ export function populateCharacterFilter() {
     const currentValue = $filter.val();
     $filter.find('option:not(:first)').remove();
 
-    for (const char of characters) {
-        $filter.append($('<option>', { value: char, text: char }));
+    if (characters.size > 0) {
+        // Use DocumentFragment to batch option insertions
+        const fragment = document.createDocumentFragment();
+        for (const char of characters) {
+            const option = document.createElement('option');
+            option.value = char;
+            option.textContent = char;
+            fragment.appendChild(option);
+        }
+        $filter[0].appendChild(fragment);
     }
 
     // Restore selection if still valid
-    if (currentValue && characters.includes(currentValue)) {
+    if (currentValue && characters.has(currentValue)) {
         $filter.val(currentValue);
     }
 }
 
 /**
- * Render character states
+ * Render character states using DocumentFragment for performance
  */
 export function renderCharacterStates() {
     const data = getOpenVaultData();
@@ -209,6 +223,9 @@ export function renderCharacterStates() {
         $container.html('<p class="openvault-placeholder">No character data yet</p>');
         return;
     }
+
+    // Use DocumentFragment to batch DOM insertions
+    const fragment = document.createDocumentFragment();
 
     for (const name of charNames.sort()) {
         const charData = buildCharacterStateData(name, characters[name]);
@@ -230,12 +247,15 @@ export function renderCharacterStates() {
         $item.append($emotion);
 
         $item.append($('<div>', { class: 'openvault-memory-witnesses', text: `Known events: ${charData.knownCount}` }));
-        $container.append($item);
+        fragment.appendChild($item[0]);
     }
+
+    // Single DOM insertion
+    $container[0].appendChild(fragment);
 }
 
 /**
- * Render relationships
+ * Render relationships using DocumentFragment for performance
  */
 export function renderRelationships() {
     const data = getOpenVaultData();
@@ -253,6 +273,9 @@ export function renderRelationships() {
         $container.html('<p class="openvault-placeholder">No relationship data yet</p>');
         return;
     }
+
+    // Use DocumentFragment to batch DOM insertions
+    const fragment = document.createDocumentFragment();
 
     for (const key of relKeys.sort()) {
         const relData = buildRelationshipData(key, relationships[key]);
@@ -280,8 +303,11 @@ export function renderRelationships() {
         $bars.append($tensionRow);
 
         $item.append($bars);
-        $container.append($item);
+        fragment.appendChild($item[0]);
     }
+
+    // Single DOM insertion
+    $container[0].appendChild(fragment);
 }
 
 /**
