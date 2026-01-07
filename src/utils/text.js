@@ -53,6 +53,7 @@ export function safeParseJSON(input) {
         return repairJson(input, { returnObject: true, extractJson: true });
     } catch (e) {
         getDeps().console.error('[OpenVault] JSON Parse failed', e);
+        getDeps().console.error('[OpenVault] Raw LLM response:', input);
         return null;
     }
 }

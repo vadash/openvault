@@ -15,7 +15,7 @@ import { extensionName } from './constants.js';
 export const LLM_CONFIGS = {
     extraction: {
         profileSettingKey: 'extractionProfile',
-        maxTokens: 2000,
+        maxTokens: 4000,
         errorContext: 'Extraction'
     },
     retrieval: {
