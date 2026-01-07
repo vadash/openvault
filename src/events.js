@@ -215,27 +215,33 @@ export async function onMessageReceived(messageId) {
 }
 
 /**
+ * Event type to handler mapping for DRY listener management
+ */
+const EVENT_MAP = [
+    ['GENERATION_AFTER_COMMANDS', onBeforeGeneration],
+    ['GENERATION_ENDED', onGenerationEnded],
+    ['MESSAGE_RECEIVED', onMessageReceived],
+    ['CHAT_CHANGED', onChatChanged]
+];
+
+/**
  * Update event listeners based on settings
  */
 export function updateEventListeners(_skipInitialization = false) {
     const { eventSource, event_types } = getDeps();
 
-    // Remove old event listeners first to prevent duplicates
-    eventSource.removeListener(event_types.GENERATION_AFTER_COMMANDS, onBeforeGeneration);
-    eventSource.removeListener(event_types.GENERATION_ENDED, onGenerationEnded);
-    eventSource.removeListener(event_types.MESSAGE_RECEIVED, onMessageReceived);
-    eventSource.removeListener(event_types.CHAT_CHANGED, onChatChanged);
-
     // Reset operation state only if no generation in progress
     resetOperationStatesIfSafe();
 
-    if (isAutomaticMode()) {
-        // Register event listeners for automatic mode
-        eventSource.on(event_types.GENERATION_AFTER_COMMANDS, onBeforeGeneration);
-        eventSource.on(event_types.GENERATION_ENDED, onGenerationEnded);
-        eventSource.on(event_types.MESSAGE_RECEIVED, onMessageReceived);
-        eventSource.on(event_types.CHAT_CHANGED, onChatChanged);
+    // Cleanup and register in one loop
+    EVENT_MAP.forEach(([type, handler]) => {
+        eventSource.removeListener(event_types[type], handler);
+        if (isAutomaticMode()) {
+            eventSource.on(event_types[type], handler);
+        }
+    });
 
+    if (isAutomaticMode()) {
         log('Automatic mode enabled - event listeners registered');
     } else {
         // Clear injection when disabled/manual
