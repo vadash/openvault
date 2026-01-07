@@ -195,12 +195,12 @@ describe('retrieve', () => {
             expect(log).toHaveBeenCalledWith('No memories stored yet');
         });
 
-        it('sets status to retrieving', async () => {
+        it('does not set status (caller handles it)', async () => {
             selectRelevantMemories.mockResolvedValue([]);
 
             await retrieveAndInjectContext();
 
-            expect(setStatus).toHaveBeenCalledWith('retrieving');
+            expect(setStatus).not.toHaveBeenCalled();
         });
 
         it('applies POV filtering', async () => {
@@ -240,7 +240,6 @@ describe('retrieve', () => {
 
             expect(result).toBeNull();
             expect(log).toHaveBeenCalledWith('No relevant memories found');
-            expect(setStatus).toHaveBeenCalledWith('ready');
         });
 
         it('gets relationship context for active characters', async () => {
@@ -291,29 +290,27 @@ describe('retrieve', () => {
             expect(safeSetExtensionPrompt).toHaveBeenCalledWith('Final formatted context');
         });
 
-        it('shows success toast and returns result', async () => {
+        it('returns result without calling UI functions (caller handles them)', async () => {
             const selectedMemories = [mockData[MEMORIES_KEY][0], mockData[MEMORIES_KEY][1]];
             selectRelevantMemories.mockResolvedValue(selectedMemories);
             formatContextForInjection.mockReturnValue('Context');
 
             const result = await retrieveAndInjectContext();
 
-            expect(showToast).toHaveBeenCalledWith('success', 'Retrieved 2 relevant memories');
-            expect(setStatus).toHaveBeenCalledWith('ready');
+            expect(showToast).not.toHaveBeenCalled();
+            expect(setStatus).not.toHaveBeenCalled();
             expect(result).toEqual({
                 memories: selectedMemories,
                 context: 'Context',
             });
         });
 
-        it('handles errors gracefully', async () => {
+        it('throws errors for caller to handle', async () => {
             selectRelevantMemories.mockRejectedValue(new Error('Scoring failed'));
 
-            const result = await retrieveAndInjectContext();
+            await expect(retrieveAndInjectContext()).rejects.toThrow('Scoring failed');
 
-            expect(result).toBeNull();
             expect(mockConsole.error).toHaveBeenCalled();
-            expect(setStatus).toHaveBeenCalledWith('error');
         });
 
         it('uses default emotion when character state missing', async () => {

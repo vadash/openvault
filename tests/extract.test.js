@@ -143,35 +143,32 @@ describe('extract', () => {
             ];
         });
 
-        it('returns early and shows warning if extension disabled', async () => {
+        it('returns skipped status if extension disabled', async () => {
             isExtensionEnabled.mockReturnValue(false);
 
             const result = await extractMemories();
 
-            expect(result).toBeUndefined();
-            expect(showToast).toHaveBeenCalledWith('warning', 'OpenVault is disabled');
+            expect(result).toEqual({ status: 'skipped', reason: 'disabled' });
             expect(callLLMForExtraction).not.toHaveBeenCalled();
         });
 
-        it('returns early if no chat messages', async () => {
+        it('returns skipped status if no chat messages', async () => {
             mockContext.chat = [];
 
             const result = await extractMemories();
 
-            expect(result).toBeUndefined();
-            expect(showToast).toHaveBeenCalledWith('warning', 'No chat messages to extract');
+            expect(result).toEqual({ status: 'skipped', reason: 'no_messages' });
         });
 
-        it('returns early if no data available', async () => {
+        it('returns skipped status if no data available', async () => {
             getOpenVaultData.mockReturnValue(null);
 
             const result = await extractMemories();
 
-            expect(result).toBeUndefined();
-            expect(showToast).toHaveBeenCalledWith('warning', 'No chat context available');
+            expect(result).toEqual({ status: 'skipped', reason: 'no_context' });
         });
 
-        it('returns early if no new messages to extract', async () => {
+        it('returns skipped status if no new messages to extract', async () => {
             mockData[LAST_PROCESSED_KEY] = 10;
             mockContext.chat = [
                 { mes: 'Old message', is_user: false },
@@ -179,8 +176,7 @@ describe('extract', () => {
 
             const result = await extractMemories();
 
-            expect(result).toBeUndefined();
-            expect(showToast).toHaveBeenCalledWith('info', 'No new messages to extract');
+            expect(result).toEqual({ status: 'skipped', reason: 'no_new_messages' });
         });
 
         it('filters out system messages', async () => {
@@ -218,12 +214,12 @@ describe('extract', () => {
             expect(promptCall.messages).not.toContain('Message 2');
         });
 
-        it('sets status to extracting during extraction', async () => {
+        it('does not set status (caller handles it)', async () => {
             parseExtractionResult.mockReturnValue([]);
 
             await extractMemories();
 
-            expect(setStatus).toHaveBeenCalledWith('extracting');
+            expect(setStatus).not.toHaveBeenCalled();
         });
 
         it('builds extraction prompt with character context', async () => {
@@ -330,7 +326,7 @@ describe('extract', () => {
             expect(enrichEventsWithEmbeddings).toHaveBeenCalledWith(newEvents);
         });
 
-        it('shows success toast and sets ready status', async () => {
+        it('does not call UI functions (caller handles them)', async () => {
             const newEvents = [
                 { id: 'evt1', summary: 'Event 1' },
                 { id: 'evt2', summary: 'Event 2' },
@@ -339,9 +335,9 @@ describe('extract', () => {
 
             await extractMemories();
 
-            expect(showToast).toHaveBeenCalledWith('success', 'Extracted 2 memory events');
-            expect(setStatus).toHaveBeenCalledWith('ready');
-            expect(refreshAllUI).toHaveBeenCalled();
+            expect(showToast).not.toHaveBeenCalled();
+            expect(setStatus).not.toHaveBeenCalled();
+            expect(refreshAllUI).not.toHaveBeenCalled();
         });
 
         it('tracks processed IDs and saves even when no events extracted', async () => {
@@ -358,7 +354,7 @@ describe('extract', () => {
             expect(mockData[PROCESSED_MESSAGES_KEY].length).toBeGreaterThan(0);
         });
 
-        it('returns result with events count and messages processed', async () => {
+        it('returns result with status, events count and messages processed', async () => {
             const newEvents = [
                 { id: 'evt1', summary: 'Event 1' },
             ];
@@ -371,19 +367,18 @@ describe('extract', () => {
             const result = await extractMemories();
 
             expect(result).toEqual({
+                status: 'success',
                 events_created: 1,
                 messages_processed: 2,
             });
         });
 
-        it('handles LLM errors gracefully', async () => {
+        it('throws LLM errors for caller to handle', async () => {
             callLLMForExtraction.mockRejectedValue(new Error('LLM failed'));
 
             await expect(extractMemories()).rejects.toThrow('LLM failed');
 
             expect(mockConsole.error).toHaveBeenCalled();
-            expect(showToast).toHaveBeenCalledWith('error', 'Extraction failed: LLM failed');
-            expect(setStatus).toHaveBeenCalledWith('error');
         });
 
         it('includes recent memories in extraction prompt', async () => {

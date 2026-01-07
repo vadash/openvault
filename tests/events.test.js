@@ -512,7 +512,7 @@ describe('events', () => {
         it('shows success toast after extraction', async () => {
             mockSettings.messagesPerExtraction = 2;
             getNextBatch.mockReturnValue([0, 1]);
-            extractMemories.mockResolvedValue({ events_created: 3, messages_processed: 2 });
+            extractMemories.mockResolvedValue({ status: 'success', events_created: 3, messages_processed: 2 });
 
             await onMessageReceived(1);
 

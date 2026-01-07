@@ -129,7 +129,20 @@ function registerCommands() {
     parser.addCommandObject(command.fromProps({
         name: 'openvault-extract',
         callback: async () => {
-            await extractMemories();
+            setStatus('extracting');
+            try {
+                const result = await extractMemories();
+                if (result.status === 'success' && result.events_created > 0) {
+                    showToast('success', `Extracted ${result.events_created} memory events`);
+                    refreshAllUI();
+                } else if (result.status === 'skipped') {
+                    showToast('info', result.reason === 'disabled' ? 'OpenVault is disabled' :
+                        result.reason === 'no_new_messages' ? 'No new messages to extract' : 'Cannot extract');
+                }
+            } catch (error) {
+                showToast('error', `Extraction failed: ${error.message}`);
+            }
+            setStatus('ready');
             return '';
         },
         helpString: 'Extract memories from recent messages',
@@ -139,7 +152,18 @@ function registerCommands() {
     parser.addCommandObject(command.fromProps({
         name: 'openvault-retrieve',
         callback: async () => {
-            await retrieveAndInjectContext();
+            setStatus('retrieving');
+            try {
+                const result = await retrieveAndInjectContext();
+                if (result) {
+                    showToast('success', `Retrieved ${result.memories.length} relevant memories`);
+                } else {
+                    showToast('info', 'No memories to retrieve');
+                }
+            } catch (error) {
+                showToast('error', `Retrieval failed: ${error.message}`);
+            }
+            setStatus('ready');
             return '';
         },
         helpString: 'Retrieve relevant context and inject into prompt',

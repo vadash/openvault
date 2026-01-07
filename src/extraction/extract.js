@@ -2,14 +2,13 @@
  * OpenVault Memory Extraction
  *
  * Main extraction logic for extracting memories from messages.
+ * Returns result objects; callers handle UI feedback (toasts, status).
  */
 
 import { getDeps } from '../deps.js';
-import { getOpenVaultData, saveOpenVaultData, showToast, log, isExtensionEnabled } from '../utils.js';
+import { getOpenVaultData, saveOpenVaultData, log, isExtensionEnabled } from '../utils.js';
 import { extensionName, MEMORIES_KEY, LAST_PROCESSED_KEY, PROCESSED_MESSAGES_KEY } from '../constants.js';
 import { callLLMForExtraction } from '../llm.js';
-import { setStatus } from '../ui/status.js';
-import { refreshAllUI } from '../ui/browser.js';
 import { buildExtractionPrompt } from '../prompts.js';
 import { parseExtractionResult, updateCharacterStatesFromEvents, updateRelationshipsFromEvents } from './parser.js';
 import { applyRelationshipDecay } from '../simulation.js';
@@ -20,12 +19,11 @@ import { enrichEventsWithEmbeddings } from '../embeddings.js';
  * Extract memories from messages using LLM
  * @param {number[]} messageIds - Optional specific message IDs to extract
  * @param {string} targetChatId - Optional chat ID to verify before saving (prevents saving to wrong chat if user switches)
- * @returns {Promise<{events_created: number, messages_processed: number}|undefined>}
+ * @returns {Promise<{status: string, events_created?: number, messages_processed?: number, reason?: string}>}
  */
 export async function extractMemories(messageIds = null, targetChatId = null) {
     if (!isExtensionEnabled()) {
-        showToast('warning', 'OpenVault is disabled');
-        return;
+        return { status: 'skipped', reason: 'disabled' };
     }
 
     const deps = getDeps();
@@ -34,14 +32,12 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
     const chat = context.chat;
 
     if (!chat || chat.length === 0) {
-        showToast('warning', 'No chat messages to extract');
-        return;
+        return { status: 'skipped', reason: 'no_messages' };
     }
 
     const data = getOpenVaultData();
     if (!data) {
-        showToast('warning', 'No chat context available');
-        return;
+        return { status: 'skipped', reason: 'no_context' };
     }
 
     // Get messages to extract
@@ -62,12 +58,10 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
     }
 
     if (messagesToExtract.length === 0) {
-        showToast('info', 'No new messages to extract');
-        return;
+        return { status: 'skipped', reason: 'no_new_messages' };
     }
 
     log(`Extracting ${messagesToExtract.length} messages`);
-    setStatus('extracting');
 
     // Generate a unique batch ID for this extraction run
     const batchId = `batch_${deps.Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -143,18 +137,9 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
             throw new Error('Chat changed during extraction');
         }
 
-        if (events.length > 0) {
-            showToast('success', `Extracted ${events.length} memory events`);
-        }
-
-        setStatus('ready');
-        refreshAllUI();
-
-        return { events_created: events.length, messages_processed: messagesToExtract.length };
+        return { status: 'success', events_created: events.length, messages_processed: messagesToExtract.length };
     } catch (error) {
         getDeps().console.error('[OpenVault] Extraction error:', error);
-        showToast('error', `Extraction failed: ${error.message}`);
-        setStatus('error');
         throw error;
     }
 }

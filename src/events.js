@@ -201,8 +201,9 @@ export async function onMessageReceived(messageId) {
 
         // Clear the persistent toast and show success
         $('.openvault-extracting-toast').remove();
-        if (result && result.events_created > 0) {
+        if (result && result.status === 'success' && result.events_created > 0) {
             showToast('success', `Extracted ${result.events_created} events from ${result.messages_processed} messages`, 'OpenVault');
+            refreshAllUI();
         }
     } catch (error) {
         getDeps().console.error('[OpenVault] Automatic extraction error:', error);

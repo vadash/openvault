@@ -2,12 +2,12 @@
  * OpenVault Memory Retrieval
  *
  * Main retrieval logic for selecting and injecting memories into context.
+ * Returns result objects; callers handle UI feedback (toasts, status).
  */
 
 import { getDeps } from '../deps.js';
-import { getOpenVaultData, safeSetExtensionPrompt, showToast, log, isExtensionEnabled, isAutomaticMode } from '../utils.js';
+import { getOpenVaultData, safeSetExtensionPrompt, log, isExtensionEnabled, isAutomaticMode } from '../utils.js';
 import { extensionName, MEMORIES_KEY, CHARACTERS_KEY } from '../constants.js';
-import { setStatus } from '../ui/status.js';
 import { getActiveCharacters, getPOVContext, filterMemoriesByPOV } from '../pov.js';
 import { selectRelevantMemories } from './scoring.js';
 import { getRelationshipContext, formatContextForInjection } from './formatting.js';
@@ -129,8 +129,6 @@ export async function retrieveAndInjectContext() {
         return null;
     }
 
-    setStatus('retrieving');
-
     try {
         const activeCharacters = getActiveCharacters();
         const { povCharacters, isGroupChat } = getPOVContext();
@@ -151,7 +149,6 @@ export async function retrieveAndInjectContext() {
 
         if (memoriesToUse.length === 0) {
             log('No memories available');
-            setStatus('ready');
             return null;
         }
 
@@ -168,18 +165,14 @@ export async function retrieveAndInjectContext() {
 
         if (!result) {
             log('No relevant memories found');
-            setStatus('ready');
             return null;
         }
 
         log(`Injected ${result.memories.length} memories into context`);
-        showToast('success', `Retrieved ${result.memories.length} relevant memories`);
-        setStatus('ready');
         return result;
     } catch (error) {
         getDeps().console.error('[OpenVault] Retrieval error:', error);
-        setStatus('error');
-        return null;
+        throw error;
     }
 }
 
