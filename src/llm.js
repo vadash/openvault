@@ -20,7 +20,7 @@ export const LLM_CONFIGS = {
     },
     retrieval: {
         profileSettingKey: 'retrievalProfile',
-        maxTokens: 1000,
+        maxTokens: 4000,
         errorContext: 'Smart retrieval'
     }
 };
