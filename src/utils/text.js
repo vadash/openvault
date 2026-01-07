@@ -5,7 +5,7 @@
  */
 
 import { getDeps } from '../deps.js';
-import { repairJson } from '../lib/json-repair.js';
+import { repairJson } from '../vendor/json-repair.js';
 
 /**
  * Estimate token count for a text string

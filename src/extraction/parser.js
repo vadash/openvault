@@ -6,7 +6,7 @@
 
 import { getDeps } from '../deps.js';
 import { generateId, log } from '../utils.js';
-import { repairJson } from '../lib/json-repair.js';
+import { repairJson } from '../vendor/json-repair.js';
 import {
     extensionName,
     CHARACTERS_KEY,
