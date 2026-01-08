@@ -71,12 +71,40 @@ function _extractionSchema() {
 </event_types>
 
 <importance_scale>
-<level value="1">Minor detail - passing mention, flavor text</level>
-<level value="2">Notable - worth remembering for continuity</level>
-<level value="3">Significant - affects ongoing story</level>
-<level value="4">Major - turning point or key development</level>
-<level value="5">Critical - story-changing, cannot be forgotten</level>
+<level value="1">Flavor text - passing mention, no story impact
+  Examples: idle touch, brief glance, weather comment</level>
+<level value="2">Routine - standard interaction, easily forgotten
+  Examples: repeated intimate acts of same type, regular conversations</level>
+<level value="3">Notable - affects short-term continuity
+  Examples: minor revelations, mood shifts, location changes</level>
+<level value="4">Significant - lasting impact, should be recalled
+  Examples: FIRST intimate act of its type, boundary discussions, emotional confessions, new kinks introduced</level>
+<level value="5">Critical - story-defining, must never forget
+  Examples: FIRST sexual encounter ever between characters, virginity loss, major betrayal, relationship status change, character death</level>
 </importance_scale>
+
+<importance_guidance>
+ADULT CONTENT CALIBRATION:
+- FIRST kiss between characters: 4-5
+- FIRST sexual act of ANY type: 5
+- Repeated/routine sex of same type: 2
+- New position/act type with same partner: 3
+- New kink/fetish introduced: 4
+- Consent negotiation/safe word use: 4
+- Boundary violation: 5
+- Routine climax: 2
+- Significant/simultaneous climax: 3
+
+GENERAL RP CALIBRATION:
+- Small talk/greetings: 1
+- Character learns new world info: 2-3
+- Character learns secret about another: 4
+- Promise/oath made: 4
+- Promise broken: 5
+- Physical injury: 3-4
+- Life-threatening situation: 4-5
+- Character death: 5
+</importance_guidance>
 
 <output_format>
 {
@@ -122,7 +150,7 @@ function _extractionExamples() {
     "summary": "Marcus attacked the assassin with his sword to protect Elena.",
     "characters_involved": ["Marcus"],
     "witnesses": ["Marcus", "Elena", "Assassin"],
-    "location": null,
+    "location": "moonlit courtyard",
     "is_secret": false,
     "emotional_impact": {"Marcus": "protective fury"},
     "relationship_impact": {"Marcus->Elena": "devotion shown"}
@@ -157,7 +185,7 @@ function _extractionExamples() {
     "summary": "Катя admitted to reading Дима's diary entries about her.",
     "characters_involved": ["Катя"],
     "witnesses": ["Катя", "Дима"],
-    "location": null,
+    "location": "Дима's room",
     "is_secret": true,
     "emotional_impact": {"Катя": "embarrassed"},
     "relationship_impact": {"Катя->Дима": "vulnerability shown"}
@@ -225,6 +253,114 @@ function _extractionExamples() {
 <output>[]</output>
 <note>No significant events - just small talk</note>
 </example>
+
+<example type="deduplication_skip">
+<established_memories>
+1. [action] Kai initiated oral sex with Zoe in the bedroom.
+2. [emotion_shift] Zoe expressed pleasure during intimate encounter.
+</established_memories>
+<input>[Zoe]: *her back arches as his tongue works magic* Oh god, Kai... right there...
+[Kai]: *continues his attention, hands gripping her thighs, encouraged by her sounds*</input>
+<output>[]</output>
+<note>Continuation of already-recorded oral sex - no new act type or climax. SKIP.</note>
+</example>
+
+<example type="escalation_extract">
+<established_memories>
+1. [action] Kai initiated oral sex with Zoe in the bedroom.
+</established_memories>
+<input>[Kai]: *pulls back, eyes dark with desire* I need you. Now.
+[Zoe]: *pulls him up, wrapping legs around him* Take me.</input>
+<output>[
+  {
+    "event_type": "action",
+    "importance": 3,
+    "summary": "Kai and Zoe transitioned from oral sex to intercourse.",
+    "characters_involved": ["Kai", "Zoe"],
+    "witnesses": ["Kai", "Zoe"],
+    "location": "bedroom",
+    "is_secret": true,
+    "emotional_impact": {"Kai": "passionate", "Zoe": "desirous"},
+    "relationship_impact": {"Kai->Zoe": "intimacy escalated"}
+  }
+]</output>
+<note>Escalation from oral to intercourse = new act type. EXTRACT.</note>
+</example>
+
+<example type="first_time_critical">
+<input>[Zoe]: *nods, vulnerable, tears in her eyes* This... this is my first time ever. With anyone. I wanted it to be you.</input>
+<output>[
+  {
+    "event_type": "revelation",
+    "importance": 5,
+    "summary": "Zoe revealed this is her first sexual experience ever, choosing Kai.",
+    "characters_involved": ["Zoe"],
+    "witnesses": ["Zoe", "Kai"],
+    "location": null,
+    "is_secret": true,
+    "emotional_impact": {"Zoe": "vulnerable, trusting", "Kai": "honored"},
+    "relationship_impact": {"Zoe->Kai": "ultimate trust shown"}
+  }
+]</output>
+<note>First sexual experience ever = importance 5 (story-defining).</note>
+</example>
+
+<example type="routine_intimacy">
+<input>[Kai]: *pulls her close again, hands exploring familiar territory*
+[Zoe]: *responds eagerly, knowing exactly what he likes* Mmm, I know you love that...</input>
+<output>[
+  {
+    "event_type": "action",
+    "importance": 2,
+    "summary": "Kai and Zoe engaged in familiar intimate touching.",
+    "characters_involved": ["Kai", "Zoe"],
+    "witnesses": ["Kai", "Zoe"],
+    "location": null,
+    "is_secret": true,
+    "emotional_impact": {"Kai": "aroused", "Zoe": "comfortable"},
+    "relationship_impact": {}
+  }
+]</output>
+<note>Routine intimacy between established partners = importance 2.</note>
+</example>
+
+<example type="location_explicit">
+<input>[Marcus]: *leads her through the steaming waters to a secluded alcove* No one can see us here in the thermal baths.
+[Elena]: *presses against the warm stone wall* Perfect.</input>
+<output>[
+  {
+    "event_type": "action",
+    "importance": 3,
+    "summary": "Marcus and Elena found a private alcove in the thermal baths for intimacy.",
+    "characters_involved": ["Marcus", "Elena"],
+    "witnesses": ["Marcus", "Elena"],
+    "location": "thermal baths, secluded alcove",
+    "is_secret": true,
+    "emotional_impact": {"Marcus": "anticipation", "Elena": "eager"},
+    "relationship_impact": {}
+  }
+]</output>
+<note>Location explicitly mentioned - extract with descriptors.</note>
+</example>
+
+<example type="location_vehicle">
+<input>[Liam]: *pulls the car into a dark corner of the parking garage* We have ten minutes before anyone notices.
+[Anya]: *climbs over the console into his lap* Better make them count.</input>
+<output>[
+  {
+    "event_type": "action",
+    "importance": 3,
+    "summary": "Liam and Anya began intimate encounter in car in parking garage.",
+    "characters_involved": ["Liam", "Anya"],
+    "witnesses": ["Liam", "Anya"],
+    "location": "parking garage, inside car",
+    "is_secret": true,
+    "emotional_impact": {"Liam": "risky thrill", "Anya": "excited"},
+    "relationship_impact": {}
+  }
+]</output>
+<note>Location inferred from context: car + parking garage.</note>
+</example>
 </examples>`;
 }
 
@@ -252,9 +388,29 @@ Extract significant events from <messages> following these steps:
    - Ensure summary and impacts accurately reflect consent, character agency, and any established boundaries
 
 4. DEDUPLICATE against <established_memories>:
-   - Same core action + same characters = SKIP
-   - Progression of recorded event = SKIP
-   - Only extract if fundamentally NEW action occurred
+   - Same act + same characters + no new outcome = SKIP
+   - Mere continuation of ongoing physical activity = SKIP
+   - ONLY extract if NEW act type OR new participant OR explicit outcome change
+
+   <duplicate_patterns>
+   SKIP if new event matches existing memory pattern:
+   - "X performed oral sex on Y" -> another instance of same = SKIP
+   - "X and Y had intercourse" -> continuing same intercourse = SKIP
+   - "X touched Y intimately" -> more of same touching = SKIP
+
+   EXTRACT only when:
+   - FIRST occurrence of act type between these characters
+   - Act ESCALATES (kissing -> oral -> intercourse)
+   - CLIMAX/completion explicitly described (if not already recorded)
+   - New BOUNDARY crossed or CONSENT re-established
+   </duplicate_patterns>
+
+5. LOCATION tracking:
+   - Extract EXPLICIT locations mentioned (bedroom, car, office, park)
+   - INFER location from context clues (apartment keys = apartment, shower sounds = bathroom)
+   - Include notable descriptors (candlelit bedroom, backseat of car, secluded alcove)
+   - Use null ONLY when location is truly unknowable from context
+   - Prefer specific over general (bedroom > house, backseat > car)
 
 <avoid>
 DO NOT extract:

@@ -38,7 +38,7 @@ export function parseExtractionResult(jsonString, messages, characterName, userN
         batch_id: batchId,
         characters_involved: event.characters_involved || [],
         witnesses: event.witnesses || event.characters_involved || [],
-        location: event.location || 'unknown',
+        location: event.location || null,
         is_secret: event.is_secret || false,
         importance: Math.min(5, Math.max(1, event.importance || 3)), // Clamp to 1-5, default 3
         emotional_impact: event.emotional_impact || {},

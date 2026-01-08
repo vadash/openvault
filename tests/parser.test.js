@@ -100,7 +100,7 @@ describe('parser', () => {
 
             expect(events[0].characters_involved).toEqual([]);
             expect(events[0].witnesses).toEqual([]);
-            expect(events[0].location).toBe('unknown');
+            expect(events[0].location).toBe(null);
             expect(events[0].is_secret).toBe(false);
             expect(events[0].emotional_impact).toEqual({});
             expect(events[0].relationship_impact).toEqual({});

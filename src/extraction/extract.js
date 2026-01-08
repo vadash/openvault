@@ -14,6 +14,33 @@ import { parseExtractionResult, updateCharacterStatesFromEvents, updateRelations
 import { applyRelationshipDecay } from '../simulation.js';
 import { selectMemoriesForExtraction } from './context-builder.js';
 import { enrichEventsWithEmbeddings } from '../embeddings.js';
+import { cosineSimilarity } from '../retrieval/math.js';
+
+/**
+ * Filter out events that are too similar to existing memories
+ * @param {Object[]} newEvents - Newly extracted events with embeddings
+ * @param {Object[]} existingMemories - Existing memories with embeddings
+ * @param {number} threshold - Similarity threshold (0-1, default 0.85)
+ * @returns {Object[]} Filtered events that are sufficiently unique
+ */
+function filterSimilarEvents(newEvents, existingMemories, threshold = 0.85) {
+    if (!existingMemories?.length) return newEvents;
+
+    return newEvents.filter(event => {
+        if (!event.embedding) return true; // Keep if no embedding
+
+        for (const memory of existingMemories) {
+            if (!memory.embedding) continue;
+
+            const similarity = cosineSimilarity(event.embedding, memory.embedding);
+            if (similarity >= threshold) {
+                log(`Dedup: Skipping "${event.summary}..." (${(similarity * 100).toFixed(1)}% similar to existing)`);
+                return false;
+            }
+        }
+        return true;
+    });
+}
 
 /**
  * Extract memories from messages using LLM
@@ -110,13 +137,24 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
             // Generate embeddings for new events
             await enrichEventsWithEmbeddings(events);
 
-            // Add events to storage
-            data[MEMORIES_KEY] = data[MEMORIES_KEY] || [];
-            data[MEMORIES_KEY].push(...events);
+            // Filter out events too similar to existing memories
+            const dedupThreshold = settings.dedupSimilarityThreshold ?? 0.85;
+            const existingMemories = data[MEMORIES_KEY] || [];
+            const uniqueEvents = filterSimilarEvents(events, existingMemories, dedupThreshold);
 
-            // Update character states and relationships
-            updateCharacterStatesFromEvents(events, data);
-            updateRelationshipsFromEvents(events, data);
+            if (uniqueEvents.length < events.length) {
+                log(`Dedup: Filtered ${events.length - uniqueEvents.length} similar events`);
+            }
+
+            if (uniqueEvents.length > 0) {
+                // Add events to storage
+                data[MEMORIES_KEY] = data[MEMORIES_KEY] || [];
+                data[MEMORIES_KEY].push(...uniqueEvents);
+
+                // Update character states and relationships
+                updateCharacterStatesFromEvents(uniqueEvents, data);
+                updateRelationshipsFromEvents(uniqueEvents, data);
+            }
 
             // Update last processed message ID
             const maxId = Math.max(...processedIds);
@@ -126,7 +164,7 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
 
             data[LAST_PROCESSED_KEY] = Math.max(data[LAST_PROCESSED_KEY] || -1, maxId);
 
-            log(`Extracted ${events.length} events`);
+            log(`Extracted ${uniqueEvents.length} events (${events.length - uniqueEvents.length} filtered as duplicates)`);
         } else {
             log('No significant events found in messages');
         }
