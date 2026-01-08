@@ -12,6 +12,7 @@ import { setEmbeddingStatusCallback, getEmbeddingStatus, getEmbedding, isEmbeddi
 import { updateEmbeddingStatusDisplay } from './status.js';
 import { getOpenVaultData, showToast } from '../utils.js';
 import { scoreMemories } from '../retrieval/math.js';
+import { getScoringParams } from '../retrieval/scoring.js';
 
 // References to external functions (set during init)
 let updateEventListenersFn = null;
@@ -349,32 +350,23 @@ async function copyMemoryWeights() {
             return;
         }
 
-        const settings = getDeps().getExtensionSettings()[extensionName];
         const context = getDeps().getContext();
         const chat = context.chat || [];
         const chatLength = chat.length;
         const memories = data[MEMORIES_KEY];
 
+        // Get user messages for embedding and BM25 (same as real retrieval)
+        const userMessages = chat.filter(m => !m.is_system && m.is_user).slice(-3).map(m => m.mes).join('\n').slice(-1000);
+
         // Get embedding for user messages if enabled
         let contextEmbedding = null;
-        if (isEmbeddingsEnabled()) {
-            const userMessages = chat.filter(m => !m.is_system && m.is_user).slice(-3).map(m => m.mes).join('\n').slice(-1000);
-            if (userMessages) {
-                contextEmbedding = await getEmbedding(userMessages);
-            }
+        if (isEmbeddingsEnabled() && userMessages) {
+            contextEmbedding = await getEmbedding(userMessages);
         }
 
-        // Score all memories
-        const constants = {
-            BASE_LAMBDA: settings.forgetfulnessBaseLambda ?? 0.05,
-            IMPORTANCE_5_FLOOR: settings.forgetfulnessImportance5Floor ?? 5,
-        };
-        const scoringSettings = {
-            vectorSimilarityThreshold: settings.vectorSimilarityThreshold,
-            vectorSimilarityWeight: settings.vectorSimilarityWeight
-        };
-
-        const scored = scoreMemories(memories, contextEmbedding, chatLength, constants, scoringSettings);
+        // Score all memories using shared params
+        const { constants, settings: scoringSettings } = getScoringParams();
+        const scored = scoreMemories(memories, contextEmbedding, chatLength, constants, scoringSettings, userMessages);
 
         // Build score lookup map
         const scoreMap = new Map(scored.map(({ memory, score }) => [memory.id, score]));

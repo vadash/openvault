@@ -15,6 +15,25 @@ import { getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 // Lazy-initialized worker
 let scoringWorker = null;
 
+/**
+ * Build scoring parameters from extension settings
+ * @returns {{constants: Object, settings: Object}}
+ */
+export function getScoringParams() {
+    const settings = getDeps().getExtensionSettings()[extensionName];
+    return {
+        constants: {
+            BASE_LAMBDA: settings.forgetfulnessBaseLambda ?? 0.05,
+            IMPORTANCE_5_FLOOR: settings.forgetfulnessImportance5Floor ?? 5,
+        },
+        settings: {
+            vectorSimilarityThreshold: settings.vectorSimilarityThreshold,
+            vectorSimilarityWeight: settings.vectorSimilarityWeight,
+            keywordMatchWeight: settings.keywordMatchWeight ?? 1.0
+        }
+    };
+}
+
 // Worker timeout in milliseconds (10 seconds should be plenty for scoring)
 const WORKER_TIMEOUT_MS = 10000;
 
@@ -39,7 +58,7 @@ function getScoringWorker() {
 /**
  * Run scoring in web worker with timeout and error recovery
  */
-function runWorkerScoring(memories, contextEmbedding, chatLength, limit, settings, queryText) {
+function runWorkerScoring(memories, contextEmbedding, chatLength, limit, queryText) {
     return new Promise((resolve, reject) => {
         const worker = getScoringWorker();
         let timeoutId = null;
@@ -83,21 +102,15 @@ function runWorkerScoring(memories, contextEmbedding, chatLength, limit, setting
         // Set timeout
         timeoutId = setTimeout(timeoutHandler, WORKER_TIMEOUT_MS);
 
+        const { constants, settings } = getScoringParams();
         worker.postMessage({
             memories,
             contextEmbedding,
             chatLength,
             limit,
             queryText,
-            constants: {
-                BASE_LAMBDA: settings.forgetfulnessBaseLambda ?? 0.05,
-                IMPORTANCE_5_FLOOR: settings.forgetfulnessImportance5Floor ?? 5,
-            },
-            settings: {
-                vectorSimilarityThreshold: settings.vectorSimilarityThreshold,
-                vectorSimilarityWeight: settings.vectorSimilarityWeight,
-                keywordMatchWeight: settings.keywordMatchWeight ?? 1.0
-            }
+            constants,
+            settings
         });
     });
 }
@@ -114,15 +127,13 @@ function runWorkerScoring(memories, contextEmbedding, chatLength, limit, setting
  * @returns {Promise<Object[]>} Selected memories
  */
 export async function selectRelevantMemoriesSimple(memories, recentContext, userMessages, characterName, activeCharacters, limit, chatLength) {
-    const settings = getDeps().getExtensionSettings()[extensionName];
-
     // Get embedding for user messages if enabled (user intent matters most for retrieval)
     let contextEmbedding = null;
     if (isEmbeddingsEnabled() && userMessages) {
         contextEmbedding = await getEmbedding(userMessages);
     }
 
-    return runWorkerScoring(memories, contextEmbedding, chatLength, limit, settings, userMessages);
+    return runWorkerScoring(memories, contextEmbedding, chatLength, limit, userMessages);
 }
 
 /**
