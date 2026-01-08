@@ -22,18 +22,18 @@ export const defaultSettings = {
     retrievalProfile: '',
     debugMode: false,
     // Extraction settings
-    messagesPerExtraction: 10,
+    messagesPerExtraction: 30,
     extractionBuffer: 5,         // Recent messages to exclude from auto-extraction
     extractionRearviewTokens: 12000, // Token budget for extraction memory context
     // Retrieval pipeline settings (token-based)
-    retrievalPreFilterTokens: 24000, // Stage 1: Algorithmic filter budget
-    retrievalFinalTokens: 12000,     // Stage 2/3: Final context budget
-    smartRetrievalEnabled: true,
+    retrievalPreFilterTokens: 20000, // Stage 1: Algorithmic filter budget
+    retrievalFinalTokens: 10000,     // Stage 2/3: Final context budget
+    smartRetrievalEnabled: false,
     // Auto-hide settings
     autoHideEnabled: true,
-    autoHideThreshold: 50,
+    autoHideThreshold: 40,
     // Backfill settings
-    backfillMaxRPM: 30,
+    backfillMaxRPM: 20,
     // Embedding settings (Local RAG)
     embeddingSource: 'multilingual-e5-small', // model name or 'ollama'
     ollamaUrl: '',
@@ -57,16 +57,5 @@ export const RETRIEVAL_TIMEOUT_MS = 60000; // 60 seconds max for retrieval
 export const GENERATION_LOCK_TIMEOUT_MS = 120000; // 2 minutes safety timeout
 
 // Pagination constants
-export const MEMORIES_PER_PAGE = 10;
-
-// Scoring weights for simple relevance scoring
-export const SCORING_WEIGHTS = {
-    IMPORTANCE_MULTIPLIER: 4,     // importance (1-5) * 4 = 4-20 points
-    RECENCY_MAX_POINTS: 10,       // up to 10 points for recent memories
-    CHARACTER_INVOLVED: 5,        // points for character involvement
-    CHARACTER_WITNESS: 3,         // points for witness
-    KEYWORD_MATCH: 1,             // points per keyword match
-    EVENT_TYPE_REVELATION: 3,     // bonus for revelation events
-    EVENT_TYPE_RELATIONSHIP: 2,   // bonus for relationship_change events
-};
+export const MEMORIES_PER_PAGE = 20;
 
