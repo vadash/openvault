@@ -1,0 +1,91 @@
+Since you are implementing **Keyword Match Weight**, you absolutely need to expose the **Vector Similarity Weight** and the **Similarity Threshold** in the UI.
+
+Currently, `vectorSimilarityWeight` (default 15) and `vectorSimilarityThreshold` (default 0.5) exist in `src/constants.js`, but **they are not in your `settings_panel.html`**.
+
+If you add Keyword Weight without exposing Vector Weight, users won't be able to balance the "Hybrid Search" (e.g., if Keywords are overpowering Semantic search, they can't turn Semantic up).
+
+Here is the plan to expose these essential "tuner" knobs.
+
+### Phase 1: Update HTML Template (`templates/settings_panel.html`)
+
+**Context:** We need a new "Scoring Weights" section inside the "Configuration" tab. This should group the new Keyword slider with the existing (but hidden) Vector sliders.
+
+**Prompt for Claude Code:**
+```text
+I need to expose scoring weights in the UI.
+Read `templates/settings_panel.html`.
+
+In the "Configuration" tab (`data-tab="configuration"`), find the "Advanced Parameters" details block.
+Inside that block, add a new section (visual divider or headers) labeled "Scoring & Weights".
+
+Add the following 3 sliders:
+
+1.  **Vector Weight:**
+    - Label: "Semantic Match Weight"
+    - ID: `openvault_vector_weight`
+    - Range: 0 to 50
+    - Step: 1
+    - Default: 15
+
+2.  **Keyword Weight** (The one we just planned):
+    - Label: "Keyword Match Weight"
+    - ID: `openvault_keyword_weight`
+    - Range: 0 to 10
+    - Step: 0.1
+    - Default: 1.0
+
+3.  **Similarity Threshold:**
+    - Label: "Semantic Threshold"
+    - ID: `openvault_vector_threshold`
+    - Range: 0 to 1
+    - Step: 0.05
+    - Default: 0.5
+    - Hint: "Minimum similarity required to apply semantic bonus"
+```
+
+### Phase 2: Bind Logic (`src/ui/settings.js`)
+
+**Context:** Connect these new HTML inputs to the settings object.
+
+**Prompt for Claude Code:**
+```text
+Read `src/ui/settings.js`.
+In the `bindUIElements` function, add bindings for the new scoring sliders.
+
+1.  Bind `openvault_vector_weight` to `settings.vectorSimilarityWeight`.
+    - Add a value display span `#openvault_vector_weight_value`.
+
+2.  Bind `openvault_keyword_weight` to `settings.keywordMatchWeight`.
+    - Add a value display span `#openvault_keyword_weight_value`.
+
+3.  Bind `openvault_vector_threshold` to `settings.vectorSimilarityThreshold`.
+    - Add a value display span `#openvault_vector_threshold_value`.
+
+Ensure `updateUI` is also updated to load these values from `settings` into the inputs on startup.
+```
+
+### Phase 3: Pass to Worker (`src/retrieval/scoring.js`)
+
+**Context:** Ensure these dynamic settings actually reach the worker thread.
+
+**Prompt for Claude Code:**
+```text
+Read `src/retrieval/scoring.js`.
+
+In the `runWorkerScoring` function, look at the `postMessage` payload.
+In the `settings` object sent to the worker, ensure the following are passed dynamically from the `settings` argument (not hardcoded):
+
+- `vectorSimilarityThreshold`
+- `vectorSimilarityWeight`
+- `keywordMatchWeight`
+```
+
+### Summary of What You Are Building
+
+You are effectively building a **Hybrid Search Tuner**.
+
+| Setting | Effect |
+| :--- | :--- |
+| **Semantic Match Weight** | "Vibes" search. Finds "Canine" when you search "Dog". High values make the AI "intuitive" but sometimes loose. |
+| **Keyword Match Weight** | "Exact" search. Finds "Project Chimera" exactly. High values make the AI precise but rigid. |
+| **Semantic Threshold** | The "Noise Filter". If set to 0.7, only *very* closely related memories get a vector bonus. If set to 0.3, almost everything gets a small bonus. |

@@ -282,16 +282,39 @@
                     </label>
                     <input type="range" id="openvault_auto_hide_threshold" min="10" max="200" step="2" value="50" />
 
-                    <label for="openvault_keyword_weight">
-                        Keyword Match Weight: <span id="openvault_keyword_weight_value">1.0</span>
-                    </label>
-                    <input type="range" id="openvault_keyword_weight" min="0" max="10" step="0.1" value="1.0" />
-                    <small class="openvault-hint">BM25 exact keyword matching boost</small>
-
                     <!-- Advanced Parameters (collapsed) -->
                     <details class="openvault-advanced-toggle">
                         <summary><i class="fa-solid fa-sliders"></i> Advanced Parameters</summary>
                         <div class="openvault-advanced-content">
+                            <!-- Scoring & Weights -->
+                            <div style="margin-bottom: 15px;">
+                                <div style="font-weight: bold; margin-bottom: 10px; color: var(--SmartThemeQuoteColor);">
+                                    <i class="fa-solid fa-scale-balanced"></i> Scoring & Weights
+                                </div>
+                                <small style="display: block; margin-bottom: 10px; color: var(--SmartThemeQuoteColor);">
+                                    Balance how memories are ranked during retrieval. Higher values = more influence.
+                                </small>
+
+                                <label for="openvault_vector_weight">
+                                    Semantic Match Weight: <span id="openvault_vector_weight_value">15</span>
+                                </label>
+                                <input type="range" id="openvault_vector_weight" min="0" max="50" step="1" value="15" />
+                                <small class="openvault-hint">Finds "vibes" (e.g., "Canine" → "Dog"). High = intuitive but loose</small>
+
+                                <label for="openvault_keyword_weight" style="margin-top: 10px;">
+                                    Keyword Match Weight: <span id="openvault_keyword_weight_value">1.0</span>
+                                </label>
+                                <input type="range" id="openvault_keyword_weight" min="0" max="10" step="0.1" value="1.0" />
+                                <small class="openvault-hint">Finds exact matches (e.g., "Project Chimera"). High = precise but rigid</small>
+
+                                <label for="openvault_vector_threshold" style="margin-top: 10px;">
+                                    Semantic Threshold: <span id="openvault_vector_threshold_value">0.5</span>
+                                </label>
+                                <input type="range" id="openvault_vector_threshold" min="0" max="1" step="0.05" value="0.5" />
+                                <small class="openvault-hint">Noise filter. 0.7+ = strict (only close matches), 0.3- = loose</small>
+                            </div>
+
+                            <hr style="margin: 15px 0; border: none; border-top: 1px solid var(--SmartThemeShadowColor);">
                             <label for="openvault_extraction_rearview">
                                 Context Window Size: <span id="openvault_extraction_rearview_value">12000</span> tokens
                                 <small class="openvault-words-hint">~<span id="openvault_extraction_rearview_words">9000</span> words</small>

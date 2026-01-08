@@ -233,8 +233,10 @@ function bindUIElements() {
     bindCheckbox('openvault_auto_hide', 'autoHideEnabled');
     bindSlider('openvault_auto_hide_threshold', 'autoHideThreshold', 'openvault_auto_hide_threshold_value');
 
-    // Keyword matching settings
+    // Scoring weights
+    bindSlider('openvault_vector_weight', 'vectorSimilarityWeight', 'openvault_vector_weight_value');
     bindSlider('openvault_keyword_weight', 'keywordMatchWeight', 'openvault_keyword_weight_value', null, null, true);
+    bindSlider('openvault_vector_threshold', 'vectorSimilarityThreshold', 'openvault_vector_threshold_value', null, null, true);
 
     // Backfill settings
     bindNumberInput('openvault_backfill_rpm', 'backfillMaxRPM', (v) => validateRPM(v, 30));
@@ -431,9 +433,15 @@ export function updateUI() {
     $('#openvault_auto_hide_threshold').val(settings.autoHideThreshold);
     $('#openvault_auto_hide_threshold_value').text(settings.autoHideThreshold);
 
-    // Keyword matching settings
+    // Scoring weights
+    $('#openvault_vector_weight').val(settings.vectorSimilarityWeight ?? 15);
+    $('#openvault_vector_weight_value').text(settings.vectorSimilarityWeight ?? 15);
+
     $('#openvault_keyword_weight').val(settings.keywordMatchWeight ?? 1.0);
     $('#openvault_keyword_weight_value').text(settings.keywordMatchWeight ?? 1.0);
+
+    $('#openvault_vector_threshold').val(settings.vectorSimilarityThreshold ?? 0.5);
+    $('#openvault_vector_threshold_value').text(settings.vectorSimilarityThreshold ?? 0.5);
 
     // Backfill settings
     $('#openvault_backfill_rpm').val(settings.backfillMaxRPM);
