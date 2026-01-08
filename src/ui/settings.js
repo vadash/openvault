@@ -75,10 +75,11 @@ function bindCheckbox(elementId, settingKey, onChange) {
  * @param {string} displayId - Element ID to show the value (optional)
  * @param {Function} onChange - Optional callback after value change
  * @param {string} wordsId - Element ID to show word count (optional)
+ * @param {boolean} isFloat - Use parseFloat instead of parseInt (optional)
  */
-function bindSlider(elementId, settingKey, displayId, onChange, wordsId) {
+function bindSlider(elementId, settingKey, displayId, onChange, wordsId, isFloat = false) {
     $(`#${elementId}`).on('input', function() {
-        const value = parseInt($(this).val());
+        const value = isFloat ? parseFloat($(this).val()) : parseInt($(this).val());
         getDeps().getExtensionSettings()[extensionName][settingKey] = value;
         if (displayId) {
             $(`#${displayId}`).text(value);
@@ -231,6 +232,9 @@ function bindUIElements() {
     // Auto-hide settings
     bindCheckbox('openvault_auto_hide', 'autoHideEnabled');
     bindSlider('openvault_auto_hide_threshold', 'autoHideThreshold', 'openvault_auto_hide_threshold_value');
+
+    // Keyword matching settings
+    bindSlider('openvault_keyword_weight', 'keywordMatchWeight', 'openvault_keyword_weight_value', null, null, true);
 
     // Backfill settings
     bindNumberInput('openvault_backfill_rpm', 'backfillMaxRPM', (v) => validateRPM(v, 30));
@@ -426,6 +430,10 @@ export function updateUI() {
     $('#openvault_auto_hide').prop('checked', settings.autoHideEnabled);
     $('#openvault_auto_hide_threshold').val(settings.autoHideThreshold);
     $('#openvault_auto_hide_threshold_value').text(settings.autoHideThreshold);
+
+    // Keyword matching settings
+    $('#openvault_keyword_weight').val(settings.keywordMatchWeight ?? 1.0);
+    $('#openvault_keyword_weight_value').text(settings.keywordMatchWeight ?? 1.0);
 
     // Backfill settings
     $('#openvault_backfill_rpm').val(settings.backfillMaxRPM);

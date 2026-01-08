@@ -39,7 +39,7 @@ function getScoringWorker() {
 /**
  * Run scoring in web worker with timeout and error recovery
  */
-function runWorkerScoring(memories, contextEmbedding, chatLength, limit, settings) {
+function runWorkerScoring(memories, contextEmbedding, chatLength, limit, settings, queryText) {
     return new Promise((resolve, reject) => {
         const worker = getScoringWorker();
         let timeoutId = null;
@@ -88,13 +88,15 @@ function runWorkerScoring(memories, contextEmbedding, chatLength, limit, setting
             contextEmbedding,
             chatLength,
             limit,
+            queryText,
             constants: {
                 BASE_LAMBDA: settings.forgetfulnessBaseLambda ?? 0.05,
                 IMPORTANCE_5_FLOOR: settings.forgetfulnessImportance5Floor ?? 5,
             },
             settings: {
                 vectorSimilarityThreshold: settings.vectorSimilarityThreshold,
-                vectorSimilarityWeight: settings.vectorSimilarityWeight
+                vectorSimilarityWeight: settings.vectorSimilarityWeight,
+                keywordMatchWeight: settings.keywordMatchWeight ?? 1.0
             }
         });
     });
@@ -120,7 +122,7 @@ export async function selectRelevantMemoriesSimple(memories, recentContext, user
         contextEmbedding = await getEmbedding(userMessages);
     }
 
-    return runWorkerScoring(memories, contextEmbedding, chatLength, limit, settings);
+    return runWorkerScoring(memories, contextEmbedding, chatLength, limit, settings, userMessages);
 }
 
 /**

@@ -40,6 +40,7 @@ export const defaultSettings = {
     embeddingModel: '',
     vectorSimilarityWeight: 15,
     vectorSimilarityThreshold: 0.5,
+    keywordMatchWeight: 1.0,
     // Forgetfulness curve settings (scoring)
     forgetfulnessBaseLambda: 0.05,      // Base decay rate for exponential curve
     forgetfulnessImportance5Floor: 5,   // Minimum score for importance-5 memories
