@@ -84,16 +84,23 @@ function _extractionSchema() {
 </importance_scale>
 
 <importance_guidance>
+FORCED RATINGS (override other considerations):
+- FIRST-EVER sexual act between characters: ALWAYS 5
+- Virginity loss / first time ever: ALWAYS 5
+- Relationship status change (dating, marriage, breakup): ALWAYS 5
+- Repeated act of same type, same session: ALWAYS 2
+- Routine continuation of ongoing act: ALWAYS 1-2
+
 ADULT CONTENT CALIBRATION:
-- FIRST kiss between characters: 4-5
-- FIRST sexual act of ANY type: 5
-- Repeated/routine sex of same type: 2
-- New position/act type with same partner: 3
+- First kiss between characters: 4-5
+- First sexual act of ANY type: 5
 - New kink/fetish introduced: 4
+- New toy or prop introduced: 3
 - Consent negotiation/safe word use: 4
 - Boundary violation: 5
+- Climax (if first time or significant): 3
 - Routine climax: 2
-- Significant/simultaneous climax: 3
+- Position/location change within same act: 2
 
 GENERAL RP CALIBRATION:
 - Small talk/greetings: 1
@@ -104,13 +111,16 @@ GENERAL RP CALIBRATION:
 - Physical injury: 3-4
 - Life-threatening situation: 4-5
 - Character death: 5
+
+DISTRIBUTION TARGET: Aim for bell curve centered at 3.
+If most extractions are 4-5, you're over-rating routine events.
 </importance_guidance>
 
 <output_format>
 {
   "event_type": "action|revelation|emotion_shift|relationship_change",
   "importance": 1-5,
-  "summary": "8-24 words, past tense, English, factual",
+  "summary": "12-32 words, past tense, English, factual with context",
   "characters_involved": ["exact names from <characters>"],
   "witnesses": ["names who observed this event"],
   "location": "where it happened or null",
@@ -361,6 +371,80 @@ function _extractionExamples() {
 ]</output>
 <note>Location inferred from context: car + parking garage.</note>
 </example>
+
+<example type="same_act_continuation_skip">
+<established_memories>
+1. [action] Derek spanked Sasha with his belt as punishment for teasing.
+</established_memories>
+<input>[Derek]: *brings the belt down again, watching her skin redden* Count them.
+[Sasha]: *gasps, gripping the sheets* Th-three... four!</input>
+<output>[]</output>
+<note>Same spanking session continuing. No new act type, no climax, no new element. SKIP.</note>
+</example>
+
+<example type="same_sex_act_skip">
+<established_memories>
+1. [action] Kai performed oral sex on Zoe in the bedroom.
+</established_memories>
+<input>[Kai]: *shifts angle, tongue working deeper* You taste incredible...
+[Zoe]: *moans louder, hands in his hair* Don't stop, right there...</input>
+<output>[]</output>
+<note>Same oral sex continuing. Position adjustment is not a new act. SKIP.</note>
+</example>
+
+<example type="position_change_skip">
+<established_memories>
+1. [action] Marcus and Elena began vaginal intercourse on the bed.
+</established_memories>
+<input>[Marcus]: *flips her onto her stomach* I want you from behind.
+[Elena]: *arches her back eagerly* Yes, take me...</input>
+<output>[]</output>
+<note>Same intercourse, different position. Position change ≠ new act type. SKIP.</note>
+</example>
+
+<example type="climax_extract">
+<established_memories>
+1. [action] Marcus and Elena began vaginal intercourse on the bed.
+</established_memories>
+<input>[Marcus]: *thrusts quicken, groaning* I'm going to—
+[Elena]: *cries out, walls clenching around him* Yes! Come inside me!</input>
+<output>[
+  {
+    "event_type": "action",
+    "importance": 3,
+    "summary": "Marcus climaxed inside Elena during intercourse while she orgasmed simultaneously, their bodies tensing together in release.",
+    "characters_involved": ["Marcus", "Elena"],
+    "witnesses": ["Marcus", "Elena"],
+    "location": "bedroom",
+    "is_secret": true,
+    "emotional_impact": {"Marcus": "release, satisfaction", "Elena": "ecstasy"},
+    "relationship_impact": {}
+  }
+]</output>
+<note>Climax is an explicit outcome change. EXTRACT even though intercourse was recorded.</note>
+</example>
+
+<example type="new_element_extract">
+<established_memories>
+1. [action] Derek spanked Sasha during their intimate session.
+</established_memories>
+<input>[Derek]: *reaches for the collar on the nightstand* Put this on. You're my pet tonight.
+[Sasha]: *shivers with anticipation, tilting her head* Yes, Master.</input>
+<output>[
+  {
+    "event_type": "action",
+    "importance": 4,
+    "summary": "Derek introduced pet roleplay by collaring Sasha, who accepted the submissive role and addressed him as Master for the first time.",
+    "characters_involved": ["Derek", "Sasha"],
+    "witnesses": ["Derek", "Sasha"],
+    "location": null,
+    "is_secret": true,
+    "emotional_impact": {"Derek": "dominant", "Sasha": "submissive anticipation"},
+    "relationship_impact": {"Derek->Sasha": "D/s dynamic established"}
+  }
+]</output>
+<note>New element (collar) + new roleplay dynamic (pet/Master). EXTRACT as importance 4.</note>
+</example>
 </examples>`;
 }
 
@@ -382,7 +466,7 @@ Extract significant events from <messages> following these steps:
 
 3. For each significant event, COMPOSE output:
    - Use exact character names from <characters> (no transliteration)
-   - Write summary in PAST TENSE, 8-24 words, English, factual and concise (avoid suggestive language)
+   - Write summary in PAST TENSE, 12-32 words, English, factual with relevant context (who, what, where, why when significant)
    - Put emotions in emotional_impact, NOT in summary
    - Assign importance 1-5 based on story impact
    - Ensure summary and impacts accurately reflect consent, character agency, and any established boundaries
@@ -393,16 +477,30 @@ Extract significant events from <messages> following these steps:
    - ONLY extract if NEW act type OR new participant OR explicit outcome change
 
    <duplicate_patterns>
+   SAME-ACT EQUIVALENCES (treat as identical):
+   - oral sex = cunnilingus = fellatio = "licked" = "mouth on"
+   - vaginal sex = intercourse = penetration = "inside her"
+   - anal sex = anal intercourse = "penetrated anally"
+   - spanking = belt punishment = slapping buttocks = "struck with belt"
+   - bondage = restraint = tied up = collar attached
+
+   SESSION RULE: Maximum ONE entry per act-type per scene unless:
+   - Explicit time skip ("next morning", "hours later", "after dinner")
+   - Location change (bedroom → bathroom)
+   - New participant joins
+   - CLIMAX occurs (and wasn't already recorded)
+
    SKIP if new event matches existing memory pattern:
-   - "X performed oral sex on Y" -> another instance of same = SKIP
-   - "X and Y had intercourse" -> continuing same intercourse = SKIP
-   - "X touched Y intimately" -> more of same touching = SKIP
+   - Same participants + same act type + same session = SKIP
+   - Continuation of ongoing activity = SKIP
+   - Position change within same act = SKIP (missionary→doggy still = intercourse)
 
    EXTRACT only when:
    - FIRST occurrence of act type between these characters
-   - Act ESCALATES (kissing -> oral -> intercourse)
+   - Act ESCALATES to new category (kissing → oral → intercourse)
    - CLIMAX/completion explicitly described (if not already recorded)
    - New BOUNDARY crossed or CONSENT re-established
+   - Significant NEW ELEMENT introduced (toy, roleplay persona, location)
    </duplicate_patterns>
 
 5. LOCATION tracking:
