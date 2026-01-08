@@ -48,31 +48,41 @@ When enabled, OpenVault automatically:
 
 ### Extraction
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| **Extraction Profile** | LLM connection profile for memory extraction | Current |
-| **Messages per Extraction** | Messages to analyze per extraction batch | 10 |
-| **Extraction Rearview** | Token budget for past memories shown to extraction LLM | 12000 |
+| Setting | Description | Range | Default |
+|---------|-------------|-------|---------|
+| **Extraction Profile** | LLM connection profile for memory extraction | - | Current |
+| **Messages per Extraction** | Messages to analyze per extraction batch | 10-50 | 10 |
+| **Extraction Rearview** | Token budget for past memories shown to extraction LLM | 1k-32k | 12000 |
 
 ### Retrieval Pipeline
 
 OpenVault uses a three-stage pipeline for memory selection:
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| **Stage 1 - Pre-filter Budget** | Algorithmic filter using recency + vector similarity | 24000 tokens |
-| **Stage 2 - Smart Retrieval** | LLM-powered selection of most relevant memories | On |
-| **Retrieval Profile** | LLM profile for smart retrieval (can use faster model) | Current |
-| **Stage 3 - Final Budget** | Maximum tokens injected into chat context | 12000 tokens |
+| Setting | Description | Range | Default |
+|---------|-------------|-------|---------|
+| **Stage 1 - Pre-filter Budget** | Algorithmic filter using recency + vector similarity | 1k-32k tokens | 24000 |
+| **Stage 2 - Smart Retrieval** | LLM-powered selection of most relevant memories | On/Off | On |
+| **Retrieval Profile** | LLM profile for smart retrieval (can use faster model) | - | Current |
+| **Stage 3 - Final Budget** | Maximum tokens injected into chat context | 1k-32k tokens | 12000 |
+
+### Scoring Weights
+
+Balance how memories are ranked during retrieval. Available in Advanced Parameters:
+
+| Setting | Description | Range | Default |
+|---------|-------------|-------|---------|
+| **Semantic Match Weight** | Bonus for vector similarity (finds "vibes" like "Canine" → "Dog") | 0-30 | 15 |
+| **Keyword Match Weight** | Multiplier for BM25 exact keyword matching | 0-3 | 1.0 |
+| **Semantic Threshold** | Minimum similarity before semantic bonus applies | 0-1 | 0.5 |
 
 ### Vector & Storage
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| **Embedding Model** | Model for semantic similarity (see below) | multilingual-e5-small |
-| **Auto-hide old messages** | Hide messages beyond threshold | On |
-| **Messages to keep visible** | Auto-hide threshold | 50 |
-| **Backfill Rate Limit** | Max requests per minute during backfill | 30 RPM |
+| Setting | Description | Range | Default |
+|---------|-------------|-------|---------|
+| **Embedding Model** | Model for semantic similarity (see below) | - | multilingual-e5-small |
+| **Auto-hide old messages** | Hide messages beyond threshold | On/Off | On |
+| **Messages to keep visible** | Auto-hide threshold | 10-200 | 50 |
+| **Backfill Rate Limit** | Max requests per minute during backfill | 1-600 | 30 RPM |
 
 ## Embedding Models
 
@@ -162,8 +172,19 @@ When embeddings are enabled:
 2. Each memory's summary is compared using cosine similarity
 3. Memories above threshold get bonus points:
 ```
-Bonus = ((similarity - 0.5) / 0.5) × 15
+Bonus = ((similarity - threshold) / (1 - threshold)) × Semantic Weight
 ```
+
+Where `threshold` is the Semantic Threshold (default 0.5) and `Semantic Weight` is the Semantic Match Weight (default 15).
+
+### BM25 Keyword Matching
+
+OpenVault also uses BM25 for exact keyword matching:
+- Tokenizes query and memory summaries
+- Calculates term frequency-inverse document frequency (TF-IDF)
+- Multiplies result by Keyword Match Weight (default 1.0, range 0-3)
+
+This complements semantic search by catching exact names, places, and specific terms.
 
 ### Relationship Dynamics
 

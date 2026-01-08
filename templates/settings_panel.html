@@ -267,18 +267,25 @@
 
                     <label for="openvault_messages_per_extraction">
                         Messages per Extraction: <span id="openvault_messages_per_extraction_value">10</span>
+                        <small style="opacity: 0.6;"> (default: 10)</small>
                     </label>
                     <input type="range" id="openvault_messages_per_extraction" min="10" max="50" step="5" value="10" />
 
+                    <div style="height: 8px;"></div>
+
                     <label for="openvault_final_budget">
                         Final Context Budget: <span id="openvault_final_budget_value">12000</span> tokens
+                        <small style="opacity: 0.6;"> (default: 12000)</small>
                         <small class="openvault-words-hint">~<span id="openvault_final_budget_words">9000</span> words</small>
                     </label>
                     <input type="range" id="openvault_final_budget" min="1000" max="32000" step="1000" value="12000" />
                     <small class="openvault-hint">Memory budget injected into chat context</small>
 
+                    <div style="height: 8px;"></div>
+
                     <label for="openvault_auto_hide_threshold">
                         Messages to keep visible: <span id="openvault_auto_hide_threshold_value">50</span>
+                        <small style="opacity: 0.6;"> (default: 50)</small>
                     </label>
                     <input type="range" id="openvault_auto_hide_threshold" min="10" max="200" step="2" value="50" />
 
@@ -297,18 +304,25 @@
 
                                 <label for="openvault_vector_weight">
                                     Semantic Match Weight: <span id="openvault_vector_weight_value">15</span>
+                                    <small style="opacity: 0.6;"> (default: 15)</small>
                                 </label>
-                                <input type="range" id="openvault_vector_weight" min="0" max="50" step="1" value="15" />
+                                <input type="range" id="openvault_vector_weight" min="0" max="30" step="1" value="15" />
                                 <small class="openvault-hint">Finds "vibes" (e.g., "Canine" → "Dog"). High = intuitive but loose</small>
+
+                                <div style="height: 8px;"></div>
 
                                 <label for="openvault_keyword_weight" style="margin-top: 10px;">
                                     Keyword Match Weight: <span id="openvault_keyword_weight_value">1.0</span>
+                                    <small style="opacity: 0.6;"> (default: 1.0)</small>
                                 </label>
-                                <input type="range" id="openvault_keyword_weight" min="0" max="10" step="0.1" value="1.0" />
+                                <input type="range" id="openvault_keyword_weight" min="0" max="3" step="0.1" value="1.0" />
                                 <small class="openvault-hint">Finds exact matches (e.g., "Project Chimera"). High = precise but rigid</small>
+
+                                <div style="height: 8px;"></div>
 
                                 <label for="openvault_vector_threshold" style="margin-top: 10px;">
                                     Semantic Threshold: <span id="openvault_vector_threshold_value">0.5</span>
+                                    <small style="opacity: 0.6;"> (default: 0.5)</small>
                                 </label>
                                 <input type="range" id="openvault_vector_threshold" min="0" max="1" step="0.05" value="0.5" />
                                 <small class="openvault-hint">Noise filter. 0.7+ = strict (only close matches), 0.3- = loose</small>
@@ -317,19 +331,25 @@
                             <hr style="margin: 15px 0; border: none; border-top: 1px solid var(--SmartThemeShadowColor);">
                             <label for="openvault_extraction_rearview">
                                 Context Window Size: <span id="openvault_extraction_rearview_value">12000</span> tokens
+                                <small style="opacity: 0.6;"> (default: 12000)</small>
                                 <small class="openvault-words-hint">~<span id="openvault_extraction_rearview_words">9000</span> words</small>
                             </label>
                             <input type="range" id="openvault_extraction_rearview" min="1000" max="32000" step="1000" value="12000" />
                             <small class="openvault-hint">How much past memories the LLM sees when writing new memories</small>
 
+                            <div style="height: 8px;"></div>
+
                             <label for="openvault_prefilter_budget" style="margin-top: 10px;">
                                 Pre-filter Budget: <span id="openvault_prefilter_budget_value">24000</span> tokens
+                                <small style="opacity: 0.6;"> (default: 24000)</small>
                                 <small class="openvault-words-hint">~<span id="openvault_prefilter_budget_words">18000</span> words</small>
                             </label>
                             <input type="range" id="openvault_prefilter_budget" min="1000" max="32000" step="1000" value="24000" />
                             <small class="openvault-hint">Algorithmic filter (recency + vector similarity)</small>
 
-                            <label for="openvault_backfill_rpm" style="margin-top: 10px;">Backfill Rate Limit (RPM)</label>
+                            <div style="height: 8px;"></div>
+
+                            <label for="openvault_backfill_rpm" style="margin-top: 10px;">Backfill Rate Limit (RPM) <small style="opacity: 0.6;"> (default: 30)</small></label>
                             <input type="number" id="openvault_backfill_rpm" class="text_pole" min="1" max="600" value="30" />
                         </div>
                     </details>
