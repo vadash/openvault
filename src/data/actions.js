@@ -14,6 +14,46 @@ import { MEMORIES_KEY } from '../constants.js';
 // =============================================================================
 
 /**
+ * Update a memory by ID
+ * @param {string} id - Memory ID to update
+ * @param {Object} updates - Fields to update (summary, importance, event_type, is_secret)
+ * @returns {Promise<boolean>} True if updated, false otherwise
+ */
+export async function updateMemory(id, updates) {
+    const data = getOpenVaultData();
+    if (!data) {
+        showToast('warning', 'No chat loaded');
+        return false;
+    }
+
+    const memory = data[MEMORIES_KEY]?.find(m => m.id === id);
+    if (!memory) {
+        log(`Memory ${id} not found`);
+        return false;
+    }
+
+    // Track if summary changed (requires re-embedding)
+    const summaryChanged = updates.summary !== undefined && updates.summary !== memory.summary;
+
+    // Apply allowed updates
+    const allowedFields = ['summary', 'importance', 'event_type', 'is_secret'];
+    for (const field of allowedFields) {
+        if (updates[field] !== undefined) {
+            memory[field] = updates[field];
+        }
+    }
+
+    // If summary changed, invalidate embedding so it can be regenerated
+    if (summaryChanged) {
+        delete memory.embedding;
+    }
+
+    await getDeps().saveChatConditional();
+    log(`Updated memory ${id}${summaryChanged ? ' (embedding invalidated)' : ''}`);
+    return true;
+}
+
+/**
  * Delete a memory by ID
  * @param {string} id - Memory ID to delete
  * @returns {Promise<boolean>} True if deleted, false otherwise

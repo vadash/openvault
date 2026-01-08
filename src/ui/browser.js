@@ -6,9 +6,11 @@
  */
 
 import { getOpenVaultData, showToast } from '../utils.js';
+import { getDeps } from '../deps.js';
 import { escapeHtml } from '../utils/dom.js';
 import { MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, MEMORIES_PER_PAGE } from '../constants.js';
-import { deleteMemory as deleteMemoryAction } from '../data/actions.js';
+import { deleteMemory as deleteMemoryAction, updateMemory as updateMemoryAction } from '../data/actions.js';
+import { getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { refreshStats } from './status.js';
 import { formatMemoryImportance, formatMemoryDate, formatWitnesses } from './formatting.js';
 import { filterMemories, sortMemoriesByDate, getPaginationInfo, extractCharactersSet, buildCharacterStateData, buildRelationshipData } from './calculations.js';
@@ -52,10 +54,14 @@ function renderMemoryItemTemplate(memory) {
     const witnessText = formatWitnesses(memory.witnesses);
     const iconClass = getEventTypeIcon(memory.event_type);
     const location = memory.location || '';
+    const needsEmbed = !memory.embedding && isEmbeddingsEnabled();
 
     // Build badges
     const badges = [];
     badges.push(`<span class="openvault-memory-card-badge importance">${stars}</span>`);
+    if (needsEmbed) {
+        badges.push(`<span class="openvault-memory-card-badge pending-embed" title="Embedding pending"><i class="fa-solid fa-rotate-right"></i></span>`);
+    }
     if (witnessText) {
         badges.push(`<span class="openvault-memory-card-badge witness"><i class="fa-solid fa-eye"></i> ${escapeHtml(witnessText)}</span>`);
     }
@@ -84,11 +90,64 @@ function renderMemoryItemTemplate(memory) {
                 <div class="openvault-memory-card-badges">
                     ${badges.join('')}
                 </div>
-                <button class="menu_button openvault-delete-memory" data-id="${escapeHtml(memory.id)}" title="Delete memory">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
+                <div>
+                    <button class="menu_button openvault-edit-memory" data-id="${escapeHtml(memory.id)}" title="Edit memory">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    <button class="menu_button openvault-delete-memory" data-id="${escapeHtml(memory.id)}" title="Delete memory">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
             </div>
             ${characters ? `<div class="openvault-memory-characters" style="margin-top: 8px;">${characters}</div>` : ''}
+        </div>
+    `;
+}
+
+// Event type options for edit dropdown
+const EVENT_TYPES = ['action', 'revelation', 'emotion_shift', 'relationship_change'];
+
+/**
+ * Render edit mode template for a memory
+ * @param {Object} memory - Memory object
+ * @returns {string} HTML string
+ */
+function renderMemoryEditTemplate(memory) {
+    const typeClass = (memory.event_type || 'action').replace(/[^a-zA-Z0-9-]/g, '');
+    const importance = memory.importance || 3;
+    const eventType = memory.event_type || 'action';
+
+    const importanceOptions = [1, 2, 3, 4, 5]
+        .map(i => `<option value="${i}"${i === importance ? ' selected' : ''}>${i}</option>`)
+        .join('');
+
+    const typeOptions = EVENT_TYPES
+        .map(t => `<option value="${t}"${t === eventType ? ' selected' : ''}>${t.replace('_', ' ')}</option>`)
+        .join('');
+
+    return `
+        <div class="openvault-memory-card ${typeClass}" data-id="${escapeHtml(memory.id)}">
+            <div class="openvault-edit-form">
+                <textarea class="openvault-edit-textarea" data-field="summary">${escapeHtml(memory.summary || '')}</textarea>
+                <div class="openvault-edit-row">
+                    <label>
+                        Importance
+                        <select data-field="importance">${importanceOptions}</select>
+                    </label>
+                    <label>
+                        Event Type
+                        <select data-field="event_type">${typeOptions}</select>
+                    </label>
+                </div>
+                <div class="openvault-edit-actions">
+                    <button class="menu_button openvault-cancel-edit" data-id="${escapeHtml(memory.id)}">
+                        <i class="fa-solid fa-times"></i> Cancel
+                    </button>
+                    <button class="menu_button openvault-save-edit" data-id="${escapeHtml(memory.id)}">
+                        <i class="fa-solid fa-check"></i> Save
+                    </button>
+                </div>
+            </div>
         </div>
     `;
 }
@@ -150,10 +209,74 @@ function renderRelationshipTemplate(relData) {
  * Call once after HTML is loaded.
  */
 export function initBrowser() {
+    const $list = $('#openvault_memory_list');
+
     // Event delegation: attach once to container, not per-render to children
-    $('#openvault_memory_list').on('click', '.openvault-delete-memory', async function() {
+    $list.on('click', '.openvault-delete-memory', async function() {
         const id = $(this).data('id');
         await deleteMemory(id);
+    });
+
+    // Edit button - swap to edit mode
+    $list.on('click', '.openvault-edit-memory', function() {
+        const id = $(this).data('id');
+        const memory = getMemoryById(id);
+        if (memory) {
+            const $card = $(this).closest('.openvault-memory-card');
+            $card.replaceWith(renderMemoryEditTemplate(memory));
+        }
+    });
+
+    // Cancel edit - restore view mode
+    $list.on('click', '.openvault-cancel-edit', function() {
+        const id = $(this).data('id');
+        const memory = getMemoryById(id);
+        if (memory) {
+            const $card = $(this).closest('.openvault-memory-card');
+            $card.replaceWith(renderMemoryItemTemplate(memory));
+        }
+    });
+
+    // Save edit - update memory and auto-embed
+    $list.on('click', '.openvault-save-edit', async function() {
+        const id = $(this).data('id');
+        const $card = $(this).closest('.openvault-memory-card');
+        const $btn = $(this);
+
+        // Gather values
+        const summary = $card.find('[data-field="summary"]').val().trim();
+        const importance = parseInt($card.find('[data-field="importance"]').val(), 10);
+        const event_type = $card.find('[data-field="event_type"]').val();
+
+        if (!summary) {
+            showToast('warning', 'Summary cannot be empty');
+            return;
+        }
+
+        // Disable button during save
+        $btn.prop('disabled', true);
+
+        const updated = await updateMemoryAction(id, { summary, importance, event_type });
+        if (updated) {
+            // Auto-generate embedding if summary changed
+            const memory = getMemoryById(id);
+            if (memory && !memory.embedding && isEmbeddingsEnabled()) {
+                const embedding = await getEmbedding(summary);
+                if (embedding) {
+                    memory.embedding = embedding;
+                    await getDeps().saveChatConditional();
+                }
+            }
+
+            // Re-render card in view mode
+            const updatedMemory = getMemoryById(id);
+            if (updatedMemory) {
+                $card.replaceWith(renderMemoryItemTemplate(updatedMemory));
+            }
+            showToast('success', 'Memory updated');
+            refreshStats();
+        }
+        $btn.prop('disabled', false);
     });
 
     // Search input handler with debounce
@@ -167,6 +290,17 @@ export function initBrowser() {
             renderMemoryBrowser();
         }, 200);
     });
+}
+
+/**
+ * Get memory by ID from current data
+ * @param {string} id - Memory ID
+ * @returns {Object|null} Memory object or null
+ */
+function getMemoryById(id) {
+    const data = getOpenVaultData();
+    if (!data) return null;
+    return data[MEMORIES_KEY]?.find(m => m.id === id) || null;
 }
 
 /**

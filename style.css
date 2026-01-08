@@ -269,6 +269,90 @@
     color: var(--SmartThemeEmColor, #6a8);
 }
 
+.openvault-memory-card-badge.pending-embed {
+    color: var(--SmartThemeQuoteColor, #c90);
+}
+
+/* Memory Edit Mode */
+.openvault-edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.openvault-edit-textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 8px 10px;
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 6px;
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    color: var(--SmartThemeBodyColor, #ccc);
+    resize: vertical;
+    font-family: inherit;
+    font-size: 0.95em;
+    line-height: 1.4;
+}
+
+.openvault-edit-textarea:focus {
+    outline: none;
+    border-color: var(--SmartThemeEmColor, #48c);
+}
+
+.openvault-edit-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.openvault-edit-row label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 120px;
+    font-size: 0.85em;
+    color: var(--SmartThemeEmColor, #888);
+}
+
+.openvault-edit-row select {
+    padding: 6px 8px;
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 6px;
+    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    color: var(--SmartThemeBodyColor, #ccc);
+}
+
+.openvault-edit-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 4px;
+}
+
+.openvault-edit-actions .menu_button {
+    padding: 6px 14px;
+    font-size: 0.85em;
+}
+
+.openvault-edit-actions .openvault-save-edit {
+    background: rgba(74, 170, 74, 0.2);
+    color: #4a4;
+}
+
+.openvault-edit-actions .openvault-save-edit:hover {
+    background: rgba(74, 170, 74, 0.35);
+}
+
+.openvault-edit-actions .openvault-cancel-edit {
+    background: rgba(170, 74, 74, 0.2);
+    color: #a44;
+}
+
+.openvault-edit-actions .openvault-cancel-edit:hover {
+    background: rgba(170, 74, 74, 0.35);
+}
+
 
 /* source: components/dashboard.css */
 /* Dashboard Components - Status, Stats, Toggles, Batch */

@@ -1,0 +1,86 @@
+### Phase 1: The Data Layer (`src/data/actions.js`)
+
+**Context:** We need a function to update a specific memory. Crucially, if the **summary** changes, the existing vector embedding is now invalid and must be removed so the background process can regenerate it later.
+
+**Prompt for Claude Code:**
+```text
+I need to add a memory update function.
+Read `src/data/actions.js` and `src/utils/data.js`.
+Create a new exported function `updateMemory(id, updates)` in `src/data/actions.js` that:
+1. Retrieves the openvault data.
+2. Finds the memory by ID.
+3. Updates the allowed fields (summary, importance, event_type, is_secret).
+4. CRITICAL: If 'summary' is changed, delete the `embedding` property from the memory object so it can be re-generated later.
+5. Saves the chat using `saveChatConditional`.
+6. Returns true on success.
+```
+
+### Phase 2: Styles (`src/styles/components/cards.css`)
+
+**Context:** We need CSS for the edit inputs (textarea for summary, dropdown for importance) that matches the existing card aesthetic.
+
+**Prompt for Claude Code:**
+```text
+I need to add styles for the memory edit mode.
+Read `src/styles/components/cards.css`.
+Add CSS classes for:
+1. `.openvault-edit-form`: A container for the edit interface.
+2. `.openvault-edit-textarea`: A textarea styling that matches `.openvault-search-input` but resizable.
+3. `.openvault-edit-row`: A flex container for importance/type selectors.
+4. `.openvault-edit-actions`: A footer with Save (green) and Cancel (red/gray) buttons.
+Ensure it uses the CSS variables (var(--SmartTheme...)) for seamless theming.
+```
+
+### Phase 3: UI Logic & Rendering (`src/ui/browser.js`)
+
+**Context:** This is the heavy lifting. We need to add the "Edit" button to the card template, and implement the event handlers to swap the "View" HTML with "Edit" HTML.
+
+**Prompt for Claude Code:**
+```text
+I need to implement the Edit UI logic.
+Read `src/ui/browser.js` and `src/data/actions.js`.
+
+Perform the following changes to `src/ui/browser.js`:
+
+1.  **Update Template**: Modify `renderMemoryItemTemplate` to add an Edit button (`.openvault-edit-memory`) next to the Delete button in the footer.
+
+2.  **Import**: Import `updateMemory` from `../data/actions.js`.
+
+3.  **Create Render Function**: Create a new helper `renderMemoryEditTemplate(memory)` that returns HTML string for the edit mode:
+    - Textarea for `summary`.
+    - Select dropdown for `importance` (1-5).
+    - Select dropdown for `event_type`.
+    - Save and Cancel buttons.
+
+4.  **Event Delegation**: In `initBrowser()`, add event listeners:
+    - `click .openvault-edit-memory`: Find the parent card, swap its HTML with `renderMemoryEditTemplate`.
+    - `click .openvault-cancel-edit`: Re-render the single card using `renderMemoryItemTemplate` (restore view mode).
+    - `click .openvault-save-edit`:
+        - Gather values from inputs.
+        - Call `await updateMemory(id, { summary, importance, ... })`.
+        - On success, re-render the card in view mode and show a success toast.
+        - Trigger `refreshStats()` to update embedding counts (since embedding was wiped).
+```
+
+### Phase 4: Final Polish (Embeddings)
+
+**Context:** When a memory is edited, its embedding is deleted. We should ensure the UI reflects that the memory needs re-embedding.
+
+**Prompt for Claude Code:**
+```text
+Read `src/ui/browser.js` and `src/embeddings.js`.
+In `src/ui/browser.js` -> `renderMemoryItemTemplate`:
+Check if `memory.embedding` is missing. If it is, render a small warning icon or badge (e.g., `<i class="fa-solid fa-rotate-right" title="Embedding pending"></i>`) in the card header to indicate it needs re-processing.
+```
+
+### Verification Plan
+
+After Claude Code finishes, verify the implementation:
+1.  **Open Memory Bank**.
+2.  **Click Edit** on a memory.
+3.  **Change the summary** slightly and **Change importance**.
+4.  **Save**.
+5.  **Check:**
+    *   Does the card update immediately?
+    *   Does the "Embeddings" stat count drop by 1? (It should, because we deleted the old vector).
+    *   Click "Generate Embeddings" in the dashboard. Does it re-embed the edited memory?
