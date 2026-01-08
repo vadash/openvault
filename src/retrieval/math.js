@@ -32,8 +32,7 @@ const BM25_B = 0.75;
  */
 export function tokenize(text) {
     if (!text) return [];
-    return text.toLowerCase()
-        .match(/\w+/g) || []
+    return (text.toLowerCase().match(/\w+/g) || [])
         .filter(word => word.length > 2 && !STOP_WORDS.has(word));
 }
 
