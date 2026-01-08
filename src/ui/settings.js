@@ -202,6 +202,9 @@ function initTabs() {
         // Update tab content
         $('.openvault-tab-content').removeClass('active');
         $(`.openvault-tab-content[data-tab="${tabId}"]`).addClass('active');
+
+        // Refresh stats when switching tabs
+        refreshAllUI();
     });
 }
 
@@ -257,7 +260,6 @@ function bindUIElements() {
     bindButton('openvault_extract_all_btn', () => {
         if (extractAllMessagesFn) extractAllMessagesFn();
     });
-    bindButton('openvault_refresh_stats_btn', () => refreshAllUI());
 
     // Danger zone buttons
     bindButton('openvault_delete_chat_btn', () => {
