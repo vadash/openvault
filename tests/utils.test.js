@@ -19,6 +19,7 @@ import {
     isAutomaticMode,
     safeParseJSON,
     sortMemoriesBySequence,
+    stripThinkingTags,
 } from '../src/utils.js';
 import { extensionName, METADATA_KEY, MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, LAST_PROCESSED_KEY } from '../src/constants.js';
 
@@ -483,6 +484,75 @@ describe('utils', () => {
 
         it('handles empty array', () => {
             expect(sortMemoriesBySequence([])).toEqual([]);
+        });
+    });
+
+    describe('stripThinkingTags', () => {
+        it('strips <think> tags', () => {
+            const input = '<think>reasoning here</think>{"result": true}';
+            expect(stripThinkingTags(input)).toBe('{"result": true}');
+        });
+
+        it('strips <thinking> tags', () => {
+            const input = '<thinking>analysis</thinking>{"data": [1,2]}';
+            expect(stripThinkingTags(input)).toBe('{"data": [1,2]}');
+        });
+
+        it('strips <reasoning> tags', () => {
+            const input = '<reasoning>my thoughts</reasoning>[1,2,3]';
+            expect(stripThinkingTags(input)).toBe('[1,2,3]');
+        });
+
+        it('handles multiline thinking', () => {
+            const input = '<think>\nline1\nline2\n</think>{"ok": true}';
+            expect(stripThinkingTags(input)).toBe('{"ok": true}');
+        });
+
+        it('handles multiple tags', () => {
+            const input = '<think>a</think><reasoning>b</reasoning>{"x": 1}';
+            expect(stripThinkingTags(input)).toBe('{"x": 1}');
+        });
+
+        it('returns original if no tags', () => {
+            const input = '{"pure": "json"}';
+            expect(stripThinkingTags(input)).toBe('{"pure": "json"}');
+        });
+
+        it('handles non-string input', () => {
+            expect(stripThinkingTags(null)).toBe(null);
+            expect(stripThinkingTags(undefined)).toBe(undefined);
+            expect(stripThinkingTags(123)).toBe(123);
+        });
+
+        it('is case-insensitive', () => {
+            const input = '<THINK>loud</THINK><Thinking>mixed</Thinking>{"done": true}';
+            expect(stripThinkingTags(input)).toBe('{"done": true}');
+        });
+    });
+
+    describe('safeParseJSON with thinking tags', () => {
+        it('parses JSON after stripping think tags', () => {
+            const input = '<think>analyzing...</think>{"selected": [1, 2]}';
+            const result = safeParseJSON(input);
+            expect(result).toEqual({ selected: [1, 2] });
+        });
+
+        it('parses JSON after stripping thinking tags', () => {
+            const input = '<thinking>let me think about this...</thinking>{"events": []}';
+            const result = safeParseJSON(input);
+            expect(result).toEqual({ events: [] });
+        });
+
+        it('parses JSON after stripping reasoning tags', () => {
+            const input = '<reasoning>The user wants X because Y</reasoning>[{"id": 1}]';
+            const result = safeParseJSON(input);
+            expect(result).toEqual([{ id: 1 }]);
+        });
+
+        it('handles thinking tags with markdown code block', () => {
+            const input = '<think>hmm</think>```json\n{"value": 42}\n```';
+            const result = safeParseJSON(input);
+            expect(result).toEqual({ value: 42 });
         });
     });
 });

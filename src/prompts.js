@@ -18,7 +18,7 @@ import { sortMemoriesBySequence } from './utils.js';
 
 function _extractionRole() {
     return `<role>
-You are an expert narrative analyst extracting significant story events from roleplay conversations, with a particular focus on character interactions, developing intimacy, and emotional shifts within adult-themed narratives, into structured JSON.
+You are a senior narrative analyst with 10+ years experience in interactive fiction, character psychology, and adult-themed roleplay. You specialize in extracting significant story events that capture emotional depth, relationship dynamics, and meaningful character interactions.
 
 You excel at distinguishing story-significant moments from mundane dialogue. You output valid JSON only - no markdown fences, no explanatory text.
 </role>`;
@@ -256,6 +256,22 @@ Extract significant events from <messages> following these steps:
    - Progression of recorded event = SKIP
    - Only extract if fundamentally NEW action occurred
 
+<avoid>
+DO NOT extract:
+- Events that merely rephrase existing memories
+- Internal monologue without observable action or change
+- Events implied but not explicitly shown in the text
+- Mundane actions (walking, sitting, basic greetings without significance)
+</avoid>
+
+<analysis_process>
+Before outputting JSON, briefly reason in <reasoning> tags:
+1. What story-significant moments occurred?
+2. Are any potential extractions duplicates of existing memories?
+3. What importance level fits each event?
+Then output your JSON array.
+</analysis_process>
+
 Return a JSON array of events. Return [] if no significant new events found.
 </instructions>`;
 }
@@ -266,9 +282,9 @@ Return a JSON array of events. Return [] if no significant new events found.
 
 function _retrievalRole() {
     return `<role>
-You are a memory curator selecting which memories a character would naturally recall in a given moment, especially considering emotional intimacy and relationship dynamics.
+You are a senior memory systems architect specializing in character-driven narratives and emotional continuity. You understand how human memory works - triggered by association, emotion, and relevance to current situations.
 
-You understand how human memory works - triggered by association, emotion, and relevance. You output valid JSON only - no markdown fences, no explanatory text.
+You select memories a character would naturally recall in a given moment, especially considering emotional intimacy and relationship dynamics. You output valid JSON only - no markdown fences, no explanatory text.
 </role>`;
 }
 
@@ -402,6 +418,18 @@ Select up to ${limit} memories that ${characterName} would naturally recall for 
    - Direct relevance over tangential connection
    - Recent events when recency matters
 
+<grounding>
+When explaining your selection, quote specific phrases from <scene> that triggered each memory association.
+</grounding>
+
+<analysis_process>
+Before outputting JSON, briefly reason in <reasoning> tags:
+1. What key triggers exist in the scene (emotions, topics, characters)?
+2. Which memories directly connect to these triggers?
+3. Why would ${characterName} recall these specific memories now?
+Then output your JSON.
+</analysis_process>
+
 Return JSON with selected memory numbers (1-indexed) and brief reasoning.
 </instructions>`;
 }
@@ -427,11 +455,15 @@ export function buildExtractionPrompt({ messages, names, context = {} }) {
     const { char: characterName, user: userName } = names;
     const { memories: existingMemories = [], charDesc: characterDescription = '', personaDesc: personaDescription = '' } = context;
 
+    // Build context wrapper for memories and characters
+    const memoriesSection = _extractionMemories(existingMemories);
+    const charactersSection = _extractionCharacters(characterName, userName, characterDescription, personaDescription);
+    const contextSection = `<context>\n${[memoriesSection, charactersSection].filter(Boolean).join('\n')}\n</context>`;
+
     const sections = [
         _extractionRole(),
         _extractionMessages(messages),
-        _extractionMemories(existingMemories),
-        _extractionCharacters(characterName, userName, characterDescription, personaDescription),
+        contextSection,
         _extractionSchema(),
         _extractionExamples(),
         _extractionInstructions(),
@@ -449,11 +481,13 @@ export function buildExtractionPrompt({ messages, names, context = {} }) {
  * @returns {string} The smart retrieval prompt
  */
 export function buildSmartRetrievalPrompt(recentContext, numberedList, characterName, limit) {
+    // Build context wrapper for memories and character
+    const contextSection = `<context>\n${_retrievalMemories(numberedList)}\n${_retrievalCharacter(characterName)}\n</context>`;
+
     const sections = [
         _retrievalRole(),
         _retrievalScene(recentContext),
-        _retrievalMemories(numberedList),
-        _retrievalCharacter(characterName),
+        contextSection,
         _retrievalSchema(),
         _retrievalExamples(),
         _retrievalInstructions(limit, characterName),

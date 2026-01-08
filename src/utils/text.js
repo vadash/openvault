@@ -43,6 +43,21 @@ export function sliceToTokenBudget(memories, tokenBudget) {
 }
 
 /**
+ * Strip thinking/reasoning tags from LLM response
+ * Handles <think>, <thinking>, and <reasoning> tags that some models output
+ * @param {string} text - Raw LLM response text
+ * @returns {string} Text with thinking tags removed
+ */
+export function stripThinkingTags(text) {
+    if (typeof text !== 'string') return text;
+    return text
+        .replace(/<think>[\s\S]*?<\/think>/gi, '')
+        .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+        .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
+        .trim();
+}
+
+/**
  * Safely parse JSON, handling markdown code blocks and malformed JSON
  * Uses json-repair library for robust parsing
  * @param {string} input - Raw JSON string potentially wrapped in markdown
@@ -50,7 +65,9 @@ export function sliceToTokenBudget(memories, tokenBudget) {
  */
 export function safeParseJSON(input) {
     try {
-        const repaired = jsonrepair(input);
+        // Strip thinking/reasoning tags before parsing
+        const cleanedInput = stripThinkingTags(input);
+        const repaired = jsonrepair(cleanedInput);
         const parsed = JSON.parse(repaired);
         // Only accept objects and arrays - reject primitives (string, number, boolean, null)
         if (parsed === null || typeof parsed !== 'object') {
