@@ -13,7 +13,7 @@ import { updateEmbeddingStatusDisplay } from './status.js';
 import { getOpenVaultData, showToast } from '../utils.js';
 import { scoreMemories } from '../retrieval/math.js';
 import { getScoringParams } from '../retrieval/scoring.js';
-import { parseRecentMessages, extractQueryContext, buildBM25Tokens } from '../retrieval/query-context.js';
+import { parseRecentMessages, extractQueryContext, buildBM25Tokens, buildEmbeddingQuery } from '../retrieval/query-context.js';
 
 // References to external functions (set during init)
 let updateEventListenersFn = null;
@@ -362,35 +362,36 @@ async function copyMemoryWeights() {
         const chatLength = chat.length;
         const memories = data[MEMORIES_KEY];
 
-        // Get user messages for embedding and BM25 (same as real retrieval)
-        const recentUserMessages = chat.filter(m => !m.is_system && m.is_user).slice(-3);
-        const userMessages = recentUserMessages.map(m => m.mes).join('\n').slice(-1000);
-
-        // Build recent context for query extraction
+        // Build recent context for query extraction (same as real retrieval)
         const recentContext = chat.slice(-10).map(m => m.mes).join('\n');
-
-        // Extract query context for enhanced tokens
         const recentMessages = parseRecentMessages(recentContext, 10);
         const queryContext = extractQueryContext(recentMessages, []);
+
+        // Build embedding query using the same logic as real retrieval
+        const embeddingQuery = buildEmbeddingQuery(recentMessages, queryContext);
+
+        // Get user messages for BM25 (same as real retrieval)
+        const recentUserMessages = chat.filter(m => !m.is_system && m.is_user).slice(-3);
+        const userMessages = recentUserMessages.map(m => m.mes).join('\n');
         const bm25Tokens = buildBM25Tokens(userMessages, queryContext);
 
-        // Get embedding for user messages if enabled
+        // Get embedding for the actual query (not raw user messages)
         let contextEmbedding = null;
-        if (isEmbeddingsEnabled() && userMessages) {
-            contextEmbedding = await getEmbedding(userMessages);
+        if (isEmbeddingsEnabled() && embeddingQuery) {
+            contextEmbedding = await getEmbedding(embeddingQuery);
         }
 
         // Score all memories using shared params
         const { constants, settings: scoringSettings } = getScoringParams();
         const scored = scoreMemories(memories, contextEmbedding, chatLength, constants, scoringSettings, bm25Tokens);
 
-        // Build header with query context and tokens
-        const queryExcerpt = userMessages.slice(0, 100);
+        // Build header with ACTUAL query context used for retrieval
+        const queryExcerpt = embeddingQuery;
         const tokensDisplay = bm25Tokens.slice(0, 20).join(', '); // Limit display
         const tokensTruncated = bm25Tokens.length > 20 ? `... (+${bm25Tokens.length - 20} more)` : '';
 
         const header = `=== OpenVault Memory Debug Info ===
-Query Context: "${queryExcerpt}${userMessages.length > 100 ? '...' : ''}"
+Query Context: "${queryExcerpt}"
 BM25 Keywords: [${tokensDisplay}${tokensTruncated}]
 
 Memory Scores:
