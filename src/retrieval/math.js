@@ -133,7 +133,7 @@ export function cosineSimilarity(vecA, vecB) {
  * @param {Object} constants - Scoring constants (BASE_LAMBDA, IMPORTANCE_5_FLOOR)
  * @param {Object} settings - Scoring settings (vectorSimilarityThreshold, vectorSimilarityWeight, keywordMatchWeight)
  * @param {number} [bm25Score] - Precomputed BM25 score
- * @returns {number} Computed score
+ * @returns {{total: number, base: number, baseAfterFloor: number, recencyPenalty: number, vectorBonus: number, vectorSimilarity: number, bm25Bonus: number, bm25Score: number, distance: number, importance: number}} Score breakdown
  */
 export function calculateScore(memory, contextEmbedding, chatLength, constants, settings, bm25Score = 0) {
     // === Forgetfulness Curve ===
@@ -151,34 +151,51 @@ export function calculateScore(memory, contextEmbedding, chatLength, constants, 
     const lambda = constants.BASE_LAMBDA / (importance * importance);
 
     // Core forgetfulness formula: Score = Importance × e^(-λ × Distance)
-    let score = importance * Math.exp(-lambda * distance);
+    const base = importance * Math.exp(-lambda * distance);
 
     // Importance-5 floor: never drops below minimum score
+    let baseAfterFloor = base;
     if (importance === 5) {
-        score = Math.max(score, constants.IMPORTANCE_5_FLOOR);
+        baseAfterFloor = Math.max(base, constants.IMPORTANCE_5_FLOOR);
     }
 
+    const recencyPenalty = baseAfterFloor - base;
+
     // === Vector Similarity Bonus ===
+    let vectorBonus = 0;
+    let vectorSimilarity = 0;
+
     if (contextEmbedding && memory.embedding) {
-        const similarity = cosineSimilarity(contextEmbedding, memory.embedding);
+        vectorSimilarity = cosineSimilarity(contextEmbedding, memory.embedding);
         const threshold = settings.vectorSimilarityThreshold || 0.5;
         const maxBonus = settings.vectorSimilarityWeight || 15;
 
-        if (similarity > threshold) {
+        if (vectorSimilarity > threshold) {
             // Scale similarity above threshold to bonus points
             // e.g., similarity 0.75 with threshold 0.5 -> (0.75-0.5)/(1-0.5) = 0.5 -> 7.5 points
-            const normalizedSim = (similarity - threshold) / (1 - threshold);
-            score += normalizedSim * maxBonus;
+            const normalizedSim = (vectorSimilarity - threshold) / (1 - threshold);
+            vectorBonus = normalizedSim * maxBonus;
         }
     }
 
     // === BM25 Keyword Match Bonus ===
-    if (bm25Score > 0) {
-        const keywordWeight = settings.keywordMatchWeight ?? 1.0;
-        score += bm25Score * keywordWeight;
-    }
+    const keywordWeight = settings.keywordMatchWeight ?? 1.0;
+    const bm25Bonus = bm25Score * keywordWeight;
 
-    return score;
+    const total = baseAfterFloor + vectorBonus + bm25Bonus;
+
+    return {
+        total,
+        base,
+        baseAfterFloor,
+        recencyPenalty,
+        vectorBonus,
+        vectorSimilarity,
+        bm25Bonus,
+        bm25Score,
+        distance,
+        importance
+    };
 }
 
 /**
@@ -189,7 +206,7 @@ export function calculateScore(memory, contextEmbedding, chatLength, constants, 
  * @param {Object} constants - Scoring constants
  * @param {Object} settings - Scoring settings
  * @param {string|string[]} [queryTokens] - Query text or pre-tokenized array for BM25 scoring
- * @returns {Array<{memory: Object, score: number}>} Scored and sorted memories
+ * @returns {Array<{memory: Object, score: number, breakdown: Object}>} Scored and sorted memories
  */
 export function scoreMemories(memories, contextEmbedding, chatLength, constants, settings, queryTokens) {
     // Precompute BM25 data if query tokens provided
@@ -215,8 +232,8 @@ export function scoreMemories(memories, contextEmbedding, chatLength, constants,
         if (tokens && idfMap && memoryTokensList) {
             bm25 = bm25Score(tokens, memoryTokensList[index], idfMap, avgDL);
         }
-        const score = calculateScore(memory, contextEmbedding, chatLength, constants, settings, bm25);
-        return { memory, score };
+        const breakdown = calculateScore(memory, contextEmbedding, chatLength, constants, settings, bm25);
+        return { memory, score: breakdown.total, breakdown };
     });
 
     scored.sort((a, b) => b.score - a.score);
