@@ -216,7 +216,6 @@ export async function updateInjection(pendingUserMessage = '') {
     }
 
     const deps = getDeps();
-    const settings = deps.getExtensionSettings()[extensionName];
     const context = deps.getContext();
     if (!context.chat || context.chat.length === 0) {
         safeSetExtensionPrompt('');
@@ -235,8 +234,7 @@ export async function updateInjection(pendingUserMessage = '') {
         return;
     }
 
-    const activeCharacters = getActiveCharacters();
-    const { povCharacters, isGroupChat } = getPOVContext();
+    const { povCharacters } = getPOVContext();
 
     // Filter to memories from hidden messages only (visible messages are already in context)
     const hiddenMemories = _getHiddenMemories(context.chat, memories);
@@ -257,37 +255,11 @@ export async function updateInjection(pendingUserMessage = '') {
         return;
     }
 
-    const primaryCharacter = isGroupChat ? povCharacters[0] : context.name2;
-    const headerName = isGroupChat ? primaryCharacter : 'Scene';
-    const chatLength = context.chat.length;
-
-    // Build chat context, optionally including pending user message
-    let recentContext = context.chat.filter(m => !m.is_system).map(m => m.mes).join('\n');
     if (pendingUserMessage) {
-        recentContext = recentContext + '\n\n[User is about to say]: ' + pendingUserMessage;
         log(`Including pending user message in retrieval context`);
     }
 
-    // Extract last 3 user messages for embedding (user intent matters most)
-    let userMsgs = context.chat.filter(m => !m.is_system && m.is_user).slice(-3).map(m => m.mes);
-    if (pendingUserMessage) {
-        userMsgs.push(pendingUserMessage);
-        userMsgs = userMsgs.slice(-3); // Keep only last 3
-    }
-    const userMessages = userMsgs.join('\n').slice(-1000);
-
-    // Build ctx for selectFormatAndInject (will use buildRetrievalContext in Task 8)
-    const ctx = {
-        recentContext,
-        userMessages,
-        chatLength,
-        primaryCharacter,
-        activeCharacters,
-        headerName,
-        preFilterTokens: settings.retrievalPreFilterTokens || 24000,
-        finalTokens: settings.retrievalFinalTokens || 12000,
-        smartRetrievalEnabled: settings.smartRetrievalEnabled,
-    };
+    const ctx = buildRetrievalContext({ pendingUserMessage });
 
     const result = await selectFormatAndInject(memoriesToUse, data, ctx);
 
