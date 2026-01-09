@@ -5,8 +5,6 @@
  * Allows easy addition of new providers without modifying core logic.
  */
 
-/* global navigator */
-
 import { getDeps } from '../deps.js';
 import { log } from '../utils.js';
 import { extensionName } from '../constants.js';
