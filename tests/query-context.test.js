@@ -194,7 +194,7 @@ describe('query-context', () => {
     });
 
     describe('buildEmbeddingQuery', () => {
-        it('weights recent messages more heavily', () => {
+        it('concatenates messages without duplication', () => {
             const messages = [
                 { mes: 'newest message' },
                 { mes: 'second message' },
@@ -203,9 +203,12 @@ describe('query-context', () => {
             const entities = { entities: [], weights: {} };
             const query = buildEmbeddingQuery(messages, entities);
 
-            // Newest message should appear multiple times (2x weight)
+            // Messages should appear once each, in order
+            expect(query).toContain('newest message');
+            expect(query).toContain('second message');
+            expect(query).toContain('third message');
             const newestCount = (query.match(/newest message/g) || []).length;
-            expect(newestCount).toBe(2);
+            expect(newestCount).toBe(1);
         });
 
         it('appends top entities', () => {

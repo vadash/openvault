@@ -162,12 +162,14 @@ export async function selectRelevantMemoriesSimple(memories, recentContext, user
     const queryContext = extractQueryContext(recentMessages, activeCharacters);
 
     // Build enriched queries
-    const embeddingQuery = buildEmbeddingQuery(recentMessages, queryContext);
+    // Use user messages only for embedding (intent matching)
+    const userMessagesForEmbedding = parseRecentMessages(userMessages, 3);
+    const embeddingQuery = buildEmbeddingQuery(userMessagesForEmbedding, queryContext);
     const bm25Tokens = buildBM25Tokens(userMessages, queryContext);
 
     // Log extracted entities for debugging
-    if (queryContext.entities.length > 0) {
-        log(`Query context: ${JSON.stringify(queryContext)}`);
+    if (queryContext.entities.length > 0 || embeddingQuery) {
+        log(`Query context: entities=[${queryContext.entities.join(', ')}], embeddingQuery="${embeddingQuery?.slice(0, 100)}${embeddingQuery?.length > 100 ? '...' : ''}"`);
     }
 
     // Get embedding for enriched query if enabled

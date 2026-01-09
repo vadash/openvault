@@ -349,16 +349,16 @@ describe('scoring', () => {
                 expect(getEmbedding).not.toHaveBeenCalled();
             });
 
-            it('uses enriched query for embedding (built from recentContext)', async () => {
+            it('uses enriched query for embedding (built from userMessages only)', async () => {
                 const userMessages = 'user question about alice';
                 const recentContext = 'full context';
 
                 await selectRelevantMemoriesSimple([], recentContext, userMessages, 'Alice', [], 10, 100);
 
-                // Embedding is called with enriched query built from recentContext
+                // Embedding is called with enriched query built from userMessages (intent matching)
                 expect(getEmbedding).toHaveBeenCalledTimes(1);
-                // The enriched query includes repeated recent messages + entities
-                expect(getEmbedding).toHaveBeenCalledWith(expect.stringContaining('full context'));
+                // The enriched query includes user messages + extracted entities
+                expect(getEmbedding).toHaveBeenCalledWith(expect.stringContaining('user question'));
             });
         });
     });
