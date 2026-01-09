@@ -377,8 +377,21 @@ describe('scoring', () => {
     });
 
     describe('selectRelevantMemoriesSmart', () => {
+        // Helper to create a RetrievalContext object
+        const makeCtx = (overrides = {}) => ({
+            recentContext: 'context',
+            userMessages: 'user messages',
+            primaryCharacter: 'Alice',
+            activeCharacters: [],
+            chatLength: 100,
+            preFilterTokens: 24000,
+            finalTokens: 12000,
+            smartRetrievalEnabled: false,
+            ...overrides,
+        });
+
         it('returns empty array for empty memories', async () => {
-            const result = await selectRelevantMemoriesSmart([], 'context', 'user messages', 'Alice', 10, 100);
+            const result = await selectRelevantMemoriesSmart([], makeCtx(), 10);
             expect(result).toEqual([]);
         });
 
@@ -388,7 +401,7 @@ describe('scoring', () => {
                 { id: '2', summary: 'Memory 2' },
             ];
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 10, 100);
+            const result = await selectRelevantMemoriesSmart(memories, makeCtx(), 10);
 
             expect(result).toEqual(memories);
             expect(callLLMForRetrieval).not.toHaveBeenCalled();
@@ -403,7 +416,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('{"selected": [1, 2, 3]}');
 
-            await selectRelevantMemoriesSmart(memories, 'recent context', 'user messages', 'Alice', 3, 100);
+            await selectRelevantMemoriesSmart(memories, makeCtx({ recentContext: 'recent context' }), 3);
 
             expect(buildSmartRetrievalPrompt).toHaveBeenCalledWith(
                 'recent context',
@@ -424,7 +437,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('{"selected": [1, 3]}');
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 2, 100);
+            const result = await selectRelevantMemoriesSmart(memories, makeCtx(), 2);
 
             // Indices are 1-indexed, so [1, 3] -> memories[0], memories[2]
             expect(result).toHaveLength(2);
@@ -441,7 +454,7 @@ describe('scoring', () => {
             // 1-indexed: 2 -> 0-indexed: 1 -> memories[1]
             callLLMForRetrieval.mockResolvedValue('{"selected": [2]}');
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 1, 100);
+            const result = await selectRelevantMemoriesSmart(memories, makeCtx(), 1);
 
             expect(result).toHaveLength(1);
             expect(result[0].id).toBe('second');
@@ -457,7 +470,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockRejectedValue(new Error('LLM error'));
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 2, 100);
+            const result = await selectRelevantMemoriesSmart(memories, makeCtx(), 2);
 
             // Should fall back to simple mode and return some results
             expect(result.length).toBeGreaterThan(0);
@@ -474,7 +487,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('not valid json');
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 2, 100);
+            const result = await selectRelevantMemoriesSmart(memories, makeCtx(), 2);
 
             // Should fall back to simple mode
             expect(result.length).toBeLessThanOrEqual(2);
@@ -490,7 +503,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('{"selected": []}');
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 2, 100);
+            const result = await selectRelevantMemoriesSmart(memories, makeCtx(), 2);
 
             // Should fall back to simple mode
             expect(result.length).toBeLessThanOrEqual(2);
@@ -505,7 +518,7 @@ describe('scoring', () => {
             // Index 99 doesn't exist
             callLLMForRetrieval.mockResolvedValue('{"selected": [99]}');
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 1, 100);
+            const result = await selectRelevantMemoriesSmart(memories, makeCtx(), 1);
 
             // Should fall back since all indices are invalid
             expect(result).toBeDefined();
@@ -521,7 +534,7 @@ describe('scoring', () => {
             // Index 1 is valid (memories[0]), index 99 is not
             callLLMForRetrieval.mockResolvedValue('{"selected": [1, 99]}');
 
-            const result = await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 2, 100);
+            const result = await selectRelevantMemoriesSmart(memories, makeCtx(), 2);
 
             expect(result).toHaveLength(1);
             expect(result[0].id).toBe('0');
@@ -535,7 +548,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('{"selected": [1]}');
 
-            await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 1, 100);
+            await selectRelevantMemoriesSmart(memories, makeCtx(), 1);
 
             // Verify the prompt was built with formatted list
             const promptCall = buildSmartRetrievalPrompt.mock.calls[0];
@@ -553,7 +566,7 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('{"selected": [1], "reasoning": "Memory 0 is most relevant"}');
 
-            await selectRelevantMemoriesSmart(memories, 'context', 'user messages', 'Alice', 1, 100);
+            await selectRelevantMemoriesSmart(memories, makeCtx(), 1);
 
             expect(log).toHaveBeenCalledWith(
                 expect.stringContaining('Memory 0 is most relevant')
