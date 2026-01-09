@@ -9,6 +9,7 @@ import { SELECTORS, CLASSES } from '../base/constants.js';
 import { renderMemoryItem, renderMemoryEdit } from '../templates/memory.js';
 import { filterMemories, sortMemoriesByDate, getPaginationInfo, extractCharactersSet } from '../calculations.js';
 import { getOpenVaultData, showToast } from '../../utils.js';
+import { escapeHtml } from '../../utils/dom.js';
 import { getDeps } from '../../deps.js';
 import { MEMORIES_KEY, MEMORIES_PER_PAGE } from '../../constants.js';
 import { deleteMemory as deleteMemoryAction, updateMemory as updateMemoryAction } from '../../data/actions.js';
@@ -214,7 +215,6 @@ export class MemoryList extends Component {
         $filter.find('option:not(:first)').remove();
 
         if (characters.length > 0) {
-            const { escapeHtml } = require('../../utils/dom.js');
             const optionsHtml = characters
                 .map(char => `<option value="${escapeHtml(char)}">${escapeHtml(char)}</option>`)
                 .join('');
