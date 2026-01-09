@@ -148,15 +148,18 @@ function runWorkerScoring(memories, contextEmbedding, chatLength, limit, queryTo
 /**
  * Select relevant memories using forgetfulness curve scoring (via Web Worker)
  * @param {Object[]} memories - Available memories
- * @param {string} recentContext - Recent chat context (for query context extraction)
- * @param {string} userMessages - Last 3 user messages for embedding (capped at 1000 chars)
- * @param {string} characterName - POV character name (unused, kept for API compatibility)
- * @param {string[]} activeCharacters - List of active characters for entity extraction
+ * @param {Object} ctx - Retrieval context object
+ * @param {string} ctx.recentContext - Recent chat context (for query context extraction)
+ * @param {string} ctx.userMessages - Last 3 user messages for embedding (capped at 1000 chars)
+ * @param {string} ctx.primaryCharacter - POV character name (unused, kept for API compatibility)
+ * @param {string[]} ctx.activeCharacters - List of active characters for entity extraction
+ * @param {number} ctx.chatLength - Current chat length (for distance calculation)
  * @param {number} limit - Maximum memories to return
- * @param {number} chatLength - Current chat length (for distance calculation)
  * @returns {Promise<Object[]>} Selected memories
  */
-export async function selectRelevantMemoriesSimple(memories, recentContext, userMessages, characterName, activeCharacters, limit, chatLength) {
+export async function selectRelevantMemoriesSimple(memories, ctx, limit) {
+    const { recentContext, userMessages, primaryCharacter, activeCharacters, chatLength } = ctx;
+
     // Extract context from recent messages for enriched queries
     const recentMessages = parseRecentMessages(recentContext, 10);
     const queryContext = extractQueryContext(recentMessages, activeCharacters);
@@ -216,14 +219,16 @@ export async function selectRelevantMemoriesSmart(memories, recentContext, userM
         const parsed = safeParseJSON(response);
         if (!parsed) {
             log('Smart retrieval: Failed to parse LLM response, falling back to simple mode');
-            return selectRelevantMemoriesSimple(memories, recentContext, userMessages, characterName, [], limit, chatLength);
+            const fallbackCtx = { recentContext, userMessages, primaryCharacter: characterName, activeCharacters: [], chatLength };
+            return selectRelevantMemoriesSimple(memories, fallbackCtx, limit);
         }
 
         // Extract selected indices
         const selectedIndices = parsed.selected || [];
         if (!Array.isArray(selectedIndices) || selectedIndices.length === 0) {
             log('Smart retrieval: No memories selected by LLM, falling back to simple mode');
-            return selectRelevantMemoriesSimple(memories, recentContext, userMessages, characterName, [], limit, chatLength);
+            const fallbackCtx = { recentContext, userMessages, primaryCharacter: characterName, activeCharacters: [], chatLength };
+            return selectRelevantMemoriesSimple(memories, fallbackCtx, limit);
         }
 
         // Convert 1-indexed to 0-indexed and filter valid indices
@@ -233,14 +238,16 @@ export async function selectRelevantMemoriesSmart(memories, recentContext, userM
 
         if (selectedMemories.length === 0) {
             log('Smart retrieval: Invalid indices from LLM, falling back to simple mode');
-            return selectRelevantMemoriesSimple(memories, recentContext, userMessages, characterName, [], limit, chatLength);
+            const fallbackCtx = { recentContext, userMessages, primaryCharacter: characterName, activeCharacters: [], chatLength };
+            return selectRelevantMemoriesSimple(memories, fallbackCtx, limit);
         }
 
         log(`Smart retrieval: LLM selected ${selectedMemories.length} memories. Reasoning: ${parsed.reasoning || 'none provided'}`);
         return selectedMemories;
     } catch (error) {
         log(`Smart retrieval error: ${error.message}, falling back to simple mode`);
-        return selectRelevantMemoriesSimple(memories, recentContext, userMessages, characterName, [], limit, chatLength);
+        const fallbackCtx = { recentContext, userMessages, primaryCharacter: characterName, activeCharacters: [], chatLength };
+        return selectRelevantMemoriesSimple(memories, fallbackCtx, limit);
     }
 }
 
@@ -265,14 +272,17 @@ export async function selectRelevantMemories(memories, recentContext, userMessag
 
     // Stage 1: Algorithmic Filtering
     // Get scored results (pass high count limit, we'll token-slice after)
-    const scored = await selectRelevantMemoriesSimple(
-        memories,
+    const ctx = {
         recentContext,
         userMessages,
-        characterName,
+        primaryCharacter: characterName,
         activeCharacters,
-        1000, // High count limit - we'll apply token budget after
-        chatLength
+        chatLength,
+    };
+    const scored = await selectRelevantMemoriesSimple(
+        memories,
+        ctx,
+        1000 // High count limit - we'll apply token budget after
     );
 
     // Apply Stage 1 token budget (pre-filter)

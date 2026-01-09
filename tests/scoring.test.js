@@ -159,8 +159,21 @@ describe('scoring', () => {
     });
 
     describe('selectRelevantMemoriesSimple', () => {
+        // Helper to create a RetrievalContext object
+        const makeCtx = (overrides = {}) => ({
+            recentContext: 'context',
+            userMessages: 'user messages',
+            primaryCharacter: 'Alice',
+            activeCharacters: [],
+            chatLength: 100,
+            preFilterTokens: 24000,
+            finalTokens: 12000,
+            smartRetrievalEnabled: false,
+            ...overrides,
+        });
+
         it('returns empty array for empty memories', async () => {
-            const result = await selectRelevantMemoriesSimple([], 'context', 'user messages', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple([], makeCtx(), 10);
             expect(result).toEqual([]);
         });
 
@@ -170,7 +183,7 @@ describe('scoring', () => {
                 { id: '2', summary: 'Memory 2', importance: 3, message_ids: [20] },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
             expect(result).toHaveLength(2);
         });
@@ -181,7 +194,7 @@ describe('scoring', () => {
                 { id: '1', summary: 'Recent', importance: 3, message_ids: [100] },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
             expect(result).toHaveLength(1);
             expect(result[0].id).toBe('1');
@@ -194,7 +207,7 @@ describe('scoring', () => {
                 { id: 'high', summary: 'High importance', importance: 5, message_ids: [50] },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
             expect(result[0].id).toBe('high');
             expect(result[1].id).toBe('low');
@@ -206,7 +219,7 @@ describe('scoring', () => {
                 { id: 'recent', summary: 'Recent memory', importance: 3, message_ids: [90] },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
             expect(result[0].id).toBe('recent');
             expect(result[1].id).toBe('old');
@@ -219,7 +232,7 @@ describe('scoring', () => {
                 { id: 'recent-low', summary: 'Recent low', importance: 2, message_ids: [95] },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
             // The importance-5 memory at distance 99 should still score well due to floor
             // IMPORTANCE_5_FLOOR = 5, so it should compete with recent memories
@@ -234,7 +247,7 @@ describe('scoring', () => {
                 { id: '3', summary: 'Memory 3', importance: 3, message_ids: [80] },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
             // Higher importance and/or more recent should come first
             // Memory 2 (imp 5, dist 50) and Memory 3 (imp 3, dist 20) should beat Memory 1
@@ -249,7 +262,7 @@ describe('scoring', () => {
                 message_ids: [i * 5],
             }));
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 5, 100);
+            const result = await selectRelevantMemoriesSimple(memories, makeCtx(), 5);
 
             expect(result).toHaveLength(5);
         });
@@ -259,7 +272,7 @@ describe('scoring', () => {
                 { id: '1', summary: 'No importance', message_ids: [50] },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
             expect(result).toHaveLength(1);
         });
@@ -269,7 +282,7 @@ describe('scoring', () => {
                 { id: '1', summary: 'No message_ids', importance: 3 },
             ];
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
+            const result = await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
             expect(result).toHaveLength(1);
         });
@@ -288,7 +301,7 @@ describe('scoring', () => {
                     { id: 'no-embed', summary: 'No embedding', importance: 3, message_ids: [50] },
                 ];
 
-                const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
+                const result = await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
                 // Memory with embedding and good similarity should rank higher
                 expect(result[0].id).toBe('with-embed');
@@ -302,7 +315,7 @@ describe('scoring', () => {
                     { id: 'low-sim', summary: 'Low similarity', importance: 3, message_ids: [50], embedding: [0.1, 0.2, 0.3] },
                 ];
 
-                await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
+                await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
                 // Should not receive bonus (verified by cosineSimilarity being called)
                 expect(cosineSimilarity).toHaveBeenCalled();
@@ -316,7 +329,7 @@ describe('scoring', () => {
                     { id: '1', summary: 'Test', importance: 3, message_ids: [50], embedding: [0.1, 0.2, 0.3] },
                 ];
 
-                await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
+                await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
                 // Memory should not get bonus (similarity 0.65 < threshold 0.7)
                 expect(cosineSimilarity).toHaveBeenCalled();
@@ -330,7 +343,7 @@ describe('scoring', () => {
                     { id: '1', summary: 'Test', importance: 3, message_ids: [50], embedding: [0.1, 0.2, 0.3] },
                 ];
 
-                await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
+                await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
                 // Weight affects bonus calculation
                 expect(cosineSimilarity).toHaveBeenCalled();
@@ -343,7 +356,7 @@ describe('scoring', () => {
                     { id: '1', summary: 'Memory 1', importance: 3, message_ids: [50] },
                 ];
 
-                const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
+                const result = await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
                 expect(result).toHaveLength(1);
                 expect(getEmbedding).not.toHaveBeenCalled();
@@ -353,7 +366,7 @@ describe('scoring', () => {
                 const userMessages = 'user question about alice';
                 const recentContext = 'full context';
 
-                await selectRelevantMemoriesSimple([], recentContext, userMessages, 'Alice', [], 10, 100);
+                await selectRelevantMemoriesSimple([], makeCtx({ recentContext, userMessages }), 10);
 
                 // Embedding is called with enriched query built from userMessages (intent matching)
                 expect(getEmbedding).toHaveBeenCalledTimes(1);
@@ -637,7 +650,17 @@ describe('scoring', () => {
             // imp1: 1 * e^(-0.05 * 100) = 1 * e^(-5) ≈ 0.0067
             // imp5: 5 * e^(-0.002 * 100) = 5 * e^(-0.2) ≈ 4.09
 
-            const result = await selectRelevantMemoriesSimple(memories, 'context', 'user messages', 'Alice', [], 10, 100);
+            const ctx = {
+                recentContext: 'context',
+                userMessages: 'user messages',
+                primaryCharacter: 'Alice',
+                activeCharacters: [],
+                chatLength: 100,
+                preFilterTokens: 24000,
+                finalTokens: 12000,
+                smartRetrievalEnabled: false,
+            };
+            const result = await selectRelevantMemoriesSimple(memories, ctx, 10);
 
             // Importance 5 should be first
             expect(result[0].id).toBe('imp5');
