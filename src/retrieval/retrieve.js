@@ -144,7 +144,6 @@ export async function retrieveAndInjectContext() {
     }
 
     const deps = getDeps();
-    const settings = deps.getExtensionSettings()[extensionName];
     const context = deps.getContext();
     const chat = context.chat;
 
@@ -166,7 +165,6 @@ export async function retrieveAndInjectContext() {
     }
 
     try {
-        const activeCharacters = getActiveCharacters();
         const { povCharacters, isGroupChat } = getPOVContext();
 
         // Filter to memories from hidden messages only (visible messages are already in context)
@@ -188,25 +186,7 @@ export async function retrieveAndInjectContext() {
             return null;
         }
 
-        const primaryCharacter = isGroupChat ? povCharacters[0] : context.name2;
-        const headerName = isGroupChat ? primaryCharacter : 'Scene';
-        const recentContext = chat.filter(m => !m.is_system).map(m => m.mes).join('\n');
-        // Extract last 3 user messages for embedding (user intent matters most)
-        const userMessages = chat.filter(m => !m.is_system && m.is_user).slice(-3).map(m => m.mes).join('\n').slice(-1000);
-        const chatLength = chat.length;
-
-        // Build ctx for selectFormatAndInject (will use buildRetrievalContext in Task 7)
-        const ctx = {
-            recentContext,
-            userMessages,
-            chatLength,
-            primaryCharacter,
-            activeCharacters,
-            headerName,
-            preFilterTokens: settings.retrievalPreFilterTokens || 24000,
-            finalTokens: settings.retrievalFinalTokens || 12000,
-            smartRetrievalEnabled: settings.smartRetrievalEnabled,
-        };
+        const ctx = buildRetrievalContext();
 
         const result = await selectFormatAndInject(memoriesToUse, data, ctx);
 
