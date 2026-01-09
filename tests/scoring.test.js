@@ -575,6 +575,19 @@ describe('scoring', () => {
     });
 
     describe('selectRelevantMemories (dispatcher)', () => {
+        // Helper to create a RetrievalContext object
+        const makeCtx = (overrides = {}) => ({
+            recentContext: 'context',
+            userMessages: 'user messages',
+            primaryCharacter: 'Alice',
+            activeCharacters: [],
+            chatLength: 100,
+            preFilterTokens: mockSettings.retrievalPreFilterTokens || 24000,
+            finalTokens: mockSettings.retrievalFinalTokens || 12000,
+            smartRetrievalEnabled: mockSettings.smartRetrievalEnabled,
+            ...overrides,
+        });
+
         it('uses smart retrieval when smartRetrievalEnabled = true', async () => {
             mockSettings.smartRetrievalEnabled = true;
             const memories = [
@@ -583,7 +596,8 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('{"selected": [1]}');
 
-            const result = await selectRelevantMemories(memories, 'context', 'user messages', 'Alice', [], 1, 100);
+            const ctx = makeCtx({ smartRetrievalEnabled: true });
+            const result = await selectRelevantMemories(memories, ctx);
 
             // Smart mode returns all if count <= limit (no LLM call needed)
             expect(result).toEqual(memories);
@@ -595,7 +609,8 @@ describe('scoring', () => {
                 { id: '0', summary: 'Memory 0', importance: 3, message_ids: [50] },
             ];
 
-            const result = await selectRelevantMemories(memories, 'context', 'user messages', 'Alice', [], 10, 100);
+            const ctx = makeCtx({ smartRetrievalEnabled: false });
+            const result = await selectRelevantMemories(memories, ctx);
 
             expect(result).toHaveLength(1);
             expect(callLLMForRetrieval).not.toHaveBeenCalled();
@@ -609,7 +624,14 @@ describe('scoring', () => {
                 { id: '0', summary: 'Memory 0', importance: 3, message_ids: [50] },
             ];
 
-            await selectRelevantMemories(memories, 'context text', 'user messages', 'Alice', ['Bob'], mockSettings, 200);
+            const ctx = makeCtx({
+                recentContext: 'context text',
+                primaryCharacter: 'Alice',
+                activeCharacters: ['Bob'],
+                chatLength: 200,
+                smartRetrievalEnabled: false,
+            });
+            await selectRelevantMemories(memories, ctx);
 
             // Simple mode doesn't call LLM
             expect(callLLMForRetrieval).not.toHaveBeenCalled();
@@ -627,7 +649,15 @@ describe('scoring', () => {
 
             callLLMForRetrieval.mockResolvedValue('{"selected": [1, 2]}');
 
-            await selectRelevantMemories(memories, 'context text', 'user messages', 'Alice', ['Bob'], mockSettings, 200);
+            const ctx = makeCtx({
+                recentContext: 'context text',
+                primaryCharacter: 'Alice',
+                activeCharacters: ['Bob'],
+                chatLength: 200,
+                smartRetrievalEnabled: true,
+                finalTokens: 5,
+            });
+            await selectRelevantMemories(memories, ctx);
 
             // Smart mode calls LLM with calculated target count (based on token budget)
             expect(buildSmartRetrievalPrompt).toHaveBeenCalledWith(

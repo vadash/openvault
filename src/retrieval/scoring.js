@@ -256,29 +256,24 @@ export async function selectRelevantMemoriesSmart(memories, ctx, limit) {
  * Stage 1: Algorithmic scoring with token budget pre-filter
  * Stage 2: Smart LLM selection OR simple token budget slice
  * @param {Object[]} memories - Available memories
- * @param {string} recentContext - Recent chat context
- * @param {string} userMessages - Last 3 user messages for embedding
- * @param {string} characterName - POV character name
- * @param {string[]} activeCharacters - List of active characters (unused, kept for API)
- * @param {Object} settings - Extension settings with token budgets
- * @param {number} chatLength - Current chat length (for distance calculation)
+ * @param {Object} ctx - Retrieval context object
+ * @param {string} ctx.recentContext - Recent chat context
+ * @param {string} ctx.userMessages - Last 3 user messages for embedding
+ * @param {string} ctx.primaryCharacter - POV character name
+ * @param {string[]} ctx.activeCharacters - List of active characters
+ * @param {number} ctx.chatLength - Current chat length (for distance calculation)
+ * @param {number} ctx.preFilterTokens - Token budget for Stage 1 pre-filter
+ * @param {number} ctx.finalTokens - Token budget for Stage 2 final selection
+ * @param {boolean} ctx.smartRetrievalEnabled - Whether to use LLM-based smart retrieval
  * @returns {Promise<Object[]>} Selected memories
  */
-export async function selectRelevantMemories(memories, recentContext, userMessages, characterName, activeCharacters, settings, chatLength) {
+export async function selectRelevantMemories(memories, ctx) {
     if (!memories || memories.length === 0) return [];
 
-    const preFilterTokens = settings.retrievalPreFilterTokens || 24000;
-    const finalTokens = settings.retrievalFinalTokens || 12000;
+    const { preFilterTokens, finalTokens, smartRetrievalEnabled } = ctx;
 
     // Stage 1: Algorithmic Filtering
     // Get scored results (pass high count limit, we'll token-slice after)
-    const ctx = {
-        recentContext,
-        userMessages,
-        primaryCharacter: characterName,
-        activeCharacters,
-        chatLength,
-    };
     const scored = await selectRelevantMemoriesSimple(
         memories,
         ctx,
@@ -292,7 +287,7 @@ export async function selectRelevantMemories(memories, recentContext, userMessag
     if (stage1Results.length === 0) return [];
 
     // Stage 2: Smart Selection OR Simple Slice
-    if (settings.smartRetrievalEnabled) {
+    if (smartRetrievalEnabled) {
         // Calculate target count based on average memory cost
         const totalStage1Tokens = stage1Results.reduce((sum, m) => sum + estimateTokens(m.summary), 0);
         const avgMemoryCost = totalStage1Tokens / stage1Results.length;
