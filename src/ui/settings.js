@@ -367,12 +367,14 @@ async function copyMemoryWeights() {
         const recentMessages = parseRecentMessages(recentContext, 10);
         const queryContext = extractQueryContext(recentMessages, []);
 
-        // Build embedding query using the same logic as real retrieval
-        const embeddingQuery = buildEmbeddingQuery(recentMessages, queryContext);
-
-        // Get user messages for BM25 (same as real retrieval)
+        // Get user messages for embedding and BM25 (same as real retrieval)
         const recentUserMessages = chat.filter(m => !m.is_system && m.is_user).slice(-3);
         const userMessages = recentUserMessages.map(m => m.mes).join('\n');
+
+        // Build embedding query from user messages only (intent matching)
+        const userMessagesForEmbedding = parseRecentMessages(userMessages, 3);
+        const embeddingQuery = buildEmbeddingQuery(userMessagesForEmbedding, queryContext);
+
         const bm25Tokens = buildBM25Tokens(userMessages, queryContext);
 
         // Get embedding for the actual query (not raw user messages)
@@ -391,7 +393,7 @@ async function copyMemoryWeights() {
         const tokensTruncated = bm25Tokens.length > 20 ? `... (+${bm25Tokens.length - 20} more)` : '';
 
         const header = `=== OpenVault Memory Debug Info ===
-Query Context: "${queryExcerpt}"
+Embedding Query (user-only): "${queryExcerpt}"
 BM25 Keywords: [${tokensDisplay}${tokensTruncated}]
 
 Memory Scores:
