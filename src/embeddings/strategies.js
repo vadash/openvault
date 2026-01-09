@@ -102,7 +102,8 @@ async function isWebGPUAvailable() {
     }
 
     try {
-        const gpu = navigator.gpu || window.navigator?.gpu || globalThis.navigator?.gpu;
+        // Use globalThis.navigator?.gpu for safest access across all environments
+        const gpu = globalThis.navigator?.gpu;
         if (!gpu) {
             log('WebGPU: not available in this context');
             webGPUSupported = false;

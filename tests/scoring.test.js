@@ -9,6 +9,9 @@ import { extensionName, defaultSettings } from '../src/constants.js';
 let cosineSimilarityMock = vi.fn();
 
 // Mock Worker for Node.js test environment
+// Matches the caching pattern in src/retrieval/worker.js
+let mockWorkerCachedMemories = [];
+
 class MockWorker {
     constructor() {
         this.listeners = {};
@@ -20,9 +23,14 @@ class MockWorker {
         delete this.listeners[event];
     }
     postMessage(data) {
-        const { memories, contextEmbedding, chatLength, limit, constants, settings } = data;
+        const { memories, memoriesChanged, contextEmbedding, chatLength, limit, constants, settings } = data;
 
-        const scored = memories.map(memory => {
+        // Update cache if new memories provided (matches worker.js behavior)
+        if (memoriesChanged && memories) {
+            mockWorkerCachedMemories = memories;
+        }
+
+        const scored = mockWorkerCachedMemories.map(memory => {
             const messageIds = memory.message_ids || [0];
             const maxMessageId = Math.max(...messageIds);
             const distance = Math.max(0, chatLength - maxMessageId);
@@ -92,6 +100,7 @@ import {
     selectRelevantMemoriesSimple,
     selectRelevantMemoriesSmart,
     selectRelevantMemories,
+    resetWorkerSyncState,
 } from '../src/retrieval/scoring.js';
 import { getEmbedding, cosineSimilarity, isEmbeddingsEnabled } from '../src/embeddings.js';
 import { callLLMForRetrieval } from '../src/llm.js';
@@ -128,6 +137,12 @@ describe('scoring', () => {
 
         // Reset all mocks
         vi.clearAllMocks();
+
+        // Reset mock worker cache
+        mockWorkerCachedMemories = [];
+
+        // Reset worker sync state so each test gets fresh memory sync
+        resetWorkerSyncState();
 
         // Sync mock reference for MockWorker
         cosineSimilarityMock = cosineSimilarity;

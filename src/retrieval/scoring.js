@@ -16,6 +16,17 @@ import { extractQueryContext, buildEmbeddingQuery, buildBM25Tokens, parseRecentM
 // Lazy-initialized worker
 let scoringWorker = null;
 
+// Track synced memory state to avoid redundant transfers
+let lastSyncedMemoryCount = -1;
+
+/**
+ * Reset worker state (for testing)
+ * Clears the cached sync count so next call will send full memories
+ */
+export function resetWorkerSyncState() {
+    lastSyncedMemoryCount = -1;
+}
+
 /**
  * Build scoring parameters from extension settings
  * @returns {{constants: Object, settings: Object}}
@@ -45,6 +56,7 @@ function terminateWorker() {
     if (scoringWorker) {
         scoringWorker.terminate();
         scoringWorker = null;
+        lastSyncedMemoryCount = -1; // Reset sync state
         log('Scoring worker terminated');
     }
 }
@@ -109,8 +121,15 @@ function runWorkerScoring(memories, contextEmbedding, chatLength, limit, queryTo
         timeoutId = setTimeout(timeoutHandler, WORKER_TIMEOUT_MS);
 
         const { constants, settings } = getScoringParams();
+
+        // Only send full memories array if count changed (avoids expensive cloning)
+        const currentMemoryCount = memories.length;
+        const needsSync = currentMemoryCount !== lastSyncedMemoryCount;
+
         worker.postMessage({
-            memories,
+            // Only include memories if sync needed (reduces Structured Clone overhead)
+            memories: needsSync ? memories : null,
+            memoriesChanged: needsSync,
             contextEmbedding,
             chatLength,
             limit,
@@ -119,6 +138,10 @@ function runWorkerScoring(memories, contextEmbedding, chatLength, limit, queryTo
             constants,
             settings
         });
+
+        if (needsSync) {
+            lastSyncedMemoryCount = currentMemoryCount;
+        }
     });
 }
 

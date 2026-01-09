@@ -44,16 +44,26 @@ export function sliceToTokenBudget(memories, tokenBudget) {
 
 /**
  * Strip thinking/reasoning tags from LLM response
- * Handles <think>, <thinking>, and <reasoning> tags that some models output
+ * Handles various tag formats that different models output
  * @param {string} text - Raw LLM response text
  * @returns {string} Text with thinking tags removed
  */
 export function stripThinkingTags(text) {
     if (typeof text !== 'string') return text;
     return text
+        // XML-style tags (plural and singular variants)
         .replace(/<think>[\s\S]*?<\/think>/gi, '')
         .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+        .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
         .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
+        .replace(/<reflection>[\s\S]*?<\/reflection>/gi, '')
+        // Bracket-style tags (some local models use these)
+        .replace(/\[THINK\][\s\S]*?\[\/THINK\]/gi, '')
+        .replace(/\[THOUGHT\][\s\S]*?\[\/THOUGHT\]/gi, '')
+        .replace(/\[REASONING\][\s\S]*?\[\/REASONING\]/gi, '')
+        // Internal monologue markers (roleplay-style)
+        .replace(/\*thinks?:[\s\S]*?\*/gi, '')
+        .replace(/\(thinking:[\s\S]*?\)/gi, '')
         .trim();
 }
 

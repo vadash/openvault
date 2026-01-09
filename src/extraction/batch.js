@@ -35,15 +35,15 @@ export async function extractAllMessages(updateEventListenersFn) {
         return;
     }
 
-    // Use scheduler to get all messages for backfill
-    const { messageIds: messagesToExtract, batchCount: completeBatches } = getBackfillMessageIds(chat, data, messageCount);
+    // Get initial estimate for progress display
+    const { messageIds: initialMessageIds, batchCount: initialBatchCount } = getBackfillMessageIds(chat, data, messageCount);
     const alreadyExtractedIds = getExtractedMessageIds(data);
 
     if (alreadyExtractedIds.size > 0) {
         log(`Backfill: Skipping ${alreadyExtractedIds.size} already-extracted messages`);
     }
 
-    if (messagesToExtract.length === 0) {
+    if (initialMessageIds.length === 0) {
         if (alreadyExtractedIds.size > 0) {
             showToast('info', `All eligible messages already extracted (${alreadyExtractedIds.size} messages have memories)`);
         } else {
@@ -55,7 +55,7 @@ export async function extractAllMessages(updateEventListenersFn) {
     // Show persistent progress toast
     setStatus('extracting');
     $(toastr?.info(
-        `Backfill: 0/${completeBatches} batches (0%)`,
+        `Backfill: 0/${initialBatchCount} batches (0%)`,
         'OpenVault - Extracting',
         {
             timeOut: 0,
@@ -68,32 +68,49 @@ export async function extractAllMessages(updateEventListenersFn) {
     // Capture chat ID to detect if user switches during backfill
     const targetChatId = getCurrentChatId();
 
-    // Process in batches
+    // Process in batches - re-fetch indices each iteration to handle chat mutations
     let totalEvents = 0;
+    let batchesProcessed = 0;
 
-    for (let i = 0; i < completeBatches; i++) {
-        const startIdx = i * messageCount;
-        const batch = messagesToExtract.slice(startIdx, startIdx + messageCount);
-        const batchNum = i + 1;
+    while (true) {
+        // Re-fetch current state to handle chat mutations (deletions/additions)
+        const freshContext = getDeps().getContext();
+        const freshChat = freshContext.chat;
+        const freshData = getOpenVaultData();
 
-        // Update progress toast
-        const progress = Math.round((i / completeBatches) * 100);
+        if (!freshChat || !freshData) {
+            log('Backfill: Lost chat context, stopping');
+            break;
+        }
+
+        const { messageIds: freshIds } = getBackfillMessageIds(freshChat, freshData, messageCount);
+
+        // No more complete batches available
+        if (freshIds.length < messageCount) {
+            log('Backfill: No more complete batches available');
+            break;
+        }
+
+        // Take first batch from fresh list (oldest unextracted messages)
+        const batch = freshIds.slice(0, messageCount);
+        batchesProcessed++;
+
+        // Update progress toast (use initial estimate for display consistency)
+        const progress = Math.round((batchesProcessed / initialBatchCount) * 100);
         $('.openvault-backfill-toast .toast-message').text(
-            `Backfill: ${i}/${completeBatches} batches (${progress}%) - Processing batch ${batchNum}...`
+            `Backfill: ${batchesProcessed}/${initialBatchCount} batches (${Math.min(progress, 100)}%) - Processing...`
         );
 
         try {
-            log(`Processing batch ${batchNum}/${completeBatches} (batch index ${i})...`);
+            log(`Processing batch ${batchesProcessed}/${initialBatchCount}...`);
             const result = await extractMemories(batch, targetChatId);
             totalEvents += result?.events_created || 0;
 
             // Delay between batches based on rate limit setting
-            if (batchNum < completeBatches) {
-                const rpm = settings.backfillMaxRPM || 30;
-                const delayMs = Math.ceil(60000 / rpm);
-                log(`Rate limiting: waiting ${delayMs}ms (${rpm} RPM)`);
-                await new Promise(resolve => setTimeout(resolve, delayMs));
-            }
+            const rpm = settings.backfillMaxRPM || 30;
+            const delayMs = Math.ceil(60000 / rpm);
+            log(`Rate limiting: waiting ${delayMs}ms (${rpm} RPM)`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
         } catch (error) {
             // If chat changed, stop backfill entirely
             if (error.message === 'Chat changed during extraction') {
@@ -106,7 +123,7 @@ export async function extractAllMessages(updateEventListenersFn) {
             }
             console.error('[OpenVault] Batch extraction error:', error);
             $('.openvault-backfill-toast .toast-message').text(
-                `Backfill: ${i}/${completeBatches} - Batch ${batchNum} failed, continuing...`
+                `Backfill: Batch ${batchesProcessed} failed, continuing...`
             );
         }
     }
@@ -126,7 +143,7 @@ export async function extractAllMessages(updateEventListenersFn) {
         updateEventListenersFn(true);
     }
 
-    showToast('success', `Extracted ${totalEvents} events from ${messagesToExtract.length} messages`);
+    showToast('success', `Extracted ${totalEvents} events from ${batchesProcessed * messageCount} messages`);
     refreshAllUI();
     setStatus('ready');
     log('Backfill complete');
