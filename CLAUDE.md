@@ -53,3 +53,5 @@ About to modify file(s) → Check: Already in worktree?
           Proceed    Invoke `superpowers:using-git-worktrees`
           with       Create worktree → Copy env files → Then modify
           edits
+
+To remove worktree use `git worktree remove .worktrees/XYZ && git branch -d feature/XYZ`
