@@ -33,6 +33,48 @@ function _getHiddenMemories(chat, memories) {
 }
 
 /**
+ * Build retrieval context from current state
+ * @param {Object} opts - Options
+ * @param {string} [opts.pendingUserMessage] - User message not yet in chat
+ * @returns {import('./context.js').RetrievalContext}
+ */
+export function buildRetrievalContext(opts = {}) {
+    const deps = getDeps();
+    const settings = deps.getExtensionSettings()[extensionName];
+    const context = deps.getContext();
+    const chat = context.chat || [];
+    const { povCharacters, isGroupChat } = getPOVContext();
+
+    // Build recent context (all non-system messages)
+    let recentContext = chat.filter(m => !m.is_system).map(m => m.mes).join('\n');
+    if (opts.pendingUserMessage) {
+        recentContext += '\n\n[User is about to say]: ' + opts.pendingUserMessage;
+    }
+
+    // Build user messages for embedding (last 3 user messages, capped at 1000 chars)
+    let userMsgs = chat.filter(m => !m.is_system && m.is_user).slice(-3).map(m => m.mes);
+    if (opts.pendingUserMessage) {
+        userMsgs.push(opts.pendingUserMessage);
+        userMsgs = userMsgs.slice(-3);
+    }
+    const userMessages = userMsgs.join('\n').slice(-1000);
+
+    const primaryCharacter = isGroupChat ? povCharacters[0] : context.name2;
+
+    return {
+        recentContext,
+        userMessages,
+        chatLength: chat.length,
+        primaryCharacter,
+        activeCharacters: getActiveCharacters(),
+        headerName: isGroupChat ? povCharacters[0] : 'Scene',
+        preFilterTokens: settings.retrievalPreFilterTokens || 24000,
+        finalTokens: settings.retrievalFinalTokens || 12000,
+        smartRetrievalEnabled: settings.smartRetrievalEnabled,
+    };
+}
+
+/**
  * Inject retrieved context into the prompt
  * @param {string} contextText - Formatted context to inject
  */

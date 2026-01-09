@@ -40,6 +40,7 @@ import {
     injectContext,
     retrieveAndInjectContext,
     updateInjection,
+    buildRetrievalContext,
 } from '../src/retrieval/retrieve.js';
 import { getOpenVaultData, saveOpenVaultData, safeSetExtensionPrompt, showToast, log, isExtensionEnabled, isAutomaticMode } from '../src/utils.js';
 import { setStatus } from '../src/ui/status.js';
@@ -394,6 +395,50 @@ describe('retrieve', () => {
             await updateInjection();
 
             expect(log).toHaveBeenCalledWith('Injection updated: 1 memories');
+        });
+    });
+
+    describe('buildRetrievalContext', () => {
+        it('builds context from current state', () => {
+            mockContext.chat = [
+                { mes: 'Hello', is_user: true, is_system: false },
+                { mes: 'Hi!', is_user: false, is_system: false },
+            ];
+            getPOVContext.mockReturnValue({ povCharacters: ['Alice'], isGroupChat: false });
+            getActiveCharacters.mockReturnValue(['Alice', 'Bob']);
+
+            const ctx = buildRetrievalContext();
+
+            expect(ctx.recentContext).toContain('Hello');
+            expect(ctx.recentContext).toContain('Hi!');
+            expect(ctx.userMessages).toContain('Hello');
+            expect(ctx.chatLength).toBe(2);
+            expect(ctx.primaryCharacter).toBe('Alice');
+            expect(ctx.activeCharacters).toEqual(['Alice', 'Bob']);
+            expect(ctx.headerName).toBe('Scene');
+            expect(ctx.preFilterTokens).toBe(24000);
+            expect(ctx.finalTokens).toBe(12000);
+        });
+
+        it('includes pending user message when provided', () => {
+            mockContext.chat = [
+                { mes: 'Hello', is_user: true, is_system: false },
+            ];
+            getPOVContext.mockReturnValue({ povCharacters: ['Alice'], isGroupChat: false });
+
+            const ctx = buildRetrievalContext({ pendingUserMessage: 'What about that?' });
+
+            expect(ctx.recentContext).toContain('[User is about to say]: What about that?');
+            expect(ctx.userMessages).toContain('What about that?');
+        });
+
+        it('uses character name as header in group chat', () => {
+            getPOVContext.mockReturnValue({ povCharacters: ['Bob', 'Alice'], isGroupChat: true });
+
+            const ctx = buildRetrievalContext();
+
+            expect(ctx.primaryCharacter).toBe('Bob');
+            expect(ctx.headerName).toBe('Bob');
         });
     });
 });
