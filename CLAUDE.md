@@ -35,4 +35,21 @@ OpenVault is a Retrieval-Augmented Generation (RAG) memory extension for SillyTa
     -   *Right*: `import { getDeps } from './deps.js'; getDeps().getContext()`
 2.  **Async Safety**: Always check `src/state.js` locks (`generationInProgress`) before triggering background LLM tasks
 3.  **Data Persistence**: Store data in `context.chatMetadata['openvault']`. Use `saveOpenVaultData()` wrapper from `src/utils.js`
-4.  **Worker Logic**: `src/retrieval/worker.js` must remain self-contained or use native ESM imports (`type: module`).
+4.  **Worker Logic**: `src/retrieval/worker.js` must remain self-contained or use native ESM imports (`type: module`)
+
+## Auto-Worktree Behavior
+
+Rule: Claude must create a worktree before modifying any file.
+
+Conversation starts → No worktree (exploration, questions, reading code)
+                   ↓
+About to modify file(s) → Check: Already in worktree?
+                   ↓
+              ┌────┴────┐
+              │         │
+             YES        NO
+              │         │
+              ↓         ↓
+          Proceed    Invoke `superpowers:using-git-worktrees`
+          with       Create worktree → Copy env files → Then modify
+          edits
