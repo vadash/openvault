@@ -167,19 +167,11 @@ export function buildEmbeddingQuery(messages, extractedEntities) {
     const settings = getQueryContextSettings();
     const recent = messages.slice(0, settings.embeddingWindowSize);
 
-    // Weight by recency (repeat more recent content)
+    // Take recent messages without repetition (Gemma supports 512 tokens, ~1800 chars for Cyrillic)
     const weighted = [];
-    if (recent[0]?.mes) {
-        weighted.push(recent[0].mes); // 2x weight - repeat newest
-        weighted.push(recent[0].mes);
+    for (const msg of recent) {
+        if (msg?.mes) weighted.push(msg.mes);
     }
-    if (recent[1]?.mes) {
-        weighted.push(recent[1].mes); // 1.5x weight
-        weighted.push(recent[1].mes.slice(0, Math.floor(recent[1].mes.length / 2)));
-    }
-    if (recent[2]?.mes) weighted.push(recent[2].mes);
-    if (recent[3]?.mes) weighted.push(recent[3].mes);
-    if (recent[4]?.mes) weighted.push(recent[4].mes);
 
     const weightedText = weighted.filter(Boolean).join(' ');
 

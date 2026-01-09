@@ -90,7 +90,7 @@ const TRANSFORMERS_MODELS = {
         dimensions: 768,
         description: '768d · 300M params · 100+ langs · MTEB: 61.2 · WebGPU only',
         requiresWebGPU: true,
-        optimalChunkSize: 1200, // larger context window
+        optimalChunkSize: 1800, // ~512 tokens for Cyrillic text
     },
 };
 
