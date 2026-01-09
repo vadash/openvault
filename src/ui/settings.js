@@ -5,7 +5,7 @@
  */
 
 import { getDeps } from '../deps.js';
-import { extensionName, extensionFolderPath, defaultSettings, MEMORIES_KEY } from '../constants.js';
+import { extensionName, extensionFolderPath, defaultSettings, MEMORIES_KEY, QUERY_CONTEXT_DEFAULTS } from '../constants.js';
 import { refreshAllUI, prevPage, nextPage, resetAndRender, initBrowser } from './browser.js';
 import { validateRPM } from './calculations.js';
 import { setEmbeddingStatusCallback, getEmbeddingStatus, getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
@@ -492,8 +492,8 @@ export function updateUI() {
     $('#openvault_vector_weight').val(settings.vectorSimilarityWeight ?? 15);
     $('#openvault_vector_weight_value').text(settings.vectorSimilarityWeight ?? 15);
 
-    $('#openvault_keyword_weight').val(settings.keywordMatchWeight ?? 1.0);
-    $('#openvault_keyword_weight_value').text(settings.keywordMatchWeight ?? 1.0);
+    $('#openvault_keyword_weight').val(settings.keywordMatchWeight ?? defaultSettings.keywordMatchWeight);
+    $('#openvault_keyword_weight_value').text(settings.keywordMatchWeight ?? defaultSettings.keywordMatchWeight);
 
     $('#openvault_vector_threshold').val(settings.vectorSimilarityThreshold ?? 0.5);
     $('#openvault_vector_threshold_value').text(settings.vectorSimilarityThreshold ?? 0.5);
@@ -508,8 +508,8 @@ export function updateUI() {
     $('#openvault_top_entities').val(settings.topEntitiesCount ?? 5);
     $('#openvault_top_entities_value').text(settings.topEntitiesCount ?? 5);
 
-    $('#openvault_entity_boost').val(settings.entityBoostWeight ?? 1.5);
-    $('#openvault_entity_boost_value').text(settings.entityBoostWeight ?? 1.5);
+    $('#openvault_entity_boost').val(settings.entityBoostWeight ?? QUERY_CONTEXT_DEFAULTS.entityBoostWeight);
+    $('#openvault_entity_boost_value').text(settings.entityBoostWeight ?? QUERY_CONTEXT_DEFAULTS.entityBoostWeight);
 
     // Backfill settings
     $('#openvault_backfill_rpm').val(settings.backfillMaxRPM);

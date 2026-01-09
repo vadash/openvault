@@ -270,9 +270,9 @@ describe('query-context', () => {
             };
             const tokens = buildBM25Tokens(userMessage, entities);
 
-            // Weight 2.0 * default boost 1.5 = 3.0, ceil = 3 repeats
+            // Weight 2.0 * default boost 5.0 = 10.0, ceil = 10 repeats
             const sashaCount = tokens.filter(t => t === 'sasha').length;
-            expect(sashaCount).toBe(3);
+            expect(sashaCount).toBe(10);
         });
 
         it('handles empty user message', () => {

@@ -312,10 +312,10 @@
                                 <div style="height: 8px;"></div>
 
                                 <label for="openvault_keyword_weight" style="margin-top: 10px;">
-                                    Keyword Match Weight: <span id="openvault_keyword_weight_value">1.0</span>
-                                    <small style="opacity: 0.6;"> (default: 1.0)</small>
+                                    Keyword Match Weight: <span id="openvault_keyword_weight_value">3.0</span>
+                                    <small style="opacity: 0.6;"> (default: 3.0)</small>
                                 </label>
-                                <input type="range" id="openvault_keyword_weight" min="0" max="3" step="0.1" value="1.0" />
+                                <input type="range" id="openvault_keyword_weight" min="0" max="10" step="0.1" value="3.0" />
                                 <small class="openvault-hint">Finds exact matches (e.g., "Project Chimera"). High = precise but rigid</small>
 
                                 <div style="height: 8px;"></div>
@@ -367,10 +367,10 @@
                                 <div style="height: 8px;"></div>
 
                                 <label for="openvault_entity_boost">
-                                    Entity Boost: <span id="openvault_entity_boost_value">1.5</span>x
-                                    <small style="opacity: 0.6;"> (default: 1.5)</small>
+                                    Entity Boost: <span id="openvault_entity_boost_value">5.0</span>x
+                                    <small style="opacity: 0.6;"> (default: 5.0)</small>
                                 </label>
-                                <input type="range" id="openvault_entity_boost" min="0.5" max="3" step="0.1" value="1.5" />
+                                <input type="range" id="openvault_entity_boost" min="0.5" max="15" step="0.5" value="5.0" />
                                 <small class="openvault-hint">BM25 weight multiplier for entities</small>
                             </div>
 

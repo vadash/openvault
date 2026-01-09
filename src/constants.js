@@ -40,7 +40,7 @@ export const defaultSettings = {
     embeddingModel: '',
     vectorSimilarityWeight: 15,
     vectorSimilarityThreshold: 0.5,
-    keywordMatchWeight: 1.0,
+    keywordMatchWeight: 3.0,
     // Deduplication settings
     dedupSimilarityThreshold: 0.85,     // Cosine similarity threshold for filtering duplicates (0-1)
     // Forgetfulness curve settings (scoring)
@@ -65,6 +65,6 @@ export const QUERY_CONTEXT_DEFAULTS = {
     embeddingWindowSize: 5,     // messages for embedding query
     recencyDecayFactor: 0.09,   // weight reduction per position
     topEntitiesCount: 5,        // max entities to inject
-    entityBoostWeight: 1.5      // BM25 boost for extracted entities
+    entityBoostWeight: 5.0      // BM25 boost for extracted entities
 };
 
