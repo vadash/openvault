@@ -96,25 +96,13 @@ export function injectContext(contextText) {
  * Core retrieval logic: select relevant memories, format, and inject
  * @param {Object[]} memoriesToUse - Pre-filtered memories to select from
  * @param {Object} data - OpenVault data object
- * @param {string} recentMessages - Chat context for relevance matching
- * @param {string} userMessages - Last 3 user messages for embedding (capped at 1000 chars)
- * @param {string} primaryCharacter - Primary character for formatting
- * @param {string[]} activeCharacters - All active characters
- * @param {string} headerName - Header name for injection
- * @param {Object} settings - Extension settings
- * @param {number} chatLength - Current chat length (for distance calculation)
+ * @param {import('./context.js').RetrievalContext} ctx - Retrieval context
  * @returns {Promise<{memories: Object[], context: string}|null>}
  */
-async function selectFormatAndInject(memoriesToUse, data, recentMessages, userMessages, primaryCharacter, activeCharacters, headerName, settings, chatLength) {
-    const relevantMemories = await selectRelevantMemories(
-        memoriesToUse,
-        recentMessages,
-        userMessages,
-        primaryCharacter,
-        activeCharacters,
-        settings,  // Pass settings object for token budgets
-        chatLength
-    );
+async function selectFormatAndInject(memoriesToUse, data, ctx) {
+    const { primaryCharacter, activeCharacters, headerName, finalTokens, chatLength } = ctx;
+
+    const relevantMemories = await selectRelevantMemories(memoriesToUse, ctx);
 
     if (!relevantMemories || relevantMemories.length === 0) {
         return null;
@@ -134,7 +122,7 @@ async function selectFormatAndInject(memoriesToUse, data, recentMessages, userMe
         relationshipContext,
         emotionalInfo,
         headerName,
-        settings.retrievalFinalTokens,
+        finalTokens,
         chatLength
     );
 
@@ -202,14 +190,25 @@ export async function retrieveAndInjectContext() {
 
         const primaryCharacter = isGroupChat ? povCharacters[0] : context.name2;
         const headerName = isGroupChat ? primaryCharacter : 'Scene';
-        const recentMessages = chat.filter(m => !m.is_system).map(m => m.mes).join('\n');
+        const recentContext = chat.filter(m => !m.is_system).map(m => m.mes).join('\n');
         // Extract last 3 user messages for embedding (user intent matters most)
         const userMessages = chat.filter(m => !m.is_system && m.is_user).slice(-3).map(m => m.mes).join('\n').slice(-1000);
         const chatLength = chat.length;
 
-        const result = await selectFormatAndInject(
-            memoriesToUse, data, recentMessages, userMessages, primaryCharacter, activeCharacters, headerName, settings, chatLength
-        );
+        // Build ctx for selectFormatAndInject (will use buildRetrievalContext in Task 7)
+        const ctx = {
+            recentContext,
+            userMessages,
+            chatLength,
+            primaryCharacter,
+            activeCharacters,
+            headerName,
+            preFilterTokens: settings.retrievalPreFilterTokens || 24000,
+            finalTokens: settings.retrievalFinalTokens || 12000,
+            smartRetrievalEnabled: settings.smartRetrievalEnabled,
+        };
+
+        const result = await selectFormatAndInject(memoriesToUse, data, ctx);
 
         if (!result) {
             log('No relevant memories found');
@@ -283,9 +282,9 @@ export async function updateInjection(pendingUserMessage = '') {
     const chatLength = context.chat.length;
 
     // Build chat context, optionally including pending user message
-    let recentMessages = context.chat.filter(m => !m.is_system).map(m => m.mes).join('\n');
+    let recentContext = context.chat.filter(m => !m.is_system).map(m => m.mes).join('\n');
     if (pendingUserMessage) {
-        recentMessages = recentMessages + '\n\n[User is about to say]: ' + pendingUserMessage;
+        recentContext = recentContext + '\n\n[User is about to say]: ' + pendingUserMessage;
         log(`Including pending user message in retrieval context`);
     }
 
@@ -297,9 +296,20 @@ export async function updateInjection(pendingUserMessage = '') {
     }
     const userMessages = userMsgs.join('\n').slice(-1000);
 
-    const result = await selectFormatAndInject(
-        memoriesToUse, data, recentMessages, userMessages, primaryCharacter, activeCharacters, headerName, settings, chatLength
-    );
+    // Build ctx for selectFormatAndInject (will use buildRetrievalContext in Task 8)
+    const ctx = {
+        recentContext,
+        userMessages,
+        chatLength,
+        primaryCharacter,
+        activeCharacters,
+        headerName,
+        preFilterTokens: settings.retrievalPreFilterTokens || 24000,
+        finalTokens: settings.retrievalFinalTokens || 12000,
+        smartRetrievalEnabled: settings.smartRetrievalEnabled,
+    };
+
+    const result = await selectFormatAndInject(memoriesToUse, data, ctx);
 
     if (!result) {
         safeSetExtensionPrompt('');

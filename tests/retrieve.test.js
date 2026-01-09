@@ -225,12 +225,13 @@ describe('retrieve', () => {
             expect(log).toHaveBeenCalledWith('POV filter returned 0 results, using all hidden memories as fallback');
             expect(selectRelevantMemories).toHaveBeenCalledWith(
                 mockData[MEMORIES_KEY],
-                expect.any(String),
-                expect.any(String), // userMessages
-                'Alice',
-                ['Alice'],
-                mockSettings,
-                2
+                expect.objectContaining({
+                    primaryCharacter: 'Alice',
+                    activeCharacters: ['Alice'],
+                    chatLength: 2,
+                    preFilterTokens: 24000,
+                    finalTokens: 12000,
+                })
             );
         });
 
