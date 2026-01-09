@@ -151,14 +151,13 @@ function runWorkerScoring(memories, contextEmbedding, chatLength, limit, queryTo
  * @param {Object} ctx - Retrieval context object
  * @param {string} ctx.recentContext - Recent chat context (for query context extraction)
  * @param {string} ctx.userMessages - Last 3 user messages for embedding (capped at 1000 chars)
- * @param {string} ctx.primaryCharacter - POV character name (unused, kept for API compatibility)
  * @param {string[]} ctx.activeCharacters - List of active characters for entity extraction
  * @param {number} ctx.chatLength - Current chat length (for distance calculation)
  * @param {number} limit - Maximum memories to return
  * @returns {Promise<Object[]>} Selected memories
  */
 export async function selectRelevantMemoriesSimple(memories, ctx, limit) {
-    const { recentContext, userMessages, primaryCharacter, activeCharacters, chatLength } = ctx;
+    const { recentContext, userMessages, activeCharacters, chatLength } = ctx;
 
     // Extract context from recent messages for enriched queries
     const recentMessages = parseRecentMessages(recentContext, 10);
