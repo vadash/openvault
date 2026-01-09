@@ -54,4 +54,4 @@ About to modify file(s) → Check: Already in worktree?
           with       Create worktree → Copy env files → Then modify
           edits
 
-To remove worktree use `git worktree remove .worktrees/XYZ && git branch -d feature/XYZ`
+To remove worktree use `git worktree remove --force .worktrees/XYZ && git branch -d feature/XYZ`
