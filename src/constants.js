@@ -68,3 +68,30 @@ export const QUERY_CONTEXT_DEFAULTS = {
     entityBoostWeight: 5.0      // BM25 boost for extracted entities
 };
 
+// UI hint defaults - derived from defaultSettings and QUERY_CONTEXT_DEFAULTS
+// Used to populate "(default: X)" hints in settings_panel.html
+export const UI_DEFAULT_HINTS = {
+    // Extraction
+    messagesPerExtraction: defaultSettings.messagesPerExtraction,
+
+    // Context budget
+    retrievalFinalTokens: defaultSettings.retrievalFinalTokens,
+    autoHideThreshold: defaultSettings.autoHideThreshold,
+
+    // Retrieval weights
+    vectorSimilarityWeight: defaultSettings.vectorSimilarityWeight,
+    keywordMatchWeight: defaultSettings.keywordMatchWeight,
+    vectorSimilarityThreshold: defaultSettings.vectorSimilarityThreshold,
+
+    // Entity settings
+    entityWindowSize: QUERY_CONTEXT_DEFAULTS.entityWindowSize,
+    embeddingWindowSize: QUERY_CONTEXT_DEFAULTS.embeddingWindowSize,
+    topEntitiesCount: QUERY_CONTEXT_DEFAULTS.topEntitiesCount,
+    entityBoostWeight: QUERY_CONTEXT_DEFAULTS.entityBoostWeight,
+
+    // Summarization
+    contextWindowSize: defaultSettings.extractionRearviewTokens,
+    retrievalPreFilterTokens: defaultSettings.retrievalPreFilterTokens,
+    backfillRateLimit: defaultSettings.backfillMaxRPM,
+};
+

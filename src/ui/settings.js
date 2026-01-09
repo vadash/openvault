@@ -5,7 +5,7 @@
  */
 
 import { getDeps } from '../deps.js';
-import { extensionName, extensionFolderPath, defaultSettings, MEMORIES_KEY, QUERY_CONTEXT_DEFAULTS } from '../constants.js';
+import { extensionName, extensionFolderPath, defaultSettings, MEMORIES_KEY, QUERY_CONTEXT_DEFAULTS, UI_DEFAULT_HINTS } from '../constants.js';
 import { refreshAllUI, prevPage, nextPage, resetAndRender, initBrowser } from './browser.js';
 import { validateRPM } from './calculations.js';
 import { setEmbeddingStatusCallback, getEmbeddingStatus, getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
@@ -50,6 +50,24 @@ function tokensToWords(tokens) {
  */
 function updateWordsDisplay(tokens, wordsElementId) {
     $(`#${wordsElementId}`).text(tokensToWords(tokens));
+}
+
+/**
+ * Populate default hint text from constants
+ * Finds all elements with class 'openvault-default-hint' and data-default-key,
+ * then sets their text content to "(default: X)" using values from UI_DEFAULT_HINTS.
+ */
+function populateDefaultHints() {
+    $('.openvault-default-hint').each(function() {
+        const key = $(this).data('default-key');
+        const value = UI_DEFAULT_HINTS[key];
+
+        if (value !== undefined) {
+            $(this).text(` (default: ${value})`);
+        } else {
+            console.warn(`[OpenVault] Unknown default hint key: ${key}`);
+        }
+    });
 }
 
 // =============================================================================
@@ -166,6 +184,9 @@ export async function loadSettings() {
     // Load HTML template
     const settingsHtml = await $.get(`${extensionFolderPath}/templates/settings_panel.html`);
     $('#extensions_settings2').append(settingsHtml);
+
+    // Populate default hints from constants
+    populateDefaultHints();
 
     // Initialize tab navigation
     initTabs();

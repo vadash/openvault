@@ -733,6 +733,11 @@
     flex: 1;
 }
 
+/* Default hint styling (populated via JS from constants) */
+.openvault-default-hint {
+    opacity: 0.6;
+}
+
 
 /* source: components/navigation.css */
 /* Navigation Components - Buttons, Pagination, Status */

@@ -121,3 +121,8 @@
 .openvault-filters select {
     flex: 1;
 }
+
+/* Default hint styling (populated via JS from constants) */
+.openvault-default-hint {
+    opacity: 0.6;
+}
