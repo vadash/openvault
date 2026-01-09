@@ -59,3 +59,12 @@ export const GENERATION_LOCK_TIMEOUT_MS = 120000; // 2 minutes safety timeout
 // Pagination constants
 export const MEMORIES_PER_PAGE = 20;
 
+// Query context extraction defaults
+export const QUERY_CONTEXT_DEFAULTS = {
+    entityWindowSize: 10,       // messages to scan for entities
+    embeddingWindowSize: 5,     // messages for embedding query
+    recencyDecayFactor: 0.09,   // weight reduction per position
+    topEntitiesCount: 5,        // max entities to inject
+    entityBoostWeight: 1.5      // BM25 boost for extracted entities
+};
+

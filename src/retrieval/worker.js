@@ -8,10 +8,12 @@
 import { scoreMemories } from './math.js';
 
 self.onmessage = function(e) {
-    const { memories, contextEmbedding, chatLength, limit, constants, settings, queryText } = e.data;
+    const { memories, contextEmbedding, chatLength, limit, constants, settings, queryText, queryTokens } = e.data;
 
     try {
-        const scored = scoreMemories(memories, contextEmbedding, chatLength, constants, settings, queryText);
+        // Support both queryTokens (array) and queryText (string) for backwards compatibility
+        const query = queryTokens || queryText;
+        const scored = scoreMemories(memories, contextEmbedding, chatLength, constants, settings, query);
         const results = scored.slice(0, limit).map(s => s.memory);
         self.postMessage({ success: true, results });
     } catch (error) {

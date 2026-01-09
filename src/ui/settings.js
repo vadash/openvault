@@ -242,6 +242,12 @@ function bindUIElements() {
     bindSlider('openvault_keyword_weight', 'keywordMatchWeight', 'openvault_keyword_weight_value', null, null, true);
     bindSlider('openvault_vector_threshold', 'vectorSimilarityThreshold', 'openvault_vector_threshold_value', null, null, true);
 
+    // Query context enhancement settings
+    bindSlider('openvault_entity_window', 'entityWindowSize', 'openvault_entity_window_value');
+    bindSlider('openvault_embedding_window', 'embeddingWindowSize', 'openvault_embedding_window_value');
+    bindSlider('openvault_top_entities', 'topEntitiesCount', 'openvault_top_entities_value');
+    bindSlider('openvault_entity_boost', 'entityBoostWeight', 'openvault_entity_boost_value', null, null, true);
+
     // Backfill settings
     bindNumberInput('openvault_backfill_rpm', 'backfillMaxRPM', (v) => validateRPM(v, 30));
 
@@ -436,6 +442,19 @@ export function updateUI() {
 
     $('#openvault_vector_threshold').val(settings.vectorSimilarityThreshold ?? 0.5);
     $('#openvault_vector_threshold_value').text(settings.vectorSimilarityThreshold ?? 0.5);
+
+    // Query context enhancement settings
+    $('#openvault_entity_window').val(settings.entityWindowSize ?? 10);
+    $('#openvault_entity_window_value').text(settings.entityWindowSize ?? 10);
+
+    $('#openvault_embedding_window').val(settings.embeddingWindowSize ?? 5);
+    $('#openvault_embedding_window_value').text(settings.embeddingWindowSize ?? 5);
+
+    $('#openvault_top_entities').val(settings.topEntitiesCount ?? 5);
+    $('#openvault_top_entities_value').text(settings.topEntitiesCount ?? 5);
+
+    $('#openvault_entity_boost').val(settings.entityBoostWeight ?? 1.5);
+    $('#openvault_entity_boost_value').text(settings.entityBoostWeight ?? 1.5);
 
     // Backfill settings
     $('#openvault_backfill_rpm').val(settings.backfillMaxRPM);

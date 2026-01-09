@@ -11,6 +11,7 @@ import { extensionName } from '../constants.js';
 import { callLLMForRetrieval } from '../llm.js';
 import { buildSmartRetrievalPrompt } from '../prompts.js';
 import { getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
+import { extractQueryContext, buildEmbeddingQuery, buildBM25Tokens, parseRecentMessages } from './query-context.js';
 
 // Lazy-initialized worker
 let scoringWorker = null;
@@ -57,8 +58,13 @@ function getScoringWorker() {
 
 /**
  * Run scoring in web worker with timeout and error recovery
+ * @param {Object[]} memories - Memories to score
+ * @param {number[]|null} contextEmbedding - Context embedding
+ * @param {number} chatLength - Current chat length
+ * @param {number} limit - Maximum results
+ * @param {string|string[]} queryTokens - Query text or pre-tokenized array for BM25
  */
-function runWorkerScoring(memories, contextEmbedding, chatLength, limit, queryText) {
+function runWorkerScoring(memories, contextEmbedding, chatLength, limit, queryTokens) {
     return new Promise((resolve, reject) => {
         const worker = getScoringWorker();
         let timeoutId = null;
@@ -108,7 +114,8 @@ function runWorkerScoring(memories, contextEmbedding, chatLength, limit, queryTe
             contextEmbedding,
             chatLength,
             limit,
-            queryText,
+            queryTokens: Array.isArray(queryTokens) ? queryTokens : undefined,
+            queryText: typeof queryTokens === 'string' ? queryTokens : undefined,
             constants,
             settings
         });
@@ -118,22 +125,35 @@ function runWorkerScoring(memories, contextEmbedding, chatLength, limit, queryTe
 /**
  * Select relevant memories using forgetfulness curve scoring (via Web Worker)
  * @param {Object[]} memories - Available memories
- * @param {string} recentContext - Recent chat context (for smart retrieval)
+ * @param {string} recentContext - Recent chat context (for query context extraction)
  * @param {string} userMessages - Last 3 user messages for embedding (capped at 1000 chars)
  * @param {string} characterName - POV character name (unused, kept for API compatibility)
- * @param {string[]} activeCharacters - List of active characters (unused, kept for API compatibility)
+ * @param {string[]} activeCharacters - List of active characters for entity extraction
  * @param {number} limit - Maximum memories to return
  * @param {number} chatLength - Current chat length (for distance calculation)
  * @returns {Promise<Object[]>} Selected memories
  */
 export async function selectRelevantMemoriesSimple(memories, recentContext, userMessages, characterName, activeCharacters, limit, chatLength) {
-    // Get embedding for user messages if enabled (user intent matters most for retrieval)
-    let contextEmbedding = null;
-    if (isEmbeddingsEnabled() && userMessages) {
-        contextEmbedding = await getEmbedding(userMessages);
+    // Extract context from recent messages for enriched queries
+    const recentMessages = parseRecentMessages(recentContext, 10);
+    const queryContext = extractQueryContext(recentMessages, activeCharacters);
+
+    // Build enriched queries
+    const embeddingQuery = buildEmbeddingQuery(recentMessages, queryContext);
+    const bm25Tokens = buildBM25Tokens(userMessages, queryContext);
+
+    // Log extracted entities for debugging
+    if (queryContext.entities.length > 0) {
+        log(`Query context: ${JSON.stringify(queryContext)}`);
     }
 
-    return runWorkerScoring(memories, contextEmbedding, chatLength, limit, userMessages);
+    // Get embedding for enriched query if enabled
+    let contextEmbedding = null;
+    if (isEmbeddingsEnabled() && embeddingQuery) {
+        contextEmbedding = await getEmbedding(embeddingQuery);
+    }
+
+    return runWorkerScoring(memories, contextEmbedding, chatLength, limit, bm25Tokens);
 }
 
 /**

@@ -329,6 +329,52 @@
                             </div>
 
                             <hr style="margin: 15px 0; border: none; border-top: 1px solid var(--SmartThemeShadowColor);">
+
+                            <!-- Query Context Enhancement -->
+                            <div style="margin-bottom: 15px;">
+                                <div style="font-weight: bold; margin-bottom: 10px; color: var(--SmartThemeQuoteColor);">
+                                    <i class="fa-solid fa-magnifying-glass-chart"></i> Query Enhancement
+                                </div>
+                                <small style="display: block; margin-bottom: 10px; color: var(--SmartThemeQuoteColor);">
+                                    Extracts names and themes from recent chat to improve retrieval accuracy.
+                                </small>
+
+                                <label for="openvault_entity_window">
+                                    Entity Window: <span id="openvault_entity_window_value">10</span> messages
+                                    <small style="opacity: 0.6;"> (default: 10)</small>
+                                </label>
+                                <input type="range" id="openvault_entity_window" min="3" max="20" step="1" value="10" />
+                                <small class="openvault-hint">Messages to scan for names/places</small>
+
+                                <div style="height: 8px;"></div>
+
+                                <label for="openvault_embedding_window">
+                                    Embedding Window: <span id="openvault_embedding_window_value">5</span> messages
+                                    <small style="opacity: 0.6;"> (default: 5)</small>
+                                </label>
+                                <input type="range" id="openvault_embedding_window" min="2" max="10" step="1" value="5" />
+                                <small class="openvault-hint">Messages to include in semantic query</small>
+
+                                <div style="height: 8px;"></div>
+
+                                <label for="openvault_top_entities">
+                                    Top Entities: <span id="openvault_top_entities_value">5</span>
+                                    <small style="opacity: 0.6;"> (default: 5)</small>
+                                </label>
+                                <input type="range" id="openvault_top_entities" min="1" max="10" step="1" value="5" />
+                                <small class="openvault-hint">Max entities to inject into query</small>
+
+                                <div style="height: 8px;"></div>
+
+                                <label for="openvault_entity_boost">
+                                    Entity Boost: <span id="openvault_entity_boost_value">1.5</span>x
+                                    <small style="opacity: 0.6;"> (default: 1.5)</small>
+                                </label>
+                                <input type="range" id="openvault_entity_boost" min="0.5" max="3" step="0.1" value="1.5" />
+                                <small class="openvault-hint">BM25 weight multiplier for entities</small>
+                            </div>
+
+                            <hr style="margin: 15px 0; border: none; border-top: 1px solid var(--SmartThemeShadowColor);">
                             <label for="openvault_extraction_rearview">
                                 Context Window Size: <span id="openvault_extraction_rearview_value">12000</span> tokens
                                 <small style="opacity: 0.6;"> (default: 12000)</small>

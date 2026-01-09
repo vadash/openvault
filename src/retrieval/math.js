@@ -188,19 +188,20 @@ export function calculateScore(memory, contextEmbedding, chatLength, constants, 
  * @param {number} chatLength - Current chat length
  * @param {Object} constants - Scoring constants
  * @param {Object} settings - Scoring settings
- * @param {string} [queryText] - Query text for BM25 scoring
+ * @param {string|string[]} [queryTokens] - Query text or pre-tokenized array for BM25 scoring
  * @returns {Array<{memory: Object, score: number}>} Scored and sorted memories
  */
-export function scoreMemories(memories, contextEmbedding, chatLength, constants, settings, queryText) {
-    // Precompute BM25 data if query text is provided
-    let queryTokens = null;
+export function scoreMemories(memories, contextEmbedding, chatLength, constants, settings, queryTokens) {
+    // Precompute BM25 data if query tokens provided
+    let tokens = null;
     let idfMap = null;
     let avgDL = 0;
     let memoryTokensList = null;
 
-    if (queryText) {
-        queryTokens = tokenize(queryText);
-        if (queryTokens.length > 0) {
+    if (queryTokens) {
+        // If queryTokens is array, use directly; if string, tokenize
+        tokens = Array.isArray(queryTokens) ? queryTokens : tokenize(queryTokens);
+        if (tokens.length > 0) {
             // Pre-tokenize all memories
             memoryTokensList = memories.map(m => tokenize(m.summary || ''));
             const idfData = calculateIDF(memories, new Map(memoryTokensList.map((t, i) => [i, t])));
@@ -211,8 +212,8 @@ export function scoreMemories(memories, contextEmbedding, chatLength, constants,
 
     const scored = memories.map((memory, index) => {
         let bm25 = 0;
-        if (queryTokens && idfMap && memoryTokensList) {
-            bm25 = bm25Score(queryTokens, memoryTokensList[index], idfMap, avgDL);
+        if (tokens && idfMap && memoryTokensList) {
+            bm25 = bm25Score(tokens, memoryTokensList[index], idfMap, avgDL);
         }
         const score = calculateScore(memory, contextEmbedding, chatLength, constants, settings, bm25);
         return { memory, score };

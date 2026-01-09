@@ -73,6 +73,7 @@ const TRANSFORMERS_MODELS = {
         dtypeWASM: 'q8',
         dimensions: 384,
         description: '384d · 118M params · 100+ langs · MTEB: 55.8',
+        optimalChunkSize: 500,  // chars, conservative for 512 tokens
     },
     'bge-small-en-v1.5': {
         name: 'Xenova/bge-small-en-v1.5',
@@ -80,6 +81,7 @@ const TRANSFORMERS_MODELS = {
         dtypeWASM: 'q8',
         dimensions: 384,
         description: '384d · 133MB · English · MTEB: 62.17 · SOTA RAG',
+        optimalChunkSize: 500,  // chars, conservative for 512 tokens
     },
     'embeddinggemma-300m': {
         name: 'onnx-community/embeddinggemma-300m-ONNX',
@@ -88,6 +90,7 @@ const TRANSFORMERS_MODELS = {
         dimensions: 768,
         description: '768d · 300M params · 100+ langs · MTEB: 61.2 · WebGPU only',
         requiresWebGPU: true,
+        optimalChunkSize: 1200, // larger context window
     },
 };
 
@@ -377,6 +380,28 @@ export function setGlobalStatusCallback(callback) {
             strategy.setStatusCallback(callback);
         }
     });
+}
+
+/**
+ * Get the optimal chunk size for the currently configured embedding strategy
+ * @returns {number} Optimal chunk size in characters
+ */
+export function getOptimalChunkSize() {
+    const settings = getDeps().getExtensionSettings()[extensionName];
+    const source = settings?.embeddingSource || 'multilingual-e5-small';
+
+    // For Transformers models, get from model config
+    if (TRANSFORMERS_MODELS[source]) {
+        return TRANSFORMERS_MODELS[source].optimalChunkSize || 1000;
+    }
+
+    // For Ollama, use a safe default
+    if (source === 'ollama') {
+        return 800;
+    }
+
+    // Fallback default
+    return 1000;
 }
 
 export { TransformersStrategy, OllamaStrategy };
