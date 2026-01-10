@@ -1,10 +1,9 @@
 /**
  * OpenVault Context Formatting
  *
- * Formats memories and relationships for injection into prompts.
+ * Formats memories and character presence for injection into prompts.
  */
 
-import { RELATIONSHIPS_KEY } from '../constants.js';
 import { estimateTokens } from '../utils.js';
 
 // Narrative engine constants
@@ -139,58 +138,16 @@ export function assignMemoriesToBuckets(memories, chatLength) {
 }
 
 /**
- * Get relationship context for active characters
- * @param {Object} data - OpenVault data
- * @param {string} povCharacter - POV character name
- * @param {string[]} activeCharacters - List of active characters
- * @returns {Object[]} Array of relevant relationships
- */
-export function getRelationshipContext(data, povCharacter, activeCharacters) {
-    const relationships = data[RELATIONSHIPS_KEY] || {};
-    const relevant = [];
-
-    for (const [_key, rel] of Object.entries(relationships)) {
-        // Check if this relationship involves POV character and any active character
-        const involvesPov = rel.character_a === povCharacter || rel.character_b === povCharacter;
-        const involvesActive = activeCharacters.some(c =>
-            c !== povCharacter && (rel.character_a === c || rel.character_b === c)
-        );
-
-        if (involvesPov && involvesActive) {
-            const other = rel.character_a === povCharacter ? rel.character_b : rel.character_a;
-            relevant.push({
-                character: other,
-                trust: rel.trust_level,
-                tension: rel.tension_level,
-                type: rel.relationship_type,
-            });
-        }
-    }
-
-    // Deduplicate by character name (in case multiple relationship entries exist for same pair)
-    const deduped = [];
-    const seen = new Set();
-    for (const rel of relevant) {
-        if (!seen.has(rel.character)) {
-            seen.add(rel.character);
-            deduped.push(rel);
-        }
-    }
-
-    return deduped;
-}
-
-/**
  * Format context for injection into prompt using timeline buckets
  * @param {Object[]} memories - Selected memories
- * @param {Object[]} relationships - Relevant relationships
+ * @param {string[]} presentCharacters - Characters present in the scene (excluding POV)
  * @param {Object} emotionalInfo - Emotional state info { emotion, fromMessages }
  * @param {string} characterName - Character name for header
  * @param {number} tokenBudget - Maximum token budget
  * @param {number} chatLength - Current chat length for context
  * @returns {string} Formatted context string
  */
-export function formatContextForInjection(memories, relationships, emotionalInfo, characterName, tokenBudget, chatLength = 0) {
+export function formatContextForInjection(memories, presentCharacters, emotionalInfo, characterName, tokenBudget, chatLength = 0) {
     const lines = [
         '<scene_memory>',
         `(Current chat has #${chatLength} messages)`,
@@ -217,17 +174,10 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
         return emotionLine;
     };
 
-    // Helper to format relationships
-    const formatRelationships = () => {
-        if (!relationships || relationships.length === 0) return [];
-
-        const relLines = ['Relationships with present characters:'];
-        for (const rel of relationships) {
-            const trustDesc = rel.trust >= 7 ? 'high trust' : rel.trust <= 3 ? 'low trust' : 'moderate trust';
-            const tensionDesc = rel.tension >= 7 ? 'high tension' : rel.tension >= 4 ? 'some tension' : '';
-            relLines.push(`- ${rel.character}: ${rel.type || 'acquaintance'} (${trustDesc}${tensionDesc ? ', ' + tensionDesc : ''})`);
-        }
-        return relLines;
+    // Helper to format present characters
+    const formatPresent = () => {
+        if (!presentCharacters || presentCharacters.length === 0) return null;
+        return `Present: ${presentCharacters.join(', ')}`;
     };
 
     // Helper to format a single memory
@@ -247,8 +197,8 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
 
     // Determine which buckets will be rendered
     const emotionalLine = formatEmotionalState();
-    const relLines = formatRelationships();
-    const hasRecentContent = buckets.recent.length > 0 || emotionalLine || relLines.length > 0;
+    const presentLine = formatPresent();
+    const hasRecentContent = buckets.recent.length > 0 || emotionalLine || presentLine;
 
     // Calculate overhead tokens
     let overheadTokens = estimateTokens(lines.join('\n') + '</scene_memory>');
@@ -257,7 +207,7 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
     if (hasRecentContent) {
         overheadTokens += estimateTokens(bucketHeaders.recent);
         if (emotionalLine) overheadTokens += estimateTokens(emotionalLine);
-        if (relLines.length > 0) overheadTokens += estimateTokens(relLines.join('\n'));
+        if (presentLine) overheadTokens += estimateTokens(presentLine);
     }
 
     const availableForMemories = tokenBudget - overheadTokens;
@@ -348,8 +298,8 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
         lines.push('');
     }
 
-    // Render RECENT bucket (always if has content: memories, emotion, or relationships)
-    const hasFilteredRecentContent = filteredBuckets.recent.length > 0 || emotionalLine || relLines.length > 0;
+    // Render RECENT bucket (always if has content: memories, emotion, or present characters)
+    const hasFilteredRecentContent = filteredBuckets.recent.length > 0 || emotionalLine || presentLine;
     if (hasFilteredRecentContent) {
         lines.push(bucketHeaders.recent);
 
@@ -358,13 +308,13 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
             lines.push(emotionalLine);
         }
 
-        // Relationships second
-        if (relLines.length > 0) {
-            lines.push(...relLines);
+        // Present characters second
+        if (presentLine) {
+            lines.push(presentLine);
         }
 
         // Add blank line before memories if we have context above
-        if ((emotionalLine || relLines.length > 0) && filteredBuckets.recent.length > 0) {
+        if ((emotionalLine || presentLine) && filteredBuckets.recent.length > 0) {
             lines.push('');
         }
 
