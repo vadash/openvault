@@ -12,25 +12,8 @@ import { setEmbeddingStatusCallback, getEmbeddingStatus } from '../embeddings.js
 import { updateEmbeddingStatusDisplay } from './status.js';
 import { bindCheckbox, bindSlider, bindTextInput, bindNumberInput, bindSelect, bindButton, updateWordsDisplay } from './base/bindings.js';
 import { testOllamaConnection, copyMemoryWeights } from './debug.js';
-
-// References to external functions (set during init)
-let updateEventListenersFn = null;
-let extractAllMessagesFn = null;
-let deleteCurrentChatDataFn = null;
-let deleteCurrentChatEmbeddingsFn = null;
-let backfillEmbeddingsFn = null;
-
-/**
- * Set external function references
- * @param {Object} fns - Object containing function references
- */
-export function setExternalFunctions(fns) {
-    updateEventListenersFn = fns.updateEventListeners;
-    extractAllMessagesFn = fns.extractAllMessages;
-    deleteCurrentChatDataFn = fns.deleteCurrentChatData;
-    deleteCurrentChatEmbeddingsFn = fns.deleteCurrentChatEmbeddings;
-    backfillEmbeddingsFn = fns.backfillEmbeddings;
-}
+import { updateEventListeners } from '../listeners.js';
+import { handleExtractAll, handleDeleteChatData, handleDeleteEmbeddings, backfillEmbeddings } from './actions.js';
 
 /**
  * Populate default hint text from constants
@@ -123,7 +106,7 @@ function initTabs() {
 function bindUIElements() {
     // Basic toggles
     bindCheckbox('openvault_enabled', 'enabled', () => {
-        if (updateEventListenersFn) updateEventListenersFn();
+        updateEventListeners();
     });
     bindCheckbox('openvault_debug', 'debugMode');
 
@@ -169,20 +152,12 @@ function bindUIElements() {
     });
 
     // Action buttons
-    bindButton('openvault_backfill_embeddings_btn', () => {
-        if (backfillEmbeddingsFn) backfillEmbeddingsFn();
-    });
-    bindButton('openvault_extract_all_btn', () => {
-        if (extractAllMessagesFn) extractAllMessagesFn();
-    });
+    bindButton('openvault_backfill_embeddings_btn', backfillEmbeddings);
+    bindButton('openvault_extract_all_btn', handleExtractAll);
 
     // Danger zone buttons
-    bindButton('openvault_delete_chat_btn', () => {
-        if (deleteCurrentChatDataFn) deleteCurrentChatDataFn();
-    });
-    bindButton('openvault_delete_embeddings_btn', () => {
-        if (deleteCurrentChatEmbeddingsFn) deleteCurrentChatEmbeddingsFn();
-    });
+    bindButton('openvault_delete_chat_btn', handleDeleteChatData);
+    bindButton('openvault_delete_embeddings_btn', handleDeleteEmbeddings);
 
     // Profile selectors
     bindSelect('openvault_extraction_profile', 'extractionProfile');
