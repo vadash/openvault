@@ -561,5 +561,68 @@ describe('formatting', () => {
             expect(firstIndex).toBeLessThan(secondIndex);
             expect(secondIndex).toBeLessThan(thirdIndex);
         });
+
+        // Gap separators tests
+        describe('gap separators', () => {
+            it('adds "..." separator for gaps 15-99 messages', () => {
+                const memories = [
+                    { id: '1', summary: 'Event A', message_ids: [100], sequence: 100000, importance: 3 },
+                    { id: '2', summary: 'Event B', message_ids: [150], sequence: 150000, importance: 3 }, // gap = 50
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+
+                expect(result).toContain('Event A');
+                expect(result).toMatch(/\.\.\.\n/);
+                expect(result).toContain('Event B');
+                // Verify order
+                const aIndex = result.indexOf('Event A');
+                const sepIndex = result.indexOf('...\n');
+                const bIndex = result.indexOf('Event B');
+                expect(aIndex).toBeLessThan(sepIndex);
+                expect(sepIndex).toBeLessThan(bIndex);
+            });
+
+            it('adds "...Later..." separator for gaps 100-499 messages', () => {
+                const memories = [
+                    { id: '1', summary: 'Event A', message_ids: [100], sequence: 100000, importance: 3 },
+                    { id: '2', summary: 'Event B', message_ids: [350], sequence: 350000, importance: 3 }, // gap = 250
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+
+                expect(result).toContain('...Later...');
+            });
+
+            it('adds "...Much later..." separator for gaps >= 500 messages', () => {
+                const memories = [
+                    { id: '1', summary: 'Event A', message_ids: [100], sequence: 100000, importance: 3 },
+                    { id: '2', summary: 'Event B', message_ids: [700], sequence: 700000, importance: 3 }, // gap = 600
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+
+                expect(result).toContain('...Much later...');
+            });
+
+            it('no separator for gaps < 15 messages', () => {
+                const memories = [
+                    { id: '1', summary: 'Event A', message_ids: [100], sequence: 100000, importance: 3 },
+                    { id: '2', summary: 'Event B', message_ids: [110], sequence: 110000, importance: 3 }, // gap = 10
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+
+                expect(result).not.toMatch(/\.\.\.[^<]/); // Avoid matching </scene_memory>
+                expect(result).not.toContain('Later');
+            });
+
+            it('only adds separators in Story So Far bucket', () => {
+                // Two memories in "mid" bucket with large gap - should NOT have separator
+                const memories = [
+                    { id: '1', summary: 'Mid A', message_ids: [4550], sequence: 455000, importance: 3 },
+                    { id: '2', summary: 'Mid B', message_ids: [4900], sequence: 490000, importance: 3 }, // gap = 350
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+
+                expect(result).not.toContain('...Later...');
+            });
+        });
     });
 });

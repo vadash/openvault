@@ -24,6 +24,22 @@ const CLOSE_GAP = 15;     // "⤷ Shortly after"
 const EMOTIONAL_IMPORTANCE_MIN = 4;
 
 /**
+ * Get gap separator text based on message distance
+ * @param {number} gap - Number of messages between memories
+ * @returns {string|null} Separator text or null if no separator needed
+ */
+function getGapSeparator(gap) {
+    if (gap >= GAP_LARGE) {
+        return '...Much later...';
+    } else if (gap >= GAP_MEDIUM) {
+        return '...Later...';
+    } else if (gap >= GAP_SMALL) {
+        return '...';
+    }
+    return null;
+}
+
+/**
  * Get the effective position of a memory in the chat timeline
  * @param {Object} memory - Memory object
  * @returns {number} Position as message number
@@ -224,10 +240,24 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
         recent: buckets.recent.filter(m => fittingMemoryIds.has(m.id)),
     };
 
-    // Render OLD bucket
+    // Render OLD bucket (with gap separators)
     if (filteredBuckets.old.length > 0) {
         lines.push(bucketHeaders.old);
-        for (const memory of filteredBuckets.old) {
+        for (let i = 0; i < filteredBuckets.old.length; i++) {
+            const memory = filteredBuckets.old[i];
+
+            // Add gap separator if not first memory
+            if (i > 0) {
+                const prevMemory = filteredBuckets.old[i - 1];
+                const gap = getMemoryPosition(memory) - getMemoryPosition(prevMemory);
+                const separator = getGapSeparator(gap);
+                if (separator) {
+                    lines.push('');
+                    lines.push(separator);
+                    lines.push('');
+                }
+            }
+
             lines.push(formatMemory(memory));
         }
         lines.push('');
