@@ -33,8 +33,8 @@ export const defaultSettings = {
     extractionBuffer: 5,         // Recent messages to exclude from auto-extraction
     extractionRearviewTokens: 12000, // Token budget for extraction memory context
     // Retrieval pipeline settings (token-based)
-    retrievalPreFilterTokens: 20000, // Stage 1: Algorithmic filter budget
-    retrievalFinalTokens: 10000,     // Stage 2/3: Final context budget
+    retrievalPreFilterTokens: 20000, // Smart mode: pre-filter budget for LLM pool
+    retrievalFinalTokens: 10000,     // Final context budget (both modes)
     smartRetrievalEnabled: false,
     // Auto-hide settings
     autoHideEnabled: true,

@@ -8,8 +8,8 @@
  * @property {string} primaryCharacter - POV character name
  * @property {string[]} activeCharacters - All active characters in scene
  * @property {string} headerName - Header for injection ("Scene" or character name)
- * @property {number} preFilterTokens - Stage 1 token budget
- * @property {number} finalTokens - Stage 2 token budget
+ * @property {number} preFilterTokens - Smart mode pre-filter token budget
+ * @property {number} finalTokens - Final context token budget
  * @property {boolean} smartRetrievalEnabled - Whether to use LLM for selection
  */
 

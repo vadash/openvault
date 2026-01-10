@@ -241,7 +241,7 @@ export async function updateInjection(pendingUserMessage = '') {
 
     // Filter memories by POV
     const accessibleMemories = filterMemoriesByPOV(hiddenMemories, povCharacters, data);
-    log(`Stage 0: ${memories.length} total -> ${hiddenMemories.length} hidden -> ${accessibleMemories.length} after POV filter`);
+    log(`POV filter: ${memories.length} total -> ${hiddenMemories.length} hidden -> ${accessibleMemories.length} accessible`);
 
     // Fallback to hidden memories if POV filter is too strict
     let memoriesToUse = accessibleMemories;

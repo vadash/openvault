@@ -282,9 +282,9 @@ export async function selectRelevantMemoriesSmart(memories, ctx, limit) {
 }
 
 /**
- * Select relevant memories using Two-Stage Token-Based Pipeline
- * Stage 1: Algorithmic scoring with token budget pre-filter
- * Stage 2: Smart LLM selection OR simple token budget slice
+ * Select relevant memories using scoring and token budget
+ * - Simple mode: Score and slice to final budget in one pass
+ * - Smart mode: Two-stage pipeline with LLM selection
  * @param {Object[]} memories - Available memories
  * @param {Object} ctx - Retrieval context object
  * @param {string} ctx.recentContext - Recent chat context
@@ -292,8 +292,8 @@ export async function selectRelevantMemoriesSmart(memories, ctx, limit) {
  * @param {string} ctx.primaryCharacter - POV character name
  * @param {string[]} ctx.activeCharacters - List of active characters
  * @param {number} ctx.chatLength - Current chat length (for distance calculation)
- * @param {number} ctx.preFilterTokens - Token budget for Stage 1 pre-filter
- * @param {number} ctx.finalTokens - Token budget for Stage 2 final selection
+ * @param {number} ctx.preFilterTokens - Smart mode pre-filter token budget
+ * @param {number} ctx.finalTokens - Final context token budget
  * @param {boolean} ctx.smartRetrievalEnabled - Whether to use LLM-based smart retrieval
  * @returns {Promise<Object[]>} Selected memories
  */
