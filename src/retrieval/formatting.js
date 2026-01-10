@@ -54,6 +54,24 @@ function getCausalityHint(gap) {
 }
 
 /**
+ * Get emotional annotation for high-importance memories
+ * @param {Object} memory - Memory object
+ * @returns {string|null} Emotional annotation or null
+ */
+function getEmotionalAnnotation(memory) {
+    if (memory.importance < EMOTIONAL_IMPORTANCE_MIN || !memory.emotional_impact) {
+        return null;
+    }
+    const emotions = Array.isArray(memory.emotional_impact)
+        ? memory.emotional_impact
+        : [memory.emotional_impact];
+    if (emotions.length === 0) {
+        return null;
+    }
+    return `    💔 Emotional: ${emotions.join(', ')}`;
+}
+
+/**
  * Get the effective position of a memory in the chat timeline
  * @param {Object} memory - Memory object
  * @returns {number} Position as message number
@@ -282,6 +300,12 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
                     lines.push(hint);
                 }
             }
+
+            // Add emotional annotation for high-importance memories
+            const emotionalAnnotation = getEmotionalAnnotation(memory);
+            if (emotionalAnnotation) {
+                lines.push(emotionalAnnotation);
+            }
         }
         lines.push('');
     }
@@ -301,6 +325,12 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
                 if (hint) {
                     lines.push(hint);
                 }
+            }
+
+            // Add emotional annotation for high-importance memories
+            const emotionalAnnotation = getEmotionalAnnotation(memory);
+            if (emotionalAnnotation) {
+                lines.push(emotionalAnnotation);
             }
         }
         lines.push('');
@@ -326,7 +356,7 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
             lines.push('');
         }
 
-        // Recent memories (with causality hints)
+        // Recent memories (with causality hints and emotional annotations)
         for (let i = 0; i < filteredBuckets.recent.length; i++) {
             const memory = filteredBuckets.recent[i];
             lines.push(formatMemory(memory));
@@ -339,6 +369,12 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
                 if (hint) {
                     lines.push(hint);
                 }
+            }
+
+            // Add emotional annotation for high-importance memories
+            const emotionalAnnotation = getEmotionalAnnotation(memory);
+            if (emotionalAnnotation) {
+                lines.push(emotionalAnnotation);
             }
         }
         lines.push('');

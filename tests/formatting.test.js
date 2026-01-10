@@ -680,5 +680,88 @@ describe('formatting', () => {
                 expect(hintIndex).toBeGreaterThan(memoryIndex);
             });
         });
+
+        // Emotional annotations tests
+        describe('emotional annotations', () => {
+            it('adds emotional annotation for importance >= 4', () => {
+                const memories = [
+                    {
+                        id: '1',
+                        summary: 'Major event',
+                        message_ids: [4980],
+                        sequence: 498000,
+                        importance: 4,
+                        emotional_impact: ['guilt', 'shock']
+                    },
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+
+                expect(result).toContain('💔 Emotional: guilt, shock');
+            });
+
+            it('no emotional annotation for importance < 4', () => {
+                const memories = [
+                    {
+                        id: '1',
+                        summary: 'Minor event',
+                        message_ids: [4980],
+                        sequence: 498000,
+                        importance: 3,
+                        emotional_impact: ['happy']
+                    },
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+
+                expect(result).not.toContain('💔 Emotional:');
+            });
+
+            it('no emotional annotation when emotional_impact is missing', () => {
+                const memories = [
+                    {
+                        id: '1',
+                        summary: 'Major event',
+                        message_ids: [4980],
+                        sequence: 498000,
+                        importance: 5,
+                        // no emotional_impact field
+                    },
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+
+                expect(result).not.toContain('💔 Emotional:');
+            });
+
+            it('handles string emotional_impact', () => {
+                const memories = [
+                    {
+                        id: '1',
+                        summary: 'Major event',
+                        message_ids: [4980],
+                        sequence: 498000,
+                        importance: 4,
+                        emotional_impact: 'fear'
+                    },
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+
+                expect(result).toContain('💔 Emotional: fear');
+            });
+
+            it('handles empty emotional_impact array', () => {
+                const memories = [
+                    {
+                        id: '1',
+                        summary: 'Major event',
+                        message_ids: [4980],
+                        sequence: 498000,
+                        importance: 5,
+                        emotional_impact: []
+                    },
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+
+                expect(result).not.toContain('💔 Emotional:');
+            });
+        });
     });
 });
