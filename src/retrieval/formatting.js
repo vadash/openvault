@@ -62,9 +62,21 @@ function getEmotionalAnnotation(memory) {
     if (memory.importance < EMOTIONAL_IMPORTANCE_MIN || !memory.emotional_impact) {
         return null;
     }
-    const emotions = Array.isArray(memory.emotional_impact)
-        ? memory.emotional_impact
-        : [memory.emotional_impact];
+
+    const impact = memory.emotional_impact;
+
+    // Handle object format: {"CharacterName": "emotion"}
+    if (typeof impact === 'object' && !Array.isArray(impact)) {
+        const entries = Object.entries(impact);
+        if (entries.length === 0) {
+            return null;
+        }
+        const formatted = entries.map(([char, emotion]) => `${char} feels ${emotion}`).join(', ');
+        return `    💔 Emotional: ${formatted}`;
+    }
+
+    // Handle array or string format (legacy)
+    const emotions = Array.isArray(impact) ? impact : [impact];
     if (emotions.length === 0) {
         return null;
     }
