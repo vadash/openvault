@@ -23,7 +23,7 @@ const defaultDeps = {
 
     // Event system
     eventSource: stEventSource,
-    event_types: stEventTypes,
+    eventTypes: stEventTypes,
 
     // Prompt injection
     setExtensionPrompt: (name, content, type, position) =>

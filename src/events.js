@@ -233,16 +233,16 @@ const EVENT_MAP = [
  * Update event listeners based on settings
  */
 export function updateEventListeners(_skipInitialization = false) {
-    const { eventSource, event_types } = getDeps();
+    const { eventSource, eventTypes } = getDeps();
 
     // Reset operation state only if no generation in progress
     resetOperationStatesIfSafe();
 
     // Cleanup and register in one loop
     EVENT_MAP.forEach(([type, handler]) => {
-        eventSource.removeListener(event_types[type], handler);
+        eventSource.removeListener(eventTypes[type], handler);
         if (isAutomaticMode()) {
-            eventSource.on(event_types[type], handler);
+            eventSource.on(eventTypes[type], handler);
         }
     });
 

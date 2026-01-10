@@ -140,6 +140,8 @@ describe('events', () => {
             console: mockConsole,
             getExtensionSettings: () => ({ [extensionName]: mockSettings }),
             getContext: () => mockContext,
+            eventSource,
+            eventTypes: event_types,
         });
 
         // Reset operation state
