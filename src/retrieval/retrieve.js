@@ -10,7 +10,7 @@ import { getOpenVaultData, safeSetExtensionPrompt, log, isExtensionEnabled, isAu
 import { extensionName, MEMORIES_KEY, CHARACTERS_KEY } from '../constants.js';
 import { getActiveCharacters, getPOVContext, filterMemoriesByPOV } from '../pov.js';
 import { selectRelevantMemories } from './scoring.js';
-import { getRelationshipContext, formatContextForInjection } from './formatting.js';
+import { formatContextForInjection } from './formatting.js';
 
 /**
  * Get memories from hidden (system) messages that need retrieval
@@ -108,18 +108,20 @@ async function selectFormatAndInject(memoriesToUse, data, ctx) {
         return null;
     }
 
-    // Get relationship and emotional context
-    const relationshipContext = getRelationshipContext(data, primaryCharacter, activeCharacters);
+    // Get emotional context
     const primaryCharState = data[CHARACTERS_KEY]?.[primaryCharacter];
     const emotionalInfo = {
         emotion: primaryCharState?.current_emotion || 'neutral',
         fromMessages: primaryCharState?.emotion_from_messages || null,
     };
 
+    // Get present characters (excluding POV)
+    const presentCharacters = activeCharacters.filter(c => c !== primaryCharacter);
+
     // Format and inject
     const formattedContext = formatContextForInjection(
         relevantMemories,
-        relationshipContext,
+        presentCharacters,
         emotionalInfo,
         headerName,
         finalTokens,
