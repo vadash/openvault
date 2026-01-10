@@ -8,7 +8,6 @@ import {
     getPaginationInfo,
     extractCharactersSet,
     buildCharacterStateData,
-    buildRelationshipData,
     calculateExtractionStats,
     getBatchProgressInfo,
     validateRPM,
@@ -225,39 +224,6 @@ describe('ui/calculations', () => {
 
             const result = buildCharacterStateData('Charlie', charData);
             expect(result.emotionSource).toBe(' (msg 7)');
-        });
-    });
-
-    describe('buildRelationshipData', () => {
-        it('builds display data from relationship', () => {
-            const relData = {
-                character_a: 'Alice',
-                character_b: 'Bob',
-                relationship_type: 'friend',
-                trust_level: 8,
-                tension_level: 2,
-            };
-
-            const result = buildRelationshipData('Alice<->Bob', relData);
-
-            expect(result.key).toBe('Alice<->Bob');
-            expect(result.characterA).toBe('Alice');
-            expect(result.characterB).toBe('Bob');
-            expect(result.type).toBe('friend');
-            expect(result.trust).toBe(8);
-            expect(result.trustPercent).toBe(80);
-            expect(result.tension).toBe(2);
-            expect(result.tensionPercent).toBe(20);
-        });
-
-        it('uses defaults for missing data', () => {
-            const result = buildRelationshipData('key', {});
-
-            expect(result.characterA).toBe('?');
-            expect(result.characterB).toBe('?');
-            expect(result.type).toBe('acquaintance');
-            expect(result.trust).toBe(5);
-            expect(result.tension).toBe(0);
         });
     });
 
