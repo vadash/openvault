@@ -15,13 +15,6 @@ const GAP_SMALL = 15;    // No separator
 const GAP_MEDIUM = 100;  // "..."
 const GAP_LARGE = 500;   // "...Later..." / "...Much later..."
 
-// Causality thresholds
-const IMMEDIATE_GAP = 5;  // "⤷ IMMEDIATELY AFTER"
-const CLOSE_GAP = 15;     // "⤷ Shortly after"
-
-// Annotation threshold
-const EMOTIONAL_IMPORTANCE_MIN = 4;
-
 /**
  * Get gap separator text based on message distance
  * @param {number} gap - Number of messages between memories
@@ -39,47 +32,26 @@ function getGapSeparator(gap) {
 }
 
 /**
- * Get causality hint text based on message distance
- * @param {number} gap - Number of messages between memories
- * @returns {string|null} Causality hint or null if gap too large
+ * Format emotional trajectory for Current Scene
+ * @param {Object} emotionalInfo - Emotional info with characterEmotions
+ * @param {number} limit - Max characters to show (default 5)
+ * @returns {string|null} Formatted emotions line or null
  */
-function getCausalityHint(gap) {
-    if (gap < IMMEDIATE_GAP) {
-        return '    ⤷ IMMEDIATELY AFTER';
-    } else if (gap < CLOSE_GAP) {
-        return '    ⤷ Shortly after';
-    }
-    return null;
-}
+function formatEmotionalTrajectory(emotionalInfo, limit = 5) {
+    if (!emotionalInfo || typeof emotionalInfo !== 'object') return null;
 
-/**
- * Get emotional annotation for high-importance memories
- * @param {Object} memory - Memory object
- * @returns {string|null} Emotional annotation or null
- */
-function getEmotionalAnnotation(memory) {
-    if (memory.importance < EMOTIONAL_IMPORTANCE_MIN || !memory.emotional_impact) {
-        return null;
-    }
+    const characterEmotions = emotionalInfo.characterEmotions;
+    if (!characterEmotions || typeof characterEmotions !== 'object') return null;
 
-    const impact = memory.emotional_impact;
-
-    // Handle object format: {"CharacterName": "emotion"}
-    if (typeof impact === 'object' && !Array.isArray(impact)) {
-        const entries = Object.entries(impact);
-        if (entries.length === 0) {
-            return null;
+    const lines = [];
+    for (const [name, emotion] of Object.entries(characterEmotions)) {
+        if (emotion && emotion !== 'neutral') {
+            lines.push(`${name} ${emotion}`);
         }
-        const formatted = entries.map(([char, emotion]) => `${char} feels ${emotion}`).join(', ');
-        return `    💔 Emotional: ${formatted}`;
     }
 
-    // Handle array or string format (legacy)
-    const emotions = Array.isArray(impact) ? impact : [impact];
-    if (emotions.length === 0) {
-        return null;
-    }
-    return `    💔 Emotional: ${emotions.join(', ')}`;
+    if (lines.length === 0) return null;
+    return `Emotions: ${lines.slice(0, limit).join(', ')}`;
 }
 
 /**
@@ -150,29 +122,12 @@ export function assignMemoriesToBuckets(memories, chatLength) {
 export function formatContextForInjection(memories, presentCharacters, emotionalInfo, characterName, tokenBudget, chatLength = 0) {
     const lines = [
         '<scene_memory>',
-        `(Current chat has #${chatLength} messages)`,
+        `(#${chatLength} messages)`,
         ''
     ];
 
     // Assign memories to buckets
     const buckets = assignMemoriesToBuckets(memories, chatLength);
-
-    // Helper to format emotional state
-    const formatEmotionalState = () => {
-        const emotion = typeof emotionalInfo === 'string' ? emotionalInfo : emotionalInfo?.emotion;
-        const fromMessages = typeof emotionalInfo === 'object' ? emotionalInfo?.fromMessages : null;
-
-        if (!emotion || emotion === 'neutral') return null;
-
-        let emotionLine = `Emotional state: ${emotion}`;
-        if (fromMessages) {
-            const { min, max } = fromMessages;
-            emotionLine += min === max
-                ? ` (as of msg #${min})`
-                : ` (as of msgs #${min}-${max})`;
-        }
-        return emotionLine;
-    };
 
     // Helper to format present characters
     const formatPresent = () => {
@@ -184,7 +139,11 @@ export function formatContextForInjection(memories, presentCharacters, emotional
     const formatMemory = (memory) => {
         const importance = memory.importance || 3;
         const stars = '\u2605'.repeat(importance);
-        const prefix = memory.is_secret ? '[Secret] ' : '';
+
+        // Invert: tag [Known] for public events with >2 witnesses, default is private
+        const isKnown = !memory.is_secret && (memory.witnesses?.length || 0) > 2;
+        const prefix = isKnown ? '[Known] ' : '';
+
         return `[${stars}] ${prefix}${memory.summary}`;
     };
 
@@ -196,9 +155,9 @@ export function formatContextForInjection(memories, presentCharacters, emotional
     };
 
     // Determine which buckets will be rendered
-    const emotionalLine = formatEmotionalState();
     const presentLine = formatPresent();
-    const hasRecentContent = buckets.recent.length > 0 || emotionalLine || presentLine;
+    const emotionsLine = formatEmotionalTrajectory(emotionalInfo);
+    const hasRecentContent = buckets.recent.length > 0 || presentLine || emotionsLine;
 
     // Calculate overhead tokens
     let overheadTokens = estimateTokens(lines.join('\n') + '</scene_memory>');
@@ -206,8 +165,8 @@ export function formatContextForInjection(memories, presentCharacters, emotional
     if (buckets.mid.length > 0) overheadTokens += estimateTokens(bucketHeaders.mid);
     if (hasRecentContent) {
         overheadTokens += estimateTokens(bucketHeaders.recent);
-        if (emotionalLine) overheadTokens += estimateTokens(emotionalLine);
         if (presentLine) overheadTokens += estimateTokens(presentLine);
+        if (emotionsLine) overheadTokens += estimateTokens(emotionsLine);
     }
 
     const availableForMemories = tokenBudget - overheadTokens;
@@ -234,17 +193,16 @@ export function formatContextForInjection(memories, presentCharacters, emotional
         recent: buckets.recent.filter(m => fittingMemoryIds.has(m.id)),
     };
 
-    // Render OLD bucket (with gap separators and causality hints)
+    // Render OLD bucket (with gap separators)
     if (filteredBuckets.old.length > 0) {
         lines.push(bucketHeaders.old);
         for (let i = 0; i < filteredBuckets.old.length; i++) {
             const memory = filteredBuckets.old[i];
-            let gap = 0;
 
             // Add gap separator if not first memory
             if (i > 0) {
                 const prevMemory = filteredBuckets.old[i - 1];
-                gap = getMemoryPosition(memory) - getMemoryPosition(prevMemory);
+                const gap = getMemoryPosition(memory) - getMemoryPosition(prevMemory);
                 const separator = getGapSeparator(gap);
                 if (separator) {
                     lines.push('');
@@ -254,90 +212,44 @@ export function formatContextForInjection(memories, presentCharacters, emotional
             }
 
             lines.push(formatMemory(memory));
-
-            // Add causality hint for small gaps (no separator was added)
-            if (i > 0 && gap < GAP_SMALL) {
-                const hint = getCausalityHint(gap);
-                if (hint) {
-                    lines.push(hint);
-                }
-            }
-
-            // Add emotional annotation for high-importance memories
-            const emotionalAnnotation = getEmotionalAnnotation(memory);
-            if (emotionalAnnotation) {
-                lines.push(emotionalAnnotation);
-            }
         }
         lines.push('');
     }
 
-    // Render MID bucket (with causality hints)
+    // Render MID bucket
     if (filteredBuckets.mid.length > 0) {
         lines.push(bucketHeaders.mid);
         for (let i = 0; i < filteredBuckets.mid.length; i++) {
             const memory = filteredBuckets.mid[i];
             lines.push(formatMemory(memory));
-
-            // Add causality hint for close memories
-            if (i > 0) {
-                const prevMemory = filteredBuckets.mid[i - 1];
-                const gap = getMemoryPosition(memory) - getMemoryPosition(prevMemory);
-                const hint = getCausalityHint(gap);
-                if (hint) {
-                    lines.push(hint);
-                }
-            }
-
-            // Add emotional annotation for high-importance memories
-            const emotionalAnnotation = getEmotionalAnnotation(memory);
-            if (emotionalAnnotation) {
-                lines.push(emotionalAnnotation);
-            }
         }
         lines.push('');
     }
 
     // Render RECENT bucket (always if has content: memories, emotion, or present characters)
-    const hasFilteredRecentContent = filteredBuckets.recent.length > 0 || emotionalLine || presentLine;
+    const hasFilteredRecentContent = filteredBuckets.recent.length > 0 || presentLine || emotionsLine;
     if (hasFilteredRecentContent) {
         lines.push(bucketHeaders.recent);
 
-        // Emotional state first
-        if (emotionalLine) {
-            lines.push(emotionalLine);
-        }
-
-        // Present characters second
+        // Present characters first
         if (presentLine) {
             lines.push(presentLine);
         }
 
+        // Character emotions second
+        if (emotionsLine) {
+            lines.push(emotionsLine);
+        }
+
         // Add blank line before memories if we have context above
-        if ((emotionalLine || presentLine) && filteredBuckets.recent.length > 0) {
+        if ((presentLine || emotionsLine) && filteredBuckets.recent.length > 0) {
             lines.push('');
         }
 
-        // Recent memories (with causality hints and emotional annotations)
+        // Recent memories
         for (let i = 0; i < filteredBuckets.recent.length; i++) {
             const memory = filteredBuckets.recent[i];
             lines.push(formatMemory(memory));
-
-            // Add causality hint for close memories
-            if (i > 0) {
-                const prevMemory = filteredBuckets.recent[i - 1];
-                const gap = getMemoryPosition(memory) - getMemoryPosition(prevMemory);
-                const hint = getCausalityHint(gap);
-                if (hint) {
-                    lines.push(hint);
-                }
-            }
-
-            // Add emotional annotation for high-importance memories
-            const emotionalAnnotation = getEmotionalAnnotation(memory);
-            if (emotionalAnnotation) {
-                lines.push(emotionalAnnotation);
-            }
         }
         lines.push('');
     }
