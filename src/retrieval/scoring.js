@@ -12,6 +12,7 @@ import { callLLMForRetrieval } from '../llm.js';
 import { buildSmartRetrievalPrompt } from '../prompts.js';
 import { getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { extractQueryContext, buildEmbeddingQuery, buildBM25Tokens, parseRecentMessages } from './query-context.js';
+import { scoreMemoriesSync } from './sync-scorer.js';
 
 // Lazy-initialized worker
 let scoringWorker = null;
@@ -61,9 +62,22 @@ function terminateWorker() {
     }
 }
 
+/**
+ * Gets or creates the scoring worker with error handling.
+ * Returns null if worker creation fails (fallback to sync scoring).
+ */
 function getScoringWorker() {
     if (!scoringWorker) {
-        scoringWorker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+        try {
+            scoringWorker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+            scoringWorker.onerror = (e) => {
+                console.error('[OpenVault] Worker load error:', e);
+                scoringWorker = null;
+            };
+        } catch (e) {
+            console.error('[OpenVault] Worker creation failed, using main thread:', e);
+            return null;
+        }
     }
     return scoringWorker;
 }
@@ -77,8 +91,25 @@ function getScoringWorker() {
  * @param {string|string[]} queryTokens - Query text or pre-tokenized array for BM25
  */
 function runWorkerScoring(memories, contextEmbedding, chatLength, limit, queryTokens) {
+    const worker = getScoringWorker();
+
+    // Fallback to sync scoring if worker unavailable
+    if (!worker) {
+        console.log('[OpenVault] Using synchronous scoring fallback');
+        const { constants, settings } = getScoringParams();
+        return Promise.resolve(
+            scoreMemoriesSync(memories, {
+                contextEmbedding,
+                chatLength,
+                limit,
+                queryTokens: Array.isArray(queryTokens) ? queryTokens : [],
+                constants,
+                settings
+            }).map(r => r.memory)
+        );
+    }
+
     return new Promise((resolve, reject) => {
-        const worker = getScoringWorker();
         let timeoutId = null;
 
         const cleanup = () => {
