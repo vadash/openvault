@@ -302,7 +302,6 @@ export async function selectRelevantMemories(memories, ctx) {
 
     const { preFilterTokens, finalTokens, smartRetrievalEnabled } = ctx;
 
-    // Stage 1: Algorithmic Filtering
     // Get scored results (pass high count limit, we'll token-slice after)
     const scored = await selectRelevantMemoriesSimple(
         memories,
@@ -310,15 +309,15 @@ export async function selectRelevantMemories(memories, ctx) {
         1000 // High count limit - we'll apply token budget after
     );
 
-    // Apply Stage 1 token budget (pre-filter)
-    const stage1Results = sliceToTokenBudget(scored, preFilterTokens);
-    log(`Stage 1: ${memories.length} memories -> ${scored.length} scored -> ${stage1Results.length} after token filter (${preFilterTokens} budget)`);
-
-    if (stage1Results.length === 0) return [];
-
-    // Stage 2: Smart Selection OR Simple Slice
     if (smartRetrievalEnabled) {
-        // Calculate target count based on average memory cost
+        // Smart mode: Two-stage pipeline
+        // Stage 1: Pre-filter to give LLM a manageable pool
+        const stage1Results = sliceToTokenBudget(scored, preFilterTokens);
+        log(`Stage 1: ${memories.length} memories -> ${scored.length} scored -> ${stage1Results.length} after token filter (${preFilterTokens} budget)`);
+
+        if (stage1Results.length === 0) return [];
+
+        // Stage 2: LLM selection
         const totalStage1Tokens = stage1Results.reduce((sum, m) => sum + estimateTokens(m.summary), 0);
         const avgMemoryCost = totalStage1Tokens / stage1Results.length;
         const targetCount = Math.max(1, Math.floor(finalTokens / avgMemoryCost));
@@ -333,9 +332,9 @@ export async function selectRelevantMemories(memories, ctx) {
 
         return selectRelevantMemoriesSmart(stage1Results, ctx, targetCount);
     } else {
-        // Simple mode: just apply final token budget
-        const finalResults = sliceToTokenBudget(stage1Results, finalTokens);
-        log(`Stage 2 (Simple): ${stage1Results.length} -> ${finalResults.length} after final token filter (${finalTokens} budget)`);
+        // Simple mode: Single-stage - slice directly to final budget
+        const finalResults = sliceToTokenBudget(scored, finalTokens);
+        log(`Retrieval: ${memories.length} memories -> ${scored.length} scored -> ${finalResults.length} after token filter (${finalTokens} budget)`);
         return finalResults;
     }
 }
