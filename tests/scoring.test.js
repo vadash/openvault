@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { setDeps, resetDeps } from '../src/deps.js';
 import { extensionName, defaultSettings } from '../src/constants.js';
+import { scoreMemoriesSync } from '../src/retrieval/sync-scorer.js';
 
 // Store reference to cosineSimilarity mock for MockWorker
 let cosineSimilarityMock = vi.fn();
@@ -708,6 +709,38 @@ describe('scoring', () => {
             // Importance 5 should be first
             expect(result[0].id).toBe('imp5');
             expect(result[1].id).toBe('imp1');
+        });
+    });
+
+    describe('sync-scorer fallback', () => {
+        it('scores memories synchronously', () => {
+            const memories = [{
+                id: '1',
+                summary: 'test memory about dragons',
+                importance: 3,
+                message_ids: [10],
+                embedding: [0.1, 0.2, 0.3],
+                event_type: 'dialogue',
+                is_secret: false
+            }];
+
+            const params = {
+                contextEmbedding: [0.1, 0.2, 0.3],
+                chatLength: 100,
+                limit: 10,
+                queryTokens: ['dragon'],
+                constants: { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 },
+                settings: { vectorSimilarityThreshold: 0.5, vectorSimilarityWeight: 15 }
+            };
+
+            const results = scoreMemoriesSync(memories, params);
+
+            expect(Array.isArray(results)).toBe(true);
+            expect(results.length).toBeLessThanOrEqual(params.limit);
+            if (results.length > 0) {
+                expect(results[0]).toHaveProperty('memory');
+                expect(results[0]).toHaveProperty('score');
+            }
         });
     });
 });
