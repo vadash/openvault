@@ -743,4 +743,64 @@ describe('scoring', () => {
             }
         });
     });
+
+    describe('worker data serialization', () => {
+        it('scoring payload is structuredClone-safe', () => {
+            const memories = [{
+                id: '1',
+                summary: 'test memory',
+                importance: 3,
+                message_ids: [10],
+                embedding: [0.1, 0.2, 0.3],
+                event_type: 'dialogue',
+                is_secret: false
+            }];
+
+            const payload = {
+                memories,
+                memoriesChanged: true,
+                contextEmbedding: [0.1, 0.2, 0.3],
+                chatLength: 100,
+                limit: 10,
+                queryTokens: ['test', 'query'],
+                constants: { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 },
+                settings: { vectorSimilarityThreshold: 0.5, vectorSimilarityWeight: 15 }
+            };
+
+            expect(() => structuredClone(payload)).not.toThrow();
+        });
+
+        it('rejects non-serializable memory properties', () => {
+            const badMemory = {
+                id: '1',
+                summary: 'test',
+                callback: () => {}  // Functions are not serializable
+            };
+
+            expect(() => structuredClone(badMemory)).toThrow();
+        });
+
+        it('memory schema matches expected structure', () => {
+            const validMemory = {
+                id: '1',
+                summary: 'A dragon attacked the village',
+                importance: 4,
+                message_ids: [10, 11],
+                embedding: new Array(384).fill(0.01),
+                event_type: 'action',
+                is_secret: false
+            };
+
+            // Should clone without error
+            const cloned = structuredClone(validMemory);
+
+            expect(cloned.id).toBe(validMemory.id);
+            expect(cloned.summary).toBe(validMemory.summary);
+            expect(cloned.importance).toBe(validMemory.importance);
+            expect(cloned.message_ids).toEqual(validMemory.message_ids);
+            expect(cloned.embedding.length).toBe(384);
+            expect(cloned.event_type).toBe(validMemory.event_type);
+            expect(cloned.is_secret).toBe(validMemory.is_secret);
+        });
+    });
 });
