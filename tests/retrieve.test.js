@@ -31,7 +31,6 @@ vi.mock('../src/retrieval/scoring.js', () => ({
 }));
 
 vi.mock('../src/retrieval/formatting.js', () => ({
-    getRelationshipContext: vi.fn(),
     formatContextForInjection: vi.fn(),
 }));
 
@@ -46,7 +45,7 @@ import { getOpenVaultData, saveOpenVaultData, safeSetExtensionPrompt, showToast,
 import { setStatus } from '../src/ui/status.js';
 import { getActiveCharacters, getPOVContext, filterMemoriesByPOV } from '../src/pov.js';
 import { selectRelevantMemories } from '../src/retrieval/scoring.js';
-import { getRelationshipContext, formatContextForInjection } from '../src/retrieval/formatting.js';
+import { formatContextForInjection } from '../src/retrieval/formatting.js';
 
 describe('retrieve', () => {
     let mockConsole;
@@ -107,7 +106,6 @@ describe('retrieve', () => {
         getPOVContext.mockReturnValue({ povCharacters: ['Alice'], isGroupChat: false });
         filterMemoriesByPOV.mockImplementation((memories) => memories);
         selectRelevantMemories.mockResolvedValue([]);
-        getRelationshipContext.mockReturnValue('Relationship context');
         formatContextForInjection.mockReturnValue('Formatted context');
     });
 
@@ -244,14 +242,6 @@ describe('retrieve', () => {
             expect(log).toHaveBeenCalledWith('No relevant memories found');
         });
 
-        it('gets relationship context for active characters', async () => {
-            selectRelevantMemories.mockResolvedValue([mockData[MEMORIES_KEY][0]]);
-
-            await retrieveAndInjectContext();
-
-            expect(getRelationshipContext).toHaveBeenCalledWith(mockData, 'Alice', ['Alice']);
-        });
-
         it('formats context with emotional info', async () => {
             selectRelevantMemories.mockResolvedValue([mockData[MEMORIES_KEY][0]]);
 
@@ -259,7 +249,7 @@ describe('retrieve', () => {
 
             expect(formatContextForInjection).toHaveBeenCalledWith(
                 expect.any(Array),
-                'Relationship context',
+                [],  // presentCharacters (active ['Alice'] minus primary 'Alice')
                 { emotion: 'happy', fromMessages: [1] },
                 'Scene',
                 12000,
@@ -275,7 +265,7 @@ describe('retrieve', () => {
 
             expect(formatContextForInjection).toHaveBeenCalledWith(
                 expect.any(Array),
-                expect.any(String),
+                expect.any(Array),  // presentCharacters
                 expect.any(Object),
                 'Bob',  // First POV character as header
                 expect.any(Number),
@@ -323,7 +313,7 @@ describe('retrieve', () => {
 
             expect(formatContextForInjection).toHaveBeenCalledWith(
                 expect.any(Array),
-                expect.any(String),
+                expect.any(Array),  // presentCharacters
                 { emotion: 'neutral', fromMessages: null },
                 expect.any(String),
                 expect.any(Number),
