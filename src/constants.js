@@ -5,7 +5,14 @@
  */
 
 export const extensionName = 'openvault';
-export const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
+
+// Dynamic path detection - works regardless of folder name
+const currentUrl = new URL(import.meta.url);
+const pathFromST = currentUrl.pathname;
+// Handle both Unix and Windows paths, remove /src/constants.js suffix
+export const extensionFolderPath = pathFromST
+    .replace(/^\/([A-Z]:)/, '$1')  // Fix Windows drive letter (e.g., /C: -> C:)
+    .replace(/[/\\]src[/\\]constants\.js$/, '');
 
 // Metadata keys for chat storage
 export const METADATA_KEY = 'openvault';
