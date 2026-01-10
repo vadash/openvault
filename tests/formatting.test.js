@@ -11,8 +11,8 @@ import {
 } from '../src/retrieval/formatting.js';
 
 describe('constants', () => {
-    it('exports CURRENT_SCENE_SIZE as 50', () => {
-        expect(CURRENT_SCENE_SIZE).toBe(50);
+    it('exports CURRENT_SCENE_SIZE as 100', () => {
+        expect(CURRENT_SCENE_SIZE).toBe(100);
     });
 
     it('exports LEADING_UP_SIZE as 500', () => {
@@ -50,11 +50,11 @@ describe('formatting', () => {
 
     describe('assignMemoriesToBuckets', () => {
         it('assigns memories to correct buckets with fixed windows', () => {
-            // Chat length 5000: recent > 4950, mid > 4500, old <= 4500
+            // Chat length 5000: recent > 4900, mid > 4500, old <= 4500
             const memories = [
                 { id: '1', message_ids: [100] },    // old (< 4500)
-                { id: '2', message_ids: [4600] },   // mid (4500-4950)
-                { id: '3', message_ids: [4980] },   // recent (> 4950)
+                { id: '2', message_ids: [4600] },   // mid (4500-4900)
+                { id: '3', message_ids: [4950] },   // recent (> 4900)
             ];
             const result = assignMemoriesToBuckets(memories, 5000);
 
@@ -66,11 +66,11 @@ describe('formatting', () => {
             expect(result.recent[0].id).toBe('3');
         });
 
-        it('handles boundary at CURRENT_SCENE_SIZE (50)', () => {
-            // Chat length 5000: recent threshold = 4950
+        it('handles boundary at CURRENT_SCENE_SIZE (100)', () => {
+            // Chat length 5000: recent threshold = 4900
             const memories = [
-                { id: '1', message_ids: [4950] },  // exactly at boundary = recent
-                { id: '2', message_ids: [4949] },  // just below = mid
+                { id: '1', message_ids: [4900] },  // exactly at boundary = recent
+                { id: '2', message_ids: [4899] },  // just below = mid
             ];
             const result = assignMemoriesToBuckets(memories, 5000);
 
@@ -95,7 +95,7 @@ describe('formatting', () => {
                 { id: '1', message_ids: [10] },
                 { id: '2', message_ids: [30] },
             ];
-            const result = assignMemoriesToBuckets(memories, 40); // < 50
+            const result = assignMemoriesToBuckets(memories, 80); // < 100
 
             expect(result.old).toEqual([]);
             expect(result.mid).toEqual([]);
@@ -103,10 +103,10 @@ describe('formatting', () => {
         });
 
         it('has no old bucket when chat < LEADING_UP_SIZE', () => {
-            // Chat length 200: recent > 150, mid > -300 (clamped to 0)
+            // Chat length 200: recent > 100, mid > -300 (clamped to 0)
             const memories = [
-                { id: '1', message_ids: [50] },   // mid (0-150)
-                { id: '2', message_ids: [180] },  // recent (> 150)
+                { id: '1', message_ids: [50] },   // mid (0-100)
+                { id: '2', message_ids: [150] },  // recent (> 100)
             ];
             const result = assignMemoriesToBuckets(memories, 200);
 

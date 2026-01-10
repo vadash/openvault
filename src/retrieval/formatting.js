@@ -7,8 +7,8 @@
 import { estimateTokens } from '../utils.js';
 
 // Narrative engine constants
-export const CURRENT_SCENE_SIZE = 50;   // "Current Scene" = last 50 messages
-export const LEADING_UP_SIZE = 500;     // "Leading Up" = messages 51-500 ago
+export const CURRENT_SCENE_SIZE = 100;   // "Current Scene" = last 100 messages
+export const LEADING_UP_SIZE = 500;     // "Leading Up" = messages 101-500 ago
 
 // Gap thresholds (for separators in "Story So Far")
 const GAP_SMALL = 15;    // No separator
