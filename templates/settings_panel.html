@@ -326,6 +326,15 @@
                                 </label>
                                 <input type="range" id="openvault_vector_threshold" min="0" max="1" step="0.05" value="0.5" />
                                 <small class="openvault-hint">Noise filter. 0.7+ = strict (only close matches), 0.3- = loose</small>
+
+                                <div style="height: 8px;"></div>
+
+                                <label for="openvault_dedup_threshold" style="margin-top: 10px;">
+                                    Dedup Similarity Threshold: <span id="openvault_dedup_threshold_value">0.85</span>
+                                    <small class="openvault-default-hint" data-default-key="dedupSimilarityThreshold"></small>
+                                </label>
+                                <input type="range" id="openvault_dedup_threshold" min="0.70" max="0.95" step="0.01" value="0.85" />
+                                <small class="openvault-hint">0.80 = aggressive (fewer dupes) · 0.85 = default · 0.90 = conservative (more memories)</small>
                             </div>
 
                             <hr style="margin: 15px 0; border: none; border-top: 1px solid var(--SmartThemeShadowColor);">

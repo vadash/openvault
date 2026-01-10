@@ -132,6 +132,7 @@ function bindUIElements() {
     bindSlider('openvault_vector_weight', 'vectorSimilarityWeight', 'openvault_vector_weight_value');
     bindSlider('openvault_keyword_weight', 'keywordMatchWeight', 'openvault_keyword_weight_value', null, null, true);
     bindSlider('openvault_vector_threshold', 'vectorSimilarityThreshold', 'openvault_vector_threshold_value', null, null, true);
+    bindSlider('openvault_dedup_threshold', 'dedupSimilarityThreshold', 'openvault_dedup_threshold_value', null, null, true);
 
     // Query context enhancement settings
     bindSlider('openvault_entity_window', 'entityWindowSize', 'openvault_entity_window_value');
@@ -227,6 +228,9 @@ export function updateUI() {
 
     $('#openvault_vector_threshold').val(settings.vectorSimilarityThreshold ?? 0.5);
     $('#openvault_vector_threshold_value').text(settings.vectorSimilarityThreshold ?? 0.5);
+
+    $('#openvault_dedup_threshold').val(settings.dedupSimilarityThreshold ?? 0.85);
+    $('#openvault_dedup_threshold_value').text(settings.dedupSimilarityThreshold ?? 0.85);
 
     // Query context enhancement settings
     $('#openvault_entity_window').val(settings.entityWindowSize ?? 10);

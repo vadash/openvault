@@ -89,6 +89,7 @@ export const UI_DEFAULT_HINTS = {
     vectorSimilarityWeight: defaultSettings.vectorSimilarityWeight,
     keywordMatchWeight: defaultSettings.keywordMatchWeight,
     vectorSimilarityThreshold: defaultSettings.vectorSimilarityThreshold,
+    dedupSimilarityThreshold: defaultSettings.dedupSimilarityThreshold,
 
     // Entity settings
     entityWindowSize: QUERY_CONTEXT_DEFAULTS.entityWindowSize,
