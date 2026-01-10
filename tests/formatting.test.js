@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import {
     getRelationshipContext,
     formatContextForInjection,
+    getMemoryPosition,
 } from '../src/retrieval/formatting.js';
 import { RELATIONSHIPS_KEY } from '../src/constants.js';
 
@@ -121,6 +122,33 @@ describe('formatting', () => {
             const data = {};
             const result = getRelationshipContext(data, 'Alice', ['Bob']);
             expect(result).toEqual([]);
+        });
+    });
+
+    describe('getMemoryPosition', () => {
+        it('returns midpoint of message_ids array', () => {
+            const memory = { message_ids: [100, 110, 120] };
+            expect(getMemoryPosition(memory)).toBe(110);
+        });
+
+        it('returns single message_id when only one', () => {
+            const memory = { message_ids: [50] };
+            expect(getMemoryPosition(memory)).toBe(50);
+        });
+
+        it('falls back to sequence/1000 when no message_ids', () => {
+            const memory = { sequence: 5000 };
+            expect(getMemoryPosition(memory)).toBe(5);
+        });
+
+        it('returns 0 when no position data available', () => {
+            const memory = {};
+            expect(getMemoryPosition(memory)).toBe(0);
+        });
+
+        it('handles empty message_ids array', () => {
+            const memory = { message_ids: [], sequence: 3000 };
+            expect(getMemoryPosition(memory)).toBe(3);
         });
     });
 

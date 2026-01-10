@@ -8,6 +8,23 @@ import { RELATIONSHIPS_KEY } from '../constants.js';
 import { sortMemoriesBySequence, estimateTokens } from '../utils.js';
 
 /**
+ * Get the effective position of a memory in the chat timeline
+ * @param {Object} memory - Memory object
+ * @returns {number} Position as message number
+ */
+export function getMemoryPosition(memory) {
+    const msgIds = memory.message_ids || [];
+    if (msgIds.length > 0) {
+        const sum = msgIds.reduce((a, b) => a + b, 0);
+        return Math.round(sum / msgIds.length);
+    }
+    if (memory.sequence) {
+        return Math.floor(memory.sequence / 1000);
+    }
+    return 0;
+}
+
+/**
  * Get relationship context for active characters
  * @param {Object} data - OpenVault data
  * @param {string} povCharacter - POV character name
