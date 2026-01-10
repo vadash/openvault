@@ -7,6 +7,22 @@
 import { RELATIONSHIPS_KEY } from '../constants.js';
 import { estimateTokens } from '../utils.js';
 
+// Narrative engine constants
+export const CURRENT_SCENE_SIZE = 50;   // "Current Scene" = last 50 messages
+export const LEADING_UP_SIZE = 500;     // "Leading Up" = messages 51-500 ago
+
+// Gap thresholds (for separators in "Story So Far")
+const GAP_SMALL = 15;    // No separator
+const GAP_MEDIUM = 100;  // "..."
+const GAP_LARGE = 500;   // "...Later..." / "...Much later..."
+
+// Causality thresholds
+const IMMEDIATE_GAP = 5;  // "⤷ IMMEDIATELY AFTER"
+const CLOSE_GAP = 15;     // "⤷ Shortly after"
+
+// Annotation threshold
+const EMOTIONAL_IMPORTANCE_MIN = 4;
+
 /**
  * Get the effective position of a memory in the chat timeline
  * @param {Object} memory - Memory object

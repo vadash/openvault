@@ -7,8 +7,20 @@ import {
     formatContextForInjection,
     getMemoryPosition,
     assignMemoriesToBuckets,
+    CURRENT_SCENE_SIZE,
+    LEADING_UP_SIZE,
 } from '../src/retrieval/formatting.js';
 import { RELATIONSHIPS_KEY } from '../src/constants.js';
+
+describe('constants', () => {
+    it('exports CURRENT_SCENE_SIZE as 50', () => {
+        expect(CURRENT_SCENE_SIZE).toBe(50);
+    });
+
+    it('exports LEADING_UP_SIZE as 500', () => {
+        expect(LEADING_UP_SIZE).toBe(500);
+    });
+});
 
 describe('formatting', () => {
     describe('getRelationshipContext', () => {
