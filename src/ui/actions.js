@@ -6,11 +6,10 @@ import { getDeps } from '../deps.js';
 import { extractAllMessages } from '../extraction/batch.js';
 import { deleteCurrentChatData, deleteCurrentChatEmbeddings } from '../data/actions.js';
 import { updateEventListeners } from '../listeners.js';
-import { getOpenVaultData, showToast, log } from '../utils.js';
+import { getOpenVaultData, showToast } from '../utils.js';
 import { refreshAllUI } from './browser.js';
 import { setStatus } from './status.js';
 import { isEmbeddingsEnabled, generateEmbeddingsForMemories } from '../embeddings.js';
-import { MEMORIES_KEY } from '../constants.js';
 
 /**
  * Handle "Extract All Messages" button click.

@@ -19,7 +19,6 @@ import { refreshAllUI } from './src/ui/browser.js';
 import { extractMemories } from './src/extraction/extract.js';
 import { retrieveAndInjectContext } from './src/retrieval/retrieve.js';
 import { updateEventListeners } from './src/listeners.js';
-import { isEmbeddingsEnabled, generateEmbeddingsForMemories } from './src/embeddings.js';
 
 // Re-export extensionName for external use
 export { extensionName };

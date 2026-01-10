@@ -767,6 +767,7 @@ describe('scoring', () => {
                 settings: { vectorSimilarityThreshold: 0.5, vectorSimilarityWeight: 15 }
             };
 
+            // eslint-disable-next-line no-undef
             expect(() => structuredClone(payload)).not.toThrow();
         });
 
@@ -777,6 +778,7 @@ describe('scoring', () => {
                 callback: () => {}  // Functions are not serializable
             };
 
+            // eslint-disable-next-line no-undef
             expect(() => structuredClone(badMemory)).toThrow();
         });
 
@@ -792,6 +794,7 @@ describe('scoring', () => {
             };
 
             // Should clone without error
+            // eslint-disable-next-line no-undef
             const cloned = structuredClone(validMemory);
 
             expect(cloned.id).toBe(validMemory.id);
