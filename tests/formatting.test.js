@@ -6,6 +6,7 @@ import {
     getRelationshipContext,
     formatContextForInjection,
     getMemoryPosition,
+    assignMemoriesToBuckets,
 } from '../src/retrieval/formatting.js';
 import { RELATIONSHIPS_KEY } from '../src/constants.js';
 
@@ -149,6 +150,77 @@ describe('formatting', () => {
         it('handles empty message_ids array', () => {
             const memory = { message_ids: [], sequence: 3000 };
             expect(getMemoryPosition(memory)).toBe(3);
+        });
+    });
+
+    describe('assignMemoriesToBuckets', () => {
+        it('assigns memories to correct buckets based on position', () => {
+            const memories = [
+                { id: '1', message_ids: [50] },   // position 50, old (0-40%)
+                { id: '2', message_ids: [250] },  // position 250, mid (40-80%)
+                { id: '3', message_ids: [450] },  // position 450, recent (80-100%)
+            ];
+            const result = assignMemoriesToBuckets(memories, 500);
+
+            expect(result.old).toHaveLength(1);
+            expect(result.old[0].id).toBe('1');
+            expect(result.mid).toHaveLength(1);
+            expect(result.mid[0].id).toBe('2');
+            expect(result.recent).toHaveLength(1);
+            expect(result.recent[0].id).toBe('3');
+        });
+
+        it('handles boundary cases correctly', () => {
+            const memories = [
+                { id: '1', message_ids: [200] },  // exactly at 40% boundary
+                { id: '2', message_ids: [400] },  // exactly at 80% boundary
+            ];
+            const result = assignMemoriesToBuckets(memories, 500);
+
+            // 200 >= 200 (midThreshold) so it's mid
+            expect(result.mid.some(m => m.id === '1')).toBe(true);
+            // 400 >= 400 (recentThreshold) so it's recent
+            expect(result.recent.some(m => m.id === '2')).toBe(true);
+        });
+
+        it('returns empty buckets when no memories', () => {
+            const result = assignMemoriesToBuckets([], 500);
+            expect(result.old).toEqual([]);
+            expect(result.mid).toEqual([]);
+            expect(result.recent).toEqual([]);
+        });
+
+        it('puts all memories in recent when chatLength is 0', () => {
+            const memories = [
+                { id: '1', message_ids: [10] },
+                { id: '2', message_ids: [50] },
+            ];
+            const result = assignMemoriesToBuckets(memories, 0);
+
+            expect(result.old).toEqual([]);
+            expect(result.mid).toEqual([]);
+            expect(result.recent).toHaveLength(2);
+        });
+
+        it('sorts memories chronologically within each bucket', () => {
+            const memories = [
+                { id: '1', message_ids: [30], sequence: 30000 },
+                { id: '2', message_ids: [10], sequence: 10000 },
+                { id: '3', message_ids: [20], sequence: 20000 },
+            ];
+            const result = assignMemoriesToBuckets(memories, 500);
+
+            // All should be in 'old' bucket, sorted by sequence
+            expect(result.old[0].id).toBe('2'); // sequence 10000
+            expect(result.old[1].id).toBe('3'); // sequence 20000
+            expect(result.old[2].id).toBe('1'); // sequence 30000
+        });
+
+        it('handles null memories array', () => {
+            const result = assignMemoriesToBuckets(null, 500);
+            expect(result.old).toEqual([]);
+            expect(result.mid).toEqual([]);
+            expect(result.recent).toEqual([]);
         });
     });
 

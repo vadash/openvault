@@ -25,6 +25,44 @@ export function getMemoryPosition(memory) {
 }
 
 /**
+ * Assign memories to temporal buckets based on chat position
+ * @param {Object[]} memories - Array of memory objects
+ * @param {number} chatLength - Current chat length
+ * @returns {Object} Object with old, mid, recent arrays
+ */
+export function assignMemoriesToBuckets(memories, chatLength) {
+    const result = { old: [], mid: [], recent: [] };
+
+    if (!memories || memories.length === 0) {
+        return result;
+    }
+
+    // Calculate thresholds (Recent: last 20%, Mid: 40-80%, Old: 0-40%)
+    const recentThreshold = chatLength * 0.80;
+    const midThreshold = chatLength * 0.40;
+
+    for (const memory of memories) {
+        const position = getMemoryPosition(memory);
+
+        if (chatLength === 0 || position >= recentThreshold) {
+            result.recent.push(memory);
+        } else if (position >= midThreshold) {
+            result.mid.push(memory);
+        } else {
+            result.old.push(memory);
+        }
+    }
+
+    // Sort each bucket chronologically by sequence
+    const sortBySequence = (a, b) => (a.sequence || 0) - (b.sequence || 0);
+    result.old.sort(sortBySequence);
+    result.mid.sort(sortBySequence);
+    result.recent.sort(sortBySequence);
+
+    return result;
+}
+
+/**
  * Get relationship context for active characters
  * @param {Object} data - OpenVault data
  * @param {string} povCharacter - POV character name
