@@ -158,10 +158,11 @@ describe('formatting', () => {
 
     describe('formatContextForInjection', () => {
         // Basic structure tests
-        it('formats basic header with chat length', () => {
+        it('formats simplified header with chat length', () => {
             const result = formatContextForInjection([], [], null, 'Alice', 1000, 50);
             expect(result).toContain('<scene_memory>');
-            expect(result).toContain('(Current chat has #50 messages)');
+            expect(result).toContain('(#50 messages)');
+            expect(result).not.toContain('Current chat has');
             expect(result).toContain('</scene_memory>');
         });
 
@@ -256,83 +257,135 @@ describe('formatting', () => {
             expect(result).toContain('[★★★★★] Critical');
         });
 
-        it('marks secret memories with prefix', () => {
+        it('does NOT mark secret memories with [Secret] prefix (inverted logic)', () => {
             const memories = [
                 { id: '1', summary: 'Secret info', message_ids: [450], sequence: 450000, importance: 3, is_secret: true },
             ];
             const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
 
-            expect(result).toContain('[★★★] [Secret] Secret info');
+            expect(result).toContain('[★★★] Secret info');
+            expect(result).not.toContain('[Secret]');
         });
 
-        // Emotional state in RECENT bucket
-        it('includes emotional state in RECENT bucket', () => {
-            const memories = [
-                { id: '1', summary: 'Recent event', message_ids: [450], sequence: 450000, importance: 3 },
-            ];
-            const result = formatContextForInjection(memories, [], { emotion: 'anxious' }, 'Alice', 10000, 500);
+        // [Known] tag tests (inverted from [Secret])
+        describe('[Known] tag (inverted from [Secret])', () => {
+            it('no tag for secret memories (default private)', () => {
+                const memories = [
+                    { id: '1', summary: 'Private event', message_ids: [450], sequence: 450000, importance: 3, is_secret: true },
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
 
-            expect(result).toContain('## Current Scene');
-            expect(result).toContain('Emotional state: anxious');
+                expect(result).toContain('[★★★] Private event');
+                expect(result).not.toContain('[Secret]');
+                expect(result).not.toContain('[Known]');
+            });
 
-            // Emotional state should appear after RECENT header, before memories
-            const recentIndex = result.indexOf('## Current Scene');
-            const emotionIndex = result.indexOf('Emotional state:');
-            const memoryIndex = result.indexOf('Recent event');
-            expect(emotionIndex).toBeGreaterThan(recentIndex);
-            expect(emotionIndex).toBeLessThan(memoryIndex);
+            it('no tag for non-secret with 2 or fewer witnesses (default private)', () => {
+                const memories = [
+                    { id: '1', summary: 'Semi-private event', message_ids: [450], sequence: 450000, importance: 3, is_secret: false, witnesses: ['Alice', 'Bob'] },
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+
+                expect(result).toContain('[★★★] Semi-private event');
+                expect(result).not.toContain('[Known]');
+            });
+
+            it('adds [Known] tag for non-secret with more than 2 witnesses', () => {
+                const memories = [
+                    { id: '1', summary: 'Public event', message_ids: [450], sequence: 450000, importance: 3, is_secret: false, witnesses: ['Alice', 'Bob', 'Charlie'] },
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+
+                expect(result).toContain('[★★★] [Known] Public event');
+            });
+
+            it('no tag when witnesses array is empty', () => {
+                const memories = [
+                    { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3, is_secret: false, witnesses: [] },
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+
+                expect(result).not.toContain('[Known]');
+            });
+
+            it('no tag when witnesses field is missing', () => {
+                const memories = [
+                    { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3, is_secret: false },
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+
+                expect(result).not.toContain('[Known]');
+            });
         });
 
-        it('shows RECENT bucket with emotional state even if no recent memories', () => {
-            const memories = [
-                { id: '1', summary: 'Old event', message_ids: [50], sequence: 50000, importance: 3 },
-            ];
-            const result = formatContextForInjection(memories, [], { emotion: 'happy' }, 'Alice', 10000, 500);
+        // Emotional trajectory in Current Scene
+        describe('emotional trajectory in Current Scene', () => {
+            it('shows character emotions in simplified format', () => {
+                const memories = [
+                    { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 },
+                ];
+                const presentCharacters = ['Bob'];
+                const emotionalInfo = {
+                    emotion: 'anxious',
+                    characterEmotions: { 'Alice': 'anxious', 'Bob': 'caring' }
+                };
+                const result = formatContextForInjection(memories, presentCharacters, emotionalInfo, 'Alice', 10000, 500);
 
-            expect(result).toContain('## Current Scene');
-            expect(result).toContain('Emotional state: happy');
-        });
+                expect(result).toContain('## Current Scene');
+                expect(result).toContain('Emotions: Alice anxious, Bob caring');
+            });
 
-        it('excludes emotional state when neutral', () => {
-            const memories = [
-                { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 },
-            ];
-            const result = formatContextForInjection(memories, [], { emotion: 'neutral' }, 'Alice', 10000, 500);
+            it('omits emotions line when no character emotions', () => {
+                const memories = [
+                    { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 },
+                ];
+                const emotionalInfo = { emotion: 'neutral' };
+                const result = formatContextForInjection(memories, [], emotionalInfo, 'Alice', 10000, 500);
 
-            expect(result).not.toContain('Emotional state:');
-        });
+                expect(result).not.toContain('Emotions:');
+            });
 
-        it('includes message range for emotional state', () => {
-            const memories = [
-                { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 },
-            ];
-            const result = formatContextForInjection(
-                memories, [],
-                { emotion: 'sad', fromMessages: { min: 10, max: 15 } },
-                'Alice', 10000, 500
-            );
+            it('omits neutral emotions from trajectory', () => {
+                const memories = [
+                    { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 },
+                ];
+                const emotionalInfo = {
+                    emotion: 'happy',
+                    characterEmotions: { 'Alice': 'happy', 'Bob': 'neutral' }
+                };
+                const result = formatContextForInjection(memories, [], emotionalInfo, 'Alice', 10000, 500);
 
-            expect(result).toContain('Emotional state: sad (as of msgs #10-15)');
-        });
+                expect(result).toContain('Emotions: Alice happy');
+                expect(result).not.toContain('Bob');
+            });
 
-        it('formats single message for emotional state', () => {
-            const result = formatContextForInjection(
-                [{ id: '1', summary: 'E', message_ids: [450], sequence: 450000, importance: 3 }],
-                [],
-                { emotion: 'angry', fromMessages: { min: 5, max: 5 } },
-                'Alice', 10000, 500
-            );
+            it('limits emotions to 5 characters', () => {
+                const memories = [
+                    { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 },
+                ];
+                const emotionalInfo = {
+                    emotion: 'happy',
+                    characterEmotions: {
+                        'Alice': 'happy', 'Bob': 'sad', 'Charlie': 'angry',
+                        'Dave': 'excited', 'Eve': 'calm', 'Frank': 'worried'
+                    }
+                };
+                const result = formatContextForInjection(memories, [], emotionalInfo, 'Alice', 10000, 500);
 
-            expect(result).toContain('Emotional state: angry (as of msg #5)');
-        });
+                // Should have exactly 5 characters, not 6
+                const emotionsLine = result.match(/Emotions: (.+)/)?.[1] || '';
+                const commaCount = (emotionsLine.match(/,/g) || []).length;
+                expect(commaCount).toBe(4); // 5 items = 4 commas
+            });
 
-        it('handles string emotional info (legacy format)', () => {
-            const result = formatContextForInjection(
-                [{ id: '1', summary: 'E', message_ids: [450], sequence: 450000, importance: 3 }],
-                [], 'excited', 'Alice', 10000, 500
-            );
+            it('omits emotions line when emotionalInfo is string (legacy format)', () => {
+                const memories = [
+                    { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 },
+                ];
+                const result = formatContextForInjection(memories, [], 'excited', 'Alice', 10000, 500);
 
-            expect(result).toContain('Emotional state: excited');
+                expect(result).not.toContain('Emotions:');
+            });
         });
 
         // Present characters in RECENT bucket
@@ -485,65 +538,44 @@ describe('formatting', () => {
             });
         });
 
-        // Causality hints tests
-        describe('causality hints', () => {
-            it('adds "IMMEDIATELY AFTER" for gaps < 5 messages', () => {
+        // Causality hints tests (removed)
+        describe('causality hints (removed)', () => {
+            it('does NOT add "IMMEDIATELY AFTER" for gaps < 5 messages', () => {
                 const memories = [
                     { id: '1', summary: 'Event A', message_ids: [4980], sequence: 498000, importance: 3 },
-                    { id: '2', summary: 'Event B', message_ids: [4983], sequence: 498300, importance: 3 }, // gap = 3
+                    { id: '2', summary: 'Event B', message_ids: [4983], sequence: 498300, importance: 3 },
                 ];
                 const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-                expect(result).toContain('⤷ IMMEDIATELY AFTER');
+                expect(result).not.toContain('⤷');
+                expect(result).not.toContain('IMMEDIATELY AFTER');
             });
 
-            it('adds "Shortly after" for gaps 5-14 messages', () => {
+            it('does NOT add "Shortly after" for gaps 5-14 messages', () => {
                 const memories = [
                     { id: '1', summary: 'Event A', message_ids: [4980], sequence: 498000, importance: 3 },
-                    { id: '2', summary: 'Event B', message_ids: [4990], sequence: 499000, importance: 3 }, // gap = 10
+                    { id: '2', summary: 'Event B', message_ids: [4990], sequence: 499000, importance: 3 },
                 ];
                 const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-                expect(result).toContain('⤷ Shortly after');
+                expect(result).not.toContain('⤷');
+                expect(result).not.toContain('Shortly after');
             });
 
-            it('no causality hint for gaps >= 15 messages', () => {
+            it('no causality hints in any bucket', () => {
                 const memories = [
-                    { id: '1', summary: 'Event A', message_ids: [4960], sequence: 496000, importance: 3 },
-                    { id: '2', summary: 'Event B', message_ids: [4980], sequence: 498000, importance: 3 }, // gap = 20
+                    { id: '1', summary: 'Old A', message_ids: [100], sequence: 100000, importance: 3 },
+                    { id: '2', summary: 'Old B', message_ids: [103], sequence: 103000, importance: 3 },
                 ];
                 const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
                 expect(result).not.toContain('⤷');
             });
-
-            it('applies causality hints in all buckets', () => {
-                // Memories in old bucket with small gap
-                const memories = [
-                    { id: '1', summary: 'Old A', message_ids: [100], sequence: 100000, importance: 3 },
-                    { id: '2', summary: 'Old B', message_ids: [103], sequence: 103000, importance: 3 }, // gap = 3
-                ];
-                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
-
-                expect(result).toContain('⤷ IMMEDIATELY AFTER');
-            });
-
-            it('causality hint appears after the memory line', () => {
-                const memories = [
-                    { id: '1', summary: 'Event A', message_ids: [4980], sequence: 498000, importance: 3 },
-                    { id: '2', summary: 'Event B', message_ids: [4982], sequence: 498200, importance: 3 },
-                ];
-                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
-
-                const memoryIndex = result.indexOf('Event B');
-                const hintIndex = result.indexOf('⤷ IMMEDIATELY AFTER');
-                expect(hintIndex).toBeGreaterThan(memoryIndex);
-            });
         });
 
-        // Emotional annotations tests
-        describe('emotional annotations', () => {
-            it('adds emotional annotation for importance >= 4', () => {
+        // Emotional annotations tests (removed)
+        describe('emotional annotations (removed)', () => {
+            it('does NOT add emotional annotation even for importance >= 4', () => {
                 const memories = [
                     {
                         id: '1',
@@ -551,71 +583,24 @@ describe('formatting', () => {
                         message_ids: [4980],
                         sequence: 498000,
                         importance: 4,
-                        emotional_impact: ['guilt', 'shock']
-                    },
-                ];
-                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
-
-                expect(result).toContain('💔 Emotional: guilt, shock');
-            });
-
-            it('no emotional annotation for importance < 4', () => {
-                const memories = [
-                    {
-                        id: '1',
-                        summary: 'Minor event',
-                        message_ids: [4980],
-                        sequence: 498000,
-                        importance: 3,
-                        emotional_impact: ['happy']
+                        emotional_impact: { 'Alice': 'guilt', 'Bob': 'shock' }
                     },
                 ];
                 const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
                 expect(result).not.toContain('💔 Emotional:');
+                expect(result).toContain('[★★★★] Major event');
             });
 
-            it('no emotional annotation when emotional_impact is missing', () => {
+            it('does NOT add emotional annotation for importance 5', () => {
                 const memories = [
                     {
                         id: '1',
-                        summary: 'Major event',
+                        summary: 'Critical event',
                         message_ids: [4980],
                         sequence: 498000,
                         importance: 5,
-                        // no emotional_impact field
-                    },
-                ];
-                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
-
-                expect(result).not.toContain('💔 Emotional:');
-            });
-
-            it('handles string emotional_impact', () => {
-                const memories = [
-                    {
-                        id: '1',
-                        summary: 'Major event',
-                        message_ids: [4980],
-                        sequence: 498000,
-                        importance: 4,
-                        emotional_impact: 'fear'
-                    },
-                ];
-                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
-
-                expect(result).toContain('💔 Emotional: fear');
-            });
-
-            it('handles empty emotional_impact array', () => {
-                const memories = [
-                    {
-                        id: '1',
-                        summary: 'Major event',
-                        message_ids: [4980],
-                        sequence: 498000,
-                        importance: 5,
-                        emotional_impact: []
+                        emotional_impact: ['fear']
                     },
                 ];
                 const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
@@ -634,20 +619,24 @@ describe('formatting', () => {
                     { id: '4', summary: 'Great battle began', message_ids: [2000], sequence: 2000000, importance: 4, emotional_impact: ['fear', 'determination'] },
 
                     // Mid bucket (4500-4950)
-                    { id: '5', summary: 'Goblin stole the amulet', message_ids: [4550], sequence: 455000, importance: 4, emotional_impact: ['anger'] },
+                    { id: '5', summary: 'Goblin stole the amulet', message_ids: [4550], sequence: 455000, importance: 4, emotional_impact: { 'Hero': 'anger' } },
                     { id: '6', summary: 'Tracked goblin into forest', message_ids: [4553], sequence: 455300, importance: 3 },
 
                     // Recent bucket (> 4950)
-                    { id: '7', summary: 'Goblin camp was burned', message_ids: [4980], sequence: 498000, importance: 5, emotional_impact: ['triumph'] },
+                    { id: '7', summary: 'Goblin camp was burned', message_ids: [4980], sequence: 498000, importance: 5, emotional_impact: { 'Hero': 'triumph' } },
                     { id: '8', summary: 'Goblin is cornered', message_ids: [4985], sequence: 498500, importance: 4 },
                 ];
 
                 const presentCharacters = ['Goblin'];
+                const emotionalInfo = {
+                    emotion: 'anxious',
+                    characterEmotions: { 'Hero': 'determined', 'Goblin': 'terrified' }
+                };
 
                 const result = formatContextForInjection(
                     memories,
                     presentCharacters,
-                    { emotion: 'anxious' },
+                    emotionalInfo,
                     'Hero',
                     10000,
                     5000
@@ -658,22 +647,27 @@ describe('formatting', () => {
                 expect(result).toContain('## Leading Up To This Moment');
                 expect(result).toContain('## Current Scene');
 
+                // Simplified header
+                expect(result).toContain('(#5000 messages)');
+                expect(result).not.toContain('Current chat has');
+
                 // Gap separator in old bucket (105 -> 800 = 695 gap)
                 expect(result).toContain('...Much later...');
 
-                // Causality hint (4550 -> 4553 = 3 gap)
-                expect(result).toContain('⤷ IMMEDIATELY AFTER');
+                // NO causality hints (removed)
+                expect(result).not.toContain('⤷');
 
-                // Emotional annotations (importance >= 4)
-                expect(result).toContain('💔 Emotional: fear, determination');
-                expect(result).toContain('💔 Emotional: anger');
-                expect(result).toContain('💔 Emotional: triumph');
+                // NO per-memory emotional annotations (removed)
+                expect(result).not.toContain('💔 Emotional:');
 
-                // Emotional state in recent
-                expect(result).toContain('Emotional state: anxious');
+                // Character emotions in Current Scene
+                expect(result).toContain('Emotions: Hero determined, Goblin terrified');
 
                 // Present characters in recent
                 expect(result).toContain('Present: Goblin');
+
+                // Memories should NOT have [Secret] tags (inverted)
+                expect(result).not.toContain('[Secret]');
             });
         });
     });
