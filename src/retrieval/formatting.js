@@ -105,7 +105,7 @@ export function getRelationshipContext(data, povCharacter, activeCharacters) {
 }
 
 /**
- * Format context for injection into prompt
+ * Format context for injection into prompt using timeline buckets
  * @param {Object[]} memories - Selected memories
  * @param {Object[]} relationships - Relevant relationships
  * @param {Object} emotionalInfo - Emotional state info { emotion, fromMessages }
@@ -115,21 +115,26 @@ export function getRelationshipContext(data, povCharacter, activeCharacters) {
  * @returns {string} Formatted context string
  */
 export function formatContextForInjection(memories, relationships, emotionalInfo, characterName, tokenBudget, chatLength = 0) {
-    // Get current message number for context
-    const currentMessageNum = chatLength;
-
-    // Build header lines
-    const headerLines = [
+    const lines = [
         '<scene_memory>',
-        `(Current chat has #${currentMessageNum} messages)`,
+        `(Current chat has #${chatLength} messages)`,
         ''
     ];
 
-    // Emotional state - handle both old string format and new object format
-    const emotion = typeof emotionalInfo === 'string' ? emotionalInfo : emotionalInfo?.emotion;
-    const fromMessages = typeof emotionalInfo === 'object' ? emotionalInfo?.fromMessages : null;
+    // Assign memories to buckets
+    const buckets = assignMemoriesToBuckets(memories, chatLength);
 
-    if (emotion && emotion !== 'neutral') {
+    // Calculate bucket boundaries for headers
+    const midThreshold = Math.floor(chatLength * 0.40);
+    const recentThreshold = Math.floor(chatLength * 0.80);
+
+    // Helper to format emotional state
+    const formatEmotionalState = () => {
+        const emotion = typeof emotionalInfo === 'string' ? emotionalInfo : emotionalInfo?.emotion;
+        const fromMessages = typeof emotionalInfo === 'object' ? emotionalInfo?.fromMessages : null;
+
+        if (!emotion || emotion === 'neutral') return null;
+
         let emotionLine = `Emotional state: ${emotion}`;
         if (fromMessages) {
             const { min, max } = fromMessages;
@@ -137,67 +142,122 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
                 ? ` (as of msg #${min})`
                 : ` (as of msgs #${min}-${max})`;
         }
-        headerLines.push(emotionLine);
-        headerLines.push('');
-    }
+        return emotionLine;
+    };
 
-    // Relationships
-    if (relationships && relationships.length > 0) {
-        headerLines.push('Relationships with present characters:');
+    // Helper to format relationships
+    const formatRelationships = () => {
+        if (!relationships || relationships.length === 0) return [];
+
+        const relLines = ['Relationships with present characters:'];
         for (const rel of relationships) {
             const trustDesc = rel.trust >= 7 ? 'high trust' : rel.trust <= 3 ? 'low trust' : 'moderate trust';
             const tensionDesc = rel.tension >= 7 ? 'high tension' : rel.tension >= 4 ? 'some tension' : '';
-            headerLines.push(`- ${rel.character}: ${rel.type || 'acquaintance'} (${trustDesc}${tensionDesc ? ', ' + tensionDesc : ''})`);
+            relLines.push(`- ${rel.character}: ${rel.type || 'acquaintance'} (${trustDesc}${tensionDesc ? ', ' + tensionDesc : ''})`);
         }
-        headerLines.push('');
+        return relLines;
+    };
+
+    // Helper to format a single memory
+    const formatMemory = (memory) => {
+        const importance = memory.importance || 3;
+        const stars = '\u2605'.repeat(importance);
+        const prefix = memory.is_secret ? '[Secret] ' : '';
+        return `[${stars}] ${prefix}${memory.summary}`;
+    };
+
+    // Calculate token overhead for non-empty bucket headers
+    const bucketHeaders = {
+        old: `[ESTABLISHED HISTORY] (messages 1-${midThreshold})`,
+        mid: `[PREVIOUSLY] (messages ${midThreshold}-${recentThreshold})`,
+        recent: `[RECENT EVENTS] (messages ${recentThreshold}-${chatLength})`,
+    };
+
+    // Determine which buckets will be rendered
+    const emotionalLine = formatEmotionalState();
+    const relLines = formatRelationships();
+    const hasRecentContent = buckets.recent.length > 0 || emotionalLine || relLines.length > 0;
+
+    // Calculate overhead tokens
+    let overheadTokens = estimateTokens(lines.join('\n') + '</scene_memory>');
+    if (buckets.old.length > 0) overheadTokens += estimateTokens(bucketHeaders.old);
+    if (buckets.mid.length > 0) overheadTokens += estimateTokens(bucketHeaders.mid);
+    if (hasRecentContent) {
+        overheadTokens += estimateTokens(bucketHeaders.recent);
+        if (emotionalLine) overheadTokens += estimateTokens(emotionalLine);
+        if (relLines.length > 0) overheadTokens += estimateTokens(relLines.join('\n'));
     }
 
-    const footerLine = '</scene_memory>';
-
-    // Calculate overhead tokens (header + footer)
-    const overheadTokens = estimateTokens(headerLines.join('\n') + footerLine);
     const availableForMemories = tokenBudget - overheadTokens;
 
-    // Pre-truncate memories to fit within budget
-    let memoriesToFormat = memories || [];
-    if (memoriesToFormat.length > 0) {
-        const truncatedMemories = [];
-        let currentTokens = 0;
+    // Truncate memories to fit budget (across all buckets)
+    const allMemories = [...buckets.old, ...buckets.mid, ...buckets.recent];
+    let currentTokens = 0;
+    const fittingMemoryIds = new Set();
 
-        for (const memory of memoriesToFormat) {
-            const memoryTokens = estimateTokens(memory.summary || '') + 5; // +5 for formatting overhead
-            if (currentTokens + memoryTokens <= availableForMemories) {
-                truncatedMemories.push(memory);
-                currentTokens += memoryTokens;
-            } else {
-                break;
-            }
+    for (const memory of allMemories) {
+        const memoryTokens = estimateTokens(memory.summary || '') + 5;
+        if (currentTokens + memoryTokens <= availableForMemories) {
+            fittingMemoryIds.add(memory.id);
+            currentTokens += memoryTokens;
+        } else {
+            break;
         }
-        memoriesToFormat = truncatedMemories;
     }
 
-    // Build memory lines
-    const memoryLines = [];
-    if (memoriesToFormat.length > 0) {
-        const sortedMemories = sortMemoriesBySequence(memoriesToFormat, true);
+    // Filter buckets to only include fitting memories
+    const filteredBuckets = {
+        old: buckets.old.filter(m => fittingMemoryIds.has(m.id)),
+        mid: buckets.mid.filter(m => fittingMemoryIds.has(m.id)),
+        recent: buckets.recent.filter(m => fittingMemoryIds.has(m.id)),
+    };
 
-        memoryLines.push('Relevant memories (in chronological order, # show position in chat when it happened, \u2605=minor to \u2605\u2605\u2605\u2605\u2605=critical):');
-        sortedMemories.forEach((memory) => {
-            const prefix = memory.is_secret ? '[Secret] ' : '';
-            const msgIds = memory.message_ids || [];
-            let msgLabel = '';
-            if (msgIds.length === 1) {
-                msgLabel = `#${msgIds[0]}`;
-            } else if (msgIds.length > 1) {
-                const minMsg = Math.min(...msgIds);
-                msgLabel = `#${minMsg}`;
-            }
-            const importance = memory.importance || 3;
-            const importanceLabel = '\u2605'.repeat(importance);
-            memoryLines.push(`${msgLabel} [${importanceLabel}] ${prefix}${memory.summary}`);
-        });
+    // Render OLD bucket
+    if (filteredBuckets.old.length > 0) {
+        lines.push(bucketHeaders.old);
+        for (const memory of filteredBuckets.old) {
+            lines.push(formatMemory(memory));
+        }
+        lines.push('');
     }
 
-    // Combine all lines
-    return [...headerLines, ...memoryLines, footerLine].join('\n');
+    // Render MID bucket
+    if (filteredBuckets.mid.length > 0) {
+        lines.push(bucketHeaders.mid);
+        for (const memory of filteredBuckets.mid) {
+            lines.push(formatMemory(memory));
+        }
+        lines.push('');
+    }
+
+    // Render RECENT bucket (always if has content: memories, emotion, or relationships)
+    const hasFilteredRecentContent = filteredBuckets.recent.length > 0 || emotionalLine || relLines.length > 0;
+    if (hasFilteredRecentContent) {
+        lines.push(bucketHeaders.recent);
+
+        // Emotional state first
+        if (emotionalLine) {
+            lines.push(emotionalLine);
+        }
+
+        // Relationships second
+        if (relLines.length > 0) {
+            lines.push(...relLines);
+        }
+
+        // Add blank line before memories if we have context above
+        if ((emotionalLine || relLines.length > 0) && filteredBuckets.recent.length > 0) {
+            lines.push('');
+        }
+
+        // Recent memories
+        for (const memory of filteredBuckets.recent) {
+            lines.push(formatMemory(memory));
+        }
+        lines.push('');
+    }
+
+    lines.push('</scene_memory>');
+
+    return lines.join('\n');
 }
