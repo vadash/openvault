@@ -40,6 +40,20 @@ function getGapSeparator(gap) {
 }
 
 /**
+ * Get causality hint text based on message distance
+ * @param {number} gap - Number of messages between memories
+ * @returns {string|null} Causality hint or null if gap too large
+ */
+function getCausalityHint(gap) {
+    if (gap < IMMEDIATE_GAP) {
+        return '    ⤷ IMMEDIATELY AFTER';
+    } else if (gap < CLOSE_GAP) {
+        return '    ⤷ Shortly after';
+    }
+    return null;
+}
+
+/**
  * Get the effective position of a memory in the chat timeline
  * @param {Object} memory - Memory object
  * @returns {number} Position as message number
@@ -240,16 +254,17 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
         recent: buckets.recent.filter(m => fittingMemoryIds.has(m.id)),
     };
 
-    // Render OLD bucket (with gap separators)
+    // Render OLD bucket (with gap separators and causality hints)
     if (filteredBuckets.old.length > 0) {
         lines.push(bucketHeaders.old);
         for (let i = 0; i < filteredBuckets.old.length; i++) {
             const memory = filteredBuckets.old[i];
+            let gap = 0;
 
             // Add gap separator if not first memory
             if (i > 0) {
                 const prevMemory = filteredBuckets.old[i - 1];
-                const gap = getMemoryPosition(memory) - getMemoryPosition(prevMemory);
+                gap = getMemoryPosition(memory) - getMemoryPosition(prevMemory);
                 const separator = getGapSeparator(gap);
                 if (separator) {
                     lines.push('');
@@ -259,15 +274,34 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
             }
 
             lines.push(formatMemory(memory));
+
+            // Add causality hint for small gaps (no separator was added)
+            if (i > 0 && gap < GAP_SMALL) {
+                const hint = getCausalityHint(gap);
+                if (hint) {
+                    lines.push(hint);
+                }
+            }
         }
         lines.push('');
     }
 
-    // Render MID bucket
+    // Render MID bucket (with causality hints)
     if (filteredBuckets.mid.length > 0) {
         lines.push(bucketHeaders.mid);
-        for (const memory of filteredBuckets.mid) {
+        for (let i = 0; i < filteredBuckets.mid.length; i++) {
+            const memory = filteredBuckets.mid[i];
             lines.push(formatMemory(memory));
+
+            // Add causality hint for close memories
+            if (i > 0) {
+                const prevMemory = filteredBuckets.mid[i - 1];
+                const gap = getMemoryPosition(memory) - getMemoryPosition(prevMemory);
+                const hint = getCausalityHint(gap);
+                if (hint) {
+                    lines.push(hint);
+                }
+            }
         }
         lines.push('');
     }
@@ -292,9 +326,20 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
             lines.push('');
         }
 
-        // Recent memories
-        for (const memory of filteredBuckets.recent) {
+        // Recent memories (with causality hints)
+        for (let i = 0; i < filteredBuckets.recent.length; i++) {
+            const memory = filteredBuckets.recent[i];
             lines.push(formatMemory(memory));
+
+            // Add causality hint for close memories
+            if (i > 0) {
+                const prevMemory = filteredBuckets.recent[i - 1];
+                const gap = getMemoryPosition(memory) - getMemoryPosition(prevMemory);
+                const hint = getCausalityHint(gap);
+                if (hint) {
+                    lines.push(hint);
+                }
+            }
         }
         lines.push('');
     }

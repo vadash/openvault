@@ -624,5 +624,61 @@ describe('formatting', () => {
                 expect(result).not.toContain('...Later...');
             });
         });
+
+        // Causality hints tests
+        describe('causality hints', () => {
+            it('adds "IMMEDIATELY AFTER" for gaps < 5 messages', () => {
+                const memories = [
+                    { id: '1', summary: 'Event A', message_ids: [4980], sequence: 498000, importance: 3 },
+                    { id: '2', summary: 'Event B', message_ids: [4983], sequence: 498300, importance: 3 }, // gap = 3
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+
+                expect(result).toContain('⤷ IMMEDIATELY AFTER');
+            });
+
+            it('adds "Shortly after" for gaps 5-14 messages', () => {
+                const memories = [
+                    { id: '1', summary: 'Event A', message_ids: [4980], sequence: 498000, importance: 3 },
+                    { id: '2', summary: 'Event B', message_ids: [4990], sequence: 499000, importance: 3 }, // gap = 10
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+
+                expect(result).toContain('⤷ Shortly after');
+            });
+
+            it('no causality hint for gaps >= 15 messages', () => {
+                const memories = [
+                    { id: '1', summary: 'Event A', message_ids: [4960], sequence: 496000, importance: 3 },
+                    { id: '2', summary: 'Event B', message_ids: [4980], sequence: 498000, importance: 3 }, // gap = 20
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+
+                expect(result).not.toContain('⤷');
+            });
+
+            it('applies causality hints in all buckets', () => {
+                // Memories in old bucket with small gap
+                const memories = [
+                    { id: '1', summary: 'Old A', message_ids: [100], sequence: 100000, importance: 3 },
+                    { id: '2', summary: 'Old B', message_ids: [103], sequence: 103000, importance: 3 }, // gap = 3
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+
+                expect(result).toContain('⤷ IMMEDIATELY AFTER');
+            });
+
+            it('causality hint appears after the memory line', () => {
+                const memories = [
+                    { id: '1', summary: 'Event A', message_ids: [4980], sequence: 498000, importance: 3 },
+                    { id: '2', summary: 'Event B', message_ids: [4982], sequence: 498200, importance: 3 },
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+
+                const memoryIndex = result.indexOf('Event B');
+                const hintIndex = result.indexOf('⤷ IMMEDIATELY AFTER');
+                expect(hintIndex).toBeGreaterThan(memoryIndex);
+            });
+        });
     });
 });
