@@ -5,7 +5,7 @@
  */
 
 import { RELATIONSHIPS_KEY } from '../constants.js';
-import { sortMemoriesBySequence, estimateTokens } from '../utils.js';
+import { estimateTokens } from '../utils.js';
 
 /**
  * Get the effective position of a memory in the chat timeline
