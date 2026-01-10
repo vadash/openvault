@@ -100,8 +100,8 @@ function registerCommands() {
  */
 jQuery(() => {
     // Register APP_READY listener synchronously to avoid race conditions
-    const { eventSource, event_types } = getDeps();
-    eventSource.on(event_types.APP_READY, async () => {
+    const { eventSource, eventTypes } = getDeps();
+    eventSource.on(eventTypes.APP_READY, async () => {
         // Check SillyTavern version
         try {
             const response = await fetch('/version');
