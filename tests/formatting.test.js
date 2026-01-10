@@ -389,11 +389,11 @@ describe('formatting', () => {
             ];
             const result = formatContextForInjection(memories, [], { emotion: 'anxious' }, 'Alice', 10000, 500);
 
-            expect(result).toContain('[RECENT EVENTS]');
+            expect(result).toContain('## Current Scene');
             expect(result).toContain('Emotional state: anxious');
 
             // Emotional state should appear after RECENT header, before memories
-            const recentIndex = result.indexOf('[RECENT EVENTS]');
+            const recentIndex = result.indexOf('## Current Scene');
             const emotionIndex = result.indexOf('Emotional state:');
             const memoryIndex = result.indexOf('Recent event');
             expect(emotionIndex).toBeGreaterThan(recentIndex);
@@ -406,7 +406,7 @@ describe('formatting', () => {
             ];
             const result = formatContextForInjection(memories, [], { emotion: 'happy' }, 'Alice', 10000, 500);
 
-            expect(result).toContain('[RECENT EVENTS]');
+            expect(result).toContain('## Current Scene');
             expect(result).toContain('Emotional state: happy');
         });
 
@@ -462,7 +462,7 @@ describe('formatting', () => {
             ];
             const result = formatContextForInjection(memories, relationships, null, 'Alice', 10000, 500);
 
-            expect(result).toContain('[RECENT EVENTS]');
+            expect(result).toContain('## Current Scene');
             expect(result).toContain('Relationships with present characters:');
             expect(result).toContain('- Bob: friend (high trust)');
 
@@ -542,7 +542,7 @@ describe('formatting', () => {
             const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 0);
 
             // All memories should be in RECENT when chatLength is 0
-            expect(result).toContain('[RECENT EVENTS]');
+            expect(result).toContain('## Current Scene');
             expect(result).toContain('Event');
         });
 
