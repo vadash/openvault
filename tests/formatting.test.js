@@ -763,5 +763,60 @@ describe('formatting', () => {
                 expect(result).not.toContain('💔 Emotional:');
             });
         });
+
+        describe('narrative engine integration', () => {
+            it('produces expected narrative output for long chat', () => {
+                const memories = [
+                    // Old bucket (position < 4500 in 5000 chat)
+                    { id: '1', summary: 'Bought a sword', message_ids: [100], sequence: 100000, importance: 2 },
+                    { id: '2', summary: 'Elder warned of goblins', message_ids: [105], sequence: 105000, importance: 3 },
+                    { id: '3', summary: 'Met Marcus at tavern', message_ids: [800], sequence: 800000, importance: 2 },
+                    { id: '4', summary: 'Great battle began', message_ids: [2000], sequence: 2000000, importance: 4, emotional_impact: ['fear', 'determination'] },
+
+                    // Mid bucket (4500-4950)
+                    { id: '5', summary: 'Goblin stole the amulet', message_ids: [4550], sequence: 455000, importance: 4, emotional_impact: ['anger'] },
+                    { id: '6', summary: 'Tracked goblin into forest', message_ids: [4553], sequence: 455300, importance: 3 },
+
+                    // Recent bucket (> 4950)
+                    { id: '7', summary: 'Goblin camp was burned', message_ids: [4980], sequence: 498000, importance: 5, emotional_impact: ['triumph'] },
+                    { id: '8', summary: 'Goblin is cornered', message_ids: [4985], sequence: 498500, importance: 4 },
+                ];
+
+                const relationships = [
+                    { character: 'Goblin', trust: 1, tension: 9, type: 'enemy' },
+                ];
+
+                const result = formatContextForInjection(
+                    memories,
+                    relationships,
+                    { emotion: 'anxious' },
+                    'Hero',
+                    10000,
+                    5000
+                );
+
+                // Structure checks
+                expect(result).toContain('## The Story So Far');
+                expect(result).toContain('## Leading Up To This Moment');
+                expect(result).toContain('## Current Scene');
+
+                // Gap separator in old bucket (105 -> 800 = 695 gap)
+                expect(result).toContain('...Much later...');
+
+                // Causality hint (4550 -> 4553 = 3 gap)
+                expect(result).toContain('⤷ IMMEDIATELY AFTER');
+
+                // Emotional annotations (importance >= 4)
+                expect(result).toContain('💔 Emotional: fear, determination');
+                expect(result).toContain('💔 Emotional: anger');
+                expect(result).toContain('💔 Emotional: triumph');
+
+                // Emotional state in recent
+                expect(result).toContain('Emotional state: anxious');
+
+                // Relationships in recent
+                expect(result).toContain('Goblin: enemy (low trust, high tension)');
+            });
+        });
     });
 });
