@@ -140,10 +140,6 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
     // Assign memories to buckets
     const buckets = assignMemoriesToBuckets(memories, chatLength);
 
-    // Calculate bucket boundaries for headers
-    const midThreshold = Math.floor(chatLength * 0.40);
-    const recentThreshold = Math.floor(chatLength * 0.80);
-
     // Helper to format emotional state
     const formatEmotionalState = () => {
         const emotion = typeof emotionalInfo === 'string' ? emotionalInfo : emotionalInfo?.emotion;
@@ -184,9 +180,9 @@ export function formatContextForInjection(memories, relationships, emotionalInfo
 
     // Calculate token overhead for non-empty bucket headers
     const bucketHeaders = {
-        old: `[ESTABLISHED HISTORY] (messages 1-${midThreshold})`,
-        mid: `[PREVIOUSLY] (messages ${midThreshold}-${recentThreshold})`,
-        recent: `[RECENT EVENTS] (messages ${recentThreshold}-${chatLength})`,
+        old: '## The Story So Far',
+        mid: '## Leading Up To This Moment',
+        recent: '## Current Scene',
     };
 
     // Determine which buckets will be rendered

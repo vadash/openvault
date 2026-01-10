@@ -284,72 +284,69 @@ describe('formatting', () => {
 
         it('does not show memories section when no memories', () => {
             const result = formatContextForInjection([], [], null, 'Alice', 1000, 50);
-            expect(result).not.toContain('[ESTABLISHED HISTORY]');
-            expect(result).not.toContain('[PREVIOUSLY]');
-            expect(result).not.toContain('[RECENT EVENTS]');
+            expect(result).not.toContain('## The Story So Far');
+            expect(result).not.toContain('## Leading Up To This Moment');
+            expect(result).not.toContain('## Current Scene');
         });
 
         // Timeline bucket tests
-        it('renders OLD bucket with correct header', () => {
+        it('renders old bucket with markdown header', () => {
             const memories = [
                 { id: '1', summary: 'Old event', message_ids: [50], sequence: 50000, importance: 3 },
             ];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-            expect(result).toContain('[ESTABLISHED HISTORY]');
-            expect(result).toContain('messages 1-200');
+            expect(result).toContain('## The Story So Far');
             expect(result).toContain('Old event');
         });
 
-        it('renders MID bucket with correct header', () => {
+        it('renders mid bucket with markdown header', () => {
             const memories = [
-                { id: '1', summary: 'Mid event', message_ids: [300], sequence: 300000, importance: 3 },
+                { id: '1', summary: 'Mid event', message_ids: [4600], sequence: 460000, importance: 3 },
             ];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-            expect(result).toContain('[PREVIOUSLY]');
-            expect(result).toContain('messages 200-400');
+            expect(result).toContain('## Leading Up To This Moment');
             expect(result).toContain('Mid event');
         });
 
-        it('renders RECENT bucket with correct header', () => {
+        it('renders recent bucket with markdown header', () => {
             const memories = [
-                { id: '1', summary: 'Recent event', message_ids: [450], sequence: 450000, importance: 3 },
+                { id: '1', summary: 'Recent event', message_ids: [4980], sequence: 498000, importance: 3 },
             ];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-            expect(result).toContain('[RECENT EVENTS]');
-            expect(result).toContain('messages 400-500');
+            expect(result).toContain('## Current Scene');
             expect(result).toContain('Recent event');
         });
 
         it('skips empty buckets', () => {
             const memories = [
-                { id: '1', summary: 'Recent only', message_ids: [480], sequence: 480000, importance: 3 },
+                { id: '1', summary: 'Recent only', message_ids: [4980], sequence: 498000, importance: 3 },
             ];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-            expect(result).not.toContain('[ESTABLISHED HISTORY]');
-            expect(result).not.toContain('[PREVIOUSLY]');
-            expect(result).toContain('[RECENT EVENTS]');
+            expect(result).not.toContain('## The Story So Far');
+            expect(result).not.toContain('## Leading Up To This Moment');
+            expect(result).toContain('## Current Scene');
         });
 
         it('renders all three buckets when populated', () => {
             const memories = [
                 { id: '1', summary: 'Old', message_ids: [50], sequence: 50000, importance: 3 },
-                { id: '2', summary: 'Mid', message_ids: [300], sequence: 300000, importance: 3 },
-                { id: '3', summary: 'Recent', message_ids: [450], sequence: 450000, importance: 3 },
+                { id: '2', summary: 'Mid', message_ids: [4600], sequence: 460000, importance: 3 },
+                { id: '3', summary: 'Recent', message_ids: [4980], sequence: 498000, importance: 3 },
             ];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-            expect(result).toContain('[ESTABLISHED HISTORY]');
-            expect(result).toContain('[PREVIOUSLY]');
-            expect(result).toContain('[RECENT EVENTS]');
+            expect(result).toContain('## The Story So Far');
+            expect(result).toContain('## Leading Up To This Moment');
+            expect(result).toContain('## Current Scene');
 
-            // Verify order: OLD before MID before RECENT
-            const oldIndex = result.indexOf('[ESTABLISHED HISTORY]');
-            const midIndex = result.indexOf('[PREVIOUSLY]');
-            const recentIndex = result.indexOf('[RECENT EVENTS]');
+            // Verify order
+            const oldIndex = result.indexOf('## The Story So Far');
+            const midIndex = result.indexOf('## Leading Up To This Moment');
+            const recentIndex = result.indexOf('## Current Scene');
             expect(oldIndex).toBeLessThan(midIndex);
             expect(midIndex).toBeLessThan(recentIndex);
         });
@@ -357,9 +354,9 @@ describe('formatting', () => {
         // Memory formatting tests (simplified format)
         it('formats memories with stars only (no message numbers)', () => {
             const memories = [
-                { id: '1', summary: 'Test event', message_ids: [450], sequence: 450000, importance: 3 },
+                { id: '1', summary: 'Test event', message_ids: [4980], sequence: 498000, importance: 3 },
             ];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
             expect(result).toContain('[★★★] Test event');
             expect(result).not.toMatch(/#\d+ \[★/); // No message numbers before stars
