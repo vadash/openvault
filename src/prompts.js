@@ -120,7 +120,7 @@ If most extractions are 4-5, you're over-rating routine events.
 {
   "event_type": "action|revelation|emotion_shift|relationship_change",
   "importance": 1-5,
-  "summary": "12-32 words, past tense, English, factual with context",
+  "summary": "8-18 words, past tense, English, factual. NO meta-commentary (avoid 'establishing', 'showing', 'demonstrating').",
   "characters_involved": ["exact names from <characters>"],
   "witnesses": ["names who observed this event"],
   "location": "where it happened or null",
@@ -157,7 +157,7 @@ function _extractionExamples() {
   {
     "event_type": "action",
     "importance": 4,
-    "summary": "Marcus attacked the assassin with his sword to protect Elena.",
+    "summary": "Marcus attacked assassin with sword to protect Elena.",
     "characters_involved": ["Marcus"],
     "witnesses": ["Marcus", "Elena", "Assassin"],
     "location": "moonlit courtyard",
@@ -175,7 +175,7 @@ function _extractionExamples() {
   {
     "event_type": "relationship_change",
     "importance": 4,
-    "summary": "Sarah and Tom formed an uneasy alliance despite their rivalry.",
+    "summary": "Sarah and Tom formed uneasy alliance despite rivalry.",
     "characters_involved": ["Sarah", "Tom"],
     "witnesses": ["Sarah", "Tom"],
     "location": null,
@@ -210,7 +210,7 @@ function _extractionExamples() {
   {
     "event_type": "action",
     "importance": 3,
-    "summary": "Liam caressed Anya's cheek and requested a kiss, which she eagerly accepted.",
+    "summary": "Liam caressed Anya's cheek, requested kiss; she accepted eagerly.",
     "characters_involved": ["Liam", "Anya"],
     "witnesses": ["Liam", "Anya"],
     "location": null,
@@ -434,7 +434,7 @@ function _extractionExamples() {
   {
     "event_type": "action",
     "importance": 4,
-    "summary": "Derek introduced pet roleplay by collaring Sasha, who accepted the submissive role and addressed him as Master for the first time.",
+    "summary": "Derek collared Sasha, initiating pet roleplay; she called him Master.",
     "characters_involved": ["Derek", "Sasha"],
     "witnesses": ["Derek", "Sasha"],
     "location": null,
@@ -444,6 +444,22 @@ function _extractionExamples() {
   }
 ]</output>
 <note>New element (collar) + new roleplay dynamic (pet/Master). EXTRACT as importance 4.</note>
+</example>
+
+<example type="avoid_meta_commentary">
+<input>[Derek]: *pulls out the leather collar* You're going to wear this from now on.
+[Sasha]: *kneels submissively* Yes, Master. *accepts the collar*</input>
+<wrong_output>[
+  {
+    "summary": "Derek established dominance by presenting a collar to Sasha, establishing their D/s dynamic."
+  }
+]</wrong_output>
+<correct_output>[
+  {
+    "summary": "Derek gave Sasha a leather collar; she knelt and accepted it."
+  }
+]</correct_output>
+<note>Avoid meta-commentary words like "established", "establishing", "showing", "demonstrating". Just state what happened.</note>
 </example>
 </examples>`;
 }
@@ -466,7 +482,7 @@ Extract significant events from <messages> following these steps:
 
 3. For each significant event, COMPOSE output:
    - Use exact character names from <characters> (no transliteration)
-   - Write summary in PAST TENSE, 12-32 words, English, factual with relevant context (who, what, where, why when significant)
+   - Write summary in PAST TENSE, 8-18 words, English, factual (who, what, where)
    - Put emotions in emotional_impact, NOT in summary
    - Assign importance 1-5 based on story impact
    - Ensure summary and impacts accurately reflect consent, character agency, and any established boundaries
