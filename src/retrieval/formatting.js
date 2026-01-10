@@ -53,9 +53,9 @@ export function assignMemoriesToBuckets(memories, chatLength) {
         return result;
     }
 
-    // Calculate thresholds (Recent: last 20%, Mid: 40-80%, Old: 0-40%)
-    const recentThreshold = chatLength * 0.80;
-    const midThreshold = chatLength * 0.40;
+    // Fixed window thresholds
+    const recentThreshold = Math.max(0, chatLength - CURRENT_SCENE_SIZE);
+    const midThreshold = Math.max(0, chatLength - LEADING_UP_SIZE);
 
     for (const memory of memories) {
         const position = getMemoryPosition(memory);

@@ -166,13 +166,14 @@ describe('formatting', () => {
     });
 
     describe('assignMemoriesToBuckets', () => {
-        it('assigns memories to correct buckets based on position', () => {
+        it('assigns memories to correct buckets with fixed windows', () => {
+            // Chat length 5000: recent > 4950, mid > 4500, old <= 4500
             const memories = [
-                { id: '1', message_ids: [50] },   // position 50, old (0-40%)
-                { id: '2', message_ids: [250] },  // position 250, mid (40-80%)
-                { id: '3', message_ids: [450] },  // position 450, recent (80-100%)
+                { id: '1', message_ids: [100] },    // old (< 4500)
+                { id: '2', message_ids: [4600] },   // mid (4500-4950)
+                { id: '3', message_ids: [4980] },   // recent (> 4950)
             ];
-            const result = assignMemoriesToBuckets(memories, 500);
+            const result = assignMemoriesToBuckets(memories, 5000);
 
             expect(result.old).toHaveLength(1);
             expect(result.old[0].id).toBe('1');
@@ -182,21 +183,57 @@ describe('formatting', () => {
             expect(result.recent[0].id).toBe('3');
         });
 
-        it('handles boundary cases correctly', () => {
+        it('handles boundary at CURRENT_SCENE_SIZE (50)', () => {
+            // Chat length 5000: recent threshold = 4950
             const memories = [
-                { id: '1', message_ids: [200] },  // exactly at 40% boundary
-                { id: '2', message_ids: [400] },  // exactly at 80% boundary
+                { id: '1', message_ids: [4950] },  // exactly at boundary = recent
+                { id: '2', message_ids: [4949] },  // just below = mid
             ];
-            const result = assignMemoriesToBuckets(memories, 500);
+            const result = assignMemoriesToBuckets(memories, 5000);
 
-            // 200 >= 200 (midThreshold) so it's mid
+            expect(result.recent.some(m => m.id === '1')).toBe(true);
+            expect(result.mid.some(m => m.id === '2')).toBe(true);
+        });
+
+        it('handles boundary at LEADING_UP_SIZE (500)', () => {
+            // Chat length 5000: mid threshold = 4500
+            const memories = [
+                { id: '1', message_ids: [4500] },  // exactly at boundary = mid
+                { id: '2', message_ids: [4499] },  // just below = old
+            ];
+            const result = assignMemoriesToBuckets(memories, 5000);
+
             expect(result.mid.some(m => m.id === '1')).toBe(true);
-            // 400 >= 400 (recentThreshold) so it's recent
-            expect(result.recent.some(m => m.id === '2')).toBe(true);
+            expect(result.old.some(m => m.id === '2')).toBe(true);
+        });
+
+        it('puts everything in recent when chat < CURRENT_SCENE_SIZE', () => {
+            const memories = [
+                { id: '1', message_ids: [10] },
+                { id: '2', message_ids: [30] },
+            ];
+            const result = assignMemoriesToBuckets(memories, 40); // < 50
+
+            expect(result.old).toEqual([]);
+            expect(result.mid).toEqual([]);
+            expect(result.recent).toHaveLength(2);
+        });
+
+        it('has no old bucket when chat < LEADING_UP_SIZE', () => {
+            // Chat length 200: recent > 150, mid > -300 (clamped to 0)
+            const memories = [
+                { id: '1', message_ids: [50] },   // mid (0-150)
+                { id: '2', message_ids: [180] },  // recent (> 150)
+            ];
+            const result = assignMemoriesToBuckets(memories, 200);
+
+            expect(result.old).toEqual([]);
+            expect(result.mid).toHaveLength(1);
+            expect(result.recent).toHaveLength(1);
         });
 
         it('returns empty buckets when no memories', () => {
-            const result = assignMemoriesToBuckets([], 500);
+            const result = assignMemoriesToBuckets([], 5000);
             expect(result.old).toEqual([]);
             expect(result.mid).toEqual([]);
             expect(result.recent).toEqual([]);
@@ -220,16 +257,16 @@ describe('formatting', () => {
                 { id: '2', message_ids: [10], sequence: 10000 },
                 { id: '3', message_ids: [20], sequence: 20000 },
             ];
-            const result = assignMemoriesToBuckets(memories, 500);
+            const result = assignMemoriesToBuckets(memories, 5000);
 
-            // All should be in 'old' bucket, sorted by sequence
-            expect(result.old[0].id).toBe('2'); // sequence 10000
-            expect(result.old[1].id).toBe('3'); // sequence 20000
-            expect(result.old[2].id).toBe('1'); // sequence 30000
+            // All in 'old' bucket, sorted by sequence
+            expect(result.old[0].id).toBe('2');
+            expect(result.old[1].id).toBe('3');
+            expect(result.old[2].id).toBe('1');
         });
 
         it('handles null memories array', () => {
-            const result = assignMemoriesToBuckets(null, 500);
+            const result = assignMemoriesToBuckets(null, 5000);
             expect(result.old).toEqual([]);
             expect(result.mid).toEqual([]);
             expect(result.recent).toEqual([]);
