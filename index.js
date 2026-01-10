@@ -10,112 +10,19 @@
 import { getDeps } from './src/deps.js';
 
 // Import from modular structure
-import { extensionName } from './src/constants.js';
+import { extensionName, MEMORIES_KEY } from './src/constants.js';
 import { getOpenVaultData, showToast, log } from './src/utils.js';
-import { deleteCurrentChatData, deleteCurrentChatEmbeddings } from './src/data/actions.js';
 import { setChatLoadingCooldown } from './src/state.js';
-import { loadSettings, setExternalFunctions } from './src/ui/settings.js';
+import { loadSettings } from './src/ui/settings.js';
 import { setStatus } from './src/ui/status.js';
 import { refreshAllUI } from './src/ui/browser.js';
 import { extractMemories } from './src/extraction/extract.js';
-import { extractAllMessages } from './src/extraction/batch.js';
 import { retrieveAndInjectContext } from './src/retrieval/retrieve.js';
-import { updateEventListeners } from './src/events.js';
-import { MEMORIES_KEY } from './src/constants.js';
-import { generateEmbeddingsForMemories, isEmbeddingsEnabled } from './src/embeddings.js';
+import { updateEventListeners } from './src/listeners.js';
+import { isEmbeddingsEnabled, generateEmbeddingsForMemories } from './src/embeddings.js';
 
 // Re-export extensionName for external use
 export { extensionName };
-
-/**
- * Delete current chat's OpenVault data (UI wrapper for data action)
- */
-async function handleDeleteCurrentChatData() {
-    if (!confirm('Are you sure you want to delete all OpenVault data for this chat?')) {
-        return;
-    }
-
-    const deleted = await deleteCurrentChatData();
-    if (deleted) {
-        showToast('success', 'Chat memories deleted');
-        refreshAllUI();
-    }
-}
-
-/**
- * Delete embeddings from current chat's memories (UI wrapper for data action)
- */
-async function handleDeleteCurrentChatEmbeddings() {
-    if (!confirm('Are you sure you want to delete all embeddings for this chat?')) {
-        return;
-    }
-
-    const data = getOpenVaultData();
-    if (!data || !data[MEMORIES_KEY]) {
-        showToast('warning', 'No memories found');
-        return;
-    }
-
-    const count = await deleteCurrentChatEmbeddings();
-    if (count > 0) {
-        showToast('success', `Deleted ${count} embeddings`);
-        refreshAllUI();
-    } else {
-        showToast('info', 'No embeddings to delete');
-    }
-}
-
-/**
- * Wrapper for extractAllMessages that passes updateEventListeners
- */
-function extractAllMessagesWrapper() {
-    return extractAllMessages(updateEventListeners);
-}
-
-/**
- * Generate embeddings for existing memories that don't have them
- */
-async function backfillEmbeddings() {
-    if (!isEmbeddingsEnabled()) {
-        showToast('warning', 'Configure Ollama URL and embedding model first');
-        return;
-    }
-
-    const data = getOpenVaultData();
-    if (!data) {
-        showToast('warning', 'No chat data available');
-        return;
-    }
-
-    const memories = data[MEMORIES_KEY] || [];
-    const needsEmbedding = memories.filter(m => !m.embedding);
-
-    if (needsEmbedding.length === 0) {
-        showToast('info', 'All memories already have embeddings');
-        return;
-    }
-
-    showToast('info', `Generating embeddings for ${needsEmbedding.length} memories...`);
-    setStatus('extracting');
-
-    try {
-        const count = await generateEmbeddingsForMemories(needsEmbedding);
-
-        if (count > 0) {
-            await getDeps().saveChatConditional();
-            showToast('success', `Generated ${count} embeddings`);
-            log(`Backfill complete: generated ${count} embeddings for existing memories`);
-        } else {
-            showToast('warning', 'No embeddings generated - check Ollama connection');
-        }
-    } catch (error) {
-        console.error('[OpenVault] Backfill embeddings error:', error);
-        showToast('error', `Embedding generation failed: ${error.message}`);
-    }
-
-    setStatus('ready');
-    refreshAllUI();
-}
 
 /**
  * Register slash commands
@@ -211,17 +118,6 @@ jQuery(() => {
             showToast('error', 'OpenVault failed to verify SillyTavern version');
             return;
         }
-
-        // Set external function references for settings UI
-        setExternalFunctions({
-            updateEventListeners,
-            extractMemories,
-            retrieveAndInjectContext,
-            extractAllMessages: extractAllMessagesWrapper,
-            deleteCurrentChatData: handleDeleteCurrentChatData,
-            deleteCurrentChatEmbeddings: handleDeleteCurrentChatEmbeddings,
-            backfillEmbeddings,
-        });
 
         await loadSettings();
         registerCommands();
