@@ -37,11 +37,6 @@ vi.mock('../src/prompts.js', () => ({
 vi.mock('../src/extraction/parser.js', () => ({
     parseExtractionResult: vi.fn(),
     updateCharacterStatesFromEvents: vi.fn(),
-    updateRelationshipsFromEvents: vi.fn(),
-}));
-
-vi.mock('../src/simulation.js', () => ({
-    applyRelationshipDecay: vi.fn(),
 }));
 
 vi.mock('../src/embeddings.js', () => ({
@@ -63,7 +58,7 @@ import { callLLMForExtraction } from '../src/llm.js';
 import { setStatus } from '../src/ui/status.js';
 import { refreshAllUI } from '../src/ui/browser.js';
 import { buildExtractionPrompt } from '../src/prompts.js';
-import { parseExtractionResult, updateCharacterStatesFromEvents, updateRelationshipsFromEvents } from '../src/extraction/parser.js';
+import { parseExtractionResult, updateCharacterStatesFromEvents } from '../src/extraction/parser.js';
 import { isEmbeddingsEnabled, enrichEventsWithEmbeddings } from '../src/embeddings.js';
 import { selectMemoriesForExtraction } from '../src/extraction/context-builder.js';
 
@@ -274,7 +269,7 @@ describe('extract', () => {
             expect(saveOpenVaultData).toHaveBeenCalled();
         });
 
-        it('updates character states and relationships', async () => {
+        it('updates character states', async () => {
             const newEvents = [
                 { id: 'evt1', summary: 'Event 1', importance: 3 },
             ];
@@ -283,7 +278,6 @@ describe('extract', () => {
             await extractMemories();
 
             expect(updateCharacterStatesFromEvents).toHaveBeenCalledWith(newEvents, mockData);
-            expect(updateRelationshipsFromEvents).toHaveBeenCalledWith(newEvents, mockData);
         });
 
         it('updates last processed message ID', async () => {
