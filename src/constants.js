@@ -53,10 +53,6 @@ export const defaultSettings = {
     // Forgetfulness curve settings (scoring)
     forgetfulnessBaseLambda: 0.05,      // Base decay rate for exponential curve
     forgetfulnessImportance5Floor: 5,   // Minimum score for importance-5 memories
-    // Relationship decay settings
-    relationshipDecayInterval: 50,      // Messages before decay triggers
-    tensionDecayRate: 0.5,              // Tension drops per interval
-    trustDecayRate: 0.1,                // High trust decay per interval
 };
 
 // Timeout constants
