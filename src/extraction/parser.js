@@ -5,7 +5,7 @@
  */
 
 import { generateId, safeParseJSON } from '../utils.js';
-import { CHARACTERS_KEY, RELATIONSHIPS_KEY } from '../constants.js';
+import { CHARACTERS_KEY } from '../constants.js';
 
 /**
  * Parse extraction result from LLM
@@ -94,72 +94,6 @@ export function updateCharacterStatesFromEvents(events, data) {
             }
             if (!data[CHARACTERS_KEY][witness].known_events.includes(event.id)) {
                 data[CHARACTERS_KEY][witness].known_events.push(event.id);
-            }
-        }
-    }
-}
-
-/**
- * Update relationships based on extracted events
- * @param {Array} events - Extracted events
- * @param {Object} data - OpenVault data object
- */
-export function updateRelationshipsFromEvents(events, data) {
-    data[RELATIONSHIPS_KEY] = data[RELATIONSHIPS_KEY] || {};
-
-    for (const event of events) {
-        if (event.relationship_impact) {
-            for (const [relationKey, impact] of Object.entries(event.relationship_impact)) {
-                // Parse relationship key (e.g., "Alice->Bob")
-                const match = relationKey.match(/^(.+?)\s*->\s*(.+)$/);
-                if (!match) continue;
-
-                const [, charA, charB] = match;
-                // Sort names alphabetically to ensure unique key regardless of direction
-                const sortedNames = [charA, charB].sort();
-                const key = `${sortedNames[0]}<->${sortedNames[1]}`;
-
-                if (!data[RELATIONSHIPS_KEY][key]) {
-                    data[RELATIONSHIPS_KEY][key] = {
-                        character_a: charA,
-                        character_b: charB,
-                        trust_level: 5,
-                        tension_level: 0,
-                        relationship_type: 'acquaintance',
-                        history: [],
-                    };
-                }
-
-                // Update based on impact description
-                const impactLower = impact.toLowerCase();
-                if (impactLower.includes('trust') && impactLower.includes('increas')) {
-                    data[RELATIONSHIPS_KEY][key].trust_level = Math.min(10, data[RELATIONSHIPS_KEY][key].trust_level + 1);
-                } else if (impactLower.includes('trust') && impactLower.includes('decreas')) {
-                    data[RELATIONSHIPS_KEY][key].trust_level = Math.max(0, data[RELATIONSHIPS_KEY][key].trust_level - 1);
-                }
-
-                if (impactLower.includes('tension') && impactLower.includes('increas')) {
-                    data[RELATIONSHIPS_KEY][key].tension_level = Math.min(10, data[RELATIONSHIPS_KEY][key].tension_level + 1);
-                } else if (impactLower.includes('tension') && impactLower.includes('decreas')) {
-                    data[RELATIONSHIPS_KEY][key].tension_level = Math.max(0, data[RELATIONSHIPS_KEY][key].tension_level - 1);
-                }
-
-                // Add to history
-                const messageId = event.message_ids?.length > 0
-                    ? Math.max(...event.message_ids)
-                    : null;
-
-                data[RELATIONSHIPS_KEY][key].history.push({
-                    event_id: event.id,
-                    impact: impact,
-                    timestamp: Date.now(),
-                    message_id: messageId,
-                });
-
-                // Track last updated message for decay calculations
-                if (messageId !== null) {
-                    data[RELATIONSHIPS_KEY][key].last_updated_message_id = messageId;
-                }
             }
         }
     }
