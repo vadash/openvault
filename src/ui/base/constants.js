@@ -16,7 +16,6 @@ export const SELECTORS = {
     FILTER_TYPE: '#openvault_filter_type',
     FILTER_CHARACTER: '#openvault_filter_character',
     CHARACTER_STATES: '#openvault_character_states',
-    RELATIONSHIPS: '#openvault_relationships',
 
     // Dynamic elements (for event delegation)
     MEMORY_CARD: '.openvault-memory-card',

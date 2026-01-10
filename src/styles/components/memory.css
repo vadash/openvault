@@ -1,4 +1,4 @@
-/* Memory Components - List, Characters, Relationships */
+/* Memory Components - List, Characters */
 
 /* Memory list */
 .openvault-memory-list {
@@ -130,66 +130,4 @@
     height: 100%;
     background: var(--SmartThemeEmColor, #48c);
     transition: width 0.3s;
-}
-
-/* Relationships */
-.openvault-relationship-list {
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.openvault-relationship-item {
-    padding: 10px;
-    margin-bottom: 8px;
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
-    border-radius: 4px;
-}
-
-.openvault-relationship-pair {
-    font-weight: bold;
-    margin-bottom: 6px;
-}
-
-.openvault-relationship-type {
-    font-size: 0.8em;
-    color: var(--SmartThemeEmColor, #888);
-    margin-bottom: 6px;
-}
-
-.openvault-relationship-bars {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.openvault-bar-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.openvault-bar-label {
-    font-size: 0.8em;
-    width: 60px;
-}
-
-.openvault-bar-container {
-    flex: 1;
-    height: 8px;
-    background: var(--SmartThemeBorderColor, #333);
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.openvault-bar-fill {
-    height: 100%;
-    transition: width 0.3s;
-}
-
-.openvault-bar-fill.trust {
-    background: #4a4;
-}
-
-.openvault-bar-fill.tension {
-    background: #c44;
 }

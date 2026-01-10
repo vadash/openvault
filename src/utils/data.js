@@ -5,7 +5,7 @@
  */
 
 import { getDeps } from '../deps.js';
-import { extensionName, METADATA_KEY, MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, LAST_PROCESSED_KEY } from '../constants.js';
+import { extensionName, METADATA_KEY, MEMORIES_KEY, CHARACTERS_KEY, LAST_PROCESSED_KEY } from '../constants.js';
 import { showToast } from './dom.js';
 
 /**
@@ -36,7 +36,6 @@ export function getOpenVaultData() {
         context.chatMetadata[METADATA_KEY] = {
             [MEMORIES_KEY]: [],
             [CHARACTERS_KEY]: {},
-            [RELATIONSHIPS_KEY]: {},
             [LAST_PROCESSED_KEY]: -1,
         };
     }

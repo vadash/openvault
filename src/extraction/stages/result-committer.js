@@ -3,15 +3,13 @@
  *
  * Commits extraction results to storage:
  * - Updates data with new events
- * - Updates character states and relationships
- * - Applies relationship decay
+ * - Updates character states
  * - Saves with chat ID verification
  */
 
 import { MEMORIES_KEY, LAST_PROCESSED_KEY } from '../../constants.js';
 import { saveOpenVaultData, log } from '../../utils.js';
-import { updateCharacterStatesFromEvents, updateRelationshipsFromEvents } from '../parser.js';
-import { applyRelationshipDecay } from '../../simulation.js';
+import { updateCharacterStatesFromEvents } from '../parser.js';
 
 /**
  * Commit extraction results to storage
@@ -31,16 +29,12 @@ export async function commitResults(events, messages, data, targetChatId = null)
         data[MEMORIES_KEY] = data[MEMORIES_KEY] || [];
         data[MEMORIES_KEY].push(...events);
 
-        // Update character states and relationships
+        // Update character states
         updateCharacterStatesFromEvents(events, data);
-        updateRelationshipsFromEvents(events, data);
     }
 
     // Update last processed message ID
     data[LAST_PROCESSED_KEY] = Math.max(data[LAST_PROCESSED_KEY] || -1, maxId);
-
-    // Apply relationship decay based on message intervals
-    applyRelationshipDecay(data, maxId);
 
     // Save with chat ID verification to prevent saving to wrong chat
     const saved = await saveOpenVaultData(targetChatId);

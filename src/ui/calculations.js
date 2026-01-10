@@ -97,25 +97,6 @@ export function buildCharacterStateData(name, charData) {
 }
 
 /**
- * Build relationship display data
- * @param {string} key - Relationship key
- * @param {Object} relData - Relationship data
- * @returns {Object} Display-ready relationship data
- */
-export function buildRelationshipData(key, relData) {
-    return {
-        key,
-        characterA: relData.character_a || '?',
-        characterB: relData.character_b || '?',
-        type: relData.relationship_type || 'acquaintance',
-        trust: relData.trust_level || 5,
-        trustPercent: (relData.trust_level || 5) * 10,
-        tension: relData.tension_level || 0,
-        tensionPercent: (relData.tension_level || 0) * 10,
-    };
-}
-
-/**
  * Calculate extraction statistics
  * @param {Array} chat - Chat messages array
  * @param {Set} extractedMessageIds - Set of extracted message indices

@@ -7,14 +7,12 @@
 
 import { MemoryList } from './components/MemoryList.js';
 import { CharacterStates } from './components/CharacterStates.js';
-import { Relationships } from './components/Relationships.js';
 import { SELECTORS } from './base/constants.js';
 import { refreshStats } from './status.js';
 
 // Component instances
 let memoryList = null;
 let characterStates = null;
-let relationships = null;
 
 /**
  * Initialize browser UI components
@@ -23,11 +21,9 @@ let relationships = null;
 export function initBrowser() {
     memoryList = new MemoryList();
     characterStates = new CharacterStates();
-    relationships = new Relationships();
 
     memoryList.init();
     characterStates.init();
-    relationships.init();
 
     // Bind pagination buttons
     $(SELECTORS.PREV_BTN).on('click', () => memoryList.prevPage());
@@ -41,7 +37,6 @@ export function refreshAllUI() {
     refreshStats();
     memoryList?.render();
     characterStates?.render();
-    relationships?.render();
 }
 
 /**

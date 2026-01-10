@@ -21,7 +21,7 @@ import {
     sortMemoriesBySequence,
     stripThinkingTags,
 } from '../src/utils.js';
-import { extensionName, METADATA_KEY, MEMORIES_KEY, CHARACTERS_KEY, RELATIONSHIPS_KEY, LAST_PROCESSED_KEY } from '../src/constants.js';
+import { extensionName, METADATA_KEY, MEMORIES_KEY, CHARACTERS_KEY, LAST_PROCESSED_KEY } from '../src/constants.js';
 
 describe('utils', () => {
     let mockConsole;
@@ -69,7 +69,6 @@ describe('utils', () => {
             expect(data).toEqual({
                 [MEMORIES_KEY]: [],
                 [CHARACTERS_KEY]: {},
-                [RELATIONSHIPS_KEY]: {},
                 [LAST_PROCESSED_KEY]: -1,
             });
         });
@@ -78,7 +77,6 @@ describe('utils', () => {
             const existingData = {
                 [MEMORIES_KEY]: [{ id: '1', summary: 'test' }],
                 [CHARACTERS_KEY]: {},
-                [RELATIONSHIPS_KEY]: {},
                 [LAST_PROCESSED_KEY]: 5,
             };
             mockContext.chatMetadata[METADATA_KEY] = existingData;

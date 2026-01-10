@@ -3,14 +3,12 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-    getRelationshipContext,
     formatContextForInjection,
     getMemoryPosition,
     assignMemoriesToBuckets,
     CURRENT_SCENE_SIZE,
     LEADING_UP_SIZE,
 } from '../src/retrieval/formatting.js';
-import { RELATIONSHIPS_KEY } from '../src/constants.js';
 
 describe('constants', () => {
     it('exports CURRENT_SCENE_SIZE as 50', () => {
@@ -23,121 +21,6 @@ describe('constants', () => {
 });
 
 describe('formatting', () => {
-    describe('getRelationshipContext', () => {
-        it('returns empty array when no relationships exist', () => {
-            const data = { [RELATIONSHIPS_KEY]: {} };
-            const result = getRelationshipContext(data, 'Alice', ['Bob', 'Charlie']);
-            expect(result).toEqual([]);
-        });
-
-        it('returns relationships involving POV and active characters', () => {
-            const data = {
-                [RELATIONSHIPS_KEY]: {
-                    'Alice<->Bob': {
-                        character_a: 'Alice',
-                        character_b: 'Bob',
-                        trust_level: 7,
-                        tension_level: 2,
-                        relationship_type: 'friend',
-                    }
-                }
-            };
-
-            const result = getRelationshipContext(data, 'Alice', ['Bob', 'Charlie']);
-
-            expect(result).toHaveLength(1);
-            expect(result[0]).toEqual({
-                character: 'Bob',
-                trust: 7,
-                tension: 2,
-                type: 'friend',
-            });
-        });
-
-        it('excludes relationships not involving POV character', () => {
-            const data = {
-                [RELATIONSHIPS_KEY]: {
-                    'Bob<->Charlie': {
-                        character_a: 'Bob',
-                        character_b: 'Charlie',
-                        trust_level: 5,
-                        tension_level: 0,
-                        relationship_type: 'acquaintance',
-                    }
-                }
-            };
-
-            const result = getRelationshipContext(data, 'Alice', ['Bob', 'Charlie']);
-            expect(result).toEqual([]);
-        });
-
-        it('excludes relationships with non-active characters', () => {
-            const data = {
-                [RELATIONSHIPS_KEY]: {
-                    'Alice<->Dave': {
-                        character_a: 'Alice',
-                        character_b: 'Dave',
-                        trust_level: 5,
-                        tension_level: 0,
-                        relationship_type: 'friend',
-                    }
-                }
-            };
-
-            const result = getRelationshipContext(data, 'Alice', ['Bob']); // Dave not active
-            expect(result).toEqual([]);
-        });
-
-        it('handles POV as character_b', () => {
-            const data = {
-                [RELATIONSHIPS_KEY]: {
-                    'Bob<->Alice': {
-                        character_a: 'Bob',
-                        character_b: 'Alice',
-                        trust_level: 8,
-                        tension_level: 1,
-                        relationship_type: 'colleague',
-                    }
-                }
-            };
-
-            const result = getRelationshipContext(data, 'Alice', ['Bob']);
-
-            expect(result).toHaveLength(1);
-            expect(result[0].character).toBe('Bob');
-        });
-
-        it('deduplicates relationships by character', () => {
-            const data = {
-                [RELATIONSHIPS_KEY]: {
-                    'Alice<->Bob': {
-                        character_a: 'Alice',
-                        character_b: 'Bob',
-                        trust_level: 5,
-                        tension_level: 0,
-                        relationship_type: 'friend',
-                    },
-                    'Bob<->Alice': {
-                        character_a: 'Bob',
-                        character_b: 'Alice',
-                        trust_level: 6,
-                        tension_level: 1,
-                        relationship_type: 'friend',
-                    }
-                }
-            };
-
-            const result = getRelationshipContext(data, 'Alice', ['Bob']);
-            expect(result).toHaveLength(1);
-        });
-
-        it('handles missing RELATIONSHIPS_KEY', () => {
-            const data = {};
-            const result = getRelationshipContext(data, 'Alice', ['Bob']);
-            expect(result).toEqual([]);
-        });
-    });
-
     describe('getMemoryPosition', () => {
         it('returns midpoint of message_ids array', () => {
             const memory = { message_ids: [100, 110, 120] };
@@ -452,54 +335,31 @@ describe('formatting', () => {
             expect(result).toContain('Emotional state: excited');
         });
 
-        // Relationships in RECENT bucket
-        it('includes relationships in RECENT bucket', () => {
+        // Present characters in RECENT bucket
+        it('includes present characters in RECENT bucket', () => {
             const memories = [
                 { id: '1', summary: 'Recent event', message_ids: [450], sequence: 450000, importance: 3 },
             ];
-            const relationships = [
-                { character: 'Bob', trust: 8, tension: 2, type: 'friend' },
-            ];
-            const result = formatContextForInjection(memories, relationships, null, 'Alice', 10000, 500);
+            const presentCharacters = ['Bob'];
+            const result = formatContextForInjection(memories, presentCharacters, null, 'Alice', 10000, 500);
 
             expect(result).toContain('## Current Scene');
-            expect(result).toContain('Relationships with present characters:');
-            expect(result).toContain('- Bob: friend (high trust)');
+            expect(result).toContain('Present: Bob');
 
-            // Relationships should appear before memories in RECENT
-            const relIndex = result.indexOf('Relationships');
+            // Present characters should appear before memories in RECENT
+            const presentIndex = result.indexOf('Present:');
             const memoryIndex = result.indexOf('Recent event');
-            expect(relIndex).toBeLessThan(memoryIndex);
+            expect(presentIndex).toBeLessThan(memoryIndex);
         });
 
-        it('describes trust levels correctly', () => {
-            const lowTrust = [{ character: 'A', trust: 2, tension: 0, type: 'x' }];
-            const midTrust = [{ character: 'B', trust: 5, tension: 0, type: 'y' }];
-            const highTrust = [{ character: 'C', trust: 9, tension: 0, type: 'z' }];
+        it('formats multiple present characters', () => {
+            const memories = [
+                { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 },
+            ];
+            const presentCharacters = ['Bob', 'Charlie', 'Dave'];
+            const result = formatContextForInjection(memories, presentCharacters, null, 'Alice', 10000, 500);
 
-            const mem = [{ id: '1', summary: 'E', message_ids: [450], sequence: 450000, importance: 3 }];
-            expect(formatContextForInjection(mem, lowTrust, null, 'X', 10000, 500)).toContain('low trust');
-            expect(formatContextForInjection(mem, midTrust, null, 'X', 10000, 500)).toContain('moderate trust');
-            expect(formatContextForInjection(mem, highTrust, null, 'X', 10000, 500)).toContain('high trust');
-        });
-
-        it('describes tension levels correctly', () => {
-            const noTension = [{ character: 'A', trust: 5, tension: 2, type: 'x' }];
-            const someTension = [{ character: 'B', trust: 5, tension: 5, type: 'y' }];
-            const highTension = [{ character: 'C', trust: 5, tension: 8, type: 'z' }];
-
-            const mem = [{ id: '1', summary: 'E', message_ids: [450], sequence: 450000, importance: 3 }];
-            expect(formatContextForInjection(mem, noTension, null, 'X', 10000, 500)).not.toContain('tension');
-            expect(formatContextForInjection(mem, someTension, null, 'X', 10000, 500)).toContain('some tension');
-            expect(formatContextForInjection(mem, highTension, null, 'X', 10000, 500)).toContain('high tension');
-        });
-
-        it('defaults relationship type to acquaintance', () => {
-            const relationships = [{ character: 'Bob', trust: 5, tension: 0 }];
-            const mem = [{ id: '1', summary: 'E', message_ids: [450], sequence: 450000, importance: 3 }];
-            const result = formatContextForInjection(mem, relationships, null, 'Alice', 10000, 500);
-
-            expect(result).toContain('Bob: acquaintance');
+            expect(result).toContain('Present: Bob, Charlie, Dave');
         });
 
         // Token budget tests
@@ -782,13 +642,11 @@ describe('formatting', () => {
                     { id: '8', summary: 'Goblin is cornered', message_ids: [4985], sequence: 498500, importance: 4 },
                 ];
 
-                const relationships = [
-                    { character: 'Goblin', trust: 1, tension: 9, type: 'enemy' },
-                ];
+                const presentCharacters = ['Goblin'];
 
                 const result = formatContextForInjection(
                     memories,
-                    relationships,
+                    presentCharacters,
                     { emotion: 'anxious' },
                     'Hero',
                     10000,
@@ -814,8 +672,8 @@ describe('formatting', () => {
                 // Emotional state in recent
                 expect(result).toContain('Emotional state: anxious');
 
-                // Relationships in recent
-                expect(result).toContain('Goblin: enemy (low trust, high tension)');
+                // Present characters in recent
+                expect(result).toContain('Present: Goblin');
             });
         });
     });
