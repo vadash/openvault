@@ -6,6 +6,7 @@
 
 import { generateId, safeParseJSON } from '../utils.js';
 import { CHARACTERS_KEY } from '../constants.js';
+import { getDeps } from '../deps.js';
 
 /**
  * Parse extraction result from LLM
@@ -28,7 +29,7 @@ export function parseExtractionResult(jsonString, messages, characterName, userN
     const minMessageId = Math.min(...messageIds);
 
     // Enrich events with metadata
-    return events.map((event, index) => ({
+    const enrichedEvents = events.map((event, index) => ({
         id: generateId(),
         ...event,
         message_ids: messageIds,
@@ -44,6 +45,16 @@ export function parseExtractionResult(jsonString, messages, characterName, userN
         emotional_impact: event.emotional_impact || {},
         relationship_impact: event.relationship_impact || {},
     }));
+
+    // Filter out events without summaries (required for embeddings)
+    const validEvents = enrichedEvents.filter(e => e.summary && e.summary.trim().length > 0);
+    const filteredCount = enrichedEvents.length - validEvents.length;
+
+    if (filteredCount > 0) {
+        getDeps().console.warn(`[OpenVault] Filtered ${filteredCount} events without summaries from LLM output`);
+    }
+
+    return validEvents;
 }
 
 /**

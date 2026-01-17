@@ -157,6 +157,24 @@ describe('parser', () => {
             expect(events[1].id).toBeDefined();
             expect(events[0].id).not.toBe(events[1].id);
         });
+
+        it('filters out events without summary field', () => {
+            const json = JSON.stringify([
+                { summary: 'Valid event', importance: 3 },
+                { importance: 4 }, // Missing summary
+                { summary: '', importance: 2 }, // Empty summary
+                { summary: 'Another valid event', importance: 5 },
+            ]);
+
+            const events = parseExtractionResult(json, mockMessages, 'Alice', 'User');
+
+            expect(events).toHaveLength(2);
+            expect(events[0].summary).toBe('Valid event');
+            expect(events[1].summary).toBe('Another valid event');
+            expect(mockConsole.warn).toHaveBeenCalledWith(
+                '[OpenVault] Filtered 2 events without summaries from LLM output'
+            );
+        });
     });
 
     describe('updateCharacterStatesFromEvents', () => {
