@@ -83,6 +83,20 @@ export async function backfillEmbeddings() {
         return;
     }
 
+    // DIAGNOSTIC: Identify memories without summaries
+    const withoutSummary = needsEmbedding.filter(m => !m.summary);
+    if (withoutSummary.length > 0) {
+        console.warn(`[OpenVault] ${withoutSummary.length} memories lack summaries and will be skipped:`,
+            withoutSummary.map(m => ({
+                timestamp: m.timestamp,
+                type: m.type,
+                characters: m.characters,
+                hasSummary: !!m.summary,
+                hasEmbedding: !!m.embedding
+            }))
+        );
+    }
+
     showToast('info', `Generating embeddings for ${needsEmbedding.length} memories...`);
     setStatus('extracting');
 
