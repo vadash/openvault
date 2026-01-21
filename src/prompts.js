@@ -25,20 +25,9 @@ You excel at distinguishing story-significant moments from mundane dialogue. You
 }
 
 function _extractionMessages(messages) {
-    // REPETITION TECHNIQUE:
-    // We provide the data twice. Pass 1 fills the KV cache; Pass 2 allows the attention 
-    // mechanism to look back at Pass 1, solidifying the understanding of the narrative flow.
-    return `<analysis_target>
-To ensure high-precision extraction, read the source messages twice:
-
-<data_pass_1>
+    return `<messages>
 ${messages}
-</data_pass_1>
-
-<data_pass_2>
-${messages}
-</data_pass_2>
-</analysis_target>`;
+</messages>`;
 }
 
 function _extractionMemories(existingMemories) {
@@ -479,9 +468,7 @@ function _extractionInstructions() {
     return `<instructions>
 Extract significant events from <messages> following these steps:
 
-1. SCAN the <analysis_target> for story-significant moments. 
-   (Note: The data is provided twice for context verification. Treat <data_pass_1> and <data_pass_2> as the SAME timeline. Do not extract duplicate events.)
-   Pay close attention to:
+1. SCAN messages for story-significant moments, paying close attention to:
    - Actions with consequences, especially intimate physical contact or sexual acts
    - Information reveals or secrets shared, including personal desires or vulnerabilities
    - Emotional turning points, such as shifts in arousal, consent, or emotional intimacy
@@ -572,20 +559,9 @@ You select memories a character would naturally recall in a given moment, especi
 }
 
 function _retrievalScene(recentContext) {
-    // REPETITION TECHNIQUE:
-    // Repeating the scene context strengthens the vector activation for the 
-    // key topics, ensuring the model doesn't drift when selecting memories.
-    return `<current_situation>
-Read the scene context twice to fully grasp the subtext and emotional tone:
-
-<context_pass_1>
+    return `<scene>
 ${recentContext}
-</context_pass_1>
-
-<context_pass_2>
-${recentContext}
-</context_pass_2>
-</current_situation>`;
+</scene>`;
 }
 
 function _retrievalMemories(numberedList) {
