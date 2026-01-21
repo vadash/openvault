@@ -56,20 +56,5 @@ export function selectMemoriesForExtraction(data, settings) {
     const mergedMemories = [...recencyMemories, ...importanceMemories, ...fillMemories];
 
     // Step E: Final sort by sequence ascending (chronological order for LLM)
-    const sortedMemories = sortMemoriesBySequence(mergedMemories, true);
-
-    // DIAGNOSTIC: Log token budget details
-    const estimatedTokens = mergedMemories.reduce((sum, m) => sum + estimateTokens(m.summary), 0);
-    const formattedText = sortedMemories
-        .map((m, i) => `${i + 1}. [${m.event_type || 'event'}] ${m.summary}`)
-        .join('\n');
-    const actualFormattedTokens = estimateTokens(formattedText);
-    console.error(`[OpenVault DIAGNOSTIC] Token budget check:`);
-    console.error(`  Budget: ${totalBudget}, Selected: ${sortedMemories.length} memories`);
-    console.error(`  Estimated tokens (summary only): ${estimatedTokens}`);
-    console.error(`  Actual formatted tokens (with prefix): ${actualFormattedTokens}`);
-    console.error(`  Undercount: ${actualFormattedTokens - estimatedTokens} tokens`);
-    console.error(`  Over budget by: ${Math.max(0, actualFormattedTokens - totalBudget)} tokens`);
-
-    return sortedMemories;
+    return sortMemoriesBySequence(mergedMemories, true);
 }

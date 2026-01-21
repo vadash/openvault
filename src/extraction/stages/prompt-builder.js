@@ -7,7 +7,6 @@
 
 import { buildExtractionPrompt } from '../../prompts.js';
 import { selectMemoriesForExtraction } from '../context-builder.js';
-import { estimateTokens } from '../../utils.js';
 
 /**
  * Build extraction prompt from messages and context
@@ -36,7 +35,7 @@ export function buildPrompt(messages, context, data, settings) {
     // Get persona description
     const personaDescription = context.powerUserSettings?.persona_description || '';
 
-    const prompt = buildExtractionPrompt({
+    return buildExtractionPrompt({
         messages: messagesText,
         names: { char: characterName, user: userName },
         context: {
@@ -45,12 +44,4 @@ export function buildPrompt(messages, context, data, settings) {
             personaDesc: personaDescription,
         },
     });
-
-    // DIAGNOSTIC: Log full prompt size
-    const promptTokens = estimateTokens(prompt);
-    console.error(`[OpenVault DIAGNOSTIC] Full prompt size: ${promptTokens} tokens`);
-    console.error(`  Messages: ${messages.length}, Memories: ${existingMemories.length}`);
-    console.error(`  Char desc: ${estimateTokens(characterDescription)} tokens, Persona: ${estimateTokens(personaDescription)} tokens`);
-
-    return prompt;
 }
