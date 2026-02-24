@@ -289,21 +289,21 @@
                                     Balance how memories are ranked during retrieval. Higher values = more influence.
                                 </small>
 
-                                <label for="openvault_vector_weight">
-                                    Semantic Match Weight: <span id="openvault_vector_weight_value">15</span>
-                                    <small class="openvault-default-hint" data-default-key="vectorSimilarityWeight"></small>
+                                <label for="openvault_alpha">
+                                    Vector vs Keyword Balance: <span id="openvault_alpha_value">0.7</span>
+                                    <small class="openvault-default-hint" data-default-key="alpha"></small>
                                 </label>
-                                <input type="range" id="openvault_vector_weight" min="0" max="30" step="1" value="15" />
-                                <small class="openvault-hint">Finds "vibes" (e.g., "Canine" → "Dog"). High = intuitive but loose</small>
+                                <input type="range" id="openvault_alpha" min="0" max="1" step="0.05" value="0.7" />
+                                <small class="openvault-hint">1.0 = semantic vibes only · 0.5 = balanced · 0.0 = keywords only</small>
 
                                 <div style="height: 8px;"></div>
 
-                                <label for="openvault_keyword_weight" style="margin-top: 10px;">
-                                    Keyword Match Weight: <span id="openvault_keyword_weight_value">3.0</span>
-                                    <small class="openvault-default-hint" data-default-key="keywordMatchWeight"></small>
+                                <label for="openvault_combined_weight" style="margin-top: 10px;">
+                                    Retrieval Boost Strength: <span id="openvault_combined_weight_value">15</span>
+                                    <small class="openvault-default-hint" data-default-key="combinedBoostWeight"></small>
                                 </label>
-                                <input type="range" id="openvault_keyword_weight" min="0" max="10" step="0.1" value="3.0" />
-                                <small class="openvault-hint">Finds exact matches (e.g., "Project Chimera"). High = precise but rigid</small>
+                                <input type="range" id="openvault_combined_weight" min="1" max="30" step="1" value="15" />
+                                <small class="openvault-hint">Maximum boost points for semantic+keyword matching</small>
 
                                 <div style="height: 8px;"></div>
 

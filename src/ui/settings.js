@@ -38,6 +38,20 @@ function populateDefaultHints() {
 // =============================================================================
 
 /**
+ * Migrate legacy settings to new alpha-blend format
+ * @param {Object} settings - Settings object to migrate in place
+ */
+function migrateSettings(settings) {
+    // If alpha not set but legacy vector/keyword weights exist, compute alpha
+    if (settings.alpha === undefined && (settings.vectorSimilarityWeight !== undefined || settings.keywordMatchWeight !== undefined)) {
+        const vw = settings.vectorSimilarityWeight ?? 15;
+        const kw = settings.keywordMatchWeight ?? 3.0;
+        settings.alpha = vw / (vw + kw);
+        settings.combinedBoostWeight = vw;
+    }
+}
+
+/**
  * Load extension settings
  */
 export async function loadSettings() {
@@ -49,6 +63,9 @@ export async function loadSettings() {
         ...defaultSettings,
         ...extension_settings[extensionName],
     });
+
+    // Migrate legacy settings to new format
+    migrateSettings(extension_settings[extensionName]);
 
     // Load HTML template
     const settingsHtml = await $.get(`${extensionFolderPath}/templates/settings_panel.html`);
@@ -128,9 +145,9 @@ function bindUIElements() {
     bindCheckbox('openvault_auto_hide', 'autoHideEnabled');
     bindSlider('openvault_auto_hide_threshold', 'autoHideThreshold', 'openvault_auto_hide_threshold_value');
 
-    // Scoring weights
-    bindSlider('openvault_vector_weight', 'vectorSimilarityWeight', 'openvault_vector_weight_value');
-    bindSlider('openvault_keyword_weight', 'keywordMatchWeight', 'openvault_keyword_weight_value', null, null, true);
+    // Scoring weights (alpha-blend)
+    bindSlider('openvault_alpha', 'alpha', 'openvault_alpha_value', null, null, true);
+    bindSlider('openvault_combined_weight', 'combinedBoostWeight', 'openvault_combined_weight_value', null, null, true);
     bindSlider('openvault_vector_threshold', 'vectorSimilarityThreshold', 'openvault_vector_threshold_value', null, null, true);
     bindSlider('openvault_dedup_threshold', 'dedupSimilarityThreshold', 'openvault_dedup_threshold_value', null, null, true);
 
@@ -231,12 +248,12 @@ export function updateUI() {
     $('#openvault_auto_hide_threshold').val(settings.autoHideThreshold);
     $('#openvault_auto_hide_threshold_value').text(settings.autoHideThreshold);
 
-    // Scoring weights
-    $('#openvault_vector_weight').val(settings.vectorSimilarityWeight ?? 15);
-    $('#openvault_vector_weight_value').text(settings.vectorSimilarityWeight ?? 15);
+    // Scoring weights (alpha-blend)
+    $('#openvault_alpha').val(settings.alpha ?? defaultSettings.alpha);
+    $('#openvault_alpha_value').text(settings.alpha ?? defaultSettings.alpha);
 
-    $('#openvault_keyword_weight').val(settings.keywordMatchWeight ?? defaultSettings.keywordMatchWeight);
-    $('#openvault_keyword_weight_value').text(settings.keywordMatchWeight ?? defaultSettings.keywordMatchWeight);
+    $('#openvault_combined_weight').val(settings.combinedBoostWeight ?? defaultSettings.combinedBoostWeight);
+    $('#openvault_combined_weight_value').text(settings.combinedBoostWeight ?? defaultSettings.combinedBoostWeight);
 
     $('#openvault_vector_threshold').val(settings.vectorSimilarityThreshold ?? 0.5);
     $('#openvault_vector_threshold_value').text(settings.vectorSimilarityThreshold ?? 0.5);

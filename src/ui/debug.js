@@ -146,7 +146,7 @@ ${'━'.repeat(60)}`;
 
         const footer = `${'━'.repeat(60)}
 Total: ${scored.length} memories
-Settings: vectorWeight=${scoringSettings.vectorSimilarityWeight}, keywordWeight=${scoringSettings.keywordMatchWeight ?? 1.0}, threshold=${scoringSettings.vectorSimilarityThreshold}`;
+Settings: alpha=${scoringSettings.alpha ?? 0.7}, boostWeight=${scoringSettings.combinedBoostWeight ?? 15}, threshold=${scoringSettings.vectorSimilarityThreshold}`;
 
         const output = [header, ...memoryLines, footer].join('\n');
 
