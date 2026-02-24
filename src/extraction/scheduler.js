@@ -6,6 +6,7 @@
  */
 
 import { MEMORIES_KEY, PROCESSED_MESSAGES_KEY } from '../constants.js';
+import { estimateTokens } from '../utils/text.js';
 
 /**
  * Get set of message IDs that have been processed (extracted or attempted)
@@ -65,9 +66,10 @@ export function isBatchReady(chat, data, batchSize) {
  * @param {Object} data - OpenVault data object
  * @param {number} batchSize - Number of messages per batch
  * @param {number} bufferSize - Number of recent messages to exclude (default 0)
+ * @param {number} maxTokens - Maximum tokens per batch (default undefined = count-only)
  * @returns {number[]|null} Array of message IDs for next batch, or null if no complete batch ready
  */
-export function getNextBatch(chat, data, batchSize, bufferSize = 0) {
+export function getNextBatch(chat, data, batchSize, bufferSize = 0, maxTokens) {
     const extractedIds = getExtractedMessageIds(data);
     const unextractedIds = getUnextractedMessageIds(chat, extractedIds, bufferSize);
 
@@ -75,8 +77,30 @@ export function getNextBatch(chat, data, batchSize, bufferSize = 0) {
         return null;
     }
 
-    // Return the oldest complete batch (first N unextracted messages)
-    return unextractedIds.slice(0, batchSize);
+    // If no token limit, use count-based batching
+    if (!maxTokens) {
+        return unextractedIds.slice(0, batchSize);
+    }
+
+    // Token-aware batching: accumulate messages until token limit
+    let batch = [];
+    let currentTokens = 0;
+
+    for (const id of unextractedIds) {
+        if (batch.length >= batchSize) break;
+
+        const msgTokens = estimateTokens(chat[id]?.mes || '');
+        // Stop if adding this message would exceed token limit
+        // But always include at least one message if available
+        if (currentTokens + msgTokens > maxTokens && batch.length > 0) {
+            break;
+        }
+
+        batch.push(id);
+        currentTokens += msgTokens;
+    }
+
+    return batch.length > 0 ? batch : null;
 }
 
 /**
