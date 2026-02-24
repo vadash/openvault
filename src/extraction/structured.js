@@ -1,5 +1,6 @@
 import { z } from 'https://esm.sh/zod@4';
 import { ExtractionResponseSchema, EventSchema } from './schemas/event-schema.js';
+import { RetrievalResponseSchema } from './schemas/retrieval-schema.js';
 import { stripThinkingTags } from '../utils.js';
 
 /**
@@ -99,4 +100,24 @@ export function parseEvent(content) {
  */
 export function _testStripMarkdown(content) {
     return stripMarkdown(content);
+}
+
+/**
+ * Get jsonSchema for retrieval responses from ConnectionManager sendRequest
+ * For use in structured output mode
+ *
+ * @returns {Object} ConnectionManager jsonSchema object
+ */
+export function getRetrievalJsonSchema() {
+    return toJsonSchema(RetrievalResponseSchema, 'MemoryRetrieval');
+}
+
+/**
+ * Parse retrieval response with full validation
+ *
+ * @param {string} content - Raw LLM response
+ * @returns {Object} Validated retrieval response with {selected, reasoning} format
+ */
+export function parseRetrievalResponse(content) {
+    return parseStructuredResponse(content, RetrievalResponseSchema);
 }
