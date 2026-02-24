@@ -44,7 +44,6 @@ export const defaultSettings = {
     embeddingSource: 'multilingual-e5-small', // model name or 'ollama'
     ollamaUrl: '',
     embeddingModel: '',
-    embeddingPrompt: 'task: sentence similarity | query: ', // Instructional prefix for embedding models
     embeddingQueryPrefix: 'search for similar scenes: ',  // Asymmetric: query-side prefix
     embeddingDocPrefix: '',                                // Asymmetric: doc-side prefix (tags handle it)
     embeddingTagFormat: 'bracket',                         // Tag format: 'bracket' = [TAG], 'none' = disable

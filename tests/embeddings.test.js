@@ -522,8 +522,7 @@ describe('embeddings', () => {
     });
 
     describe('TransformersStrategy embedding prompt prefix', () => {
-        it('prepends instructional prompt to text for Transformers strategy', async () => {
-            // Mock pipeline that captures the input text
+        it('prepends query prefix for getQueryEmbedding', async () => {
             const capturedInputs = [];
             const mockPipe = vi.fn().mockImplementation((input) => {
                 capturedInputs.push(input);
@@ -532,19 +531,17 @@ describe('embeddings', () => {
                 });
             });
 
-            // Mock the transformers pipeline import
             vi.doMock('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1', () => ({
                 pipeline: vi.fn().mockResolvedValue(mockPipe),
             }));
 
-            // Set settings with embedding prompt
-            const testPrompt = 'task: sentence similarity | query: ';
+            const queryPrefix = 'search for similar scenes: ';
             setDeps({
                 console: mockConsole,
                 getExtensionSettings: () => ({
                     [extensionName]: {
                         embeddingSource: 'multilingual-e5-small',
-                        embeddingPrompt: testPrompt,
+                        embeddingQueryPrefix: queryPrefix,
                         debugMode: false,
                     }
                 }),
@@ -552,22 +549,16 @@ describe('embeddings', () => {
 
             const strategy = new TransformersStrategy();
             strategy.setModelKey('multilingual-e5-small');
-
-            // Mock WebGPU as available
             global.navigator = { gpu: { requestAdapter: vi.fn().mockResolvedValue({}) } };
 
-            const result = await strategy.getEmbedding('test text');
+            const result = await strategy.getQueryEmbedding('test text');
 
-            // Verify embedding was generated
             expect(result).toBeDefined();
             expect(result.length).toBe(3);
-
-            // Verify the prompt was prepended to the input text
-            expect(capturedInputs.length).toBeGreaterThan(0);
-            expect(capturedInputs[0]).toBe(testPrompt + 'test text');
+            expect(capturedInputs[0]).toBe(queryPrefix + 'test text');
         });
 
-        it('uses default prompt when setting is not configured', async () => {
+        it('prepends doc prefix for getDocumentEmbedding', async () => {
             const capturedInputs = [];
             const mockPipe = vi.fn().mockImplementation((input) => {
                 capturedInputs.push(input);
@@ -585,7 +576,7 @@ describe('embeddings', () => {
                 getExtensionSettings: () => ({
                     [extensionName]: {
                         embeddingSource: 'multilingual-e5-small',
-                        // embeddingPrompt not set
+                        embeddingDocPrefix: '',
                         debugMode: false,
                     }
                 }),
@@ -595,20 +586,18 @@ describe('embeddings', () => {
             strategy.setModelKey('multilingual-e5-small');
             global.navigator = { gpu: { requestAdapter: vi.fn().mockResolvedValue({}) } };
 
-            await strategy.getEmbedding('hello');
+            await strategy.getDocumentEmbedding('hello');
 
-            // Should use default prompt
-            const defaultPrompt = defaultSettings.embeddingPrompt || 'task: sentence similarity | query: ';
-            expect(capturedInputs[0]).toBe(defaultPrompt + 'hello');
+            // Empty doc prefix means just the text
+            expect(capturedInputs[0]).toBe('hello');
         });
 
-        it('returns null for empty text regardless of prompt', async () => {
+        it('returns null for empty text', async () => {
             setDeps({
                 console: mockConsole,
                 getExtensionSettings: () => ({
                     [extensionName]: {
                         embeddingSource: 'multilingual-e5-small',
-                        embeddingPrompt: 'task: sentence similarity | query: ',
                         debugMode: false,
                     }
                 }),
@@ -617,10 +606,10 @@ describe('embeddings', () => {
             const strategy = new TransformersStrategy();
             strategy.setModelKey('multilingual-e5-small');
 
-            const result = await strategy.getEmbedding('');
+            const result = await strategy.getQueryEmbedding('');
             expect(result).toBeNull();
 
-            const result2 = await strategy.getEmbedding('   \t\n  ');
+            const result2 = await strategy.getDocumentEmbedding('   \t\n  ');
             expect(result2).toBeNull();
         });
     });

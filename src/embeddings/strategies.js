@@ -265,35 +265,13 @@ class TransformersStrategy extends EmbeddingStrategy {
         log(`Embedding status: ${status}`);
     }
 
-    /**
-     * Get the embedding prompt prefix from settings
-     * Instructional prompts like "task: sentence similarity | query: " improve embedding quality
-     * @returns {string} The prompt prefix to prepend to text
-     */
-    #getEmbeddingPrompt() {
-        const settings = getDeps().getExtensionSettings()[extensionName];
-        return settings?.embeddingPrompt || 'task: sentence similarity | query: ';
-    }
-
-    async getEmbedding(text, type = 'legacy') {
+    async #embed(text, prefix) {
         if (!text || text.trim().length === 0) {
             return null;
         }
 
         try {
             const pipe = await this.#loadPipeline(this.#currentModelKey);
-            const settings = getDeps().getExtensionSettings()[extensionName];
-
-            let prefix = '';
-            if (type === 'query') {
-                prefix = settings?.embeddingQueryPrefix ?? 'search for similar scenes: ';
-            } else if (type === 'doc') {
-                prefix = settings?.embeddingDocPrefix ?? '';
-            } else {
-                // Legacy: use old embeddingPrompt setting
-                prefix = settings?.embeddingPrompt || 'task: sentence similarity | query: ';
-            }
-
             const input = prefix ? `${prefix}${text.trim()}` : text.trim();
             const output = await pipe(input, { pooling: 'mean', normalize: true });
             return Array.from(output.data);
@@ -304,11 +282,15 @@ class TransformersStrategy extends EmbeddingStrategy {
     }
 
     async getQueryEmbedding(text) {
-        return this.getEmbedding(text, 'query');
+        const settings = getDeps().getExtensionSettings()[extensionName];
+        const prefix = settings?.embeddingQueryPrefix ?? 'search for similar scenes: ';
+        return this.#embed(text, prefix);
     }
 
     async getDocumentEmbedding(text) {
-        return this.getEmbedding(text, 'doc');
+        const settings = getDeps().getExtensionSettings()[extensionName];
+        const prefix = settings?.embeddingDocPrefix ?? '';
+        return this.#embed(text, prefix);
     }
 
     async reset() {
