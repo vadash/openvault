@@ -147,7 +147,19 @@ function bindUIElements() {
     bindTextInput('openvault_ollama_url', 'ollamaUrl', (v) => v.trim());
     bindTextInput('openvault_embedding_model', 'embeddingModel', (v) => v.trim());
 
-    bindSelect('openvault_embedding_source', 'embeddingSource', (value) => {
+    bindSelect('openvault_embedding_source', 'embeddingSource', async (value) => {
+        // Reset old strategy before switching to prevent VRAM leak
+        const currentSettings = getDeps().getExtensionSettings();
+        const oldSource = currentSettings?.[extensionName]?.embeddingSource;
+
+        if (oldSource && oldSource !== value) {
+            const { getStrategy } = await import('../embeddings/strategies.js');
+            const oldStrategy = getStrategy(oldSource);
+            if (oldStrategy && typeof oldStrategy.reset === 'function') {
+                await oldStrategy.reset();
+            }
+        }
+
         $('#openvault_ollama_settings').toggle(value === 'ollama');
         updateEmbeddingStatusDisplay(getEmbeddingStatus());
     });
