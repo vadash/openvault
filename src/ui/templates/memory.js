@@ -8,28 +8,29 @@
 import { escapeHtml } from '../../utils/dom.js';
 import { formatMemoryImportance, formatMemoryDate, formatWitnesses } from '../formatting.js';
 import { isEmbeddingsEnabled } from '../../embeddings.js';
-import { EVENT_TYPE_ICONS, EVENT_TYPES, CLASSES } from '../base/constants.js';
+import { TAG_ICONS, TAG_LIST, CLASSES } from '../base/constants.js';
 
 // =============================================================================
 // Template Functions
 // =============================================================================
 
 /**
- * Get icon class for event type
- * @param {string} eventType - Event type
+ * Get icon class for a tag
+ * @param {string} tag - Tag name
  * @returns {string} Font Awesome icon class
  */
-export function getEventTypeIcon(eventType) {
-    return EVENT_TYPE_ICONS[eventType] || EVENT_TYPE_ICONS.default;
+export function getTagIcon(tag) {
+    return TAG_ICONS[tag] || TAG_ICONS.default;
 }
 
 /**
- * Build type-safe CSS class name from event type
- * @param {string} eventType - Event type
+ * Build type-safe CSS class name from tags
+ * @param {string[]} tags - Tags array
  * @returns {string} CSS class name
  */
-export function getTypeClass(eventType) {
-    return (eventType || 'action').replace(/[^a-zA-Z0-9-]/g, '');
+export function getTypeClass(tags) {
+    const first = Array.isArray(tags) ? tags[0] : tags;
+    return (first || 'NONE').toLowerCase().replace(/[^a-zA-Z0-9-]/g, '');
 }
 
 /**
@@ -81,9 +82,11 @@ function buildCharacterTags(characters) {
  * @returns {string} HTML string
  */
 function buildCardHeader(memory) {
-    const typeClass = getTypeClass(memory.event_type);
+    const tags = memory.tags || ['NONE'];
+    const typeClass = getTypeClass(tags);
     const date = formatMemoryDate(memory.created_at);
-    const iconClass = getEventTypeIcon(memory.event_type);
+    const iconClass = getTagIcon(tags[0]);
+    const tagBadges = tags.map(t => `<span class="openvault-memory-card-tag">${escapeHtml(t)}</span>`).join(' ');
 
     return `
         <div class="openvault-memory-card-header">
@@ -91,7 +94,7 @@ function buildCardHeader(memory) {
                 <i class="${iconClass}"></i>
             </div>
             <div class="openvault-memory-card-meta">
-                <span class="openvault-memory-card-type">${escapeHtml(memory.event_type || 'event')}</span>
+                <span class="openvault-memory-card-type">${tagBadges}</span>
                 <span class="openvault-memory-card-date">${escapeHtml(date)}</span>
             </div>
         </div>
@@ -130,7 +133,7 @@ function buildCardFooter(memory, badges) {
  */
 export function renderMemoryItem(memory) {
     const id = escapeHtml(memory.id);
-    const typeClass = getTypeClass(memory.event_type);
+    const typeClass = getTypeClass(memory.tags);
     const badges = buildBadges(memory);
     const characterTags = buildCharacterTags(memory.characters_involved);
 
@@ -160,14 +163,15 @@ function buildImportanceOptions(current) {
 }
 
 /**
- * Build event type select options
- * @param {string} current - Current event type
+ * Build tag checkboxes for edit mode
+ * @param {string[]} currentTags - Currently selected tags
  * @returns {string} HTML string
  */
-function buildEventTypeOptions(current) {
-    return EVENT_TYPES
-        .map(t => `<option value="${t}"${t === current ? ' selected' : ''}>${t.replace('_', ' ')}</option>`)
-        .join('');
+function buildTagCheckboxes(currentTags) {
+    const selected = new Set(currentTags || ['NONE']);
+    return TAG_LIST
+        .map(t => `<label><input type="checkbox" value="${t}"${selected.has(t) ? ' checked' : ''}> ${t}</label>`)
+        .join(' ');
 }
 
 /**
@@ -177,7 +181,7 @@ function buildEventTypeOptions(current) {
  */
 function buildEditFields(memory) {
     const importance = memory.importance || 3;
-    const eventType = memory.event_type || 'action';
+    const tags = memory.tags || ['NONE'];
 
     return `
         <div class="openvault-edit-row">
@@ -185,10 +189,10 @@ function buildEditFields(memory) {
                 Importance
                 <select data-field="importance">${buildImportanceOptions(importance)}</select>
             </label>
-            <label>
-                Event Type
-                <select data-field="event_type">${buildEventTypeOptions(eventType)}</select>
-            </label>
+            <div data-field="tags">
+                Tags
+                ${buildTagCheckboxes(tags)}
+            </div>
         </div>
     `;
 }
@@ -219,7 +223,7 @@ function buildEditActions(id) {
  */
 export function renderMemoryEdit(memory) {
     const id = escapeHtml(memory.id);
-    const typeClass = getTypeClass(memory.event_type);
+    const typeClass = getTypeClass(memory.tags);
 
     return `
         <div class="${CLASSES.MEMORY_CARD} ${typeClass}" data-id="${id}">
