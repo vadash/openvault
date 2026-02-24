@@ -44,10 +44,12 @@ class MockWorker {
             if (contextEmbedding && memory.embedding) {
                 const similarity = cosineSimilarityMock(contextEmbedding, memory.embedding);
                 const threshold = settings.vectorSimilarityThreshold || 0.5;
-                const maxBonus = settings.vectorSimilarityWeight || 15;
+                // Alpha-blend scoring: vector bonus = alpha * boostWeight * normalizedSim
+                const alpha = settings.alpha ?? 0.7;
+                const boostWeight = settings.combinedBoostWeight ?? 15;
                 if (similarity > threshold) {
                     const normalizedSim = (similarity - threshold) / (1 - threshold);
-                    score += normalizedSim * maxBonus;
+                    score += alpha * boostWeight * normalizedSim;
                 }
             }
             return { memory, score };
@@ -129,6 +131,10 @@ describe('scoring', () => {
             smartRetrievalEnabled: false,
             retrievalPreFilterTokens: 24000,
             retrievalFinalTokens: 12000,
+            // New alpha-blend settings
+            alpha: 0.7,
+            combinedBoostWeight: 15,
+            // Old keys kept for backwards compatibility during migration
             vectorSimilarityWeight: 15,
             vectorSimilarityThreshold: 0.5,
         };
@@ -341,7 +347,8 @@ describe('scoring', () => {
             });
 
             it('uses configurable weight from settings', async () => {
-                mockSettings.vectorSimilarityWeight = 20;
+                // New alpha-blend: boostWeight affects bonus calculation
+                mockSettings.combinedBoostWeight = 20;
                 cosineSimilarity.mockReturnValue(0.8);
 
                 const memories = [
@@ -350,7 +357,7 @@ describe('scoring', () => {
 
                 await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
-                // Weight affects bonus calculation
+                // Weight affects bonus calculation (alpha * boostWeight * normalizedSim)
                 expect(cosineSimilarity).toHaveBeenCalled();
             });
 
@@ -751,7 +758,7 @@ describe('scoring', () => {
                 limit: 10,
                 queryTokens: ['dragon'],
                 constants: { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 },
-                settings: { vectorSimilarityThreshold: 0.5, vectorSimilarityWeight: 15 }
+                settings: { vectorSimilarityThreshold: 0.5, alpha: 0.7, combinedBoostWeight: 15 }
             };
 
             const results = scoreMemoriesSync(memories, params);
@@ -906,7 +913,7 @@ describe('scoring', () => {
                 limit: 10,
                 queryTokens: ['test', 'query'],
                 constants: { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 },
-                settings: { vectorSimilarityThreshold: 0.5, vectorSimilarityWeight: 15 }
+                settings: { vectorSimilarityThreshold: 0.5, alpha: 0.7, combinedBoostWeight: 15 }
             };
 
             // eslint-disable-next-line no-undef
