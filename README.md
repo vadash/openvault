@@ -77,6 +77,27 @@ Fine-tune how the engine finds memories:
 *   **Keyword Match Weight:** Turns up "Exact" search. Essential for finding specific names or proper nouns
 *   **Semantic Threshold:** The strictness filter. Lower values let more "loosely related" memories through; higher values require exact matches
 
+## 🔧 Structured Output
+
+OpenVault uses Zod v4 schemas for validated LLM responses. This reduces JSON hallucinations by sending a JSON Schema to compatible models.
+
+### How It Works
+
+*   **Schema Validation:** All extracted events are validated against strict type definitions
+*   **Automatic Defaults:** Missing optional fields are filled with safe defaults
+*   **Markdown Handling:** Automatically strips markdown code blocks (` ```json `) from LLM responses
+*   **Fallback Support:** If structured output fails, falls back to legacy parsing
+
+### Requirements
+
+*   Zod v4 is loaded via CDN (esm.sh) - no build step required
+*   Works with any LLM provider that supports OpenAI-style structured outputs
+*   Automatically falls back to unstructured parsing for unsupported models
+
+### Disabling Structured Output
+
+If you encounter issues with structured output, the system will automatically fall back to legacy parsing. No manual configuration needed.
+
 ## 💡 How Auto-Hide Works
 OpenVault can automatically "hide" messages older than a specific threshold (default: 50)
 *   **Hidden messages** are removed from the prompt sent to the LLM, saving you money and tokens
