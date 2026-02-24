@@ -251,12 +251,12 @@ describe('query-context', () => {
     });
 
     describe('buildBM25Tokens', () => {
-        it('includes original user message tokens', () => {
+        it('includes original user message tokens (stemmed)', () => {
             const userMessage = 'Where is Alice now?';
             const entities = { entities: [], weights: {} };
             const tokens = buildBM25Tokens(userMessage, entities);
 
-            expect(tokens).toContain('alice');
+            expect(tokens).toContain('alic');  // 'alice' stemmed by English Snowball
             // 'where' and 'is' are stop words, should be filtered
             expect(tokens).not.toContain('where');
             expect(tokens).not.toContain('is');
@@ -282,14 +282,14 @@ describe('query-context', () => {
             };
             const tokens = buildBM25Tokens('', entities);
 
-            // Should still have entity tokens
-            expect(tokens).toContain('alice');
+            // Should still have entity tokens (stemmed)
+            expect(tokens).toContain('alic');  // 'Alice' stemmed
         });
 
         it('handles null entities', () => {
             const tokens = buildBM25Tokens('test query', null);
             expect(tokens).toContain('test');
-            expect(tokens).toContain('query');
+            expect(tokens).toContain('queri');  // 'query' stemmed by English Snowball
         });
     });
 

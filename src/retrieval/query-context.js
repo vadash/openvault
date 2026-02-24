@@ -200,11 +200,13 @@ export function buildBM25Tokens(userMessage, extractedEntities) {
     const settings = getQueryContextSettings();
 
     // Add entities with boost (repeat = higher term frequency)
+    // Entities go through tokenize() for consistent stemming with memory tokens
     for (const entity of extractedEntities.entities) {
         const weight = (extractedEntities.weights[entity] || 1) * settings.entityBoostWeight;
         const repeats = Math.ceil(weight);
+        const stemmed = tokenize(entity);
         for (let r = 0; r < repeats; r++) {
-            tokens.push(entity.toLowerCase());
+            tokens.push(...stemmed);
         }
     }
 

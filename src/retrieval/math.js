@@ -5,6 +5,26 @@
  * Extracted for testability and reuse in both main thread and worker.
  */
 
+import snowball from 'https://esm.sh/snowball-stemmers@0.6.0';
+
+// Stemmers — initialized once at module level
+const ruStemmer = snowball.newStemmer('russian');
+const enStemmer = snowball.newStemmer('english');
+
+// Script detection regex (compiled once)
+const CYRILLIC_RE = /\p{Script=Cyrillic}/u;
+const LATIN_RE = /\p{Script=Latin}/u;
+
+/**
+ * Stem a word using the appropriate language stemmer based on script detection.
+ * Cyrillic → Russian stemmer, Latin → English stemmer, other (CJK, etc.) → unchanged.
+ */
+function stemWord(word) {
+    if (CYRILLIC_RE.test(word)) return ruStemmer.stem(word);
+    if (LATIN_RE.test(word)) return enStemmer.stem(word);
+    return word;
+}
+
 // Common stop words to filter out during tokenization
 const STOP_WORDS = new Set([
     // English
@@ -51,10 +71,11 @@ const BM25_B = 0.75;
  */
 export function tokenize(text) {
     if (!text) return [];
-    // \p{L} matches any Unicode letter (supports Cyrillic, Latin, etc.)
+    // \p{L} matches any Unicode letter (supports Cyrillic, Latin, CJK, etc.)
     // Using 'gu' flag for Unicode-aware matching
     return (text.toLowerCase().match(/[\p{L}0-9_]+/gu) || [])
-        .filter(word => word.length > 2 && !STOP_WORDS.has(word));
+        .filter(word => word.length > 2 && !STOP_WORDS.has(word))
+        .map(stemWord);
 }
 
 /**

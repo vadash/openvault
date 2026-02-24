@@ -5,6 +5,7 @@ OpenVault is a Retrieval-Augmented Generation (RAG) memory extension for SillyTa
 
 ## Tech Stack (WHAT)
 - **Runtime**: Browser-based JavaScript (ES Modules). No bundler used for JS
+- **External deps**: Loaded via `https://esm.sh/` CDN as ES Modules (e.g., `import { z } from 'https://esm.sh/zod@4'`). For tests, these are aliased to local `node_modules` packages in `vitest.config.js`
 - **UI**: jQuery (SillyTavern standard) + FontAwesome
 - **Styles**: CSS variables, bundled via script
 - **Testing**: Vitest with jsdom

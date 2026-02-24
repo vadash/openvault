@@ -20,6 +20,8 @@ export default defineConfig({
             '../../../shared.js': path.resolve(__dirname, 'tests/__mocks__/shared.js'),
             // Map https://esm.sh/zod@4 to local zod package for tests
             'https://esm.sh/zod@4': path.resolve(__dirname, 'node_modules/zod'),
+            // Map https://esm.sh/snowball-stemmers@0.6.0 to local package for tests
+            'https://esm.sh/snowball-stemmers@0.6.0': path.resolve(__dirname, 'node_modules/snowball-stemmers'),
         },
     },
 });
