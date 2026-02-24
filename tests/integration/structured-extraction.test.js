@@ -17,15 +17,16 @@ describe('Structured extraction integration', () => {
             connectionManager: {
                 sendRequest: vi.fn().mockResolvedValue({
                     content: JSON.stringify({
+                        reasoning: 'Initial greeting established',
                         events: [
                             {
+                                event_type: 'action',
                                 summary: 'User greeted Alice',
                                 importance: 2,
                                 characters_involved: ['User', 'Alice'],
                                 witnesses: ['Alice'],
                             }
                         ],
-                        reasoning: 'Initial greeting established',
                     })
                 }),
             },
@@ -61,7 +62,7 @@ describe('Structured extraction integration', () => {
         const { connectionManager } = await import('../../src/deps.js').then(m => m.getDeps());
 
         connectionManager.sendRequest.mockResolvedValue({
-            content: '```json\n{"events": [{"summary": "Test", "importance": 3, "characters_involved": []}], "reasoning": null}\n```'
+            content: '```json\n{"reasoning": null, "events": [{"event_type": "action", "summary": "Test", "importance": 3, "characters_involved": []}]}\n```'
         });
 
         const result = await extractMemories();

@@ -12,7 +12,7 @@ describe('callLLMForExtraction with structured output', () => {
 
     beforeEach(() => {
         mockConnectionManager = {
-            sendRequest: vi.fn().mockResolvedValue({ content: '{"events": [], "reasoning": null}' }),
+            sendRequest: vi.fn().mockResolvedValue({ content: '{"reasoning": null, "events": []}' }),
         };
 
         setDeps({
@@ -68,5 +68,26 @@ describe('callLLMForExtraction with structured output', () => {
         expect(jsonSchema.value).toHaveProperty('type');
         expect(jsonSchema.value).toHaveProperty('properties');
         expect(jsonSchema.value.properties).toHaveProperty('events');
+    });
+
+    it('jsonSchema has reasoning as first property', async () => {
+        await callLLMForExtraction(testMessages, { structured: true });
+
+        const callArgs = mockConnectionManager.sendRequest.mock.calls[0];
+        const jsonSchema = callArgs[4].jsonSchema;
+        const propKeys = Object.keys(jsonSchema.value.properties);
+
+        expect(propKeys[0]).toBe('reasoning');
+        expect(propKeys[1]).toBe('events');
+    });
+
+    it('jsonSchema includes event_type in event items', async () => {
+        await callLLMForExtraction(testMessages, { structured: true });
+
+        const callArgs = mockConnectionManager.sendRequest.mock.calls[0];
+        const jsonSchema = callArgs[4].jsonSchema;
+        const eventItemProps = jsonSchema.value.properties.events.items.properties;
+
+        expect(eventItemProps).toHaveProperty('event_type');
     });
 });

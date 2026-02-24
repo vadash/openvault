@@ -54,6 +54,7 @@ describe('executeLLM with structured parsing', () => {
             JSON.stringify({
                 events: [
                     {
+                        event_type: 'action',
                         summary: 'Alice greeted Bob',
                         importance: 3,
                         characters_involved: ['Alice', 'Bob'],
@@ -91,7 +92,7 @@ describe('executeLLM with structured parsing', () => {
         const spy = vi.spyOn(llmModule, 'callLLMForExtraction').mockResolvedValue(
             JSON.stringify({
                 events: [
-                    { summary: 'Has summary but invalid importance', importance: 10 }
+                    { event_type: 'action', summary: 'Has summary but invalid importance', importance: 10 }
                 ]
             })
         );
@@ -111,7 +112,7 @@ describe('executeLLM with structured parsing', () => {
         const spy = vi.spyOn(llmModule, 'callLLMForExtraction').mockResolvedValue(
             JSON.stringify({
                 events: [
-                    { summary: 'Test event' }  // only required field
+                    { event_type: 'action', summary: 'Test event' }  // required fields only
                 ]
             })
         );
@@ -122,6 +123,7 @@ describe('executeLLM with structured parsing', () => {
 
         expect(events).toHaveLength(1);
         expect(events[0].summary).toBe('Test event');
+        expect(events[0].event_type).toBe('action');
         expect(events[0].importance).toBe(3);  // default from schema
         expect(events[0].witnesses).toEqual([]);  // default from schema
 
@@ -150,7 +152,7 @@ describe('executeLLM with structured parsing', () => {
         const llmModule = await import('../../../src/llm.js');
         const spy = vi.spyOn(llmModule, 'callLLMForExtraction').mockResolvedValue(
             JSON.stringify({
-                events: [{ summary: 'Test', importance: 3, characters_involved: [] }],
+                events: [{ event_type: 'action', summary: 'Test', importance: 3, characters_involved: [] }],
                 reasoning: null,
             })
         );
@@ -173,6 +175,7 @@ describe('executeLLM with structured parsing', () => {
             JSON.stringify({
                 events: [
                     {
+                        event_type: 'action',
                         summary: 'Test event',
                         importance: 4,
                         characters_involved: ['Alice', 'Bob'],
@@ -191,6 +194,7 @@ describe('executeLLM with structured parsing', () => {
 
         expect(events).toHaveLength(1);
         expect(events[0]).toMatchObject({
+            event_type: 'action',
             summary: 'Test event',
             importance: 4,
             characters_involved: ['Alice', 'Bob'],
