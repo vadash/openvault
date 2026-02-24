@@ -146,14 +146,37 @@ describe('parseExtractionResponse', () => {
         expect(result.events[0].tags).toEqual(['COMBAT', 'INJURY']);
     });
 
-    it('rejects invalid tags', () => {
+    it('sanitizes invalid tags to NONE fallback', () => {
         const json = JSON.stringify({
             reasoning: null,
             events: [
                 { tags: ['INVALID_TAG'], summary: 'Test', importance: 3, characters_involved: [] }
             ],
         });
-        expect(() => parseExtractionResponse(json)).toThrow('Schema validation failed');
+        const result = parseExtractionResponse(json);
+        expect(result.events[0].tags).toEqual(['NONE']);
+    });
+
+    it('sanitizes lowercase tags to uppercase', () => {
+        const json = JSON.stringify({
+            reasoning: null,
+            events: [
+                { tags: ['combat', 'romance'], summary: 'Test', importance: 3, characters_involved: [] }
+            ],
+        });
+        const result = parseExtractionResponse(json);
+        expect(result.events[0].tags).toEqual(['COMBAT', 'ROMANCE']);
+    });
+
+    it('strips invalid tags but keeps valid ones', () => {
+        const json = JSON.stringify({
+            reasoning: null,
+            events: [
+                { tags: ['COMBAT', 'FAKE_TAG'], summary: 'Test', importance: 3, characters_involved: [] }
+            ],
+        });
+        const result = parseExtractionResponse(json);
+        expect(result.events[0].tags).toEqual(['COMBAT']);
     });
 
     it('accepts valid tags from all groups', () => {

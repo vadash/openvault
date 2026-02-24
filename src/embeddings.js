@@ -229,6 +229,9 @@ export async function enrichEventsWithEmbeddings(events) {
 
     const embeddings = await processInBatches(validEvents, 5, async (e) => {
         const text = formatForEmbedding(e.summary, e.tags, settings);
+        if (settings?.debugMode) {
+            log(`Embedding doc: "${text.slice(0, 80)}${text.length > 80 ? '...' : ''}"`);
+        }
         return strategy.getDocumentEmbedding(text);
     });
 
