@@ -81,14 +81,14 @@ describe('callLLMForExtraction with structured output', () => {
         expect(propKeys[1]).toBe('events');
     });
 
-    it('jsonSchema includes event_type in event items', async () => {
+    it('jsonSchema includes tags in event items', async () => {
         await callLLMForExtraction(testMessages, { structured: true });
 
         const callArgs = mockConnectionManager.sendRequest.mock.calls[0];
         const jsonSchema = callArgs[4].jsonSchema;
         const eventItemProps = jsonSchema.value.properties.events.items.properties;
 
-        expect(eventItemProps).toHaveProperty('event_type');
+        expect(eventItemProps).toHaveProperty('tags');
     });
 });
 
