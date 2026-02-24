@@ -76,7 +76,16 @@ export function stripThinkingTags(text) {
 export function safeParseJSON(input) {
     try {
         // Strip thinking/reasoning tags before parsing
-        const cleanedInput = stripThinkingTags(input);
+        let cleanedInput = stripThinkingTags(input);
+
+        // Extract JSON array or object using regex (before jsonrepair)
+        // This handles conversational filler before/after the JSON
+        // Use non-greedy match to extract first JSON structure
+        const jsonMatch = cleanedInput.match(/\[[\s\S]*?\]|\{[\s\S]*?\}/);
+        if (jsonMatch) {
+            cleanedInput = jsonMatch[0];
+        }
+
         const repaired = jsonrepair(cleanedInput);
         const parsed = JSON.parse(repaired);
         // Only accept objects and arrays - reject primitives (string, number, boolean, null)

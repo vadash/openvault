@@ -552,5 +552,37 @@ describe('utils', () => {
             const result = safeParseJSON(input);
             expect(result).toEqual({ value: 42 });
         });
+});
+
+    describe('safeParseJSON with conversational filler', () => {
+        it('extracts JSON from conversational response', () => {
+            const input = 'Here is the result you requested:\n\n{"selected": [1, 2, 3]}\n\nHope this helps!';
+            const result = safeParseJSON(input);
+            expect(result).toEqual({ selected: [1, 2, 3] });
+        });
+
+        it('extracts JSON array from conversational response', () => {
+            const input = 'Based on my analysis:\n\n[{"id": 1, "summary": "test"}]\n\nLet me know if you need more.';
+            const result = safeParseJSON(input);
+            expect(result).toEqual([{ id: 1, summary: 'test' }]);
+        });
+
+        it('handles thinking tags plus conversational filler', () => {
+            const input = '<thinking>analyzing...</thinking>\n\nHere are the results:\n{"events": []}\n\nDone!';
+            const result = safeParseJSON(input);
+            expect(result).toEqual({ events: [] });
+        });
+
+        it('extracts first JSON object when multiple present', () => {
+            const input = '{"result": {"data": [1]}} some text {"other": "value"}';
+            const result = safeParseJSON(input);
+            expect(result).toEqual({ result: { data: [1] } });
+        });
+
+        it('handles nested JSON extraction', () => {
+            const input = 'The extracted memories are:\n\n{"selected": [1,2,3], "reasoning": "relevant to query"}';
+            const result = safeParseJSON(input);
+            expect(result).toEqual({ selected: [1, 2, 3], reasoning: 'relevant to query' });
+        });
     });
 });
