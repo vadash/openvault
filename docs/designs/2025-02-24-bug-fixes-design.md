@@ -228,16 +228,285 @@ function computeMemoryHash(memories: Memory[]): number
    - Test with very long messages → verify batch stops before token limit
    - Test with short messages → verify normal batch size used
 
-## 9. Deferred Items
+## 9. Deferred Items - Detailed Analysis
 
-The following items from the review were considered but deferred:
+### 9.1 Concurrency Queue (VALID - Low Priority)
 
-1. **Concurrency Queue** - Current skip logic is acceptable; event dropping is rare in practice
-2. **WebGPU Memory Disposal** - Low priority; requires settings change listener and cleanup logic
-3. **Memory Distance Calculation** - Current clamping at 0 is acceptable for deleted messages
-4. **Auto-hide Coherence** - Group chat edge case; current rounding works for typical 1:1 chats
-5. **Cyrillic Regex** - Already supports Unicode; Latin/Cyrillic is documented scope
+**Review Claim:** "If the user generates three short messages in rapid succession (or uses the ST swipe feature quickly), events might be dropped."
 
-## 10. Summary
+**Code Analysis:**
 
-This design document addresses the verified critical bugs with minimal, targeted fixes. The high-priority issues (worker cache and UI wipe) directly impact user experience and should be addressed first. Medium-priority improvements (token batching, JSON extraction) enhance reliability without significant risk.
+Located in `src/events.js:114-118` and `src/state.js`:
+
+```javascript
+// Don't extract if already extracting
+if (operationState.extractionInProgress) {
+    log('Skipping extraction - extraction already in progress');
+    return;
+}
+```
+
+**Assessment:** The skip logic is intentional. However, there IS a valid concern:
+
+1. **Rapid message scenario:** User types 3 messages quickly → AI responds 3 times rapidly
+2. **Current behavior:** First response triggers extraction; subsequent responses are skipped
+3. **Result:** 2 out of 3 response batches are NOT extracted until next generation cycle
+
+**Proposed Fix - Simple Queue:**
+
+```javascript
+// In state.js - add queue
+export const extractionQueue = [];
+let extractionTimer = null;
+
+export function queueExtraction(batch) {
+    extractionQueue.push(batch);
+    // Process after delay (debounce rapid messages)
+    clearTimeout(extractionTimer);
+    extractionTimer = setTimeout(processExtractionQueue, 2000);
+}
+
+export async function processExtractionQueue() {
+    if (operationState.extractionInProgress || extractionQueue.length === 0) return;
+
+    operationState.extractionInProgress = true;
+    const batch = extractionQueue.shift();
+
+    try {
+        await extractMemories(batch);
+    } finally {
+        operationState.extractionInProgress = false;
+        // Process next batch if queued
+        if (extractionQueue.length > 0) {
+            setTimeout(processExtractionQueue, 1000);
+        }
+    }
+}
+```
+
+**Priority:** Low - Current skip behavior is acceptable for typical usage patterns.
+
+---
+
+### 9.2 WebGPU Memory Disposal (VALID - Medium Priority)
+
+**Review Claim:** "If a user switches from multilingual-e5 to gemma, or turns off the extension, the previous model stays in memory. WebGPU models (300MB+) staying in VRAM will degrade ST performance."
+
+**Code Analysis:**
+
+Located in `src/embeddings/strategies.js:144-152`:
+
+```javascript
+async reset() {
+    this.#cachedPipeline = null;
+    this.#cachedModelId = null;
+    this.#cachedDevice = null;
+    this.#loadingPromise = null;
+}
+```
+
+The `reset()` method exists but is **never called** when settings change!
+
+**Assessment:** This is a real memory leak. When user changes `embeddingSource` setting:
+- Old pipeline remains in memory
+- New pipeline loads
+- Both models occupy VRAM (300-700MB each)
+
+**Proposed Fix:**
+
+```javascript
+// In src/ui/settings.js - modify bindSelect for embeddingSource
+bindSelect('openvault_embedding_source', 'embeddingSource', async (value) => {
+    // Reset old strategy before switching
+    const oldSource = getDeps().getExtensionSettings()[extensionName]?.embeddingSource;
+    if (oldSource && oldSource !== value) {
+        const oldStrategy = getStrategy(oldSource);
+        await oldStrategy.reset();
+        // Force garbage collection hint
+        if (global.gc) global.gc();
+    }
+
+    $('#openvault_ollama_settings').toggle(value === 'ollama');
+    updateEmbeddingStatusDisplay(getEmbeddingStatus());
+});
+```
+
+**Priority:** Medium - Real memory leak but only affects users who frequently switch models.
+
+---
+
+### 9.3 Memory Distance Calculation (MINOR - Very Low Priority)
+
+**Review Claim:** "If a user deletes 100 messages from the bottom of their chat... maxMessageId is higher than chatLength, resulting in a negative distance."
+
+**Code Analysis:**
+
+Located in `src/retrieval/math.js:146-152`:
+
+```javascript
+const distance = Math.max(0, chatLength - maxMessageId);
+```
+
+**Assessment:** The `Math.max(0, ...)` clamping IS intentional. When messages are deleted:
+- Old memories have `maxMessageId > chatLength`
+- Distance becomes 0 (maximum recency score)
+- This effectively treats "orphaned" memories as very recent
+
+**Review's Suggested Fix:** "Drastically penalize or auto-prune orphaned memories."
+
+**Counter-Argument:** The current behavior is reasonable:
+- User deleted old messages but kept the memories
+- Treating them as recent ensures they're still retrieved
+- Auto-deleting user's memories would be unexpected behavior
+
+**Recommendation:** No fix needed. Current behavior preserves user's memories appropriately.
+
+**Priority:** Very Low - Working as designed.
+
+---
+
+### 9.4 Auto-Hide Coherence (VALID - Low Priority)
+
+**Review Claim:** "You round down to even numbers to hide User-AI pairs. This assumes a strict 1:1 alternating chat. Group chats or swipe-regenerates often break this paradigm."
+
+**Code Analysis:**
+
+Located in `src/auto-hide.js:42-51`:
+
+```javascript
+// Round down to nearest even number (for pairs)
+const pairsToHide = Math.floor(toHideCount / 2);
+const messagesToHide = pairsToHide * 2;
+
+// Hide the oldest messages, but ONLY if they've been extracted
+for (let i = 0; i < messagesToHide && i < visibleMessages.length; i++) {
+    const msgIdx = visibleMessages[i].idx;
+    // ...
+}
+```
+
+**Assessment:** The code correctly checks `is_user` flag for extraction tracking. However, the pairing assumption has an edge case:
+
+**Group Chat Scenario:**
+```
+[User] Hello
+[AI1] Hi there!
+[AI2] Hello too
+```
+Rounding to pairs might hide 2 messages, leaving an orphaned AI response.
+
+**Proposed Fix:**
+
+```javascript
+// Instead of counting pairs, verify actual user-AI alternation
+// Hide messages in groups that maintain alternation
+let messagesToHide = 0;
+let lastWasUser = null;
+
+for (let i = 0; i < visibleMessages.length && messagesToHide < toHideCount; i++) {
+    const msg = visibleMessages[i];
+    const isUser = chat[msg.idx].is_user;
+
+    // Maintain alternation: only hide if this continues the pattern
+    if (lastWasUser === null || lastWasUser !== isUser) {
+        messagesToHide++;
+        lastWasUser = isUser;
+    } else {
+        // Pattern broken, stop hiding
+        break;
+    }
+}
+```
+
+**Priority:** Low - Edge case affects few users; current behavior is acceptable for typical 1:1 roleplay.
+
+---
+
+### 9.5 LLM System Prompt Split (WARRANTS FURTHER INVESTIGATION)
+
+**Review Claim:** "Modern LLMs are heavily optimized to follow formatting rules when they are placed in the system role."
+
+**Code Analysis:**
+
+Located in `src/llm.js:69-71` and `src/prompts.js`:
+
+```javascript
+// llm.js
+const messages = [{ role: 'user', content: prompt }];
+
+// prompts.js structure
+<role>...</role>
+<messages>...</messages>
+<context>...</context>
+<schema>...</schema>
+<examples>...</examples>
+<instructions>...</instructions>
+```
+
+**Deeper Analysis:**
+
+The current approach sends role/schema/instructions as USER content. The review suggests:
+
+```javascript
+const messages = [
+    { role: 'system', content: systemPrompt },  // <role>, <schema>, <instructions>
+    { role: 'user', content: userPrompt }        // <messages>, <context>, <examples>
+];
+```
+
+**Why This Matters:**
+
+1. **Claude 3.5+/GPT-4:** System prompts are more strongly enforced
+2. **O1/Reasoning Models:** Don't count system tokens toward output token limits
+3. **Llama 3/Gemma:** Better instruction following with system role
+
+**SillyTavern Complication:**
+
+ConnectionManager's `includeInstruct` setting may inject instruct templates into both system and user messages. This could conflict with our XML-tagged approach.
+
+**Proposed Investigation:**
+
+```javascript
+// Experimental: try split prompt approach
+export async function callLLMWithSystemRole(prompt, config) {
+    const parts = splitPromptIntoSystemAndUser(prompt);
+    const messages = [
+        { role: 'system', content: parts.system },
+        { role: 'user', content: parts.user }
+    ];
+    // ... rest of call
+}
+
+function splitPromptIntoSystemAndUser(fullPrompt) {
+    // Extract <role>, <schema>, <instructions> for system
+    // Keep <messages>, <context>, <examples> for user
+    // ...
+}
+```
+
+**Priority:** Medium - Could improve reliability but requires A/B testing across providers.
+
+---
+
+## 10. Updated Implementation Priority
+
+### Phase 1 - Critical (UX Breaking)
+1. Web Worker hash-based sync detection
+2. UI edit-mode preservation
+
+### Phase 2 - Reliability
+3. Token-aware message batching
+4. Regex JSON extraction
+5. WebGPU memory disposal on model switch
+
+### Phase 3 - Optimization
+6. Concurrency queue for rapid messages
+7. LLM system/user prompt split (requires extensive testing)
+
+### Deferred - Working as Designed
+8. Memory distance calculation (clamping is intentional)
+9. Auto-hide pairing (edge case, rare impact)
+
+## 11. Summary
+
+This design document addresses 9 verified issues from the code review. Two are critical UX bugs, four are valid improvements, two are edge cases, and one requires further investigation. The recommended approach is phased implementation starting with high-impact, low-risk fixes.
