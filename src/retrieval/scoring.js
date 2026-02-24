@@ -11,7 +11,7 @@ import { parseRetrievalResponse } from '../extraction/structured.js';
 import { extensionName } from '../constants.js';
 import { callLLMForRetrieval } from '../llm.js';
 import { buildSmartRetrievalPrompt } from '../prompts.js';
-import { getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
+import { getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { extractQueryContext, buildEmbeddingQuery, buildBM25Tokens, parseRecentMessages } from './query-context.js';
 import { scoreMemoriesSync } from './sync-scorer.js';
 
@@ -225,7 +225,7 @@ export async function selectRelevantMemoriesSimple(memories, ctx, limit) {
     // Get embedding for enriched query if enabled
     let contextEmbedding = null;
     if (isEmbeddingsEnabled() && embeddingQuery) {
-        contextEmbedding = await getEmbedding(embeddingQuery);
+        contextEmbedding = await getQueryEmbedding(embeddingQuery);
     }
 
     return runWorkerScoring(memories, contextEmbedding, chatLength, limit, bm25Tokens);

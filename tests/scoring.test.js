@@ -70,6 +70,7 @@ globalThis.URL = URL;
 // Mock the embeddings module
 vi.mock('../src/embeddings.js', () => ({
     getEmbedding: vi.fn(),
+    getQueryEmbedding: vi.fn(),
     cosineSimilarity: vi.fn(),
     isEmbeddingsEnabled: vi.fn(),
 }));
@@ -109,7 +110,7 @@ import {
     selectRelevantMemories,
     resetWorkerSyncState,
 } from '../src/retrieval/scoring.js';
-import { getEmbedding, cosineSimilarity, isEmbeddingsEnabled } from '../src/embeddings.js';
+import { getEmbedding, getQueryEmbedding, cosineSimilarity, isEmbeddingsEnabled } from '../src/embeddings.js';
 import { callLLMForRetrieval } from '../src/llm.js';
 import { buildSmartRetrievalPrompt } from '../src/prompts.js';
 import { log } from '../src/utils.js';
@@ -161,6 +162,7 @@ describe('scoring', () => {
         // Default mock behaviors
         isEmbeddingsEnabled.mockReturnValue(false);
         getEmbedding.mockResolvedValue(null);
+        getQueryEmbedding.mockResolvedValue(null);
         cosineSimilarity.mockReturnValue(0);
         callLLMForRetrieval.mockResolvedValue('{}');
     });
@@ -301,7 +303,7 @@ describe('scoring', () => {
         describe('vector similarity bonus', () => {
             beforeEach(() => {
                 isEmbeddingsEnabled.mockReturnValue(true);
-                getEmbedding.mockResolvedValue([0.1, 0.2, 0.3]);
+                getQueryEmbedding.mockResolvedValue([0.1, 0.2, 0.3]);
             });
 
             it('adds vector similarity bonus when embeddings enabled', async () => {
@@ -371,7 +373,7 @@ describe('scoring', () => {
                 const result = await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
                 expect(result).toHaveLength(1);
-                expect(getEmbedding).not.toHaveBeenCalled();
+                expect(getQueryEmbedding).not.toHaveBeenCalled();
             });
 
             it('uses enriched query for embedding (built from userMessages only)', async () => {
@@ -381,9 +383,9 @@ describe('scoring', () => {
                 await selectRelevantMemoriesSimple([], makeCtx({ recentContext, userMessages }), 10);
 
                 // Embedding is called with enriched query built from userMessages (intent matching)
-                expect(getEmbedding).toHaveBeenCalledTimes(1);
+                expect(getQueryEmbedding).toHaveBeenCalledTimes(1);
                 // The enriched query includes user messages + extracted entities
-                expect(getEmbedding).toHaveBeenCalledWith(expect.stringContaining('user question'));
+                expect(getQueryEmbedding).toHaveBeenCalledWith(expect.stringContaining('user question'));
             });
         });
     });

@@ -94,6 +94,36 @@ export function clearEmbeddingCache() {
     embeddingCache.clear();
 }
 
+/**
+ * Get query embedding (with query prefix applied by strategy)
+ * @param {string} text - Query text
+ * @returns {Promise<number[]|null>} Embedding vector
+ */
+export async function getQueryEmbedding(text) {
+    if (!text) return null;
+
+    // Check cache (query prefix is applied inside strategy, so cache on raw text + 'q:' prefix)
+    const cacheKey = `q:${text}`;
+    if (embeddingCache.has(cacheKey)) {
+        const value = embeddingCache.get(cacheKey);
+        embeddingCache.delete(cacheKey);
+        embeddingCache.set(cacheKey, value);
+        return value;
+    }
+
+    const settings = getDeps().getExtensionSettings()[extensionName];
+    const source = settings?.embeddingSource || 'multilingual-e5-small';
+    const strategy = getStrategy(source);
+    const result = await strategy.getQueryEmbedding(text);
+
+    if (embeddingCache.size >= MAX_CACHE_SIZE) {
+        const firstKey = embeddingCache.keys().next().value;
+        if (firstKey !== undefined) embeddingCache.delete(firstKey);
+    }
+    embeddingCache.set(cacheKey, result);
+    return result;
+}
+
 // =============================================================================
 // Utility Functions
 // =============================================================================
