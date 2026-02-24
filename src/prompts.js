@@ -177,21 +177,60 @@ Write your analysis in the \`reasoning\` field first, then produce the events ar
  * @returns {Array<{role: string, content: string}>} Array of message objects
  */
 export function buildSmartRetrievalPrompt(recentContext, numberedList, characterName, limit) {
-    const systemPrompt = `You are a senior memory systems architect for character-driven, adult-themed (18+) narratives.
-Your task is to select the most relevant past memories a character would naturally recall right now, focusing on emotional continuity, intimate history, and relationship dynamics.
+    const systemPrompt = `You are a memory retrieval system for character-driven, adult-themed (18+) narratives (эротика, 官能小説).
+Your task: select the most relevant past memories a character would naturally recall right now.
+
+Write your reasoning in the \`reasoning\` field first, then list selected memory IDs.
 
 <selection_criteria>
-1. RELEVANCE TO CURRENT ACT: If the current scene involves ласки (caresses) or arousal, immediately pull memories of past интимная близость (intimacy), known кинки (kinks), and established boundaries.
-2. IMPORTANCE WEIGHT: High importance events (4 and 5 Stars) should heavily influence the character's current psychology.
-3. HISTORY & BOUNDARIES: Always recall past negotiations, стоп-слово (safeword) usage, shared secrets, or relationship milestones involving the present characters.
-4. EMOTIONAL ECHO: Match the emotional tone. If the scene is tense, pull memories of past arguments or betrayals. If romantic, pull deep confessions.
+1. RELEVANCE TO CURRENT ACT: If the scene involves ласки (caresses/愛撫) or arousal, pull memories of past интимная близость (intimacy), known кинки (kinks/性癖), and established boundaries.
+2. IMPORTANCE WEIGHT: High importance events ([4] and [5]) should heavily influence selection — these are psychologically dominant memories.
+3. HISTORY & BOUNDARIES: Always recall past negotiations, стоп-слово (safeword/セーフワード) usage, shared secrets, or relationship milestones involving present characters.
+4. EMOTIONAL ECHO: Match emotional tone. Tense scene → past arguments, betrayals. Romantic scene → confessions, vulnerability. Intimate scene → past sexual history, preferences.
 </selection_criteria>
 
-<thinking_process>
-In the \`reasoning\` field of your JSON, explain your selection:
-1. Identify the current mood/action in the <scene>.
-2. State why the specific memory IDs you chose provide critical psychological or physical context for the character's next reaction.
-</thinking_process>`;
+<examples>
+<example type="intimate_scene">
+Scene: "Lena slowly unbuttons her blouse, watching Marco's reaction with a nervous smile"
+Memories:
+1. [action] [★★★★] Marco kissed Lena for the first time at the festival
+2. [revelation] [★★] Lena mentioned she likes cooking Italian food
+3. [revelation] [★★★★] Lena confessed she wants to be dominated during sex
+4. [action] [★★★] Marco bought flowers for Lena
+5. [relationship_change] [★★★★★] Lena and Marco established 'crimson' as their safeword
+6. [emotion_shift] [★★] Marco felt anxious about his job interview
+
+Output:
+{"reasoning": "Scene is initiating physical intimacy. Memory 1 (first kiss) establishes their physical history. Memory 3 (domination desire) is directly relevant to what may follow. Memory 5 (safeword) is critical for any intimate encounter. Memory 4 and 6 are not relevant to the current intimate context.", "selected": [1, 3, 5]}
+</example>
+
+<example type="emotional_confrontation">
+Scene: "Jun slams the door open. 'You lied to me. About everything.'"
+Memories:
+1. [action] [★★★] Jun and Kira trained together in the courtyard
+2. [revelation] [★★★★] Kira admitted she was spying for the enemy faction
+3. [emotion_shift] [★★★★] Jun broke down crying after his father's funeral
+4. [relationship_change] [★★★] Jun and Kira became sparring partners
+5. [revelation] [★★★★★] Jun confessed he loved Kira despite knowing the truth
+6. [action] [★★] Kira cooked dinner for the group
+
+Output:
+{"reasoning": "Jun is confronting someone about lies. Memory 2 (Kira's spy confession) is the most likely source of the betrayal. Memory 5 (Jun's love confession despite knowing) shows the emotional stakes. Memory 3 (crying at funeral) reveals Jun's vulnerability pattern. Memories 1, 4, 6 are routine and not emotionally relevant to this confrontation.", "selected": [2, 3, 5]}
+</example>
+
+<example type="tense_negotiation">
+Scene: "Dante crosses his arms. 'Before we go any further, we need to talk about what happened last time.'"
+Memories:
+1. [action] [★★★★★] Dante and Sasha had rough sex that accidentally crossed a boundary
+2. [relationship_change] [★★★★] Sasha established a new safeword after the incident
+3. [emotion_shift] [★★★] Dante felt guilty about pushing too hard
+4. [action] [★★] Dante went shopping for groceries
+5. [revelation] [★★★★] Sasha admitted the incident triggered past trauma
+
+Output:
+{"reasoning": "Dante is initiating a serious conversation about a past event. Memory 1 (boundary crossing) is the incident being referenced. Memory 2 (new safeword) shows the aftermath. Memory 3 (Dante's guilt) explains his current motivation. Memory 5 (Sasha's trauma) is essential context. Memory 4 is irrelevant.", "selected": [1, 2, 3, 5]}
+</example>
+</examples>`;
 
     const userPrompt = `<context>
 <memories>
@@ -204,7 +243,8 @@ ${numberedList}
 ${recentContext}
 </scene>
 
-Select up to ${limit} memories from the <memories> list that <character>${characterName}</character> would naturally recall right now based on the <scene>. Provide your response strictly in the required JSON format, writing your analysis in the \`reasoning\` field first.`;
+Select up to ${limit} memories from the <memories> list that <character>${characterName}</character> would naturally recall right now based on the <scene>.
+Write your reasoning in the \`reasoning\` field first, then list the selected memory numbers. Respond strictly in the required JSON format.`;
 
     return [
         { role: 'system', content: systemPrompt },
