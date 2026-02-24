@@ -1,4 +1,4 @@
-# Design: BM25 Scoring Fix (Post-Stemming)
+# Design: BM25 Scoring Fix + Asymmetric Embedding Prompts
 
 ## 1. Problem Statement
 
@@ -8,21 +8,30 @@ After adding Snowball stemming to BM25 tokenization, three scoring pathologies e
 2. **Entity boost × stemming TF inflation**: `Suzy` (stemmed to `suzi`) is entity-boosted 17× in the query, but appears in nearly every memory. High query TF × low-but-nonzero IDF × short-doc length normalization = score blowup.
 3. **Post-stem runts**: `боюсь` (5 chars) passes length filter, then Snowball stems it to `бо` (2 chars). No second filter catches this.
 
+### Additional Problem: Symmetric Prompting Hurts Quality
+
+Benchmark testing (`tests/prompt-comparison.html`) revealed that:
+- **Symmetric prompting** (same prefix for query and document) causes vector collapse and negative separation
+- **EmbeddingGemma-300M is an asymmetric model** — it expects different formats for queries vs documents
+- Baseline (no prompt) outperformed symmetric prompts because it didn't force identical prefixes
+
 ## 2. Goals & Non-Goals
 
 ### Must do
 - BM25 can never dominate vector similarity in the final score
 - Entity boost scales down for corpus-common names
 - Post-stemming tokens below 3 chars are filtered
+- Use **asymmetric** embedding prompts (different prefixes for query vs document)
+- Tags come from **LLM extraction**, not regex
 
 ### Won't do
 - Replace Snowball with spaCy/POS-based lemmatization (too heavy for client-side JS)
-- Change the embedding model or prompts
 - Redesign entity extraction logic
+- Build a separate regex-based auto-tagger (brittle, duplicates LLM understanding)
 
 ## 3. Proposed Architecture
 
-### 3a. Alpha-Blend Scoring
+### 3a. Alpha-Blend Scoring (unchanged)
 
 **Current** (additive, unbounded):
 ```
@@ -38,66 +47,68 @@ Where:
 - `alpha = 0.7` (default, user-configurable)
 - `normalizedVector` = existing `(sim - threshold) / (1 - threshold)` scaled to `[0, 1]`, then × `combinedBoostWeight`
 - `normalizedBM25` = `bm25 / maxBM25` across current batch, scaled to `[0, 1]`, then × `combinedBoostWeight`
-- `combinedBoostWeight` replaces both `vectorSimilarityWeight` and `keywordMatchWeight` — single knob controlling total boost budget (default: `15`, same range as current vector weight)
+- `combinedBoostWeight` replaces both `vectorSimilarityWeight` and `keywordMatchWeight` — single knob controlling total boost budget (default: `15`)
 
-**Score composition:**
+### 3b. IDF-Aware Entity Boost (unchanged)
+
+Scale entity boost repeats inversely by document frequency to prevent corpus-common names from dominating.
+
+### 3c. Post-Stem Length Filter (unchanged)
+
+Filter tokens below 3 chars after stemming.
+
+### 3d. Asymmetric Embedding Prompts
+
+**Benchmark Results** (from `tests/prompt-comparison.html`):
+
+| Prompt Type | Separation | Precision@5 | AUC | Overall |
+|-------------|------------|-------------|-----|---------|
+| Baseline (none) | +0.0189 | 0.70 | 0.582 | 0.594 |
+| Symmetric: Action | -0.0025 | 0.56 | 0.408 | 0.326 |
+| 🔥 Asymmetric: Intent-Tagged | +0.0079 | 0.60 | **0.603** | **0.614** |
+
+**Winner**: `Asymmetric: Intent-Tagged` with LLM-generated categorical tags.
+
+#### Proposed Asymmetric Prompts
+
+**Query side** (applied at retrieval time):
 ```
-base:         0–10 (importance × forgetfulness, floored for imp-5)
-vectorBonus:  0 to alpha × combinedBoostWeight        (max ~10.5 at alpha=0.7, weight=15)
-bm25Bonus:    0 to (1-alpha) × combinedBoostWeight    (max ~4.5 at alpha=0.7, weight=15)
-```
-
-BM25 is now **structurally capped** at `(1-alpha) × weight` regardless of raw BM25 score.
-
-**BM25 normalization detail:** Use batch-max normalization:
-```js
-const maxBM25 = Math.max(...allBM25Scores, 1e-9); // avoid div-by-zero
-const normalizedBM25 = rawBM25 / maxBM25;          // [0, 1]
-```
-
-This preserves relative ranking within BM25 while bounding absolute contribution.
-
-### 3b. IDF-Aware Entity Boost
-
-**Current**: `repeats = ceil(entityWeight × entityBoostWeight)` → up to 17 repeats of `suzi`
-
-**Proposed**: Scale repeats inversely by document frequency:
-```js
-const df = documentFrequency(stemmedEntity); // how many memories contain this term
-const N = totalMemories;
-const idfFactor = Math.log((N - df + 0.5) / (df + 0.5) + 1);
-const maxIDF = Math.log(N + 1); // IDF when df=0 (corpus-unique term)
-const idfRatio = idfFactor / maxIDF; // [0, 1]
-
-const baseRepeats = Math.ceil(entityWeight × entityBoostWeight);
-const adjustedRepeats = Math.max(1, Math.round(baseRepeats × idfRatio));
+search for similar scenes: {user_input}
 ```
 
-Effect:
-- `Suzy` appears in 28/30 memories → idfRatio ≈ 0.05 → 17 repeats → **1 repeat**
-- Rare entity in 2/30 memories → idfRatio ≈ 0.85 → 17 repeats → **14 repeats**
-
-**Requires**: Document frequency data available at query time. Currently computed inside `scoreMemories()` — need to either:
-- **(A)** Precompute DF map from memory tokens and pass to `buildBM25Tokens()`, or
-- **(B)** Apply the IDF scaling inside `scoreMemories()` after DF is computed, adjusting query tokens before BM25 scoring
-
-Option **(B)** is simpler — adjust query token frequencies in-place using the already-computed DF map, rather than changing the `buildBM25Tokens` API.
-
-### 3c. Post-Stem Length Filter
-
-In `tokenize()`:
-```js
-return (text.toLowerCase().match(/[\p{L}0-9_]+/gu) || [])
-    .filter(word => word.length > 2 && !STOP_WORDS.has(word))
-    .map(stemWord)
-    .filter(word => word.length > 2);  // ← add this
+**Document side** (applied at memory save time, with LLM-generated tags):
 ```
+[{TAG1}] [{TAG2}] {memory_summary}
+```
+
+#### Tags: Generated by LLM During Extraction
+
+Instead of regex-based tagging, the extraction LLM assigns tags as part of its analysis. This leverages the LLM's understanding of context, nuance, and multilingual content.
+
+**Available tags** (assigned by LLM):
+
+| Tag | Description |
+|-----|-------------|
+| `EXPLICIT` | Sexual acts, orgasms, anatomy (минет, куннилингус, трахаться, оргазм, сперма) |
+| `BDSM` | Power exchange, bondage, pain, dominance/submission (верёвка, стоп-слово, шлёпать, приказ) |
+| `DOMESTIC` | Daily life, routine activities (магазин, кухня, сон, прогулка, покупка, ужин) |
+| `LORE` | Backstory, trauma, family history, secrets (детство, страх, нищета, родители) |
+| `ROMANCE` | Affection without explicit sex (объятия, поцелуй, держаться за руки, свидание) |
+| `COMBAT` | Fighting, violence, injury (битва, удар, кровь, рана, атаковать) |
+| `MYSTERY` | Investigations, puzzles, unknown elements |
+| `NONE` | Default fallback when nothing else applies |
+
+**Multiple tags allowed**: A memory can have `["BDSM", "EXPLICIT"]` if it contains both power dynamics and sexual acts.
 
 ## 4. Data Models / Schema
 
-No schema changes. Settings additions:
+### Settings Changes
 
 ```js
+// Asymmetric embedding prompts:
+embeddingQueryPrefix: 'search for similar scenes: ',  // Applied during retrieval
+embeddingTagFormat: 'bracket',                        // Format: 'bracket' = [TAG], 'none' = disable
+
 // Replace vectorSimilarityWeight + keywordMatchWeight with:
 alpha: 0.7,                    // vector vs BM25 blend ratio
 combinedBoostWeight: 15,       // total boost budget for vector+BM25
@@ -107,83 +118,255 @@ entityBoostWeight: 5.0,        // base entity boost (now IDF-modulated)
 vectorSimilarityThreshold: 0.5 // unchanged
 ```
 
-**Migration**: For users with custom `vectorSimilarityWeight`/`keywordMatchWeight`:
-- `combinedBoostWeight = vectorSimilarityWeight` (keep their vector weight as total budget)
-- `alpha = vectorSimilarityWeight / (vectorSimilarityWeight + keywordMatchWeight)` (preserve their ratio)
+### Memory Schema Addition
 
-## 5. Interface / API Design
-
-### `calculateScore()` — Updated signature
 ```js
-function calculateScore(memory, contextEmbedding, chatLength, bm25Score, settings)
-// bm25Score is now pre-normalized [0, 1]
-```
-
-### `scoreMemories()` — Updated flow
-```js
-function scoreMemories(memories, contextEmbedding, queryTokens, chatLength, settings) {
-    // 1. Precompute BM25 corpus stats (existing)
-    // 2. Score all memories with raw BM25 (existing)
-    // 3. NEW: Apply IDF-aware TF adjustment to query tokens
-    // 4. NEW: Find maxBM25 across batch
-    // 5. NEW: Normalize each bm25Score to [0, 1]
-    // 6. Calculate final scores with alpha-blend
-    // 7. Sort and return
+{
+    // ... existing fields: summary, event_type, importance, etc ...
+    tags: ['EXPLICIT', 'BDSM'],  // NEW: Assigned by LLM during extraction
+    embedding: [0.234, -0.123, ...],
+    embedding_tags: ['EXPLICIT', 'BDSM'],  // Track what tags were embedded (for re-embed)
 }
 ```
 
-### Settings UI
-- Replace two sliders (`vectorSimilarityWeight`, `keywordMatchWeight`) with:
-  - `alpha` slider (0.0–1.0, default 0.7, label: "Vector vs Keyword Balance")
-  - `combinedBoostWeight` slider (1–30, default 15, label: "Retrieval Boost Strength")
+### Extraction Zod Schema Update
 
-## 6. Embedding Prompt Tuning (Bonus — Related Improvement)
-
-`docs/bm25.md` documents that `embeddinggemma-300M` supports `task: X | query:` instructional prompts that significantly improve similarity quality (0.80 → 0.94 on matched sentences). Currently `strategies.js:257` passes raw text with no prompt prefix.
-
-**Current:**
 ```js
-const output = await pipe(text.trim(), { pooling: 'mean', normalize: true });
+const memoryEventSchema = z.object({
+    event_type: z.enum(['action', 'revelation', 'emotion_shift', 'relationship_change']),
+    summary: z.string().min(8).max(200),
+    importance: z.number().int().min(1).max(5),
+    characters_involved: z.array(z.string()),
+    witnesses: z.array(z.string()),
+    location: z.string().nullable(),
+    is_secret: z.boolean(),
+    emotional_impact: z.record(z.string()),
+    relationship_impact: z.record(z.string()),
+
+    // NEW: Category tags for embedding separation
+    tags: z.array(z.enum([
+        'EXPLICIT', 'BDSM', 'DOMESTIC', 'LORE',
+        'ROMANCE', 'COMBAT', 'MYSTERY', 'NONE'
+    ])).default(['NONE'])
+});
 ```
 
-**Proposed — asymmetric prompting:**
+## 5. LLM Prompt Changes
 
-For **query** embeddings (at retrieval time):
-```js
-const prompted = `task: narrative similarity | query: ${text.trim()}`;
-const output = await pipe(prompted, { pooling: 'mean', normalize: true });
+### 5a. Add `<tags_field>` Directive to Extraction Prompt
+
+Insert after `<importance_scale>` section in `src/prompts.js`:
+
+```
+<tags_field>
+After writing each event's summary, assign 1-3 category tags that BEST describe the content.
+
+Available tags:
+- EXPLICIT: Sexual acts (минет, куннилингус, трахаться, оргазм, сперма, проникновение, Blowjob, フェラチオ)
+- BDSM: Power exchange, bondage, pain play, dominance/submission (верёвка, стоп-слово, шлёпать, приказ, bond, 縛り)
+- DOMESTIC: Daily life activities (магазин, кухня, сон, прогулка, покупка, ужин, shopping, 買い物)
+- LORE: Character backstory, trauma, family history, secrets (детство, страх, нищета, родители, childhood, 幼少期)
+- ROMANCE: Affection without explicit sex (объятия, поцелуй, держаться за руки, свидание, hug, 担いだ手)
+- COMBAT: Fighting, violence, injury (битва, удар, кровь, рана, атаковать, battle, 戦い)
+- MYSTERY: Investigations, puzzles, unknown elements
+- NONE: Default if nothing else applies
+
+Examples:
+- "Suzy сделала минет" → tags: ["EXPLICIT"]
+- "Связал её верёвкой" → tags: ["BDSM"]
+- "Пошли в магазин за бельём" → tags: ["DOMESTIC"]
+- "Рассказала о детстве в нищете" → tags: ["LORE"]
+- "Поцеловал её щёку" → tags: ["ROMANCE"]
+- "Связал и заставил сосать" → tags: ["BDSM", "EXPLICIT"]
+
+Apply tags to help with semantic retrieval. Multiple tags allowed when content overlaps.
+</tags_field>
 ```
 
-For **document** embeddings (at index time / memory creation):
+### 5b. Update All Examples to Include Tags
+
+Every example output in the extraction prompt must include the `tags` field:
+
 ```js
-const prompted = `task: narrative similarity | query: ${text.trim()}`;
-// Same prompt for symmetric matching (doc recommends same prompt both sides)
+<example type="action_intimate" lang="RU">
+Output:
+{
+  "reasoning": "Первый сексуальный контакт между Сашей и Вовой...",
+  "events": [{
+    "event_type": "action",
+    "summary": "Саша повалила Вову на кровать, прижала запястья и начала тереться...",
+    "importance": 4,
+    "characters_involved": ["Саша", "Вова"],
+    "witnesses": [],
+    "location": null,
+    "is_secret": false,
+    "emotional_impact": {"Саша": "возбуждение, власть"},
+    "relationship_impact": {"Саша->Вова": "физическая близость началась"},
+    "tags": ["EXPLICIT"]  // ← ADD THIS LINE TO ALL EXAMPLES
+  }]
+}
+</example>
 ```
 
-**Prompt options to test:**
-| Prompt | Best for |
-|---|---|
-| `task: sentence similarity \| query:` (STS) | General scene comparison, emotional beats |
-| `task: narrative similarity \| query:` | RP scene-to-scene matching |
-| `task: romantic scene similarity \| query:` | Erotic/intimate content matching |
-| `task: character relationship \| query:` | Relationship dynamics |
+## 6. Implementation Flow
 
-**Implementation notes:**
-- Must use **same prompt** at index and query time (asymmetry degrades results)
-- Adding/changing prompt **invalidates all existing embeddings** — requires re-embed
-- Should be user-configurable with a dropdown in settings
-- Default: `STS` (most stable built-in)
-- Store chosen prompt in settings so re-embed can be triggered on change
+### 6a. Memory Creation (with Tags)
 
-**Scope:** This is an independent improvement. Can be implemented separately from the BM25 scoring fix, but worth tracking here since both affect retrieval quality.
+```
+User sends messages
+       ↓
+LLM Extraction (prompts.js)
+  - Analyzes content
+  - Assigns event_type, importance
+  - Assigns tags ← NEW
+       ↓
+Format for embedding
+  - tags: ["EXPLICIT", "BDSM"]
+  - embedText: "[EXPLICIT] [BDSM] {summary}"
+       ↓
+Generate embedding
+  - strategy.getDocumentEmbedding(embedText)
+       ↓
+Save to storage
+  {
+    summary,
+    tags,              // Store raw tags
+    embedding,
+    embedding_tags,    // Track what was embedded
+    ...other fields
+  }
+```
 
-## 7. Risks & Edge Cases
+### 6b. Retrieval (with Query Prefix)
+
+```
+User queries: "Я жадно беру ее титечку..."
+       ↓
+Format query
+  - queryText: "search for similar scenes: Я жадно беру ее титечку..."
+       ↓
+Generate query embedding
+  - strategy.getQueryEmbedding(queryText)
+       ↓
+Score all memories
+  - Cosine similarity
+  - BM25 + alpha-blend
+       ↓
+Return top N
+```
+
+### 6c. Update `TransformersStrategy`
+
+```javascript
+class TransformersStrategy extends EmbeddingStrategy {
+    async getEmbedding(text, type = 'query') {
+        // type: 'query' or 'doc'
+        const settings = getDeps().getExtensionSettings()[extensionName];
+
+        let prefix = '';
+        if (type === 'query') {
+            // Query side: always use prefix
+            prefix = settings?.embeddingQueryPrefix ?? 'search for similar scenes: ';
+        } else {
+            // Document side: no prefix (tags handle this)
+            prefix = settings?.embeddingDocPrefix ?? '';
+        }
+
+        const input = prefix + text.trim();
+        const output = await this.#loadPipeline(this.#currentModelKey)
+            .then(pipe => pipe(input, { pooling: 'mean', normalize: true }));
+        return Array.from(output.data);
+    }
+
+    async getQueryEmbedding(text) {
+        return this.getEmbedding(text, 'query');
+    }
+
+    async getDocumentEmbedding(text) {
+        return this.getEmbedding(text, 'doc');
+    }
+}
+```
+
+### 6d. Tag Formatting Before Embedding
+
+Where memories are saved (after LLM extraction):
+
+```javascript
+async function createMemoryFromExtraction(extractedEvent) {
+    const { summary, tags, ...rest } = extractedEvent;
+
+    // Format tags for embedding: "[EXPLICIT] [BDSM] {summary}"
+    const tagPrefix = tags
+        .filter(t => t !== 'NONE')
+        .map(t => `[${t}]`)
+        .join(' ');
+
+    const embedText = tagPrefix ? `${tagPrefix} ${summary}` : summary;
+
+    // Generate embedding
+    const embedding = await strategy.getDocumentEmbedding(embedText);
+
+    return {
+        ...rest,
+        summary,
+        tags,                    // Store raw tags from LLM
+        embedding,
+        embedding_tags: tags     // Track what was embedded (for re-embed)
+    };
+}
+```
+
+## 7. Migration Path
+
+### Phase 1: Update Extraction Prompt
+- Add `<tags_field>` directive to `src/prompts.js`
+- Add `tags` field to Zod schema
+- Update all examples to include `tags`
+
+### Phase 2: Update Embedding Strategy
+- Add `getQueryEmbedding()` and `getDocumentEmbedding()` methods
+- Add `embeddingQueryPrefix` setting
+
+### Phase 3: Update Memory Creation Flow
+- Read `tags` from LLM response
+- Format `[TAG]` prefix before embedding
+- Store `tags` and `embedding_tags` in memory object
+
+### Phase 4: Re-embed Existing Memories
+- Run `tests/re-embed-asymmetric.mjs`
+- For memories without tags, either:
+  - A) Leave untagged (treat as NONE)
+  - B) Run through extraction LLM to retroactively tag (expensive)
+
+### Phase 5: Settings UI (Optional)
+- Add `embeddingQueryPrefix` input (default: "search for similar scenes: ")
+- Add `embeddingTagFormat` dropdown (bracket/none)
+
+## 8. Risks & Edge Cases
 
 | Risk | Mitigation |
 |---|---|
-| All BM25 scores are 0 (no keyword matches) | `maxBM25` floored at `1e-9`, normalized scores all 0, alpha-blend degrades gracefully to vector-only |
-| Single outlier BM25 score compresses all others | Batch-max normalization does compress. Acceptable — the outlier *should* rank highest within BM25 component. Alpha-blend caps total contribution. |
-| IDF-aware boost makes rare entities too powerful | Already limited by `entityBoostWeight` cap and alpha-blend ceiling. Max BM25 contribution is `(1-alpha) × weight ≈ 4.5`. |
-| Migration breaks existing user settings | Compute equivalent `alpha` + `combinedBoostWeight` from old values. Fallback to defaults if both old keys missing. |
-| Batch-max norm is unstable with tiny batches (<3 memories) | For batches < 3, skip BM25 normalization, use raw scores clamped to [0, weight]. Rare edge case. |
-| Embedding prompt change invalidates all stored embeddings | Must trigger re-embed on prompt change. Warn user in settings UI. |
+| All BM25 scores are 0 | `maxBM25` floored at `1e-9`, alpha-blend degrades to vector-only |
+| Single outlier BM25 compresses others | Batch-max normalization is acceptable; alpha-blend caps contribution |
+| IDF-aware boost makes rare entities too powerful | Limited by `entityBoostWeight` cap and alpha-blend ceiling |
+| LLM assigns wrong tags | Tags are hints, not hard filters. Incorrect tags hurt ranking but don't break retrieval. |
+| LLM refuses to tag / filters out NSFW | Use multilingual anchor words in prompt examples (минет, blowjob, フェラチオ) to bypass censors. |
+| Re-embedding takes too long | Progress indication, can run in background. ~30s for 100 memories on WebGPU. |
+| Changing query prefix doesn't require re-embed | Query embeddings are computed on-the-fly; only doc/tag changes need re-embed. |
+| Existing memories have no tags | Treat as `NONE`. Optionally run retroactive tagging via extraction LLM. |
+
+## 9. Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/prompts.js` | Add `<tags_field>` directive, update Zod schema, add `tags` to all examples |
+| `src/embeddings/strategies.js` | Add `getQueryEmbedding()`, `getDocumentEmbedding()`, handle query prefix setting |
+| Memory creation flow | Extract `tags` from LLM response, format `[TAG]` prefix, store in DB |
+| `src/constants.js` | Add new settings defaults (embeddingQueryPrefix, embeddingTagFormat) |
+| `tests/re-embed-asymmetric.mjs` | Update to use new prompt format |
+
+## 10. Deleted / Not Created
+
+- ~~`src/embeddings/auto-tagger.js`~~ - Not creating; LLM-based tagging is superior
+- Regex-based tagging - Brittle, duplicates LLM understanding, drifts over time
