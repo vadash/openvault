@@ -1,5 +1,5 @@
 import { z } from 'https://esm.sh/zod@4';
-import { ExtractionResponseSchema, EventSchema, normalizeExtractionResponse } from './schemas/event-schema.js';
+import { ExtractionResponseSchema, EventSchema } from './schemas/event-schema.js';
 import { stripThinkingTags } from '../utils.js';
 
 /**
@@ -54,13 +54,7 @@ function parseStructuredResponse(content, schema) {
         throw new Error(`JSON parse failed: ${e.message}`);
     }
 
-    // Handle both array and object formats for backward compatibility
-    // If parsed is an array, normalize it to {events: array, reasoning: null}
-    const normalizedInput = Array.isArray(parsed)
-        ? { events: parsed, reasoning: null }
-        : parsed;
-
-    const result = schema.safeParse(normalizedInput);
+    const result = schema.safeParse(parsed);
     if (!result.success) {
         throw new Error(`Schema validation failed: ${result.error.message}`);
     }
@@ -82,12 +76,10 @@ export function getExtractionJsonSchema() {
  * Parse extraction response with full validation
  *
  * @param {string} content - Raw LLM response
- * @returns {Object} Validated extraction response (normalized to {events, reasoning} format)
+ * @returns {Object} Validated extraction response with {events, reasoning} format
  */
 export function parseExtractionResponse(content) {
-    const parsed = parseStructuredResponse(content, ExtractionResponseSchema);
-    // Normalize to always return {events, reasoning} format
-    return normalizeExtractionResponse(parsed);
+    return parseStructuredResponse(content, ExtractionResponseSchema);
 }
 
 /**

@@ -118,15 +118,20 @@ If most extractions are 4-5, you're over-rating routine events.
 
 <output_format>
 {
-  "event_type": "action|revelation|emotion_shift|relationship_change",
-  "importance": 1-5,
-  "summary": "8-18 words, past tense, English, factual. NO meta-commentary (avoid 'establishing', 'showing', 'demonstrating').",
-  "characters_involved": ["exact names from <characters>"],
-  "witnesses": ["names who observed this event"],
-  "location": "where it happened or null",
-  "is_secret": true/false,
-  "emotional_impact": {"CharacterName": "1-3 word emotion"},
-  "relationship_impact": {"A->B": "1-3 word change description"}
+  "events": [
+    {
+      "event_type": "action|revelation|emotion_shift|relationship_change",
+      "importance": 1-5,
+      "summary": "8-18 words, past tense, English, factual. NO meta-commentary (avoid 'establishing', 'showing', 'demonstrating').",
+      "characters_involved": ["exact names from <characters>"],
+      "witnesses": ["names who observed this event"],
+      "location": "where it happened or null",
+      "is_secret": true/false,
+      "emotional_impact": {"CharacterName": "1-3 word emotion"},
+      "relationship_impact": {"A->B": "1-3 word change description"}
+    }
+  ],
+  "reasoning": "Brief analysis of what you found and why (or null if no events)"
 }
 </output_format>
 </schema>`;
@@ -136,132 +141,152 @@ function _extractionExamples() {
     return `<examples>
 <example type="revelation_confession">
 <input>[Elena]: *She finally breaks down, tears streaming* I killed him. My own brother. He was going to betray us all to the Empire.</input>
-<output>[
-  {
-    "event_type": "revelation",
-    "importance": 5,
-    "summary": "Elena confessed to killing her brother to prevent Empire betrayal.",
-    "characters_involved": ["Elena"],
-    "witnesses": ["Elena", "Marcus"],
-    "location": null,
-    "is_secret": true,
-    "emotional_impact": {"Elena": "guilt, grief"},
-    "relationship_impact": {"Elena->Marcus": "trust deepened"}
-  }
-]</output>
+<output>{
+  "events": [
+    {
+      "event_type": "revelation",
+      "importance": 5,
+      "summary": "Elena confessed to killing her brother to prevent Empire betrayal.",
+      "characters_involved": ["Elena"],
+      "witnesses": ["Elena", "Marcus"],
+      "location": null,
+      "is_secret": true,
+      "emotional_impact": {"Elena": "guilt, grief"},
+      "relationship_impact": {"Elena->Marcus": "trust deepened"}
+    }
+  ],
+  "reasoning": "Major character revelation with high story importance - Elena confesses to fratricide to prevent greater harm."
+}</output>
 </example>
 
 <example type="action_combat">
 <input>[Marcus]: *draws his sword and lunges at the assassin, blade catching moonlight* You won't touch her!</input>
-<output>[
-  {
-    "event_type": "action",
-    "importance": 4,
-    "summary": "Marcus attacked assassin with sword to protect Elena.",
-    "characters_involved": ["Marcus"],
-    "witnesses": ["Marcus", "Elena", "Assassin"],
-    "location": "moonlit courtyard",
-    "is_secret": false,
-    "emotional_impact": {"Marcus": "protective fury"},
-    "relationship_impact": {"Marcus->Elena": "devotion shown"}
-  }
-]</output>
+<output>{
+  "events": [
+    {
+      "event_type": "action",
+      "importance": 4,
+      "summary": "Marcus attacked assassin with sword to protect Elena.",
+      "characters_involved": ["Marcus"],
+      "witnesses": ["Marcus", "Elena", "Assassin"],
+      "location": "moonlit courtyard",
+      "is_secret": false,
+      "emotional_impact": {"Marcus": "protective fury"},
+      "relationship_impact": {"Marcus->Elena": "devotion shown"}
+    }
+  ],
+  "reasoning": "Physical combat action with protective motivation - shows Marcus's devotion."
+}</output>
 </example>
 
 <example type="relationship_change">
 <input>[Sarah]: *extends her hand slowly* I know we've been rivals, but... maybe we don't have to be enemies. Alliance?
 [Tom]: *hesitates, then clasps her hand firmly* Alliance. But I'm watching you.</input>
-<output>[
-  {
-    "event_type": "relationship_change",
-    "importance": 4,
-    "summary": "Sarah and Tom formed uneasy alliance despite rivalry.",
-    "characters_involved": ["Sarah", "Tom"],
-    "witnesses": ["Sarah", "Tom"],
-    "location": null,
-    "is_secret": false,
-    "emotional_impact": {"Sarah": "cautious hope", "Tom": "wary"},
-    "relationship_impact": {"Sarah->Tom": "rivals to allies", "Tom->Sarah": "grudging cooperation"}
-  }
-]</output>
+<output>{
+  "events": [
+    {
+      "event_type": "relationship_change",
+      "importance": 4,
+      "summary": "Sarah and Tom formed uneasy alliance despite rivalry.",
+      "characters_involved": ["Sarah", "Tom"],
+      "witnesses": ["Sarah", "Tom"],
+      "location": null,
+      "is_secret": false,
+      "emotional_impact": {"Sarah": "cautious hope", "Tom": "wary"},
+      "relationship_impact": {"Sarah->Tom": "rivals to allies", "Tom->Sarah": "grudging cooperation"}
+    }
+  ],
+  "reasoning": "Major relationship status change from rivals to allies - story-impacting dynamic shift."
+}</output>
 </example>
 
 <example type="non_latin_names">
 <input>[Катя]: *краснея* Я видела твой дневник... Ты писал обо мне.</input>
-<output>[
-  {
-    "event_type": "revelation",
-    "importance": 4,
-    "summary": "Катя admitted to reading Дима's diary entries about her.",
-    "characters_involved": ["Катя"],
-    "witnesses": ["Катя", "Дима"],
-    "location": "Дима's room",
-    "is_secret": true,
-    "emotional_impact": {"Катя": "embarrassed"},
-    "relationship_impact": {"Катя->Дима": "vulnerability shown"}
-  }
-]</output>
+<output>{
+  "events": [
+    {
+      "event_type": "revelation",
+      "importance": 4,
+      "summary": "Катя admitted to reading Дима's diary entries about her.",
+      "characters_involved": ["Катя"],
+      "witnesses": ["Катя", "Дима"],
+      "location": "Дима's room",
+      "is_secret": true,
+      "emotional_impact": {"Катя": "embarrassed"},
+      "relationship_impact": {"Катя->Дима": "vulnerability shown"}
+    }
+  ],
+  "reasoning": "Personal boundary crossed - reading someone's diary is a significant emotional moment."
+}</output>
 </example>
 
 <example type="action_intimacy">
 <input>[Liam]: *leans in, a slow smile playing on his lips, then gently brushes his thumb over her cheek, trailing it down to her jawline* You're exquisite, Anya. May I kiss you?
 [Anya]: *her breath hitches, eyes fluttering* Yes... oh god, yes.</input>
-<output>[
-  {
-    "event_type": "action",
-    "importance": 3,
-    "summary": "Liam caressed Anya's cheek, requested kiss; she accepted eagerly.",
-    "characters_involved": ["Liam", "Anya"],
-    "witnesses": ["Liam", "Anya"],
-    "location": null,
-    "is_secret": true,
-    "emotional_impact": {"Liam": "desire, tender", "Anya": "aroused, eager"},
-    "relationship_impact": {"Liam->Anya": "desire expressed", "Anya->Liam": "consent given"}
-  }
-]</output>
+<output>{
+  "events": [
+    {
+      "event_type": "action",
+      "importance": 3,
+      "summary": "Liam caressed Anya's cheek, requested kiss; she accepted eagerly.",
+      "characters_involved": ["Liam", "Anya"],
+      "witnesses": ["Liam", "Anya"],
+      "location": null,
+      "is_secret": true,
+      "emotional_impact": {"Liam": "desire, tender", "Anya": "aroused, eager"},
+      "relationship_impact": {"Liam->Anya": "desire expressed", "Anya->Liam": "consent given"}
+    }
+  ],
+  "reasoning": "Intimate physical contact with clear consent - notable romantic escalation."
+}</output>
 </example>
 
 <example type="revelation_vulnerability">
 <input>[Zoe]: *whispering against his skin, after a moment of intense passion* I... I've never felt this safe with anyone before, Kai. Not like this.</input>
-<output>[
-  {
-    "event_type": "revelation",
-    "importance": 4,
-    "summary": "Zoe confessed feeling unprecedented safety and vulnerability with Kai.",
-    "characters_involved": ["Zoe"],
-    "witnesses": ["Zoe", "Kai"],
-    "location": null,
-    "is_secret": true,
-    "emotional_impact": {"Zoe": "vulnerable, trusting", "Kai": "tender, moved"},
-    "relationship_impact": {"Zoe->Kai": "intimacy deepened"}
-  }
-]</output>
+<output>{
+  "events": [
+    {
+      "event_type": "revelation",
+      "importance": 4,
+      "summary": "Zoe confessed feeling unprecedented safety and vulnerability with Kai.",
+      "characters_involved": ["Zoe"],
+      "witnesses": ["Zoe", "Kai"],
+      "location": null,
+      "is_secret": true,
+      "emotional_impact": {"Zoe": "vulnerable, trusting", "Kai": "tender, moved"},
+      "relationship_impact": {"Zoe->Kai": "intimacy deepened"}
+    }
+  ],
+  "reasoning": "Deep emotional revelation about trust and safety - significant character vulnerability shared."
+}</output>
 </example>
 
 <example type="emotion_shift_consent">
 <input>[Jax]: *After she pulls away slightly, a flicker of uncertainty in her eyes* Is this okay? Truly? We can stop anytime.
 [Chloe]: *reaches out, pulling him back closer with a soft moan* More than okay. Don't stop. Please.</input>
-<output>[
-  {
-    "event_type": "emotion_shift",
-    "importance": 4,
-    "summary": "Jax sought confirmation of consent, and Chloe reaffirmed her desire for intimacy.",
-    "characters_involved": ["Jax", "Chloe"],
-    "witnesses": ["Jax", "Chloe"],
-    "location": null,
-    "is_secret": true,
-    "emotional_impact": {"Jax": "concerned, relieved", "Chloe": "reassured, desirous"},
-    "relationship_impact": {"Jax->Chloe": "respect shown", "Chloe->Jax": "trust confirmed"}
-  }
-]</output>
+<output>{
+  "events": [
+    {
+      "event_type": "emotion_shift",
+      "importance": 4,
+      "summary": "Jax sought confirmation of consent, and Chloe reaffirmed her desire for intimacy.",
+      "characters_involved": ["Jax", "Chloe"],
+      "witnesses": ["Jax", "Chloe"],
+      "location": null,
+      "is_secret": true,
+      "emotional_impact": {"Jax": "concerned, relieved", "Chloe": "reassured, desirous"},
+      "relationship_impact": {"Jax->Chloe": "respect shown", "Chloe->Jax": "trust confirmed"}
+    }
+  ],
+  "reasoning": "Explicit consent negotiation - important boundary confirmation in intimate context."
+}</output>
 </example>
 
 <example type="empty_result">
 <input>[Alice]: Hey, how's it going?
 [Bob]: Not bad, just got back from lunch. You?
 [Alice]: Same old, same old. Weather's nice today.</input>
-<output>[]</output>
-<note>No significant events - just small talk</note>
+<output>{"events": [], "reasoning": "No significant events - just small talk with no story impact"}</output>
 </example>
 
 <example type="deduplication_skip">
@@ -271,8 +296,7 @@ function _extractionExamples() {
 </established_memories>
 <input>[Zoe]: *her back arches as his tongue works magic* Oh god, Kai... right there...
 [Kai]: *continues his attention, hands gripping her thighs, encouraged by her sounds*</input>
-<output>[]</output>
-<note>Continuation of already-recorded oral sex - no new act type or climax. SKIP.</note>
+<output>{"events": [], "reasoning": "Continuation of already-recorded oral sex - no new act type or climax. SKIP."}</output>
 </example>
 
 <example type="escalation_extract">
@@ -281,95 +305,105 @@ function _extractionExamples() {
 </established_memories>
 <input>[Kai]: *pulls back, eyes dark with desire* I need you. Now.
 [Zoe]: *pulls him up, wrapping legs around him* Take me.</input>
-<output>[
-  {
-    "event_type": "action",
-    "importance": 3,
-    "summary": "Kai and Zoe transitioned from oral sex to intercourse.",
-    "characters_involved": ["Kai", "Zoe"],
-    "witnesses": ["Kai", "Zoe"],
-    "location": "bedroom",
-    "is_secret": true,
-    "emotional_impact": {"Kai": "passionate", "Zoe": "desirous"},
-    "relationship_impact": {"Kai->Zoe": "intimacy escalated"}
-  }
-]</output>
-<note>Escalation from oral to intercourse = new act type. EXTRACT.</note>
+<output>{
+  "events": [
+    {
+      "event_type": "action",
+      "importance": 3,
+      "summary": "Kai and Zoe transitioned from oral sex to intercourse.",
+      "characters_involved": ["Kai", "Zoe"],
+      "witnesses": ["Kai", "Zoe"],
+      "location": "bedroom",
+      "is_secret": true,
+      "emotional_impact": {"Kai": "passionate", "Zoe": "desirous"},
+      "relationship_impact": {"Kai->Zoe": "intimacy escalated"}
+    }
+  ],
+  "reasoning": "Escalation from oral to intercourse = new act type. EXTRACT."
+}</output>
 </example>
 
 <example type="first_time_critical">
 <input>[Zoe]: *nods, vulnerable, tears in her eyes* This... this is my first time ever. With anyone. I wanted it to be you.</input>
-<output>[
-  {
-    "event_type": "revelation",
-    "importance": 5,
-    "summary": "Zoe revealed this is her first sexual experience ever, choosing Kai.",
-    "characters_involved": ["Zoe"],
-    "witnesses": ["Zoe", "Kai"],
-    "location": null,
-    "is_secret": true,
-    "emotional_impact": {"Zoe": "vulnerable, trusting", "Kai": "honored"},
-    "relationship_impact": {"Zoe->Kai": "ultimate trust shown"}
-  }
-]</output>
-<note>First sexual experience ever = importance 5 (story-defining).</note>
+<output>{
+  "events": [
+    {
+      "event_type": "revelation",
+      "importance": 5,
+      "summary": "Zoe revealed this is her first sexual experience ever, choosing Kai.",
+      "characters_involved": ["Zoe"],
+      "witnesses": ["Zoe", "Kai"],
+      "location": null,
+      "is_secret": true,
+      "emotional_impact": {"Zoe": "vulnerable, trusting", "Kai": "honored"},
+      "relationship_impact": {"Zoe->Kai": "ultimate trust shown"}
+    }
+  ],
+  "reasoning": "First sexual experience ever = importance 5 (story-defining)."
+}</output>
 </example>
 
 <example type="routine_intimacy">
 <input>[Kai]: *pulls her close again, hands exploring familiar territory*
 [Zoe]: *responds eagerly, knowing exactly what he likes* Mmm, I know you love that...</input>
-<output>[
-  {
-    "event_type": "action",
-    "importance": 2,
-    "summary": "Kai and Zoe engaged in familiar intimate touching.",
-    "characters_involved": ["Kai", "Zoe"],
-    "witnesses": ["Kai", "Zoe"],
-    "location": null,
-    "is_secret": true,
-    "emotional_impact": {"Kai": "aroused", "Zoe": "comfortable"},
-    "relationship_impact": {}
-  }
-]</output>
-<note>Routine intimacy between established partners = importance 2.</note>
+<output>{
+  "events": [
+    {
+      "event_type": "action",
+      "importance": 2,
+      "summary": "Kai and Zoe engaged in familiar intimate touching.",
+      "characters_involved": ["Kai", "Zoe"],
+      "witnesses": ["Kai", "Zoe"],
+      "location": null,
+      "is_secret": true,
+      "emotional_impact": {"Kai": "aroused", "Zoe": "comfortable"},
+      "relationship_impact": {}
+    }
+  ],
+  "reasoning": "Routine intimacy between established partners = importance 2."
+}</output>
 </example>
 
 <example type="location_explicit">
 <input>[Marcus]: *leads her through the steaming waters to a secluded alcove* No one can see us here in the thermal baths.
 [Elena]: *presses against the warm stone wall* Perfect.</input>
-<output>[
-  {
-    "event_type": "action",
-    "importance": 3,
-    "summary": "Marcus and Elena found a private alcove in the thermal baths for intimacy.",
-    "characters_involved": ["Marcus", "Elena"],
-    "witnesses": ["Marcus", "Elena"],
-    "location": "thermal baths, secluded alcove",
-    "is_secret": true,
-    "emotional_impact": {"Marcus": "anticipation", "Elena": "eager"},
-    "relationship_impact": {}
-  }
-]</output>
-<note>Location explicitly mentioned - extract with descriptors.</note>
+<output>{
+  "events": [
+    {
+      "event_type": "action",
+      "importance": 3,
+      "summary": "Marcus and Elena found a private alcove in the thermal baths for intimacy.",
+      "characters_involved": ["Marcus", "Elena"],
+      "witnesses": ["Marcus", "Elena"],
+      "location": "thermal baths, secluded alcove",
+      "is_secret": true,
+      "emotional_impact": {"Marcus": "anticipation", "Elena": "eager"},
+      "relationship_impact": {}
+    }
+  ],
+  "reasoning": "Location explicitly mentioned - extract with descriptors."
+}</output>
 </example>
 
 <example type="location_vehicle">
 <input>[Liam]: *pulls the car into a dark corner of the parking garage* We have ten minutes before anyone notices.
 [Anya]: *climbs over the console into his lap* Better make them count.</input>
-<output>[
-  {
-    "event_type": "action",
-    "importance": 3,
-    "summary": "Liam and Anya began intimate encounter in car in parking garage.",
-    "characters_involved": ["Liam", "Anya"],
-    "witnesses": ["Liam", "Anya"],
-    "location": "parking garage, inside car",
-    "is_secret": true,
-    "emotional_impact": {"Liam": "risky thrill", "Anya": "excited"},
-    "relationship_impact": {}
-  }
-]</output>
-<note>Location inferred from context: car + parking garage.</note>
+<output>{
+  "events": [
+    {
+      "event_type": "action",
+      "importance": 3,
+      "summary": "Liam and Anya began intimate encounter in car in parking garage.",
+      "characters_involved": ["Liam", "Anya"],
+      "witnesses": ["Liam", "Anya"],
+      "location": "parking garage, inside car",
+      "is_secret": true,
+      "emotional_impact": {"Liam": "risky thrill", "Anya": "excited"},
+      "relationship_impact": {}
+    }
+  ],
+  "reasoning": "Location inferred from context: car + parking garage. Intimate encounter started."
+}</output>
 </example>
 
 <example type="same_act_continuation_skip">
@@ -378,8 +412,7 @@ function _extractionExamples() {
 </established_memories>
 <input>[Derek]: *brings the belt down again, watching her skin redden* Count them.
 [Sasha]: *gasps, gripping the sheets* Th-three... four!</input>
-<output>[]</output>
-<note>Same spanking session continuing. No new act type, no climax, no new element. SKIP.</note>
+<output>{"events": [], "reasoning": "Same spanking session continuing. No new act type, no climax, no new element. SKIP."}</output>
 </example>
 
 <example type="same_sex_act_skip">
@@ -388,8 +421,7 @@ function _extractionExamples() {
 </established_memories>
 <input>[Kai]: *shifts angle, tongue working deeper* You taste incredible...
 [Zoe]: *moans louder, hands in his hair* Don't stop, right there...</input>
-<output>[]</output>
-<note>Same oral sex continuing. Position adjustment is not a new act. SKIP.</note>
+<output>{"events": [], "reasoning": "Same oral sex continuing. Position adjustment is not a new act. SKIP."}</output>
 </example>
 
 <example type="position_change_skip">
@@ -398,8 +430,7 @@ function _extractionExamples() {
 </established_memories>
 <input>[Marcus]: *flips her onto her stomach* I want you from behind.
 [Elena]: *arches her back eagerly* Yes, take me...</input>
-<output>[]</output>
-<note>Same intercourse, different position. Position change ≠ new act type. SKIP.</note>
+<output>{"events": [], "reasoning": "Same intercourse, different position. Position change ≠ new act type. SKIP."}</output>
 </example>
 
 <example type="climax_extract">
@@ -408,20 +439,22 @@ function _extractionExamples() {
 </established_memories>
 <input>[Marcus]: *thrusts quicken, groaning* I'm going to—
 [Elena]: *cries out, walls clenching around him* Yes! Come inside me!</input>
-<output>[
-  {
-    "event_type": "action",
-    "importance": 3,
-    "summary": "Marcus climaxed inside Elena during intercourse while she orgasmed simultaneously, their bodies tensing together in release.",
-    "characters_involved": ["Marcus", "Elena"],
-    "witnesses": ["Marcus", "Elena"],
-    "location": "bedroom",
-    "is_secret": true,
-    "emotional_impact": {"Marcus": "release, satisfaction", "Elena": "ecstasy"},
-    "relationship_impact": {}
-  }
-]</output>
-<note>Climax is an explicit outcome change. EXTRACT even though intercourse was recorded.</note>
+<output>{
+  "events": [
+    {
+      "event_type": "action",
+      "importance": 3,
+      "summary": "Marcus climaxed inside Elena during intercourse while she orgasmed simultaneously, their bodies tensing together in release.",
+      "characters_involved": ["Marcus", "Elena"],
+      "witnesses": ["Marcus", "Elena"],
+      "location": "bedroom",
+      "is_secret": true,
+      "emotional_impact": {"Marcus": "release, satisfaction", "Elena": "ecstasy"},
+      "relationship_impact": {}
+    }
+  ],
+  "reasoning": "Climax is an explicit outcome change. EXTRACT even though intercourse was recorded."
+}</output>
 </example>
 
 <example type="new_element_extract">
@@ -430,35 +463,51 @@ function _extractionExamples() {
 </established_memories>
 <input>[Derek]: *reaches for the collar on the nightstand* Put this on. You're my pet tonight.
 [Sasha]: *shivers with anticipation, tilting her head* Yes, Master.</input>
-<output>[
-  {
-    "event_type": "action",
-    "importance": 4,
-    "summary": "Derek collared Sasha, initiating pet roleplay; she called him Master.",
-    "characters_involved": ["Derek", "Sasha"],
-    "witnesses": ["Derek", "Sasha"],
-    "location": null,
-    "is_secret": true,
-    "emotional_impact": {"Derek": "dominant", "Sasha": "submissive anticipation"},
-    "relationship_impact": {"Derek->Sasha": "D/s dynamic established"}
-  }
-]</output>
-<note>New element (collar) + new roleplay dynamic (pet/Master). EXTRACT as importance 4.</note>
+<output>{
+  "events": [
+    {
+      "event_type": "action",
+      "importance": 4,
+      "summary": "Derek collared Sasha, initiating pet roleplay; she called him Master.",
+      "characters_involved": ["Derek", "Sasha"],
+      "witnesses": ["Derek", "Sasha"],
+      "location": null,
+      "is_secret": true,
+      "emotional_impact": {"Derek": "dominant", "Sasha": "submissive anticipation"},
+      "relationship_impact": {"Derek->Sasha": "D/s dynamic established"}
+    }
+  ],
+  "reasoning": "New element (collar) + new roleplay dynamic (pet/Master). EXTRACT as importance 4."
+}</output>
 </example>
 
 <example type="avoid_meta_commentary">
 <input>[Derek]: *pulls out the leather collar* You're going to wear this from now on.
 [Sasha]: *kneels submissively* Yes, Master. *accepts the collar*</input>
-<wrong_output>[
-  {
-    "summary": "Derek established dominance by presenting a collar to Sasha, establishing their D/s dynamic."
-  }
-]</wrong_output>
-<correct_output>[
-  {
-    "summary": "Derek gave Sasha a leather collar; she knelt and accepted it."
-  }
-]</correct_output>
+<wrong_output>{
+  "events": [
+    {
+      "summary": "Derek established dominance by presenting a collar to Sasha, establishing their D/s dynamic."
+    }
+  ],
+  "reasoning": "Bad example"
+}</wrong_output>
+<correct_output>{
+  "events": [
+    {
+      "event_type": "action",
+      "importance": 3,
+      "summary": "Derek gave Sasha a leather collar; she knelt and accepted it.",
+      "characters_involved": ["Derek", "Sasha"],
+      "witnesses": ["Derek", "Sasha"],
+      "location": null,
+      "is_secret": true,
+      "emotional_impact": {},
+      "relationship_impact": {}
+    }
+  ],
+  "reasoning": "Correct summary - just factual actions without meta-commentary."
+}</correct_output>
 <note>Avoid meta-commentary words like "established", "establishing", "showing", "demonstrating". Just state what happened.</note>
 </example>
 </examples>`;
@@ -539,10 +588,10 @@ Before outputting JSON, briefly reason in <reasoning> tags:
 1. What story-significant moments occurred?
 2. Are any potential extractions duplicates of existing memories?
 3. What importance level fits each event?
-Then output your JSON array.
+Then output your JSON object with "events" array and "reasoning" field.
 </analysis_process>
 
-Return a JSON array of events. Return [] if no significant new events found.
+Return a JSON object with "events" array and "reasoning" field. Return {"events": [], "reasoning": "..."} if no significant new events found.
 </instructions>`;
 }
 

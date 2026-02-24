@@ -56,7 +56,7 @@ describe('EventSchema', () => {
             is_secret: true,
             emotional_impact: { Alice: 'happy' },
             relationship_impact: {
-                'Alice-Bob': { change: 'improved', new_dynamic: 'friends' }
+                'Alice->Bob': 'trust deepened'
             },
         });
         expect(result.success).toBe(true);
@@ -84,10 +84,11 @@ describe('ExtractionResponseSchema', () => {
         expect(result.success).toBe(true);
     });
 
-    it('requires at least one event', () => {
+    it('allows empty events array', () => {
         const result = ExtractionResponseSchema.safeParse({
             events: [],
+            reasoning: 'No significant events found',
         });
-        expect(result.success).toBe(false);
+        expect(result.success).toBe(true);
     });
 });

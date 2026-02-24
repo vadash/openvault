@@ -6,10 +6,9 @@
  */
 
 import { callLLMForExtraction } from '../../llm.js';
-import { parseExtractionResult } from '../parser.js';
 import { parseExtractionResponse } from '../structured.js';
 import { PROCESSED_MESSAGES_KEY } from '../../constants.js';
-import { log, safeParseJSON } from '../../utils.js';
+import { log } from '../../utils.js';
 
 /**
  * Execute LLM extraction and parse results
@@ -24,39 +23,9 @@ export async function executeLLM(prompt, messages, context, batchId, data) {
     // Call LLM for extraction with structured output enabled
     const extractedJson = await callLLMForExtraction(prompt, { structured: true });
 
-    const characterName = context.name2;
-    const userName = context.name1;
-
-    let events;
-
-    try {
-        // Parse with Zod validation
-        const validated = parseExtractionResponse(extractedJson);
-        events = validated.events;
-    } catch (error) {
-        // Fallback to old parser if validation fails
-        console.warn('[OpenVault] Structured validation failed, falling back to legacy parser:', error.message);
-
-        // Try to parse as structured format first (events array wrapper)
-        // Use safeParseJSON to handle thinking tags and other non-JSON content
-        const parsed = safeParseJSON(extractedJson);
-        if (!parsed) {
-            // safeParseJSON already logs the error
-            throw new Error('Failed to parse LLM response in fallback path');
-        }
-
-        const eventsToParse = parsed.events || parsed;  // Handle both {events: [...]} and direct array
-
-        // Convert back to string for parseExtractionResult
-        const fallbackJson = Array.isArray(eventsToParse) ? JSON.stringify(eventsToParse) : extractedJson;
-        events = parseExtractionResult(fallbackJson, messages, characterName, userName, batchId);
-
-        // Return early since parseExtractionResult already handles enrichment
-        const processedIds = messages.map(m => m.id);
-        data[PROCESSED_MESSAGES_KEY] = data[PROCESSED_MESSAGES_KEY] || [];
-        data[PROCESSED_MESSAGES_KEY].push(...processedIds);
-        return events;
-    }
+    // Parse with Zod validation - no fallback
+    const validated = parseExtractionResponse(extractedJson);
+    const events = validated.events;
 
     // Enrich validated events with metadata
     const messageIds = messages.map(m => m.id);

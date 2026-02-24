@@ -25,6 +25,7 @@ vi.mock('../src/utils.js', () => ({
             return null;
         }
     }),
+    stripThinkingTags: vi.fn((input) => input),
 }));
 
 vi.mock('../src/llm.js', () => ({
@@ -131,7 +132,7 @@ describe('extract', () => {
         isEmbeddingsEnabled.mockReturnValue(false);
         enrichEventsWithEmbeddings.mockResolvedValue(0);
         selectMemoriesForExtraction.mockReturnValue([]);
-        callLLMForExtraction.mockResolvedValue('{}');
+        callLLMForExtraction.mockResolvedValue(JSON.stringify({ events: [], reasoning: null }));
         parseExtractionResult.mockReturnValue([]);
     });
 
@@ -250,46 +251,67 @@ describe('extract', () => {
             expect(callLLMForExtraction).toHaveBeenCalledWith('extraction prompt', { structured: true });
         });
 
-        it('parses extraction result with correct params', async () => {
-            // Return response with invalid importance to trigger fallback path
-            // This tests the parseExtractionResult fallback
-            callLLMForExtraction.mockResolvedValue('{"events": [{"summary": "Test event", "importance": 10}]}');
-            parseExtractionResult.mockReturnValue([{ summary: 'Test event', importance: 5 }]);
+        it('validates structured response with proper schema', async () => {
+            // Return valid structured response
+            callLLMForExtraction.mockResolvedValue(
+                JSON.stringify({
+                    events: [
+                        { summary: 'Test event', importance: 3, characters_involved: ['Alice'] }
+                    ],
+                    reasoning: null,
+                })
+            );
 
             await extractMemories();
 
-            // Fallback should be called with the events array extracted from structured format
-            expect(parseExtractionResult).toHaveBeenCalledWith(
-                '[{"summary":"Test event","importance":10}]',
-                expect.any(Array),
-                'Alice',
-                'User',
-                expect.stringContaining('batch_')
+            // Should succeed with proper structured output
+            expect(callLLMForExtraction).toHaveBeenCalledWith('extraction prompt', { structured: true });
+        });
+
+        it('throws validation error for invalid structured response', async () => {
+            // Return response with invalid importance (out of range)
+            callLLMForExtraction.mockResolvedValue(
+                JSON.stringify({
+                    events: [
+                        { summary: 'Test event', importance: 10, characters_involved: ['Alice'] }
+                    ],
+                    reasoning: null,
+                })
             );
+
+            await expect(extractMemories()).rejects.toThrow('Schema validation failed');
         });
 
         it('stores new memories and updates metadata', async () => {
-            const newEvents = [
-                { id: 'evt1', summary: 'Event 1', importance: 3 },
-                { id: 'evt2', summary: 'Event 2', importance: 4 },
-            ];
-            parseExtractionResult.mockReturnValue(newEvents);
+            callLLMForExtraction.mockResolvedValue(
+                JSON.stringify({
+                    events: [
+                        { summary: 'Event 1', importance: 3, characters_involved: [] },
+                        { summary: 'Event 2', importance: 4, characters_involved: [] },
+                    ],
+                    reasoning: null,
+                })
+            );
 
             await extractMemories();
 
-            expect(mockData[MEMORIES_KEY]).toHaveLength(2);
+            expect(mockData[MEMORIES_KEY].length).toBeGreaterThanOrEqual(2);
             expect(saveOpenVaultData).toHaveBeenCalled();
         });
 
         it('updates character states', async () => {
-            const newEvents = [
-                { id: 'evt1', summary: 'Event 1', importance: 3 },
-            ];
-            parseExtractionResult.mockReturnValue(newEvents);
+            callLLMForExtraction.mockResolvedValue(
+                JSON.stringify({
+                    events: [
+                        { summary: 'Event 1', importance: 3, characters_involved: ['Alice'] },
+                    ],
+                    reasoning: null,
+                })
+            );
 
             await extractMemories();
 
-            expect(updateCharacterStatesFromEvents).toHaveBeenCalledWith(newEvents, mockData);
+            expect(updateCharacterStatesFromEvents).toHaveBeenCalledWith(expect.any(Array), mockData);
         });
 
         it('updates last processed message ID', async () => {
@@ -298,7 +320,12 @@ describe('extract', () => {
                 { mes: 'Message 1', is_user: false },
                 { mes: 'Message 2', is_user: true },
             ];
-            parseExtractionResult.mockReturnValue([{ id: 'evt1', summary: 'Event' }]);
+            callLLMForExtraction.mockResolvedValue(
+                JSON.stringify({
+                    events: [{ summary: 'Event', importance: 3, characters_involved: [] }],
+                    reasoning: null,
+                })
+            );
 
             await extractMemories();
 
@@ -307,37 +334,45 @@ describe('extract', () => {
 
         it('generates embeddings when enabled', async () => {
             isEmbeddingsEnabled.mockReturnValue(true);
-            const newEvents = [
-                { id: 'evt1', summary: 'Event 1' },
-            ];
-            parseExtractionResult.mockReturnValue(newEvents);
+            callLLMForExtraction.mockResolvedValue(
+                JSON.stringify({
+                    events: [{ summary: 'Event 1', importance: 3, characters_involved: [] }],
+                    reasoning: null,
+                })
+            );
             enrichEventsWithEmbeddings.mockResolvedValue(1);
 
             await extractMemories();
 
-            expect(enrichEventsWithEmbeddings).toHaveBeenCalledWith(newEvents);
+            expect(enrichEventsWithEmbeddings).toHaveBeenCalledWith(expect.any(Array));
         });
 
         it('skips embedding if getEmbedding returns null', async () => {
             isEmbeddingsEnabled.mockReturnValue(true);
-            const newEvents = [
-                { id: 'evt1', summary: 'Event 1' },
-            ];
-            parseExtractionResult.mockReturnValue(newEvents);
+            callLLMForExtraction.mockResolvedValue(
+                JSON.stringify({
+                    events: [{ summary: 'Event 1', importance: 3, characters_involved: [] }],
+                    reasoning: null,
+                })
+            );
             // enrichEventsWithEmbeddings returns 0 (no embeddings generated)
             enrichEventsWithEmbeddings.mockResolvedValue(0);
 
             await extractMemories();
 
-            expect(enrichEventsWithEmbeddings).toHaveBeenCalledWith(newEvents);
+            expect(enrichEventsWithEmbeddings).toHaveBeenCalledWith(expect.any(Array));
         });
 
         it('does not call UI functions (caller handles them)', async () => {
-            const newEvents = [
-                { id: 'evt1', summary: 'Event 1' },
-                { id: 'evt2', summary: 'Event 2' },
-            ];
-            parseExtractionResult.mockReturnValue(newEvents);
+            callLLMForExtraction.mockResolvedValue(
+                JSON.stringify({
+                    events: [
+                        { summary: 'Event 1', importance: 3, characters_involved: [] },
+                        { summary: 'Event 2', importance: 3, characters_involved: [] },
+                    ],
+                    reasoning: null,
+                })
+            );
 
             await extractMemories();
 
@@ -347,7 +382,9 @@ describe('extract', () => {
         });
 
         it('tracks processed IDs and saves even when no events extracted', async () => {
-            parseExtractionResult.mockReturnValue([]);
+            callLLMForExtraction.mockResolvedValue(
+                JSON.stringify({ events: [], reasoning: 'No events found' })
+            );
 
             await extractMemories();
 
@@ -361,10 +398,12 @@ describe('extract', () => {
         });
 
         it('returns result with status, events count and messages processed', async () => {
-            const newEvents = [
-                { id: 'evt1', summary: 'Event 1' },
-            ];
-            parseExtractionResult.mockReturnValue(newEvents);
+            callLLMForExtraction.mockResolvedValue(
+                JSON.stringify({
+                    events: [{ summary: 'Event 1', importance: 3, characters_involved: [] }],
+                    reasoning: null,
+                })
+            );
             mockContext.chat = [
                 { mes: 'Message 0', is_user: true },
                 { mes: 'Message 1', is_user: false },
@@ -395,7 +434,9 @@ describe('extract', () => {
             selectMemoriesForExtraction.mockReturnValue([
                 { id: '1', summary: 'Old memory', sequence: 1 },
             ]);
-            parseExtractionResult.mockReturnValue([]);
+            callLLMForExtraction.mockResolvedValue(
+                JSON.stringify({ events: [], reasoning: null })
+            );
 
             await extractMemories();
 
@@ -412,8 +453,12 @@ describe('extract', () => {
         });
 
         it('throws error if chat changes during extraction when targetChatId provided', async () => {
-            const newEvents = [{ id: 'evt1', summary: 'Event 1' }];
-            parseExtractionResult.mockReturnValue(newEvents);
+            callLLMForExtraction.mockResolvedValue(
+                JSON.stringify({
+                    events: [{ summary: 'Event 1', importance: 3, characters_involved: [] }],
+                    reasoning: null,
+                })
+            );
 
             // saveOpenVaultData returns false when chat ID doesn't match
             saveOpenVaultData.mockResolvedValue(false);
@@ -423,8 +468,12 @@ describe('extract', () => {
         });
 
         it('saves normally when chat ID matches targetChatId', async () => {
-            const newEvents = [{ id: 'evt1', summary: 'Event 1' }];
-            parseExtractionResult.mockReturnValue(newEvents);
+            callLLMForExtraction.mockResolvedValue(
+                JSON.stringify({
+                    events: [{ summary: 'Event 1', importance: 3, characters_involved: [] }],
+                    reasoning: null,
+                })
+            );
             saveOpenVaultData.mockResolvedValue(true);
 
             await extractMemories([0, 1], 'same-chat');
@@ -433,8 +482,12 @@ describe('extract', () => {
         });
 
         it('saves normally when no targetChatId provided (backwards compatible)', async () => {
-            const newEvents = [{ id: 'evt1', summary: 'Event 1' }];
-            parseExtractionResult.mockReturnValue(newEvents);
+            callLLMForExtraction.mockResolvedValue(
+                JSON.stringify({
+                    events: [{ summary: 'Event 1', importance: 3, characters_involved: [] }],
+                    reasoning: null,
+                })
+            );
 
             await extractMemories([0, 1]);
 

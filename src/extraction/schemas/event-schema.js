@@ -2,14 +2,9 @@ import { z } from 'https://esm.sh/zod@4';
 
 /**
  * Schema for relationship impact between characters
+ * Maps "A->B" string to 1-3 word change description
  */
-export const RelationshipImpactSchema = z.record(
-    z.string(),
-    z.object({
-        change: z.enum(['improved', 'worsened', 'unchanged']),
-        new_dynamic: z.string().optional(),
-    })
-);
+export const RelationshipImpactSchema = z.record(z.string(), z.string());
 
 /**
  * Schema for a single memory event
@@ -27,28 +22,10 @@ export const EventSchema = z.object({
 
 /**
  * Schema for the full extraction response from LLM (structured format)
- * Used for JSON schema generation
+ * Must be object with "events" array and "reasoning" field
+ * Events array can be empty (no significant events found)
  */
 export const ExtractionResponseSchema = z.object({
-    events: z.array(EventSchema).min(1, 'At least one event is required'),
+    events: z.array(EventSchema),
     reasoning: z.string().nullable().default(null),
 });
-
-/**
- * Normalize extraction response to structured format
- * Handles both array and object inputs (for backward compatibility)
- * @param {any} input - Parsed JSON response (array or object)
- * @returns {Object} Normalized response with {events, reasoning} structure
- */
-export function normalizeExtractionResponse(input) {
-    // If input is an array, wrap it
-    if (Array.isArray(input)) {
-        return { events: input, reasoning: null };
-    }
-    // If already has events property, return as-is
-    if (input && typeof input === 'object' && input.events) {
-        return { events: input.events, reasoning: input.reasoning ?? null };
-    }
-    // Fallback: treat input as single event array
-    return { events: [input], reasoning: null };
-}

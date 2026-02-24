@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { setDeps, resetDeps } from '../../../src/deps.js';
-import { extensionName, MEMORIES_KEY } from '../../../src/constants.js';
-import * as utilsModule from '../../../src/utils.js';
+import { extensionName, MEMORIES_KEY, PROCESSED_MESSAGES_KEY } from '../../../src/constants.js';
 import { executeLLM } from '../../../src/extraction/stages/llm-executor.js';
 
 // Mock generateId for deterministic tests
@@ -16,7 +15,6 @@ vi.mock('../../../src/utils.js', async (importOriginal) => {
 describe('executeLLM with structured parsing', () => {
     let mockData;
     let mockContext;
-    let mockCallLLMForExtraction;
 
     beforeEach(() => {
         mockData = { [MEMORIES_KEY]: [] };
@@ -24,9 +22,6 @@ describe('executeLLM with structured parsing', () => {
             name2: 'Alice',
             name1: 'User',
         };
-
-        // Create mock for callLLMForExtraction
-        mockCallLLMForExtraction = vi.fn();
 
         setDeps({
             getContext: () => mockContext,
@@ -38,11 +33,8 @@ describe('executeLLM with structured parsing', () => {
             getExtensionSettings: () => ({
                 [extensionName]: { enabled: true },
             }),
-            // Mock the llm module
-            callLLMForExtraction: mockCallLLMForExtraction,
         });
 
-        // Clear any previous mocks
         vi.clearAllMocks();
     });
 
@@ -51,7 +43,6 @@ describe('executeLLM with structured parsing', () => {
     });
 
     it('uses structured output mode', async () => {
-        // Need to dynamically import to get the mocked version
         const llmModule = await import('../../../src/llm.js');
         const spy = vi.spyOn(llmModule, 'callLLMForExtraction').mockResolvedValue(
             JSON.stringify({
@@ -84,37 +75,13 @@ describe('executeLLM with structured parsing', () => {
         expect(events[0].summary).toBe('Alice greeted Bob');
         expect(events[0].characters_involved).toEqual(['Alice', 'Bob']);
 
-        // Cleanup
         spy.mockRestore();
     });
 
-    it('handles validation errors gracefully with fallback', async () => {
-        // Return valid data for fallback parser (with summary)
-        const llmModule = await import('../../../src/llm.js');
-        const spy = vi.spyOn(llmModule, 'callLLMForExtraction').mockResolvedValue(
-            JSON.stringify({
-                events: [
-                    { summary: 'Valid event for fallback', importance: 3 }
-                ]
-            })
-        );
-
-        const messages = [{ id: 1, mes: 'test' }];
-
-        const events = await executeLLM('test', messages, mockContext, 'batch-1', mockData);
-
-        // Should succeed with structured validation first
-        expect(events).toHaveLength(1);
-        expect(events[0].summary).toBe('Valid event for fallback');
-
-        spy.mockRestore();
-    });
-
-    it('uses fallback parser when structured validation fails', async () => {
+    it('throws on validation failure (no fallback)', async () => {
         const llmModule = await import('../../../src/llm.js');
 
-        // Return data missing required field - will fail structured validation
-        // but fallback parser might still process it if it has a summary
+        // Return data with invalid importance (out of range)
         const spy = vi.spyOn(llmModule, 'callLLMForExtraction').mockResolvedValue(
             JSON.stringify({
                 events: [
@@ -125,13 +92,10 @@ describe('executeLLM with structured parsing', () => {
 
         const messages = [{ id: 1, mes: 'Alice said hello' }];
 
-        const events = await executeLLM('test', messages, mockContext, 'batch-1', mockData);
-
-        // Structured validation should fail, fallback should handle it
-        // Fallback clamps importance to 1-5
-        expect(events).toHaveLength(1);
-        expect(events[0].summary).toBe('Has summary but invalid importance');
-        expect(events[0].importance).toBe(5); // clamped by fallback parser
+        // Should throw validation error - no fallback
+        await expect(
+            executeLLM('test', messages, mockContext, 'batch-1', mockData)
+        ).rejects.toThrow('Schema validation failed');
 
         spy.mockRestore();
     });
@@ -158,6 +122,24 @@ describe('executeLLM with structured parsing', () => {
         spy.mockRestore();
     });
 
+    it('handles empty events array', async () => {
+        const llmModule = await import('../../../src/llm.js');
+        const spy = vi.spyOn(llmModule, 'callLLMForExtraction').mockResolvedValue(
+            JSON.stringify({
+                events: [],
+                reasoning: 'No significant events found',
+            })
+        );
+
+        const messages = [{ id: 1, mes: 'test' }];
+
+        const events = await executeLLM('test', messages, mockContext, 'batch-1', mockData);
+
+        expect(events).toHaveLength(0);
+
+        spy.mockRestore();
+    });
+
     it('tracks processed message IDs', async () => {
         const llmModule = await import('../../../src/llm.js');
         const spy = vi.spyOn(llmModule, 'callLLMForExtraction').mockResolvedValue(
@@ -174,10 +156,45 @@ describe('executeLLM with structured parsing', () => {
 
         await executeLLM('test', messages, mockContext, 'batch-1', mockData);
 
-        // The import in the test needs to match what's used in the code
-        const { PROCESSED_MESSAGES_KEY } = await import('../../../src/constants.js');
-
         expect(mockData[PROCESSED_MESSAGES_KEY]).toEqual([10, 20]);
+
+        spy.mockRestore();
+    });
+
+    it('enriches events with metadata', async () => {
+        const llmModule = await import('../../../src/llm.js');
+        const spy = vi.spyOn(llmModule, 'callLLMForExtraction').mockResolvedValue(
+            JSON.stringify({
+                events: [
+                    {
+                        summary: 'Test event',
+                        importance: 4,
+                        characters_involved: ['Alice', 'Bob'],
+                        witnesses: ['Charlie'],
+                    }
+                ],
+                reasoning: null,
+            })
+        );
+
+        const messages = [
+            { id: 100, mes: 'test' },
+        ];
+
+        const events = await executeLLM('test', messages, mockContext, 'batch-test', mockData);
+
+        expect(events).toHaveLength(1);
+        expect(events[0]).toMatchObject({
+            summary: 'Test event',
+            importance: 4,
+            characters_involved: ['Alice', 'Bob'],
+            witnesses: ['Charlie'],
+            message_ids: [100],
+            batch_id: 'batch-test',
+        });
+        expect(events[0]).toHaveProperty('id');
+        expect(events[0]).toHaveProperty('sequence');
+        expect(events[0]).toHaveProperty('created_at');
 
         spy.mockRestore();
     });
