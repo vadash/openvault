@@ -15,13 +15,15 @@ describe('buildExtractionPrompt', () => {
         expect(result[1].role).toBe('user');
     });
 
-    it('system prompt contains all four event types', () => {
+    it('system prompt contains <tags_field> directive', () => {
         const result = buildExtractionPrompt(baseArgs);
-        const sys = result[0].content;
-        expect(sys).toContain('action');
-        expect(sys).toContain('revelation');
-        expect(sys).toContain('emotion_shift');
-        expect(sys).toContain('relationship_change');
+        expect(result[0].content).toContain('<tags_field>');
+        expect(result[0].content).not.toContain('event_type');
+    });
+
+    it('examples include tags field', () => {
+        const result = buildExtractionPrompt(baseArgs);
+        expect(result[0].content).toContain('"tags"');
     });
 
     it('system prompt contains examples section', () => {
@@ -66,7 +68,7 @@ describe('buildExtractionPrompt', () => {
             ...baseArgs,
             context: {
                 memories: [
-                    { event_type: 'action', importance: 3, summary: 'Alice waved at Bob', sequence: 1 }
+                    { tags: ['COMBAT'], importance: 3, summary: 'Alice waved at Bob', sequence: 1 }
                 ],
                 charDesc: '',
                 personaDesc: '',
@@ -76,6 +78,8 @@ describe('buildExtractionPrompt', () => {
         const usr = result[1].content;
         expect(usr).toContain('established_memories');
         expect(usr).toContain('Alice waved at Bob');
+        expect(usr).toContain('[COMBAT]');
+        expect(usr).not.toContain('[event]');
     });
 
     it('user prompt includes character descriptions when provided', () => {
