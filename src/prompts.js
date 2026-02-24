@@ -251,12 +251,12 @@ Write your reasoning in the \`reasoning\` field first, then list selected memory
 <example type="intimate_scene">
 Scene: "Lena slowly unbuttons her blouse, watching Marco's reaction with a nervous smile"
 Memories:
-1. [action] [★★★★] Marco kissed Lena for the first time at the festival
-2. [revelation] [★★] Lena mentioned she likes cooking Italian food
-3. [revelation] [★★★★] Lena confessed she wants to be dominated during sex
-4. [action] [★★★] Marco bought flowers for Lena
-5. [relationship_change] [★★★★★] Lena and Marco established 'crimson' as their safeword
-6. [emotion_shift] [★★] Marco felt anxious about his job interview
+1. [ROMANCE] [★★★★] Marco kissed Lena for the first time at the festival
+2. [FOOD, SOCIAL] [★★] Lena mentioned she likes cooking Italian food
+3. [FETISH, EXPLICIT] [★★★★] Lena confessed she wants to be dominated during sex
+4. [ROMANCE] [★★★] Marco bought flowers for Lena
+5. [BDSM] [★★★★★] Lena and Marco established 'crimson' as their safeword
+6. [EMOTION] [★★] Marco felt anxious about his job interview
 
 Output:
 {"reasoning": "Scene is initiating physical intimacy. Memory 1 (first kiss) establishes their physical history. Memory 3 (domination desire) is directly relevant to what may follow. Memory 5 (safeword) is critical for any intimate encounter. Memory 4 and 6 are not relevant to the current intimate context.", "selected": [1, 3, 5]}
@@ -265,12 +265,12 @@ Output:
 <example type="emotional_confrontation">
 Scene: "Jun slams the door open. 'You lied to me. About everything.'"
 Memories:
-1. [action] [★★★] Jun and Kira trained together in the courtyard
-2. [revelation] [★★★★] Kira admitted she was spying for the enemy faction
-3. [emotion_shift] [★★★★] Jun broke down crying after his father's funeral
-4. [relationship_change] [★★★] Jun and Kira became sparring partners
-5. [revelation] [★★★★★] Jun confessed he loved Kira despite knowing the truth
-6. [action] [★★] Kira cooked dinner for the group
+1. [COMBAT] [★★★] Jun and Kira trained together in the courtyard
+2. [SECRET, BETRAYAL] [★★★★] Kira admitted she was spying for the enemy faction
+3. [EMOTION, TRAUMA] [★★★★] Jun broke down crying after his father's funeral
+4. [BONDING] [★★★] Jun and Kira became sparring partners
+5. [ROMANCE, EMOTION] [★★★★★] Jun confessed he loved Kira despite knowing the truth
+6. [FOOD, DOMESTIC] [★★] Kira cooked dinner for the group
 
 Output:
 {"reasoning": "Jun is confronting someone about lies. Memory 2 (Kira's spy confession) is the most likely source of the betrayal. Memory 5 (Jun's love confession despite knowing) shows the emotional stakes. Memory 3 (crying at funeral) reveals Jun's vulnerability pattern. Memories 1, 4, 6 are routine and not emotionally relevant to this confrontation.", "selected": [2, 3, 5]}
@@ -279,11 +279,11 @@ Output:
 <example type="tense_negotiation">
 Scene: "Dante crosses his arms. 'Before we go any further, we need to talk about what happened last time.'"
 Memories:
-1. [action] [★★★★★] Dante and Sasha had rough sex that accidentally crossed a boundary
-2. [relationship_change] [★★★★] Sasha established a new safeword after the incident
-3. [emotion_shift] [★★★] Dante felt guilty about pushing too hard
-4. [action] [★★] Dante went shopping for groceries
-5. [revelation] [★★★★] Sasha admitted the incident triggered past trauma
+1. [EXPLICIT, BDSM] [★★★★★] Dante and Sasha had rough sex that accidentally crossed a boundary
+2. [BDSM] [★★★★] Sasha established a new safeword after the incident
+3. [EMOTION] [★★★] Dante felt guilty about pushing too hard
+4. [COMMERCE] [★★] Dante went shopping for groceries
+5. [TRAUMA, SECRET] [★★★★] Sasha admitted the incident triggered past trauma
 
 Output:
 {"reasoning": "Dante is initiating a serious conversation about a past event. Memory 1 (boundary crossing) is the incident being referenced. Memory 2 (new safeword) shows the aftermath. Memory 3 (Dante's guilt) explains his current motivation. Memory 5 (Sasha's trauma) is essential context. Memory 4 is irrelevant.", "selected": [1, 2, 3, 5]}
