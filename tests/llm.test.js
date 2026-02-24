@@ -298,5 +298,13 @@ describe('llm', () => {
                 expect.any(Object)
             );
         });
+
+        it('passes structured option through', async () => {
+            await callLLMForRetrieval(testMessages, { structured: true });
+
+            const callArgs = mockConnectionManager.sendRequest.mock.calls[0];
+            expect(callArgs[4]).toHaveProperty('jsonSchema');
+            expect(callArgs[4].jsonSchema.name).toBe('MemoryRetrieval');
+        });
     });
 });

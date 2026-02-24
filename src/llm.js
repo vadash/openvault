@@ -8,7 +8,7 @@
 import { getDeps } from './deps.js';
 import { log, showToast } from './utils.js';
 import { extensionName } from './constants.js';
-import { getExtractionJsonSchema } from './extraction/structured.js';
+import { getExtractionJsonSchema, getRetrievalJsonSchema } from './extraction/structured.js';
 
 /**
  * LLM configuration presets
@@ -17,12 +17,14 @@ export const LLM_CONFIGS = {
     extraction: {
         profileSettingKey: 'extractionProfile',
         maxTokens: 4000,
-        errorContext: 'Extraction'
+        errorContext: 'Extraction',
+        getJsonSchema: getExtractionJsonSchema,
     },
     retrieval: {
         profileSettingKey: 'retrievalProfile',
         maxTokens: 4000,
-        errorContext: 'Smart retrieval'
+        errorContext: 'Smart retrieval',
+        getJsonSchema: getRetrievalJsonSchema,
     }
 };
 
@@ -36,7 +38,7 @@ export const LLM_CONFIGS = {
  * @throws {Error} If the LLM call fails or no profile is available
  */
 export async function callLLM(messages, config, options = {}) {
-    const { profileSettingKey, maxTokens, errorContext } = config;
+    const { profileSettingKey, maxTokens, errorContext, getJsonSchema } = config;
     const deps = getDeps();
     const extension_settings = deps.getExtensionSettings();
     const settings = extension_settings[extensionName];
@@ -60,7 +62,7 @@ export async function callLLM(messages, config, options = {}) {
     try {
         log(`Using ConnectionManagerRequestService with profile: ${profileId}`);
 
-        const jsonSchema = options.structured ? getExtractionJsonSchema() : undefined;
+        const jsonSchema = options.structured && getJsonSchema ? getJsonSchema() : undefined;
 
         const result = await deps.connectionManager.sendRequest(
             profileId,
