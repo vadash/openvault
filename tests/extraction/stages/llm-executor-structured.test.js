@@ -12,6 +12,12 @@ vi.mock('../../../src/utils.js', async (importOriginal) => {
     };
 });
 
+// Helper to create test messages array
+const testMessages = [
+    { role: 'system', content: 'You are a helpful assistant.' },
+    { role: 'user', content: 'test prompt' }
+];
+
 describe('executeLLM with structured parsing', () => {
     let mockData;
     let mockContext;
@@ -62,11 +68,11 @@ describe('executeLLM with structured parsing', () => {
             { id: 2, mes: 'Hi Alice!' },
         ];
 
-        const events = await executeLLM('test prompt', messages, mockContext, 'batch-1', mockData);
+        const events = await executeLLM(testMessages, messages, mockContext, 'batch-1', mockData);
 
         // Verify structured mode was used
         expect(spy).toHaveBeenCalledWith(
-            'test prompt',
+            testMessages,
             { structured: true }
         );
 
@@ -94,7 +100,7 @@ describe('executeLLM with structured parsing', () => {
 
         // Should throw validation error - no fallback
         await expect(
-            executeLLM('test', messages, mockContext, 'batch-1', mockData)
+            executeLLM(testMessages, messages, mockContext, 'batch-1', mockData)
         ).rejects.toThrow('Schema validation failed');
 
         spy.mockRestore();
@@ -112,7 +118,7 @@ describe('executeLLM with structured parsing', () => {
 
         const messages = [{ id: 1, mes: 'test' }];
 
-        const events = await executeLLM('test', messages, mockContext, 'batch-1', mockData);
+        const events = await executeLLM(testMessages, messages, mockContext, 'batch-1', mockData);
 
         expect(events).toHaveLength(1);
         expect(events[0].summary).toBe('Test event');
@@ -133,7 +139,7 @@ describe('executeLLM with structured parsing', () => {
 
         const messages = [{ id: 1, mes: 'test' }];
 
-        const events = await executeLLM('test', messages, mockContext, 'batch-1', mockData);
+        const events = await executeLLM(testMessages, messages, mockContext, 'batch-1', mockData);
 
         expect(events).toHaveLength(0);
 
@@ -154,7 +160,7 @@ describe('executeLLM with structured parsing', () => {
             { id: 20, mes: 'Second' },
         ];
 
-        await executeLLM('test', messages, mockContext, 'batch-1', mockData);
+        await executeLLM(testMessages, messages, mockContext, 'batch-1', mockData);
 
         expect(mockData[PROCESSED_MESSAGES_KEY]).toEqual([10, 20]);
 
@@ -181,7 +187,7 @@ describe('executeLLM with structured parsing', () => {
             { id: 100, mes: 'test' },
         ];
 
-        const events = await executeLLM('test', messages, mockContext, 'batch-test', mockData);
+        const events = await executeLLM(testMessages, messages, mockContext, 'batch-test', mockData);
 
         expect(events).toHaveLength(1);
         expect(events[0]).toMatchObject({

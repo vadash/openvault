@@ -41,7 +41,10 @@ vi.mock('../src/ui/browser.js', () => ({
 }));
 
 vi.mock('../src/prompts.js', () => ({
-    buildExtractionPrompt: vi.fn().mockReturnValue('extraction prompt'),
+    buildExtractionPrompt: vi.fn().mockReturnValue([
+        { role: 'system', content: 'You are a helpful assistant.' },
+        { role: 'user', content: 'extraction prompt' }
+    ]),
 }));
 
 vi.mock('../src/extraction/parser.js', () => ({
@@ -248,7 +251,10 @@ describe('extract', () => {
 
             await extractMemories();
 
-            expect(callLLMForExtraction).toHaveBeenCalledWith('extraction prompt', { structured: true });
+            expect(callLLMForExtraction).toHaveBeenCalledWith([
+                { role: 'system', content: 'You are a helpful assistant.' },
+                { role: 'user', content: 'extraction prompt' }
+            ], { structured: true });
         });
 
         it('validates structured response with proper schema', async () => {
@@ -265,7 +271,10 @@ describe('extract', () => {
             await extractMemories();
 
             // Should succeed with proper structured output
-            expect(callLLMForExtraction).toHaveBeenCalledWith('extraction prompt', { structured: true });
+            expect(callLLMForExtraction).toHaveBeenCalledWith([
+                { role: 'system', content: 'You are a helpful assistant.' },
+                { role: 'user', content: 'extraction prompt' }
+            ], { structured: true });
         });
 
         it('throws validation error for invalid structured response', async () => {

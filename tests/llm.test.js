@@ -72,14 +72,17 @@ describe('llm', () => {
     });
 
     describe('callLLM', () => {
+        const testMessages = [
+            { role: 'system', content: 'You are a helpful assistant.' },
+            { role: 'user', content: 'test prompt' }
+        ];
+
         it('calls connectionManager.sendRequest with correct parameters', async () => {
-            await callLLM('test prompt', LLM_CONFIGS.extraction);
+            await callLLM(testMessages, LLM_CONFIGS.extraction);
 
             expect(mockConnectionManager.sendRequest).toHaveBeenCalledWith(
                 'extraction-profile-123',
-                [
-                    { role: 'user', content: 'test prompt' },
-                ],
+                testMessages,
                 4000,
                 {
                     includePreset: true,
@@ -93,7 +96,7 @@ describe('llm', () => {
         it('returns content from LLM response object', async () => {
             mockConnectionManager.sendRequest.mockResolvedValue({ content: 'response text' });
 
-            const result = await callLLM('test prompt', LLM_CONFIGS.extraction);
+            const result = await callLLM(testMessages, LLM_CONFIGS.extraction);
 
             expect(result).toBe('response text');
         });
@@ -101,7 +104,7 @@ describe('llm', () => {
         it('returns string response directly if not object', async () => {
             mockConnectionManager.sendRequest.mockResolvedValue('plain string response');
 
-            const result = await callLLM('test prompt', LLM_CONFIGS.extraction);
+            const result = await callLLM(testMessages, LLM_CONFIGS.extraction);
 
             expect(result).toBe('plain string response');
         });
@@ -109,7 +112,7 @@ describe('llm', () => {
         it('falls back to connectionManager selected profile when no profile set', async () => {
             mockSettings.extractionProfile = '';
 
-            await callLLM('test prompt', LLM_CONFIGS.extraction);
+            await callLLM(testMessages, LLM_CONFIGS.extraction);
 
             expect(mockConnectionManager.sendRequest).toHaveBeenCalledWith(
                 'default-profile',
@@ -123,7 +126,7 @@ describe('llm', () => {
         it('logs fallback profile usage', async () => {
             mockSettings.extractionProfile = '';
 
-            await callLLM('test prompt', LLM_CONFIGS.extraction);
+            await callLLM(testMessages, LLM_CONFIGS.extraction);
 
             expect(mockConsole.log).toHaveBeenCalledWith(
                 expect.stringContaining('No extractionProfile set')
@@ -146,7 +149,7 @@ describe('llm', () => {
                 showToast: vi.fn(),
             });
 
-            await expect(callLLM('test prompt', LLM_CONFIGS.extraction))
+            await expect(callLLM(testMessages, LLM_CONFIGS.extraction))
                 .rejects.toThrow('No connection profile available for extraction');
         });
 
@@ -154,14 +157,14 @@ describe('llm', () => {
             // Mock returns empty string directly (not object with content)
             mockConnectionManager.sendRequest.mockResolvedValue('');
 
-            await expect(callLLM('test prompt', LLM_CONFIGS.extraction))
+            await expect(callLLM(testMessages, LLM_CONFIGS.extraction))
                 .rejects.toThrow('Empty response from LLM');
         });
 
         it('throws error on null LLM response', async () => {
             mockConnectionManager.sendRequest.mockResolvedValue(null);
 
-            await expect(callLLM('test prompt', LLM_CONFIGS.extraction))
+            await expect(callLLM(testMessages, LLM_CONFIGS.extraction))
                 .rejects.toThrow('Empty response from LLM');
         });
 
@@ -180,7 +183,7 @@ describe('llm', () => {
             const error = new Error('Network error');
             mockConnectionManager.sendRequest.mockRejectedValue(error);
 
-            await expect(callLLM('test prompt', LLM_CONFIGS.extraction))
+            await expect(callLLM(testMessages, LLM_CONFIGS.extraction))
                 .rejects.toThrow('Network error');
 
             // showToast in utils.js calls getDeps().showToast with 4 args (type, message, title, options)
@@ -201,7 +204,7 @@ describe('llm', () => {
                 content: '<thinking>thinking...</thinking>actual response',
             });
 
-            const result = await callLLM('test prompt', LLM_CONFIGS.extraction);
+            const result = await callLLM(testMessages, LLM_CONFIGS.extraction);
 
             expect(mockContext.parseReasoningFromString).toHaveBeenCalled();
             expect(result).toBe('actual response');
@@ -213,13 +216,13 @@ describe('llm', () => {
                 content: 'response without reasoning',
             });
 
-            const result = await callLLM('test prompt', LLM_CONFIGS.extraction);
+            const result = await callLLM(testMessages, LLM_CONFIGS.extraction);
 
             expect(result).toBe('response without reasoning');
         });
 
         it('uses retrieval config maxTokens correctly', async () => {
-            await callLLM('test prompt', LLM_CONFIGS.retrieval);
+            await callLLM(testMessages, LLM_CONFIGS.retrieval);
 
             expect(mockConnectionManager.sendRequest).toHaveBeenCalledWith(
                 expect.any(String),
@@ -232,14 +235,17 @@ describe('llm', () => {
     });
 
     describe('callLLMForExtraction', () => {
+        const testMessages = [
+            { role: 'system', content: 'You are a helpful assistant.' },
+            { role: 'user', content: 'extract this' }
+        ];
+
         it('uses extraction config', async () => {
-            await callLLMForExtraction('extract this');
+            await callLLMForExtraction(testMessages);
 
             expect(mockConnectionManager.sendRequest).toHaveBeenCalledWith(
                 'extraction-profile-123',
-                expect.arrayContaining([
-                    expect.objectContaining({ role: 'user', content: 'extract this' }),
-                ]),
+                testMessages,
                 4000,
                 expect.any(Object),
                 expect.any(Object)
@@ -249,12 +255,12 @@ describe('llm', () => {
         it('reads extractionProfile from settings', async () => {
             mockSettings.extractionProfile = 'custom-extraction-profile';
 
-            await callLLMForExtraction('test');
+            await callLLMForExtraction(testMessages);
 
             expect(mockConnectionManager.sendRequest).toHaveBeenCalledWith(
                 'custom-extraction-profile',
-                expect.any(Array),
-                expect.any(Number),
+                testMessages,
+                4000,
                 expect.any(Object),
                 expect.any(Object)
             );
@@ -262,14 +268,17 @@ describe('llm', () => {
     });
 
     describe('callLLMForRetrieval', () => {
+        const testMessages = [
+            { role: 'system', content: 'You are a helpful assistant.' },
+            { role: 'user', content: 'select memories' }
+        ];
+
         it('uses retrieval config', async () => {
-            await callLLMForRetrieval('select memories');
+            await callLLMForRetrieval(testMessages);
 
             expect(mockConnectionManager.sendRequest).toHaveBeenCalledWith(
                 'retrieval-profile-456',
-                expect.arrayContaining([
-                    expect.objectContaining({ role: 'user', content: 'select memories' }),
-                ]),
+                testMessages,
                 4000,
                 expect.any(Object),
                 expect.any(Object)
@@ -279,12 +288,12 @@ describe('llm', () => {
         it('reads retrievalProfile from settings', async () => {
             mockSettings.retrievalProfile = 'custom-retrieval-profile';
 
-            await callLLMForRetrieval('test');
+            await callLLMForRetrieval(testMessages);
 
             expect(mockConnectionManager.sendRequest).toHaveBeenCalledWith(
                 'custom-retrieval-profile',
-                expect.any(Array),
-                expect.any(Number),
+                testMessages,
+                4000,
                 expect.any(Object),
                 expect.any(Object)
             );

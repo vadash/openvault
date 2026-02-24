@@ -79,7 +79,10 @@ vi.mock('../src/llm.js', () => ({
 
 // Mock the prompts module
 vi.mock('../src/prompts.js', () => ({
-    buildSmartRetrievalPrompt: vi.fn().mockReturnValue('smart retrieval prompt'),
+    buildSmartRetrievalPrompt: vi.fn().mockReturnValue([
+        { role: 'system', content: 'You are a helpful assistant.' },
+        { role: 'user', content: 'smart retrieval prompt' }
+    ]),
 }));
 
 // Mock the utils module

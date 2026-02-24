@@ -2,7 +2,7 @@
  * OpenVault LLM Service
  *
  * Unified LLM communication for extraction and retrieval operations.
- * All prompts are sent as single user messages (role embedded in prompt via XML tags).
+ * Prompts must be arrays of message objects with System/User roles.
  */
 
 import { getDeps } from './deps.js';
@@ -27,15 +27,15 @@ export const LLM_CONFIGS = {
 };
 
 /**
- * Call LLM with unified request handling
- * @param {string} prompt - The user prompt (includes role via XML tags)
+ * Call LLM with messages array
+ * @param {Array<{role: string, content: string}>} messages - Array of message objects
  * @param {Object} config - Request configuration from LLM_CONFIGS
  * @param {Object} options - Optional parameters
  * @param {boolean} options.structured - Enable structured output with jsonSchema
  * @returns {Promise<string>} The LLM response content
  * @throws {Error} If the LLM call fails or no profile is available
  */
-export async function callLLM(prompt, config, options = {}) {
+export async function callLLM(messages, config, options = {}) {
     const { profileSettingKey, maxTokens, errorContext } = config;
     const deps = getDeps();
     const extension_settings = deps.getExtensionSettings();
@@ -59,11 +59,6 @@ export async function callLLM(prompt, config, options = {}) {
 
     try {
         log(`Using ConnectionManagerRequestService with profile: ${profileId}`);
-
-        // Single user message - role is embedded in prompt via <role> XML tag
-        const messages = [
-            { role: 'user', content: prompt }
-        ];
 
         const jsonSchema = options.structured ? getExtractionJsonSchema() : undefined;
 
@@ -109,20 +104,20 @@ export async function callLLM(prompt, config, options = {}) {
 
 /**
  * Call LLM for memory extraction
- * @param {string} prompt - The extraction prompt
+ * @param {Array<{role: string, content: string}>} messages - Array of message objects
  * @param {Object} options - Optional parameters
  * @returns {Promise<string>} The LLM response content
  */
-export function callLLMForExtraction(prompt, options = {}) {
-    return callLLM(prompt, LLM_CONFIGS.extraction, options);
+export function callLLMForExtraction(messages, options = {}) {
+    return callLLM(messages, LLM_CONFIGS.extraction, options);
 }
 
 /**
  * Call LLM for memory retrieval/scoring
- * @param {string} prompt - The retrieval prompt
+ * @param {Array<{role: string, content: string}>} messages - Array of message objects
  * @param {Object} options - Optional parameters
  * @returns {Promise<string>} The LLM response content
  */
-export function callLLMForRetrieval(prompt, options = {}) {
-    return callLLM(prompt, LLM_CONFIGS.retrieval, options);
+export function callLLMForRetrieval(messages, options = {}) {
+    return callLLM(messages, LLM_CONFIGS.retrieval, options);
 }

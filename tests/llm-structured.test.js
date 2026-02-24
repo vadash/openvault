@@ -5,6 +5,10 @@ import { callLLMForExtraction } from '../src/llm.js';
 
 describe('callLLMForExtraction with structured output', () => {
     let mockConnectionManager;
+    const testMessages = [
+        { role: 'system', content: 'You are a helpful assistant.' },
+        { role: 'user', content: 'test prompt' }
+    ];
 
     beforeEach(() => {
         mockConnectionManager = {
@@ -31,7 +35,7 @@ describe('callLLMForExtraction with structured output', () => {
     });
 
     it('passes jsonSchema when structured option is true', async () => {
-        await callLLMForExtraction('test prompt', { structured: true });
+        await callLLMForExtraction(testMessages, { structured: true });
 
         const callArgs = mockConnectionManager.sendRequest.mock.calls[0];
         expect(callArgs[4]).toHaveProperty('jsonSchema');
@@ -42,21 +46,21 @@ describe('callLLMForExtraction with structured output', () => {
     });
 
     it('does not pass jsonSchema when structured option is false', async () => {
-        await callLLMForExtraction('test prompt', { structured: false });
+        await callLLMForExtraction(testMessages, { structured: false });
 
         const callArgs = mockConnectionManager.sendRequest.mock.calls[0];
         expect(callArgs[4]).toEqual({});
     });
 
     it('does not pass jsonSchema when structured option is omitted', async () => {
-        await callLLMForExtraction('test prompt');
+        await callLLMForExtraction(testMessages);
 
         const callArgs = mockConnectionManager.sendRequest.mock.calls[0];
         expect(callArgs[4]).toEqual({});
     });
 
     it('jsonSchema contains valid structure', async () => {
-        await callLLMForExtraction('test prompt', { structured: true });
+        await callLLMForExtraction(testMessages, { structured: true });
 
         const callArgs = mockConnectionManager.sendRequest.mock.calls[0];
         const jsonSchema = callArgs[4].jsonSchema;
