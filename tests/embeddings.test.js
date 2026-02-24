@@ -10,7 +10,8 @@ import {
     generateEmbeddingsForMemories,
     clearEmbeddingCache,
 } from '../src/embeddings.js';
-import { extensionName } from '../src/constants.js';
+import { TransformersStrategy } from '../src/embeddings/strategies.js';
+import { extensionName, defaultSettings } from '../src/constants.js';
 
 describe('embeddings', () => {
     let mockConsole;
@@ -427,6 +428,110 @@ describe('embeddings', () => {
             // This test verifies the integration point
             // Implementation requires modifying settings.js binding
             expect(true).toBe(true); // Placeholder for integration test
+        });
+    });
+
+    describe('TransformersStrategy embedding prompt prefix', () => {
+        it('prepends instructional prompt to text for Transformers strategy', async () => {
+            // Mock pipeline that captures the input text
+            const capturedInputs = [];
+            const mockPipe = vi.fn().mockImplementation((input) => {
+                capturedInputs.push(input);
+                return Promise.resolve({
+                    data: new Float32Array([0.1, 0.2, 0.3]),
+                });
+            });
+
+            // Mock the transformers pipeline import
+            vi.doMock('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1', () => ({
+                pipeline: vi.fn().mockResolvedValue(mockPipe),
+            }));
+
+            // Set settings with embedding prompt
+            const testPrompt = 'task: sentence similarity | query: ';
+            setDeps({
+                console: mockConsole,
+                getExtensionSettings: () => ({
+                    [extensionName]: {
+                        embeddingSource: 'multilingual-e5-small',
+                        embeddingPrompt: testPrompt,
+                        debugMode: false,
+                    }
+                }),
+            });
+
+            const strategy = new TransformersStrategy();
+            strategy.setModelKey('multilingual-e5-small');
+
+            // Mock WebGPU as available
+            global.navigator = { gpu: { requestAdapter: vi.fn().mockResolvedValue({}) } };
+
+            const result = await strategy.getEmbedding('test text');
+
+            // Verify embedding was generated
+            expect(result).toBeDefined();
+            expect(result.length).toBe(3);
+
+            // Verify the prompt was prepended to the input text
+            expect(capturedInputs.length).toBeGreaterThan(0);
+            expect(capturedInputs[0]).toBe(testPrompt + 'test text');
+        });
+
+        it('uses default prompt when setting is not configured', async () => {
+            const capturedInputs = [];
+            const mockPipe = vi.fn().mockImplementation((input) => {
+                capturedInputs.push(input);
+                return Promise.resolve({
+                    data: new Float32Array([0.1, 0.2]),
+                });
+            });
+
+            vi.doMock('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1', () => ({
+                pipeline: vi.fn().mockResolvedValue(mockPipe),
+            }));
+
+            setDeps({
+                console: mockConsole,
+                getExtensionSettings: () => ({
+                    [extensionName]: {
+                        embeddingSource: 'multilingual-e5-small',
+                        // embeddingPrompt not set
+                        debugMode: false,
+                    }
+                }),
+            });
+
+            const strategy = new TransformersStrategy();
+            strategy.setModelKey('multilingual-e5-small');
+            global.navigator = { gpu: { requestAdapter: vi.fn().mockResolvedValue({}) } };
+
+            await strategy.getEmbedding('hello');
+
+            // Should use default prompt
+            const defaultPrompt = defaultSettings.embeddingPrompt || 'task: sentence similarity | query: ';
+            expect(capturedInputs[0]).toBe(defaultPrompt + 'hello');
+        });
+
+        it('returns null for empty text regardless of prompt', async () => {
+            setDeps({
+                console: mockConsole,
+                getExtensionSettings: () => ({
+                    [extensionName]: {
+                        embeddingSource: 'multilingual-e5-small',
+                        embeddingPrompt: 'task: sentence similarity | query: ',
+                        debugMode: false,
+                    }
+                }),
+            });
+
+            const strategy = new TransformersStrategy();
+            strategy.setModelKey('multilingual-e5-small');
+
+            const result = await strategy.getEmbedding('');
+            expect(result).toBeNull();
+
+            const result2 = await strategy.getEmbedding('   \t\n  ');
+            expect(result2).toBeNull();
         });
     });
 });

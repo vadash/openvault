@@ -247,6 +247,16 @@ class TransformersStrategy extends EmbeddingStrategy {
         log(`Embedding status: ${status}`);
     }
 
+    /**
+     * Get the embedding prompt prefix from settings
+     * Instructional prompts like "task: sentence similarity | query: " improve embedding quality
+     * @returns {string} The prompt prefix to prepend to text
+     */
+    #getEmbeddingPrompt() {
+        const settings = getDeps().getExtensionSettings()[extensionName];
+        return settings?.embeddingPrompt || 'task: sentence similarity | query: ';
+    }
+
     async getEmbedding(text) {
         if (!text || text.trim().length === 0) {
             return null;
@@ -254,7 +264,9 @@ class TransformersStrategy extends EmbeddingStrategy {
 
         try {
             const pipe = await this.#loadPipeline(this.#currentModelKey);
-            const output = await pipe(text.trim(), { pooling: 'mean', normalize: true });
+            const prompt = this.#getEmbeddingPrompt();
+            const input = prompt ? `${prompt}${text.trim()}` : text.trim();
+            const output = await pipe(input, { pooling: 'mean', normalize: true });
             return Array.from(output.data);
         } catch (error) {
             log(`Transformers embedding error: ${error?.message || error || 'unknown'}`);
