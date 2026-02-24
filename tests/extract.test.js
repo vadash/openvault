@@ -238,17 +238,20 @@ describe('extract', () => {
 
             await extractMemories();
 
-            expect(callLLMForExtraction).toHaveBeenCalledWith('extraction prompt');
+            expect(callLLMForExtraction).toHaveBeenCalledWith('extraction prompt', { structured: true });
         });
 
         it('parses extraction result with correct params', async () => {
-            callLLMForExtraction.mockResolvedValue('{"events": []}');
-            parseExtractionResult.mockReturnValue([]);
+            // Return response with invalid importance to trigger fallback path
+            // This tests the parseExtractionResult fallback
+            callLLMForExtraction.mockResolvedValue('{"events": [{"summary": "Test event", "importance": 10}]}');
+            parseExtractionResult.mockReturnValue([{ summary: 'Test event', importance: 5 }]);
 
             await extractMemories();
 
+            // Fallback should be called with the events array extracted from structured format
             expect(parseExtractionResult).toHaveBeenCalledWith(
-                '{"events": []}',
+                '[{"summary":"Test event","importance":10}]',
                 expect.any(Array),
                 'Alice',
                 'User',
