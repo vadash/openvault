@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { defaultSettings } from '../src/constants.js';
+import { defaultSettings, embeddingModelPrefixes } from '../src/constants.js';
 
 describe('defaultSettings', () => {
     it('has alpha and combinedBoostWeight in defaultSettings', () => {
@@ -8,13 +8,25 @@ describe('defaultSettings', () => {
     });
 
     it('has embeddingQueryPrefix', () => {
-        expect(defaultSettings.embeddingQueryPrefix).toBe('search for similar scenes: ');
+        expect(defaultSettings.embeddingQueryPrefix).toBe('query: ');
     });
     it('has embeddingDocPrefix', () => {
-        expect(defaultSettings.embeddingDocPrefix).toBe('');
+        expect(defaultSettings.embeddingDocPrefix).toBe('passage: ');
     });
     it('has embeddingTagFormat', () => {
         expect(defaultSettings.embeddingTagFormat).toBe('bracket');
+    });
+});
+
+describe('embeddingModelPrefixes', () => {
+    it('has defaults for all built-in models', () => {
+        expect(embeddingModelPrefixes['multilingual-e5-small']).toEqual({ queryPrefix: 'query: ', docPrefix: 'passage: ' });
+        expect(embeddingModelPrefixes['embeddinggemma-300m']).toEqual({ queryPrefix: 'search for similar scenes: ', docPrefix: '' });
+        expect(embeddingModelPrefixes['bge-small-en-v1.5']).toBeDefined();
+    });
+
+    it('has a _default fallback', () => {
+        expect(embeddingModelPrefixes['_default']).toEqual({ queryPrefix: 'query: ', docPrefix: 'passage: ' });
     });
 });
 

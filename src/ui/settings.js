@@ -5,7 +5,7 @@
  */
 
 import { getDeps } from '../deps.js';
-import { extensionName, extensionFolderPath, defaultSettings, QUERY_CONTEXT_DEFAULTS, UI_DEFAULT_HINTS } from '../constants.js';
+import { extensionName, extensionFolderPath, defaultSettings, QUERY_CONTEXT_DEFAULTS, UI_DEFAULT_HINTS, embeddingModelPrefixes } from '../constants.js';
 import { refreshAllUI, prevPage, nextPage, resetAndRender, initBrowser } from './browser.js';
 import { validateRPM } from './calculations.js';
 import { setEmbeddingStatusCallback, getEmbeddingStatus } from '../embeddings.js';
@@ -178,6 +178,14 @@ function bindUIElements() {
                 await oldStrategy.reset();
             }
         }
+
+        // Auto-populate prefix fields from model defaults
+        const prefixes = embeddingModelPrefixes[value] || embeddingModelPrefixes['_default'];
+        const settings = getDeps().getExtensionSettings()[extensionName];
+        settings.embeddingQueryPrefix = prefixes.queryPrefix;
+        settings.embeddingDocPrefix = prefixes.docPrefix;
+        $('#openvault_embedding_query_prefix').val(prefixes.queryPrefix);
+        $('#openvault_embedding_doc_prefix').val(prefixes.docPrefix);
 
         $('#openvault_ollama_settings').toggle(value === 'ollama');
         updateEmbeddingStatusDisplay(getEmbeddingStatus());

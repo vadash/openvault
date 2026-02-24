@@ -535,7 +535,7 @@ describe('embeddings', () => {
                 pipeline: vi.fn().mockResolvedValue(mockPipe),
             }));
 
-            const queryPrefix = 'search for similar scenes: ';
+            const queryPrefix = 'query: ';
             setDeps({
                 console: mockConsole,
                 getExtensionSettings: () => ({
@@ -576,7 +576,7 @@ describe('embeddings', () => {
                 getExtensionSettings: () => ({
                     [extensionName]: {
                         embeddingSource: 'multilingual-e5-small',
-                        embeddingDocPrefix: '',
+                        embeddingDocPrefix: 'passage: ',
                         debugMode: false,
                     }
                 }),
@@ -588,8 +588,7 @@ describe('embeddings', () => {
 
             await strategy.getDocumentEmbedding('hello');
 
-            // Empty doc prefix means just the text
-            expect(capturedInputs[0]).toBe('hello');
+            expect(capturedInputs[0]).toBe('passage: hello');
         });
 
         it('returns null for empty text', async () => {

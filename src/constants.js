@@ -44,8 +44,8 @@ export const defaultSettings = {
     embeddingSource: 'multilingual-e5-small', // model name or 'ollama'
     ollamaUrl: '',
     embeddingModel: '',
-    embeddingQueryPrefix: 'search for similar scenes: ',  // Asymmetric: query-side prefix
-    embeddingDocPrefix: '',                                // Asymmetric: doc-side prefix (tags handle it)
+    embeddingQueryPrefix: 'query: ',                       // Asymmetric: query-side prefix
+    embeddingDocPrefix: 'passage: ',                       // Asymmetric: doc-side prefix
     embeddingTagFormat: 'bracket',                         // Tag format: 'bracket' = [TAG], 'none' = disable
     // Alpha-blend scoring (new)
     alpha: 0.7,                    // Vector vs keyword blend: 1.0 = vector only, 0.0 = BM25 only
@@ -59,6 +59,16 @@ export const defaultSettings = {
     // Forgetfulness curve settings (scoring)
     forgetfulnessBaseLambda: 0.05,      // Base decay rate for exponential curve
     forgetfulnessImportance5Floor: 5,   // Minimum score for importance-5 memories
+};
+
+// Embedding prefix defaults per model
+// When user switches model, prefixes auto-populate from this table.
+// User can still override manually.
+export const embeddingModelPrefixes = {
+    'multilingual-e5-small': { queryPrefix: 'query: ', docPrefix: 'passage: ' },
+    'bge-small-en-v1.5':    { queryPrefix: 'Represent this sentence for searching relevant passages: ', docPrefix: '' },
+    'embeddinggemma-300m':   { queryPrefix: 'search for similar scenes: ', docPrefix: '' },
+    '_default':              { queryPrefix: 'query: ', docPrefix: 'passage: ' },
 };
 
 // Timeout constants

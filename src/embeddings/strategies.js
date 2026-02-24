@@ -283,13 +283,13 @@ class TransformersStrategy extends EmbeddingStrategy {
 
     async getQueryEmbedding(text) {
         const settings = getDeps().getExtensionSettings()[extensionName];
-        const prefix = settings?.embeddingQueryPrefix ?? 'search for similar scenes: ';
+        const prefix = settings?.embeddingQueryPrefix ?? 'query: ';
         return this.#embed(text, prefix);
     }
 
     async getDocumentEmbedding(text) {
         const settings = getDeps().getExtensionSettings()[extensionName];
-        const prefix = settings?.embeddingDocPrefix ?? '';
+        const prefix = settings?.embeddingDocPrefix ?? 'passage: ';
         return this.#embed(text, prefix);
     }
 
