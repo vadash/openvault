@@ -97,6 +97,7 @@ vi.mock('../src/utils.js', () => ({
     }),
     sliceToTokenBudget: vi.fn((memories) => memories), // Return all memories by default
     estimateTokens: vi.fn((text) => Math.ceil((text || '').length / 3.5)),
+    stripThinkingTags: vi.fn((content) => content), // Passthrough by default
 }));
 
 // Import after mocks are set up
@@ -574,6 +575,23 @@ describe('scoring', () => {
 
             expect(log).toHaveBeenCalledWith(
                 expect.stringContaining('Memory 0 is most relevant')
+            );
+        });
+
+        it('calls LLM with structured output option', async () => {
+            const memories = Array.from({ length: 5 }, (_, i) => ({
+                id: `${i}`,
+                summary: `Memory ${i}`,
+                importance: 3,
+            }));
+
+            callLLMForRetrieval.mockResolvedValue(JSON.stringify({ reasoning: null, selected: [1, 2, 3] }));
+
+            await selectRelevantMemoriesSmart(memories, makeCtx({ recentContext: 'recent context' }), 3);
+
+            expect(callLLMForRetrieval).toHaveBeenCalledWith(
+                expect.any(Array),  // messages array
+                { structured: true }
             );
         });
     });

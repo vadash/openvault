@@ -6,7 +6,8 @@
  */
 
 import { getDeps } from '../deps.js';
-import { log, safeParseJSON, sliceToTokenBudget, estimateTokens } from '../utils.js';
+import { log, sliceToTokenBudget, estimateTokens } from '../utils.js';
+import { parseRetrievalResponse } from '../extraction/structured.js';
 import { extensionName } from '../constants.js';
 import { callLLMForRetrieval } from '../llm.js';
 import { buildSmartRetrievalPrompt } from '../prompts.js';
@@ -259,15 +260,11 @@ export async function selectRelevantMemoriesSmart(memories, ctx, limit) {
     const prompt = buildSmartRetrievalPrompt(recentContext, numberedList, primaryCharacter, limit);
 
     try {
-        // Call LLM for retrieval (uses retrieval profile, separate from extraction)
-        const response = await callLLMForRetrieval(prompt);
+        // Call LLM for retrieval with structured output enabled
+        const response = await callLLMForRetrieval(prompt, { structured: true });
 
-        // Parse the response using robust json-repair
-        const parsed = safeParseJSON(response);
-        if (!parsed) {
-            log('Smart retrieval: Failed to parse LLM response, falling back to simple mode');
-            return selectRelevantMemoriesSimple(memories, ctx, limit);
-        }
+        // Parse the response using Zod schema validation
+        const parsed = parseRetrievalResponse(response);
 
         // Extract selected indices
         const selectedIndices = parsed.selected || [];
