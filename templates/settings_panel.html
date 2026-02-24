@@ -207,6 +207,15 @@
                     </select>
 
 
+                    <!-- Embedding Prefixes -->
+                    <label for="openvault_embedding_query_prefix">Query Prefix</label>
+                    <input id="openvault_embedding_query_prefix" type="text" class="text_pole" placeholder="search for similar scenes: " />
+                    <small class="openvault-hint">Prepended to search queries. For asymmetric models (e.g. EmbeddingGemma).</small>
+
+                    <label for="openvault_embedding_doc_prefix">Document Prefix</label>
+                    <input id="openvault_embedding_doc_prefix" type="text" class="text_pole" placeholder="" />
+                    <small class="openvault-hint">Prepended to documents before embedding. Leave empty if tags handle it.</small>
+
                     <!-- Embedding Status -->
                     <div id="openvault_embedding_status_container">
                         <div id="openvault_embedding_status" class="openvault-embedding-status loading">

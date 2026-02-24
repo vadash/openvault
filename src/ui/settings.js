@@ -163,6 +163,8 @@ function bindUIElements() {
     // Embedding settings
     bindTextInput('openvault_ollama_url', 'ollamaUrl', (v) => v.trim());
     bindTextInput('openvault_embedding_model', 'embeddingModel', (v) => v.trim());
+    bindTextInput('openvault_embedding_query_prefix', 'embeddingQueryPrefix');
+    bindTextInput('openvault_embedding_doc_prefix', 'embeddingDocPrefix');
 
     bindSelect('openvault_embedding_source', 'embeddingSource', async (value) => {
         // Reset old strategy before switching to prevent VRAM leak
@@ -282,6 +284,8 @@ export function updateUI() {
     $('#openvault_ollama_settings').toggle(settings.embeddingSource === 'ollama');
     $('#openvault_ollama_url').val(settings.ollamaUrl || '');
     $('#openvault_embedding_model').val(settings.embeddingModel || '');
+    $('#openvault_embedding_query_prefix').val(settings.embeddingQueryPrefix ?? defaultSettings.embeddingQueryPrefix);
+    $('#openvault_embedding_doc_prefix').val(settings.embeddingDocPrefix ?? defaultSettings.embeddingDocPrefix);
     updateEmbeddingStatusDisplay(getEmbeddingStatus());
 
     // Populate profile selector
