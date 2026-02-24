@@ -87,8 +87,8 @@ describe('MemoryList edit preservation', () => {
             chatMetadata: {
                 openvault_data: {
                     [MEMORIES_KEY]: [
-                        { id: '1', summary: 'Test memory 1', importance: 3, event_type: 'dialogue' },
-                        { id: '2', summary: 'Test memory 2', importance: 4, event_type: 'action' },
+                        { id: '1', summary: 'Test memory 1', importance: 3, tags: ['SOCIAL'] },
+                        { id: '2', summary: 'Test memory 2', importance: 4, tags: ['COMBAT'] },
                     ],
                     characters: {},
                     last_processed: -1,
@@ -146,5 +146,83 @@ describe('MemoryList edit preservation', () => {
 
         // Verify that html() was called (rendering occurred)
         expect(list.$container.html).toHaveBeenCalled();
+    });
+});
+
+describe('updateMemory allows tags field', () => {
+    beforeEach(() => {
+        vi.resetAllMocks();
+        vi.resetModules();
+        vi.doUnmock('../src/data/actions.js');
+    });
+
+    afterEach(() => {
+        resetDeps();
+    });
+
+    it('applies tags update to memory', async () => {
+        const memories = [
+            { id: 'mem-1', summary: 'Fight in tavern', importance: 3, tags: ['COMBAT'] },
+        ];
+
+        setDeps({
+            console: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
+            getContext: () => ({
+                chatMetadata: {
+                    openvault_data: {
+                        [MEMORIES_KEY]: memories,
+                        characters: {},
+                        last_processed: -1,
+                    },
+                },
+            }),
+            getExtensionSettings: () => ({ openvault: { enabled: true } }),
+            showToast: vi.fn(),
+            saveChatConditional: vi.fn().mockResolvedValue(true),
+        });
+
+        const { getOpenVaultData } = await import('../src/utils.js');
+        vi.mocked(getOpenVaultData).mockReturnValue({
+            [MEMORIES_KEY]: memories,
+        });
+
+        // Import the REAL updateMemory (not the mock)
+        const { updateMemory } = await import('../src/data/actions.js');
+
+        const result = await updateMemory('mem-1', { tags: ['COMBAT', 'INJURY'] });
+        expect(result).toBe(true);
+        expect(memories[0].tags).toEqual(['COMBAT', 'INJURY']);
+    });
+
+    it('does not apply event_type field', async () => {
+        const memories = [
+            { id: 'mem-1', summary: 'Fight in tavern', importance: 3, tags: ['COMBAT'] },
+        ];
+
+        setDeps({
+            console: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
+            getContext: () => ({
+                chatMetadata: {
+                    openvault_data: {
+                        [MEMORIES_KEY]: memories,
+                        characters: {},
+                        last_processed: -1,
+                    },
+                },
+            }),
+            getExtensionSettings: () => ({ openvault: { enabled: true } }),
+            showToast: vi.fn(),
+            saveChatConditional: vi.fn().mockResolvedValue(true),
+        });
+
+        const { getOpenVaultData } = await import('../src/utils.js');
+        vi.mocked(getOpenVaultData).mockReturnValue({
+            [MEMORIES_KEY]: memories,
+        });
+
+        const { updateMemory } = await import('../src/data/actions.js');
+
+        await updateMemory('mem-1', { event_type: 'action' });
+        expect(memories[0].event_type).toBeUndefined();
     });
 });

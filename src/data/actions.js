@@ -16,7 +16,7 @@ import { MEMORIES_KEY } from '../constants.js';
 /**
  * Update a memory by ID
  * @param {string} id - Memory ID to update
- * @param {Object} updates - Fields to update (summary, importance, event_type, is_secret)
+ * @param {Object} updates - Fields to update (summary, importance, tags, is_secret)
  * @returns {Promise<boolean>} True if updated, false otherwise
  */
 export async function updateMemory(id, updates) {
@@ -36,7 +36,7 @@ export async function updateMemory(id, updates) {
     const summaryChanged = updates.summary !== undefined && updates.summary !== memory.summary;
 
     // Apply allowed updates
-    const allowedFields = ['summary', 'importance', 'event_type', 'is_secret'];
+    const allowedFields = ['summary', 'importance', 'tags', 'is_secret'];
     for (const field of allowedFields) {
         if (updates[field] !== undefined) {
             memory[field] = updates[field];
