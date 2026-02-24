@@ -9,7 +9,7 @@ import { callLLMForExtraction } from '../../llm.js';
 import { parseExtractionResult } from '../parser.js';
 import { parseExtractionResponse } from '../structured.js';
 import { PROCESSED_MESSAGES_KEY } from '../../constants.js';
-import { log } from '../../utils.js';
+import { log, safeParseJSON } from '../../utils.js';
 
 /**
  * Execute LLM extraction and parse results
@@ -38,7 +38,13 @@ export async function executeLLM(prompt, messages, context, batchId, data) {
         console.warn('[OpenVault] Structured validation failed, falling back to legacy parser:', error.message);
 
         // Try to parse as structured format first (events array wrapper)
-        const parsed = JSON.parse(extractedJson);
+        // Use safeParseJSON to handle thinking tags and other non-JSON content
+        const parsed = safeParseJSON(extractedJson);
+        if (!parsed) {
+            // safeParseJSON already logs the error
+            throw new Error('Failed to parse LLM response in fallback path');
+        }
+
         const eventsToParse = parsed.events || parsed;  // Handle both {events: [...]} and direct array
 
         // Convert back to string for parseExtractionResult

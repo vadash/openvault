@@ -105,6 +105,21 @@ describe('parseExtractionResponse', () => {
         expect(result.events).toHaveLength(1);
         expect(result.events[0].summary).toBe('Test');
     });
+
+    it('handles legacy array format (backward compatibility)', () => {
+        const content = '[{"summary": "Array event", "importance": 3, "characters_involved": ["Alice"]}]';
+        const result = parseExtractionResponse(content);
+        expect(result.events).toHaveLength(1);
+        expect(result.events[0].summary).toBe('Array event');
+        expect(result.reasoning).toBe(null);
+    });
+
+    it('handles array format with reasoning tags', () => {
+        const content = '<thinking>Analysis...</thinking>\n[{"summary": "Event", "importance": 4, "characters_involved": ["Bob"]}]';
+        const result = parseExtractionResponse(content);
+        expect(result.events).toHaveLength(1);
+        expect(result.events[0].summary).toBe('Event');
+    });
 });
 
 describe('parseEvent', () => {

@@ -16,6 +16,15 @@ vi.mock('../src/utils.js', () => ({
     isExtensionEnabled: vi.fn(),
     estimateTokens: vi.fn((text) => Math.ceil((text || '').length / 3.5)),
     getCurrentChatId: vi.fn(),
+    safeParseJSON: vi.fn((input) => {
+        // Simple mock that returns parsed JSON or null
+        try {
+            const parsed = JSON.parse(input);
+            return (parsed === null || typeof parsed !== 'object') ? null : parsed;
+        } catch {
+            return null;
+        }
+    }),
 }));
 
 vi.mock('../src/llm.js', () => ({

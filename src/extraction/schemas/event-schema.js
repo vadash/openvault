@@ -26,9 +26,29 @@ export const EventSchema = z.object({
 });
 
 /**
- * Schema for the full extraction response from LLM
+ * Schema for the full extraction response from LLM (structured format)
+ * Used for JSON schema generation
  */
 export const ExtractionResponseSchema = z.object({
     events: z.array(EventSchema).min(1, 'At least one event is required'),
     reasoning: z.string().nullable().default(null),
 });
+
+/**
+ * Normalize extraction response to structured format
+ * Handles both array and object inputs (for backward compatibility)
+ * @param {any} input - Parsed JSON response (array or object)
+ * @returns {Object} Normalized response with {events, reasoning} structure
+ */
+export function normalizeExtractionResponse(input) {
+    // If input is an array, wrap it
+    if (Array.isArray(input)) {
+        return { events: input, reasoning: null };
+    }
+    // If already has events property, return as-is
+    if (input && typeof input === 'object' && input.events) {
+        return { events: input.events, reasoning: input.reasoning ?? null };
+    }
+    // Fallback: treat input as single event array
+    return { events: [input], reasoning: null };
+}
