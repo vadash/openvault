@@ -52,6 +52,24 @@ class EmbeddingStrategy {
     }
 
     /**
+     * Get query embedding (with query-side prefix for asymmetric search)
+     * @param {string} text - Query text
+     * @returns {Promise<number[]|null>} Embedding vector or null
+     */
+    async getQueryEmbedding(_text) {
+        throw new Error('getQueryEmbedding() must be implemented by subclass');
+    }
+
+    /**
+     * Get document embedding (with doc-side prefix for asymmetric search)
+     * @param {string} text - Document text
+     * @returns {Promise<number[]|null>} Embedding vector or null
+     */
+    async getDocumentEmbedding(_text) {
+        throw new Error('getDocumentEmbedding() must be implemented by subclass');
+    }
+
+    /**
      * Reset any cached state (e.g., loaded models)
      * @returns {Promise<void>}
      */
@@ -257,21 +275,40 @@ class TransformersStrategy extends EmbeddingStrategy {
         return settings?.embeddingPrompt || 'task: sentence similarity | query: ';
     }
 
-    async getEmbedding(text) {
+    async getEmbedding(text, type = 'legacy') {
         if (!text || text.trim().length === 0) {
             return null;
         }
 
         try {
             const pipe = await this.#loadPipeline(this.#currentModelKey);
-            const prompt = this.#getEmbeddingPrompt();
-            const input = prompt ? `${prompt}${text.trim()}` : text.trim();
+            const settings = getDeps().getExtensionSettings()[extensionName];
+
+            let prefix = '';
+            if (type === 'query') {
+                prefix = settings?.embeddingQueryPrefix ?? 'search for similar scenes: ';
+            } else if (type === 'doc') {
+                prefix = settings?.embeddingDocPrefix ?? '';
+            } else {
+                // Legacy: use old embeddingPrompt setting
+                prefix = settings?.embeddingPrompt || 'task: sentence similarity | query: ';
+            }
+
+            const input = prefix ? `${prefix}${text.trim()}` : text.trim();
             const output = await pipe(input, { pooling: 'mean', normalize: true });
             return Array.from(output.data);
         } catch (error) {
             log(`Transformers embedding error: ${error?.message || error || 'unknown'}`);
             return null;
         }
+    }
+
+    async getQueryEmbedding(text) {
+        return this.getEmbedding(text, 'query');
+    }
+
+    async getDocumentEmbedding(text) {
+        return this.getEmbedding(text, 'doc');
     }
 
     async reset() {
@@ -345,6 +382,14 @@ class OllamaStrategy extends EmbeddingStrategy {
             log(`Ollama embedding error: ${error.message}`);
             return null;
         }
+    }
+
+    async getQueryEmbedding(text) {
+        return this.getEmbedding(text);
+    }
+
+    async getDocumentEmbedding(text) {
+        return this.getEmbedding(text);
     }
 }
 
