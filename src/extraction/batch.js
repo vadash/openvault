@@ -78,16 +78,23 @@ export async function extractAllMessages(updateEventListenersFn) {
         const freshChat = freshContext.chat;
         const freshData = getOpenVaultData();
 
+        // Debug: log processed message tracking state
+        const processedCount = (freshData?.processed_message_ids || []).length;
+        const memoryCount = (freshData?.memories || []).length;
+        log(`Backfill state: ${processedCount} processed messages tracked, ${memoryCount} memories stored`);
+
         if (!freshChat || !freshData) {
             log('Backfill: Lost chat context, stopping');
             break;
         }
 
-        const { messageIds: freshIds } = getBackfillMessageIds(freshChat, freshData, messageCount);
+        const { messageIds: freshIds, batchCount: remainingBatches } = getBackfillMessageIds(freshChat, freshData, messageCount);
+
+        log(`Backfill check: ${freshIds.length} unextracted messages available, ${remainingBatches} complete batches remaining`);
 
         // No more complete batches available
         if (freshIds.length < messageCount) {
-            log('Backfill: No more complete batches available');
+            log(`Backfill: No more complete batches available (need ${messageCount}, have ${freshIds.length})`);
             break;
         }
 

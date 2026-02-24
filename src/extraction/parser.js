@@ -7,6 +7,7 @@
 import { generateId, safeParseJSON } from '../utils.js';
 import { CHARACTERS_KEY } from '../constants.js';
 import { getDeps } from '../deps.js';
+import { log } from '../utils.js';
 
 /**
  * Parse extraction result from LLM
@@ -20,6 +21,7 @@ import { getDeps } from '../deps.js';
 export function parseExtractionResult(jsonString, messages, characterName, userName, batchId = null) {
     const parsed = safeParseJSON(jsonString);
     if (!parsed) {
+        log(`Failed to parse LLM response as JSON (response length: ${jsonString?.length || 0})`);
         return [];
     }
     const events = Array.isArray(parsed) ? parsed : [parsed];

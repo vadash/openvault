@@ -8,6 +8,7 @@
 import { callLLMForExtraction } from '../../llm.js';
 import { parseExtractionResult } from '../parser.js';
 import { PROCESSED_MESSAGES_KEY } from '../../constants.js';
+import { log } from '../../utils.js';
 
 /**
  * Execute LLM extraction and parse results
@@ -28,10 +29,13 @@ export async function executeLLM(prompt, messages, context, batchId, data) {
     // Parse and store extracted events
     const events = parseExtractionResult(extractedJson, messages, characterName, userName, batchId);
 
+    log(`LLM returned ${events.length} events from ${messages.length} messages`);
+
     // Track processed message IDs (prevents re-extraction on backfill)
     const processedIds = messages.map(m => m.id);
     data[PROCESSED_MESSAGES_KEY] = data[PROCESSED_MESSAGES_KEY] || [];
     data[PROCESSED_MESSAGES_KEY].push(...processedIds);
+    log(`Marked ${processedIds.length} messages as processed (total: ${data[PROCESSED_MESSAGES_KEY].length})`);
 
     return events;
 }

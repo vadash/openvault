@@ -76,6 +76,12 @@ export async function callLLM(prompt, config) {
 
         const content = result?.content || result || '';
 
+        // Debug: log LLM response
+        log(`LLM response received (${content.length} chars)`);
+        if (content.length === 0) {
+            log(`ERROR: Empty LLM response! Full result: ${JSON.stringify(result).substring(0, 200)}`);
+        }
+
         if (!content) {
             throw new Error('Empty response from LLM');
         }
