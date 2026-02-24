@@ -42,13 +42,53 @@ export const EVENTS = {
     FILTER_CHANGED: 'openvault:filter:changed',
 };
 
-// Event type configuration
-export const EVENT_TYPES = ['action', 'revelation', 'emotion_shift', 'relationship_change'];
+// Tag configuration (replaces EVENT_TYPES)
+export const TAG_LIST = [
+    'EXPLICIT', 'BDSM', 'FETISH', 'ROMANCE', 'FLIRTING', 'SEDUCTION',
+    'COMBAT', 'THREAT', 'INJURY', 'BETRAYAL', 'HORROR',
+    'DOMESTIC', 'SOCIAL', 'TRAVEL', 'COMMERCE', 'FOOD', 'CELEBRATION',
+    'LORE', 'SECRET', 'TRAUMA', 'GROWTH', 'EMOTION', 'BONDING', 'REUNION',
+    'MYSTERY', 'MAGIC', 'STEALTH', 'POLITICAL', 'HUMOR', 'CRAFTING',
+    'NONE'
+];
 
-export const EVENT_TYPE_ICONS = {
-    action: 'fa-solid fa-bolt',
-    revelation: 'fa-solid fa-lightbulb',
-    emotion_shift: 'fa-solid fa-heart',
-    relationship_change: 'fa-solid fa-people-arrows',
+export const TAG_ICONS = {
+    // Intimate
+    EXPLICIT: 'fa-solid fa-fire',
+    BDSM: 'fa-solid fa-link',
+    FETISH: 'fa-solid fa-mask',
+    ROMANCE: 'fa-solid fa-heart',
+    FLIRTING: 'fa-solid fa-face-smile-wink',
+    SEDUCTION: 'fa-solid fa-wine-glass',
+    // Conflict
+    COMBAT: 'fa-solid fa-bolt',
+    THREAT: 'fa-solid fa-triangle-exclamation',
+    INJURY: 'fa-solid fa-band-aid',
+    BETRAYAL: 'fa-solid fa-heart-crack',
+    HORROR: 'fa-solid fa-skull',
+    // Slice-of-life
+    DOMESTIC: 'fa-solid fa-house',
+    SOCIAL: 'fa-solid fa-comments',
+    TRAVEL: 'fa-solid fa-route',
+    COMMERCE: 'fa-solid fa-cart-shopping',
+    FOOD: 'fa-solid fa-utensils',
+    CELEBRATION: 'fa-solid fa-champagne-glasses',
+    // Character
+    LORE: 'fa-solid fa-book',
+    SECRET: 'fa-solid fa-user-secret',
+    TRAUMA: 'fa-solid fa-cloud-rain',
+    GROWTH: 'fa-solid fa-seedling',
+    EMOTION: 'fa-solid fa-face-sad-tear',
+    BONDING: 'fa-solid fa-handshake',
+    REUNION: 'fa-solid fa-people-arrows',
+    // World
+    MYSTERY: 'fa-solid fa-magnifying-glass',
+    MAGIC: 'fa-solid fa-wand-sparkles',
+    STEALTH: 'fa-solid fa-eye-slash',
+    POLITICAL: 'fa-solid fa-landmark',
+    HUMOR: 'fa-solid fa-face-laugh',
+    CRAFTING: 'fa-solid fa-hammer',
+    // Fallback
+    NONE: 'fa-solid fa-bookmark',
     default: 'fa-solid fa-bookmark'
 };
