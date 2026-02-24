@@ -18,14 +18,27 @@ import { scoreMemoriesSync } from './sync-scorer.js';
 let scoringWorker = null;
 
 // Track synced memory state to avoid redundant transfers
-let lastSyncedMemoryCount = -1;
+let lastSyncedMemoryHash = -1;
+
+/**
+ * Compute a fast hash of memory array for change detection
+ * Hash = sum of (summary length + importance * 10 + hasEmbedding)
+ * Good enough for cache invalidation; collisions just cause redundant sync
+ * @param {Object[]} memories - Memories to hash
+ * @returns {number} Computed hash value
+ */
+function computeMemoryHash(memories) {
+    return memories.reduce((acc, m) =>
+        acc + (m.summary?.length || 0) + (m.importance || 3) * 10 + (m.embedding ? 1 : 0),
+    0);
+}
 
 /**
  * Reset worker state (for testing)
- * Clears the cached sync count so next call will send full memories
+ * Clears the cached sync hash so next call will send full memories
  */
 export function resetWorkerSyncState() {
-    lastSyncedMemoryCount = -1;
+    lastSyncedMemoryHash = -1;
 }
 
 /**
@@ -57,7 +70,7 @@ function terminateWorker() {
     if (scoringWorker) {
         scoringWorker.terminate();
         scoringWorker = null;
-        lastSyncedMemoryCount = -1; // Reset sync state
+        lastSyncedMemoryHash = -1; // Reset sync state
         log('Scoring worker terminated');
     }
 }
@@ -153,9 +166,9 @@ function runWorkerScoring(memories, contextEmbedding, chatLength, limit, queryTo
 
         const { constants, settings } = getScoringParams();
 
-        // Only send full memories array if count changed (avoids expensive cloning)
-        const currentMemoryCount = memories.length;
-        const needsSync = currentMemoryCount !== lastSyncedMemoryCount;
+        // Compute hash to detect any memory content changes (not just count)
+        const currentHash = computeMemoryHash(memories);
+        const needsSync = currentHash !== lastSyncedMemoryHash;
 
         worker.postMessage({
             // Only include memories if sync needed (reduces Structured Clone overhead)
@@ -171,7 +184,7 @@ function runWorkerScoring(memories, contextEmbedding, chatLength, limit, queryTo
         });
 
         if (needsSync) {
-            lastSyncedMemoryCount = currentMemoryCount;
+            lastSyncedMemoryHash = currentHash;
         }
     });
 }

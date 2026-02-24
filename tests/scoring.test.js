@@ -744,6 +744,127 @@ describe('scoring', () => {
         });
     });
 
+    describe('worker hash-based sync detection', () => {
+        it('detects memory importance changes and resyncs worker', async () => {
+            const memories = [
+                { id: '1', summary: 'Memory 1', importance: 3, message_ids: [50] },
+                { id: '2', summary: 'Memory 2', importance: 5, message_ids: [40] },
+            ];
+
+            // First call syncs memories
+            const ctx = {
+                recentContext: 'context',
+                userMessages: 'user messages',
+                activeCharacters: [],
+                chatLength: 100,
+            };
+            let result = await selectRelevantMemoriesSimple(memories, ctx, 10);
+
+            // Memory 2 should be first (higher importance)
+            expect(result[0].id).toBe('2');
+
+            // Change importance (length remains same)
+            memories[0].importance = 5;
+
+            // Clear mock worker cache to verify sync happens
+            // In real scenario, changing importance should trigger resync
+            mockWorkerCachedMemories = [];
+
+            // Second call should resync due to importance change
+            // The implementation should detect the change and send new memories
+            result = await selectRelevantMemoriesSimple(memories, ctx, 10);
+
+            // After resync, cache should be populated (verify sync happened)
+            expect(mockWorkerCachedMemories.length).toBe(2);
+
+            // Updated memory should now rank first due to higher importance
+            expect(result[0].id).toBe('1');
+            expect(result[0].importance).toBe(5);
+        });
+
+        it('detects memory summary changes and resyncs worker', async () => {
+            const memories = [
+                { id: '1', summary: 'Short', importance: 3, message_ids: [50] },
+                { id: '2', summary: 'Memory 2', importance: 3, message_ids: [40] },
+            ];
+
+            const ctx = {
+                recentContext: 'context',
+                userMessages: 'user messages',
+                activeCharacters: [],
+                chatLength: 100,
+            };
+            await selectRelevantMemoriesSimple(memories, ctx, 10);
+
+            // Change summary length (count remains same)
+            memories[0].summary = 'This is a much longer summary that changes the hash';
+
+            // Clear cache to verify resync
+            mockWorkerCachedMemories = [];
+
+            const result = await selectRelevantMemoriesSimple(memories, ctx, 10);
+            expect(result).toHaveLength(2);
+            // Cache should be repopulated
+            expect(mockWorkerCachedMemories.length).toBe(2);
+        });
+
+        it('detects embedding addition and resyncs worker', async () => {
+            const memories = [
+                { id: '1', summary: 'Memory 1', importance: 3, message_ids: [50] }, // no embedding
+                { id: '2', summary: 'Memory 2', importance: 3, message_ids: [40], embedding: [0.1, 0.2] },
+            ];
+
+            isEmbeddingsEnabled.mockReturnValue(true);
+            const ctx = {
+                recentContext: 'context',
+                userMessages: 'user messages',
+                activeCharacters: [],
+                chatLength: 100,
+            };
+            await selectRelevantMemoriesSimple(memories, ctx, 10);
+
+            // Add embedding to first memory (count remains same)
+            memories[0].embedding = [0.3, 0.4];
+
+            // Clear cache to verify resync
+            mockWorkerCachedMemories = [];
+
+            const result = await selectRelevantMemoriesSimple(memories, ctx, 10);
+            expect(result).toHaveLength(2);
+            // Cache should be repopulated
+            expect(mockWorkerCachedMemories.length).toBe(2);
+        });
+
+        it('skips sync when content has not changed', async () => {
+            const memories = [
+                { id: '1', summary: 'Memory 1', importance: 3, message_ids: [50] },
+            ];
+
+            const ctx = {
+                recentContext: 'context',
+                userMessages: 'user messages',
+                activeCharacters: [],
+                chatLength: 100,
+            };
+
+            // First call
+            const result1 = await selectRelevantMemoriesSimple(memories, ctx, 10);
+
+            // Store cache reference (without spread - keep actual reference)
+            const cacheAfterFirstCall = mockWorkerCachedMemories;
+
+            // Second call with identical content
+            const result2 = await selectRelevantMemoriesSimple(memories, ctx, 10);
+
+            // Both should return same result
+            expect(result2[0].id).toBe(result1[0].id);
+
+            // Cache should still have the same reference (no new array created = no sync)
+            // This verifies sync was skipped
+            expect(mockWorkerCachedMemories).toBe(cacheAfterFirstCall);
+        });
+    });
+
     describe('worker data serialization', () => {
         it('scoring payload is structuredClone-safe', () => {
             const memories = [{
