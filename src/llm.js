@@ -8,6 +8,7 @@
 import { getDeps } from './deps.js';
 import { log, showToast } from './utils.js';
 import { extensionName } from './constants.js';
+import { getExtractionJsonSchema } from './extraction/structured.js';
 
 /**
  * LLM configuration presets
@@ -29,10 +30,12 @@ export const LLM_CONFIGS = {
  * Call LLM with unified request handling
  * @param {string} prompt - The user prompt (includes role via XML tags)
  * @param {Object} config - Request configuration from LLM_CONFIGS
+ * @param {Object} options - Optional parameters
+ * @param {boolean} options.structured - Enable structured output with jsonSchema
  * @returns {Promise<string>} The LLM response content
  * @throws {Error} If the LLM call fails or no profile is available
  */
-export async function callLLM(prompt, config) {
+export async function callLLM(prompt, config, options = {}) {
     const { profileSettingKey, maxTokens, errorContext } = config;
     const deps = getDeps();
     const extension_settings = deps.getExtensionSettings();
@@ -62,6 +65,8 @@ export async function callLLM(prompt, config) {
             { role: 'user', content: prompt }
         ];
 
+        const jsonSchema = options.structured ? getExtractionJsonSchema() : undefined;
+
         const result = await deps.connectionManager.sendRequest(
             profileId,
             messages,
@@ -71,7 +76,7 @@ export async function callLLM(prompt, config) {
                 includeInstruct: true,
                 stream: false
             },
-            {}
+            jsonSchema ? { jsonSchema } : {}  // 5th parameter
         );
 
         const content = result?.content || result || '';
@@ -105,17 +110,19 @@ export async function callLLM(prompt, config) {
 /**
  * Call LLM for memory extraction
  * @param {string} prompt - The extraction prompt
+ * @param {Object} options - Optional parameters
  * @returns {Promise<string>} The LLM response content
  */
-export function callLLMForExtraction(prompt) {
-    return callLLM(prompt, LLM_CONFIGS.extraction);
+export function callLLMForExtraction(prompt, options = {}) {
+    return callLLM(prompt, LLM_CONFIGS.extraction, options);
 }
 
 /**
  * Call LLM for memory retrieval/scoring
  * @param {string} prompt - The retrieval prompt
+ * @param {Object} options - Optional parameters
  * @returns {Promise<string>} The LLM response content
  */
-export function callLLMForRetrieval(prompt) {
-    return callLLM(prompt, LLM_CONFIGS.retrieval);
+export function callLLMForRetrieval(prompt, options = {}) {
+    return callLLM(prompt, LLM_CONFIGS.retrieval, options);
 }
