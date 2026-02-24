@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'https://esm.sh/zod@4';
 
 /**
  * Schema for relationship impact between characters

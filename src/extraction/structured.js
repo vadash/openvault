@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'https://esm.sh/zod@4';
 import { ExtractionResponseSchema, EventSchema } from './schemas/event-schema.js';
 
 /**
