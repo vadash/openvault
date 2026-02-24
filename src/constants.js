@@ -44,6 +44,10 @@ export const defaultSettings = {
     embeddingSource: 'multilingual-e5-small', // model name or 'ollama'
     ollamaUrl: '',
     embeddingModel: '',
+    // Alpha-blend scoring (new)
+    alpha: 0.7,                    // Vector vs keyword blend: 1.0 = vector only, 0.0 = BM25 only
+    combinedBoostWeight: 15,       // Max boost points for retrieval (BM25 + vector)
+    // Legacy keys (kept for migration/backwards compat)
     vectorSimilarityWeight: 15,
     vectorSimilarityThreshold: 0.5,
     keywordMatchWeight: 3.0,
@@ -80,9 +84,9 @@ export const UI_DEFAULT_HINTS = {
     retrievalFinalTokens: defaultSettings.retrievalFinalTokens,
     autoHideThreshold: defaultSettings.autoHideThreshold,
 
-    // Retrieval weights
-    vectorSimilarityWeight: defaultSettings.vectorSimilarityWeight,
-    keywordMatchWeight: defaultSettings.keywordMatchWeight,
+    // Retrieval weights (new alpha-blend)
+    alpha: defaultSettings.alpha,
+    combinedBoostWeight: defaultSettings.combinedBoostWeight,
     vectorSimilarityThreshold: defaultSettings.vectorSimilarityThreshold,
     dedupSimilarityThreshold: defaultSettings.dedupSimilarityThreshold,
 

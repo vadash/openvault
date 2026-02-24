@@ -1,4 +1,12 @@
 import { describe, it, expect } from 'vitest';
+import { defaultSettings } from '../src/constants.js';
+
+describe('defaultSettings', () => {
+    it('has alpha and combinedBoostWeight in defaultSettings', () => {
+        expect(defaultSettings.alpha).toBe(0.7);
+        expect(defaultSettings.combinedBoostWeight).toBe(15);
+    });
+});
 
 describe('extensionFolderPath', () => {
     it('derives path from import.meta.url', async () => {
