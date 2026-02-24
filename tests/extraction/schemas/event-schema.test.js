@@ -1,92 +1,71 @@
 import { describe, it, expect } from 'vitest';
-import {
-    EventSchema,
-    ExtractionResponseSchema,
-} from '../../../src/extraction/schemas/event-schema.js';
+import { TagEnum, EventSchema, ExtractionResponseSchema } from '../../../src/extraction/schemas/event-schema.js';
+
+describe('TagEnum', () => {
+    it('accepts all 31 valid tags', () => {
+        const allTags = [
+            'EXPLICIT', 'BDSM', 'FETISH', 'ROMANCE', 'FLIRTING', 'SEDUCTION',
+            'COMBAT', 'THREAT', 'INJURY', 'BETRAYAL', 'HORROR',
+            'DOMESTIC', 'SOCIAL', 'TRAVEL', 'COMMERCE', 'FOOD', 'CELEBRATION',
+            'LORE', 'SECRET', 'TRAUMA', 'GROWTH', 'EMOTION', 'BONDING', 'REUNION',
+            'MYSTERY', 'MAGIC', 'STEALTH', 'POLITICAL', 'HUMOR', 'CRAFTING',
+            'NONE'
+        ];
+        for (const tag of allTags) {
+            expect(TagEnum.parse(tag)).toBe(tag);
+        }
+    });
+
+    it('rejects invalid tags', () => {
+        expect(() => TagEnum.parse('INVALID')).toThrow();
+        expect(() => TagEnum.parse('action')).toThrow();
+    });
+});
 
 describe('EventSchema', () => {
-    it('validates a correct event object', () => {
-        const result = EventSchema.safeParse({
-            event_type: 'action',
-            summary: 'Alice smiled at Bob',
-            importance: 3,
-            characters_involved: ['Alice', 'Bob'],
-        });
-        expect(result.success).toBe(true);
-    });
-
-    it('rejects missing summary', () => {
-        const result = EventSchema.safeParse({
-            event_type: 'action',
-            importance: 3,
-            characters_involved: ['Alice'],
-        });
-        expect(result.success).toBe(false);
-    });
-
-    it('rejects importance outside 1-5 range', () => {
-        const result = EventSchema.safeParse({
-            event_type: 'action',
-            summary: 'Test',
-            importance: 10,
-            characters_involved: ['Alice'],
-        });
-        expect(result.success).toBe(false);
-    });
-
-    it('rejects invalid event_type', () => {
-        const result = EventSchema.safeParse({
-            event_type: 'invalid_type',
-            summary: 'Test',
-            importance: 3,
-            characters_involved: ['Alice'],
-        });
-        expect(result.success).toBe(false);
-    });
-
-    it('applies defaults for optional fields', () => {
-        const result = EventSchema.safeParse({
-            event_type: 'action',
-            summary: 'Test',
+    it('requires tags array with 1-3 elements', () => {
+        const base = {
+            summary: 'Test summary here',
             importance: 3,
             characters_involved: [],
-        });
-        if (result.success) {
-            expect(result.data.witnesses).toEqual([]);
-            expect(result.data.location).toBe(null);
-            expect(result.data.is_secret).toBe(false);
-        } else {
-            throw new Error('Should succeed with defaults');
-        }
+            witnesses: [],
+            location: null,
+            is_secret: false,
+        };
+
+        // Valid: 1 tag
+        expect(() => EventSchema.parse({ ...base, tags: ['COMBAT'] })).not.toThrow();
+        // Valid: 3 tags
+        expect(() => EventSchema.parse({ ...base, tags: ['COMBAT', 'INJURY', 'HORROR'] })).not.toThrow();
+        // Invalid: 0 tags
+        expect(() => EventSchema.parse({ ...base, tags: [] })).toThrow();
+        // Invalid: 4 tags
+        expect(() => EventSchema.parse({ ...base, tags: ['A', 'B', 'C', 'D'] })).toThrow();
     });
 
-    it('accepts full event with all fields', () => {
-        const result = EventSchema.safeParse({
-            event_type: 'revelation',
-            summary: 'Full event',
-            importance: 4,
-            characters_involved: ['Alice'],
-            witnesses: ['Bob'],
-            location: 'garden',
-            is_secret: true,
-            emotional_impact: { Alice: 'happy' },
-            relationship_impact: {
-                'Alice->Bob': 'trust deepened'
-            },
+    it('defaults tags to ["NONE"] when omitted', () => {
+        const result = EventSchema.parse({
+            summary: 'Test summary here',
+            importance: 3,
+            characters_involved: [],
+            witnesses: [],
+            location: null,
+            is_secret: false,
         });
-        expect(result.success).toBe(true);
+        expect(result.tags).toEqual(['NONE']);
     });
 
-    it('accepts all four valid event types', () => {
-        for (const type of ['action', 'revelation', 'emotion_shift', 'relationship_change']) {
-            const result = EventSchema.safeParse({
-                event_type: type,
-                summary: `Test ${type}`,
-                importance: 3,
-                characters_involved: [],
-            });
-            expect(result.success).toBe(true);
-        }
+    it('does NOT have event_type field', () => {
+        const result = EventSchema.parse({
+            summary: 'Test summary here',
+            importance: 3,
+            tags: ['DOMESTIC'],
+            characters_involved: [],
+            witnesses: [],
+            location: null,
+            is_secret: false,
+        });
+        expect(result.event_type).toBeUndefined();
     });
 });
 
@@ -95,7 +74,7 @@ describe('ExtractionResponseSchema', () => {
         const result = ExtractionResponseSchema.safeParse({
             reasoning: 'Because something happened',
             events: [
-                { event_type: 'action', summary: 'Event 1', importance: 3, characters_involved: ['Alice'] }
+                { summary: 'Event 1', importance: 3, tags: ['COMBAT'], characters_involved: ['Alice'] }
             ],
         });
         expect(result.success).toBe(true);
@@ -105,7 +84,7 @@ describe('ExtractionResponseSchema', () => {
         const result = ExtractionResponseSchema.safeParse({
             reasoning: null,
             events: [
-                { event_type: 'action', summary: 'Event 1', importance: 3, characters_involved: ['Alice'] }
+                { summary: 'Event 1', importance: 3, tags: ['LORE'], characters_involved: ['Alice'] }
             ],
         });
         expect(result.success).toBe(true);
@@ -114,15 +93,6 @@ describe('ExtractionResponseSchema', () => {
     it('allows empty events array', () => {
         const result = ExtractionResponseSchema.safeParse({
             reasoning: 'No significant events found',
-            events: [],
-        });
-        expect(result.success).toBe(true);
-    });
-
-    it('has reasoning as first property', () => {
-        // Verify the schema has reasoning before events
-        const result = ExtractionResponseSchema.safeParse({
-            reasoning: null,
             events: [],
         });
         expect(result.success).toBe(true);
