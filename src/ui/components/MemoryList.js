@@ -110,11 +110,11 @@ export class MemoryList extends Component {
             const summary = (m.summary || '').toLowerCase();
             const characters = (m.characters_involved || []).join(' ').toLowerCase();
             const location = (m.location || '').toLowerCase();
-            const eventType = (m.event_type || '').toLowerCase();
+            const tags = (m.tags || []).join(' ').toLowerCase();
             return summary.includes(query) ||
                    characters.includes(query) ||
                    location.includes(query) ||
-                   eventType.includes(query);
+                   tags.includes(query);
         });
     }
 
@@ -163,7 +163,11 @@ export class MemoryList extends Component {
         // Gather values
         const summary = $card.find('[data-field="summary"]').val().trim();
         const importance = parseInt($card.find('[data-field="importance"]').val(), 10);
-        const event_type = $card.find('[data-field="event_type"]').val();
+        const tags = [];
+        $card.find('[data-field="tags"] input:checked').each(function() {
+            tags.push($(this).val());
+        });
+        if (tags.length === 0) tags.push('NONE');
 
         if (!summary) {
             showToast('warning', 'Summary cannot be empty');
@@ -173,7 +177,7 @@ export class MemoryList extends Component {
         // Disable button during save
         $btn.prop('disabled', true);
 
-        const updated = await updateMemoryAction(id, { summary, importance, event_type });
+        const updated = await updateMemoryAction(id, { summary, importance, tags });
         if (updated) {
             // Auto-generate embedding if needed
             const memory = this._getMemoryById(id);

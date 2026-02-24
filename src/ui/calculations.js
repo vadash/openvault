@@ -14,7 +14,7 @@
  */
 export function filterMemories(memories, typeFilter, characterFilter) {
     return memories.filter(m => {
-        if (typeFilter && m.event_type !== typeFilter) return false;
+        if (typeFilter && !m.tags?.includes(typeFilter)) return false;
         if (characterFilter && !m.characters_involved?.includes(characterFilter)) return false;
         return true;
     });

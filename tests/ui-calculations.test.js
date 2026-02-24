@@ -17,20 +17,24 @@ import {
 describe('ui/calculations', () => {
     describe('filterMemories', () => {
         const memories = [
-            { id: '1', event_type: 'action', characters_involved: ['Alice', 'Bob'] },
-            { id: '2', event_type: 'dialogue', characters_involved: ['Alice'] },
-            { id: '3', event_type: 'action', characters_involved: ['Charlie'] },
-            { id: '4', event_type: 'emotion', characters_involved: ['Bob', 'Charlie'] },
+            { id: '1', tags: ['COMBAT'], characters_involved: ['Alice', 'Bob'] },
+            { id: '2', tags: ['ROMANCE', 'DOMESTIC'], characters_involved: ['Alice'] },
+            { id: '3', tags: ['COMBAT', 'INJURY'], characters_involved: ['Charlie'] },
+            { id: '4', tags: ['EMOTION'], characters_involved: ['Bob', 'Charlie'] },
         ];
 
         it('returns all memories when no filters', () => {
             expect(filterMemories(memories, '', '')).toHaveLength(4);
         });
 
-        it('filters by event type', () => {
-            const result = filterMemories(memories, 'action', '');
+        it('filters by tag', () => {
+            const result = filterMemories(memories, 'COMBAT', '');
             expect(result).toHaveLength(2);
-            expect(result.every(m => m.event_type === 'action')).toBe(true);
+            expect(result.every(m => m.tags.includes('COMBAT'))).toBe(true);
+        });
+
+        it('filters by tag when memory has multiple tags', () => {
+            expect(filterMemories(memories, 'DOMESTIC', '')).toHaveLength(1);
         });
 
         it('filters by character', () => {
@@ -39,23 +43,23 @@ describe('ui/calculations', () => {
             expect(result.every(m => m.characters_involved.includes('Alice'))).toBe(true);
         });
 
-        it('filters by both type and character', () => {
-            const result = filterMemories(memories, 'action', 'Alice');
+        it('filters by both tag and character', () => {
+            const result = filterMemories(memories, 'COMBAT', 'Alice');
             expect(result).toHaveLength(1);
             expect(result[0].id).toBe('1');
         });
 
         it('returns empty array when no matches', () => {
-            expect(filterMemories(memories, 'unknown', '')).toHaveLength(0);
+            expect(filterMemories(memories, 'UNKNOWN', '')).toHaveLength(0);
         });
 
         it('handles empty memories array', () => {
-            expect(filterMemories([], 'action', '')).toHaveLength(0);
+            expect(filterMemories([], 'COMBAT', '')).toHaveLength(0);
         });
 
-        it('handles missing characters_involved', () => {
-            const partial = [{ id: '1', event_type: 'action' }];
-            expect(filterMemories(partial, '', 'Alice')).toHaveLength(0);
+        it('handles missing tags', () => {
+            const partial = [{ id: '1', characters_involved: ['Alice'] }];
+            expect(filterMemories(partial, 'COMBAT', '')).toHaveLength(0);
         });
     });
 
