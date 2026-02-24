@@ -1,5 +1,6 @@
 import { z } from 'https://esm.sh/zod@4';
 import { ExtractionResponseSchema, EventSchema } from './schemas/event-schema.js';
+import { stripThinkingTags } from '../utils.js';
 
 /**
  * Convert Zod schema to ConnectionManager jsonSchema format
@@ -33,7 +34,7 @@ function stripMarkdown(content) {
 }
 
 /**
- * Parse LLM response with markdown stripping and Zod validation
+ * Parse LLM response with markdown stripping, thinking tag removal, and Zod validation
  *
  * @param {string} content - Raw LLM response
  * @param {z.ZodType} schema - Zod schema to validate against
@@ -41,7 +42,10 @@ function stripMarkdown(content) {
  * @throws {Error} If JSON parsing or validation fails
  */
 function parseStructuredResponse(content, schema) {
-    let jsonContent = stripMarkdown(content);
+    // Strip thinking/reasoning tags first (models may return extended thinking)
+    let cleanedContent = stripThinkingTags(content);
+    // Then strip markdown code blocks
+    let jsonContent = stripMarkdown(cleanedContent);
 
     let parsed;
     try {

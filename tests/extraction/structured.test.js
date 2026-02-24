@@ -84,6 +84,27 @@ describe('parseExtractionResponse', () => {
         expect(result.events[0].witnesses).toEqual([]);
         expect(result.events[0].location).toBe(null);
     });
+
+    it('strips <reasoning> tags before parsing', () => {
+        const content = '<reasoning>Let me analyze this conversation...</reasoning>\n{"events": [{"summary": "Test", "importance": 3, "characters_involved": []}], "reasoning": null}';
+        const result = parseExtractionResponse(content);
+        expect(result.events).toHaveLength(1);
+        expect(result.events[0].summary).toBe('Test');
+    });
+
+    it('strips <thinking> tags before parsing', () => {
+        const content = '<thinking>Analysis here</thinking>\n{"events": [{"summary": "Event", "importance": 3, "characters_involved": []}], "reasoning": null}';
+        const result = parseExtractionResponse(content);
+        expect(result.events).toHaveLength(1);
+        expect(result.events[0].summary).toBe('Event');
+    });
+
+    it('handles both reasoning tags and markdown', () => {
+        const content = '<reasoning>Thinking...</reasoning>\n```json\n{"events": [{"summary": "Test", "importance": 3, "characters_involved": []}], "reasoning": null}\n```';
+        const result = parseExtractionResponse(content);
+        expect(result.events).toHaveLength(1);
+        expect(result.events[0].summary).toBe('Test');
+    });
 });
 
 describe('parseEvent', () => {
@@ -102,5 +123,12 @@ describe('parseEvent', () => {
         const content = '```json\n{"summary": "Event", "importance": 3, "characters_involved": []}\n```';
         const result = parseEvent(content);
         expect(result.summary).toBe('Event');
+    });
+
+    it('strips reasoning tags for single event', () => {
+        const content = '<reasoning>Analyzing event...</reasoning>\n{"summary": "Event", "importance": 4, "characters_involved": ["Alice"]}';
+        const result = parseEvent(content);
+        expect(result.summary).toBe('Event');
+        expect(result.importance).toBe(4);
     });
 });
