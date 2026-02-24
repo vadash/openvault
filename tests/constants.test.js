@@ -6,6 +6,16 @@ describe('defaultSettings', () => {
         expect(defaultSettings.alpha).toBe(0.7);
         expect(defaultSettings.combinedBoostWeight).toBe(15);
     });
+
+    it('has embeddingQueryPrefix', () => {
+        expect(defaultSettings.embeddingQueryPrefix).toBe('search for similar scenes: ');
+    });
+    it('has embeddingDocPrefix', () => {
+        expect(defaultSettings.embeddingDocPrefix).toBe('');
+    });
+    it('has embeddingTagFormat', () => {
+        expect(defaultSettings.embeddingTagFormat).toBe('bracket');
+    });
 });
 
 describe('extensionFolderPath', () => {
