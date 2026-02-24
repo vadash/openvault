@@ -111,6 +111,40 @@ function calculateIDF(memories, tokenizedMemories) {
 }
 
 /**
+ * IDF-aware query token frequency adjustment.
+ * Reduces repeated tokens proportional to their IDF to prevent corpus-common
+ * entity tokens (e.g. main character name) from inflating scores.
+ * @param {string[]} queryTokens - Original query tokens (may have repeats)
+ * @param {Map} idfMap - Precomputed IDF scores
+ * @param {number} totalDocs - Total number of documents (memories)
+ * @returns {string[]} Adjusted query tokens with TF scaled by IDF
+ */
+function adjustQueryTokensByIDF(queryTokens, idfMap, totalDocs) {
+    if (!queryTokens || queryTokens.length === 0 || !idfMap) return queryTokens;
+
+    const maxIDF = Math.log(totalDocs + 1); // IDF when df=0 (corpus-unique)
+    if (maxIDF <= 0) return queryTokens;
+
+    // Count unique tokens and their frequencies
+    const tokenCounts = new Map();
+    for (const t of queryTokens) {
+        tokenCounts.set(t, (tokenCounts.get(t) || 0) + 1);
+    }
+
+    // Build adjusted token array
+    const adjusted = [];
+    for (const [token, count] of tokenCounts.entries()) {
+        const idf = idfMap.get(token) ?? maxIDF; // unknown terms get max IDF (corpus-unique)
+        const idfRatio = idf / maxIDF;            // [0, 1]
+        const adjustedCount = Math.max(1, Math.round(count * idfRatio));
+        for (let i = 0; i < adjustedCount; i++) {
+            adjusted.push(token);
+        }
+    }
+    return adjusted;
+}
+
+/**
  * Calculate BM25 score for a document against a query
  * @param {string[]} queryTokens - Tokenized query
  * @param {string[]} docTokens - Tokenized document
@@ -204,26 +238,32 @@ export function calculateScore(memory, contextEmbedding, chatLength, constants, 
 
     const recencyPenalty = baseAfterFloor - base;
 
-    // === Vector Similarity Bonus ===
+    // === Alpha-Blend Scoring ===
+    // New: alpha + combinedBoostWeight (fallback to legacy for migration)
+    const alpha = settings.alpha ?? 0.7;
+    const boostWeight = settings.combinedBoostWeight ?? 15;
+
+    // === Vector Similarity Bonus (alpha-blend) ===
     let vectorBonus = 0;
     let vectorSimilarity = 0;
 
     if (contextEmbedding && memory.embedding) {
         vectorSimilarity = cosineSimilarity(contextEmbedding, memory.embedding);
         const threshold = settings.vectorSimilarityThreshold || 0.5;
-        const maxBonus = settings.vectorSimilarityWeight || 15;
 
         if (vectorSimilarity > threshold) {
             // Scale similarity above threshold to bonus points
-            // e.g., similarity 0.75 with threshold 0.5 -> (0.75-0.5)/(1-0.5) = 0.5 -> 7.5 points
+            // e.g., similarity 0.75 with threshold 0.5 -> (0.75-0.5)/(1-0.5) = 0.5
             const normalizedSim = (vectorSimilarity - threshold) / (1 - threshold);
-            vectorBonus = normalizedSim * maxBonus;
+            // Vector bonus = alpha * boostWeight * normalizedSim
+            vectorBonus = alpha * boostWeight * normalizedSim;
         }
     }
 
-    // === BM25 Keyword Match Bonus ===
-    const keywordWeight = settings.keywordMatchWeight ?? 1.0;
-    const bm25Bonus = bm25Score * keywordWeight;
+    // === BM25 Bonus (alpha-blend, pre-normalized to [0,1]) ===
+    // bm25Score is expected to be normalized [0,1] by scoreMemories()
+    // BM25 bonus = (1 - alpha) * boostWeight * normalizedBM25
+    const bm25Bonus = (1 - alpha) * boostWeight * bm25Score;
 
     const total = baseAfterFloor + vectorBonus + bm25Bonus;
 
@@ -267,15 +307,29 @@ export function scoreMemories(memories, contextEmbedding, chatLength, constants,
             const idfData = calculateIDF(memories, new Map(memoryTokensList.map((t, i) => [i, t])));
             idfMap = idfData.idfMap;
             avgDL = idfData.avgDL;
+
+            // IDF-aware query TF adjustment: reduce repeated tokens proportional to their IDF
+            // This prevents entity-boosted corpus-common tokens (e.g. main character name) from inflating scores
+            tokens = adjustQueryTokensByIDF(tokens, idfMap, memories.length);
         }
     }
 
-    const scored = memories.map((memory, index) => {
-        let bm25 = 0;
+    // Compute raw BM25 scores
+    const rawBM25Scores = memories.map((memory, index) => {
         if (tokens && idfMap && memoryTokensList) {
-            bm25 = bm25Score(tokens, memoryTokensList[index], idfMap, avgDL);
+            return bm25Score(tokens, memoryTokensList[index], idfMap, avgDL);
         }
-        const breakdown = calculateScore(memory, contextEmbedding, chatLength, constants, settings, bm25);
+        return 0;
+    });
+
+    // Batch-max normalize BM25 to [0, 1] for alpha-blend scoring
+    const maxBM25 = Math.max(...rawBM25Scores, 1e-9);
+    const normalizedBM25Scores = rawBM25Scores.map(s => s / maxBM25);
+
+    const scored = memories.map((memory, index) => {
+        const breakdown = calculateScore(
+            memory, contextEmbedding, chatLength, constants, settings, normalizedBM25Scores[index]
+        );
         return { memory, score: breakdown.total, breakdown };
     });
 
