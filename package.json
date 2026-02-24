@@ -16,5 +16,8 @@
     "jsdom": "^27.4.0",
     "repomix": "^0.3.2",
     "vitest": "^4.0.16"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
   }
 }
