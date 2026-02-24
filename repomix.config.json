@@ -1,0 +1,26 @@
+{
+  "outputFilePath": "repomix-output.txt",
+  "include": [
+    "scripts/**/*",
+    "src/**/*",
+    "tests/**/*",
+    "templates/**/*",
+    "example/**/*",
+    "*.js",
+    "*.json",
+    "*.css",
+    "*.md"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "customPatterns": [
+      "docs/**",
+      "repomix-output.*",
+      "tmp/**",
+      ".worktrees/**",
+      "logs/**",
+      "node_modules/**",
+      "package-lock.json"
+    ]
+  }
+}

@@ -2,3 +2,5 @@
 /repomix-output.txt
 /tmp/
 .worktrees/
+
+/repomix*.xml
