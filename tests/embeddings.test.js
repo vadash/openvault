@@ -9,6 +9,7 @@ import {
     getEmbedding,
     generateEmbeddingsForMemories,
     clearEmbeddingCache,
+    formatForEmbedding,
 } from '../src/embeddings.js';
 import { TransformersStrategy } from '../src/embeddings/strategies.js';
 import { extensionName, defaultSettings } from '../src/constants.js';
@@ -428,6 +429,28 @@ describe('embeddings', () => {
             // This test verifies the integration point
             // Implementation requires modifying settings.js binding
             expect(true).toBe(true); // Placeholder for integration test
+        });
+    });
+
+    describe('formatForEmbedding', () => {
+        it('prepends bracket tags to summary', () => {
+            expect(formatForEmbedding('Test summary', ['COMBAT', 'INJURY'], { embeddingTagFormat: 'bracket' }))
+                .toBe('[COMBAT] [INJURY] Test summary');
+        });
+
+        it('skips NONE tag', () => {
+            expect(formatForEmbedding('Test summary', ['NONE'], { embeddingTagFormat: 'bracket' }))
+                .toBe('Test summary');
+        });
+
+        it('returns plain summary when format is none', () => {
+            expect(formatForEmbedding('Test summary', ['COMBAT'], { embeddingTagFormat: 'none' }))
+                .toBe('Test summary');
+        });
+
+        it('handles missing tags', () => {
+            expect(formatForEmbedding('Test summary', null, {}))
+                .toBe('Test summary');
         });
     });
 

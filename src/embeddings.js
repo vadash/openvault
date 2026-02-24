@@ -118,6 +118,29 @@ async function processInBatches(items, batchSize, fn) {
 // cosineSimilarity imported from ./retrieval/math.js for DRY
 
 // =============================================================================
+// Tag Formatting
+// =============================================================================
+
+/**
+ * Format memory text for document embedding with tag prefix
+ * @param {string} summary - Memory summary text
+ * @param {string[]|null} tags - Tags from extraction
+ * @param {Object} settings - Extension settings
+ * @returns {string} Formatted text for embedding
+ */
+export function formatForEmbedding(summary, tags, settings) {
+    const format = settings?.embeddingTagFormat ?? 'bracket';
+    if (format === 'none' || !tags?.length) return summary;
+
+    const tagPrefix = tags
+        .filter(t => t !== 'NONE')
+        .map(t => `[${t}]`)
+        .join(' ');
+
+    return tagPrefix ? `${tagPrefix} ${summary}` : summary;
+}
+
+// =============================================================================
 // Batch Operations
 // =============================================================================
 
@@ -137,7 +160,14 @@ export async function generateEmbeddingsForMemories(memories) {
         return 0;
     }
 
-    const embeddings = await processInBatches(validMemories, 5, m => getEmbedding(m.summary));
+    const settings = getDeps().getExtensionSettings()[extensionName];
+    const source = settings?.embeddingSource || 'multilingual-e5-small';
+    const strategy = getStrategy(source);
+
+    const embeddings = await processInBatches(validMemories, 5, async (m) => {
+        const text = formatForEmbedding(m.summary, m.tags, settings);
+        return strategy.getDocumentEmbedding(text);
+    });
 
     let count = 0;
     for (let i = 0; i < validMemories.length; i++) {
@@ -168,12 +198,20 @@ export async function enrichEventsWithEmbeddings(events) {
 
     log(`Generating embeddings for ${validEvents.length} events`);
 
-    const embeddings = await processInBatches(validEvents, 5, e => getEmbedding(e.summary));
+    const settings = getDeps().getExtensionSettings()[extensionName];
+    const source = settings?.embeddingSource || 'multilingual-e5-small';
+    const strategy = getStrategy(source);
+
+    const embeddings = await processInBatches(validEvents, 5, async (e) => {
+        const text = formatForEmbedding(e.summary, e.tags, settings);
+        return strategy.getDocumentEmbedding(text);
+    });
 
     let count = 0;
     for (let i = 0; i < validEvents.length; i++) {
         if (embeddings[i]) {
             validEvents[i].embedding = embeddings[i];
+            validEvents[i].embedding_tags = validEvents[i].tags || ['NONE'];
             count++;
         }
     }
