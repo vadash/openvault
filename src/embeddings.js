@@ -51,43 +51,6 @@ const MAX_CACHE_SIZE = 500;
 const embeddingCache = new Map();
 
 /**
- * Get embedding for text using configured source
- * Delegates to the appropriate strategy based on settings.
- * Results are cached to avoid redundant API calls for the same text.
- * Uses LRU eviction when cache reaches MAX_CACHE_SIZE.
- * @param {string} text - Text to embed
- * @returns {Promise<number[]|null>} Embedding vector or null if unavailable
- */
-export async function getEmbedding(text) {
-    if (!text) return null;
-
-    // Check cache first - refresh position for LRU behavior
-    if (embeddingCache.has(text)) {
-        const value = embeddingCache.get(text);
-        // Delete and re-insert to mark as recently used
-        embeddingCache.delete(text);
-        embeddingCache.set(text, value);
-        return value;
-    }
-
-    const settings = getDeps().getExtensionSettings()[extensionName];
-    const source = settings?.embeddingSource || 'multilingual-e5-small';
-    const strategy = getStrategy(source);
-    const result = await strategy.getEmbedding(text);
-
-    // Cache successful results (cache failures as null to avoid retrying)
-    // Evict oldest entry if at capacity
-    if (embeddingCache.size >= MAX_CACHE_SIZE) {
-        const firstKey = embeddingCache.keys().next().value;
-        if (firstKey !== undefined) {
-            embeddingCache.delete(firstKey);
-        }
-    }
-    embeddingCache.set(text, result);
-    return result;
-}
-
-/**
  * Clear the embedding cache. Useful for testing or when settings change.
  */
 export function clearEmbeddingCache() {
@@ -115,6 +78,38 @@ export async function getQueryEmbedding(text) {
     const source = settings?.embeddingSource || 'multilingual-e5-small';
     const strategy = getStrategy(source);
     const result = await strategy.getQueryEmbedding(text);
+
+    if (embeddingCache.size >= MAX_CACHE_SIZE) {
+        const firstKey = embeddingCache.keys().next().value;
+        if (firstKey !== undefined) embeddingCache.delete(firstKey);
+    }
+    embeddingCache.set(cacheKey, result);
+    return result;
+}
+
+/**
+ * Get document embedding (with doc prefix and tag formatting applied)
+ * @param {string} summary - Memory summary text
+ * @param {string[]|null} tags - Tags from extraction
+ * @returns {Promise<number[]|null>} Embedding vector
+ */
+export async function getDocumentEmbedding(summary, tags) {
+    if (!summary) return null;
+
+    const settings = getDeps().getExtensionSettings()[extensionName];
+    const text = formatForEmbedding(summary, tags, settings);
+
+    const cacheKey = `d:${text}`;
+    if (embeddingCache.has(cacheKey)) {
+        const value = embeddingCache.get(cacheKey);
+        embeddingCache.delete(cacheKey);
+        embeddingCache.set(cacheKey, value);
+        return value;
+    }
+
+    const source = settings?.embeddingSource || 'multilingual-e5-small';
+    const strategy = getStrategy(source);
+    const result = await strategy.getDocumentEmbedding(text);
 
     if (embeddingCache.size >= MAX_CACHE_SIZE) {
         const firstKey = embeddingCache.keys().next().value;

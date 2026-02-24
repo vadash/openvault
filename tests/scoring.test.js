@@ -69,7 +69,6 @@ globalThis.URL = URL;
 
 // Mock the embeddings module
 vi.mock('../src/embeddings.js', () => ({
-    getEmbedding: vi.fn(),
     getQueryEmbedding: vi.fn(),
     cosineSimilarity: vi.fn(),
     isEmbeddingsEnabled: vi.fn(),
@@ -110,7 +109,7 @@ import {
     selectRelevantMemories,
     resetWorkerSyncState,
 } from '../src/retrieval/scoring.js';
-import { getEmbedding, getQueryEmbedding, cosineSimilarity, isEmbeddingsEnabled } from '../src/embeddings.js';
+import { getQueryEmbedding, cosineSimilarity, isEmbeddingsEnabled } from '../src/embeddings.js';
 import { callLLMForRetrieval } from '../src/llm.js';
 import { buildSmartRetrievalPrompt } from '../src/prompts.js';
 import { log } from '../src/utils.js';
@@ -161,7 +160,6 @@ describe('scoring', () => {
 
         // Default mock behaviors
         isEmbeddingsEnabled.mockReturnValue(false);
-        getEmbedding.mockResolvedValue(null);
         getQueryEmbedding.mockResolvedValue(null);
         cosineSimilarity.mockReturnValue(0);
         callLLMForRetrieval.mockResolvedValue('{}');

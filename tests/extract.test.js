@@ -53,7 +53,6 @@ vi.mock('../src/extraction/parser.js', () => ({
 }));
 
 vi.mock('../src/embeddings.js', () => ({
-    getEmbedding: vi.fn(),
     isEmbeddingsEnabled: vi.fn(),
     enrichEventsWithEmbeddings: vi.fn(),
 }));
@@ -262,7 +261,7 @@ describe('extract', () => {
             callLLMForExtraction.mockResolvedValue(
                 JSON.stringify({
                     events: [
-                        { event_type: 'action', summary: 'Test event', importance: 3, characters_involved: ['Alice'] }
+                        { summary: 'Test event', importance: 3, characters_involved: ['Alice'] }
                     ],
                     reasoning: null,
                 })
@@ -282,7 +281,7 @@ describe('extract', () => {
             callLLMForExtraction.mockResolvedValue(
                 JSON.stringify({
                     events: [
-                        { event_type: 'action', summary: 'Test event', importance: 10, characters_involved: ['Alice'] }
+                        { summary: 'Test event', importance: 10, characters_involved: ['Alice'] }
                     ],
                     reasoning: null,
                 })
@@ -295,8 +294,8 @@ describe('extract', () => {
             callLLMForExtraction.mockResolvedValue(
                 JSON.stringify({
                     events: [
-                        { event_type: 'action', summary: 'Event 1', importance: 3, characters_involved: [] },
-                        { event_type: 'action', summary: 'Event 2', importance: 4, characters_involved: [] },
+                        { summary: 'Event 1', importance: 3, characters_involved: [] },
+                        { summary: 'Event 2', importance: 4, characters_involved: [] },
                     ],
                     reasoning: null,
                 })
@@ -312,7 +311,7 @@ describe('extract', () => {
             callLLMForExtraction.mockResolvedValue(
                 JSON.stringify({
                     events: [
-                        { event_type: 'action', summary: 'Event 1', importance: 3, characters_involved: ['Alice'] },
+                        { summary: 'Event 1', importance: 3, characters_involved: ['Alice'] },
                     ],
                     reasoning: null,
                 })
@@ -331,7 +330,7 @@ describe('extract', () => {
             ];
             callLLMForExtraction.mockResolvedValue(
                 JSON.stringify({
-                    events: [{ event_type: 'action', summary: 'Event', importance: 3, characters_involved: [] }],
+                    events: [{ summary: 'Event', importance: 3, characters_involved: [] }],
                     reasoning: null,
                 })
             );
@@ -345,7 +344,7 @@ describe('extract', () => {
             isEmbeddingsEnabled.mockReturnValue(true);
             callLLMForExtraction.mockResolvedValue(
                 JSON.stringify({
-                    events: [{ event_type: 'action', summary: 'Event 1', importance: 3, characters_involved: [] }],
+                    events: [{ summary: 'Event 1', importance: 3, characters_involved: [] }],
                     reasoning: null,
                 })
             );
@@ -356,11 +355,11 @@ describe('extract', () => {
             expect(enrichEventsWithEmbeddings).toHaveBeenCalledWith(expect.any(Array));
         });
 
-        it('skips embedding if getEmbedding returns null', async () => {
+        it('handles zero embeddings from enrichEventsWithEmbeddings', async () => {
             isEmbeddingsEnabled.mockReturnValue(true);
             callLLMForExtraction.mockResolvedValue(
                 JSON.stringify({
-                    events: [{ event_type: 'action', summary: 'Event 1', importance: 3, characters_involved: [] }],
+                    events: [{ summary: 'Event 1', importance: 3, tags: ['COMBAT'], characters_involved: [] }],
                     reasoning: null,
                 })
             );
@@ -376,8 +375,8 @@ describe('extract', () => {
             callLLMForExtraction.mockResolvedValue(
                 JSON.stringify({
                     events: [
-                        { event_type: 'action', summary: 'Event 1', importance: 3, characters_involved: [] },
-                        { event_type: 'revelation', summary: 'Event 2', importance: 3, characters_involved: [] },
+                        { summary: 'Event 1', importance: 3, characters_involved: [] },
+                        { summary: 'Event 2', importance: 3, characters_involved: [] },
                     ],
                     reasoning: null,
                 })
@@ -409,7 +408,7 @@ describe('extract', () => {
         it('returns result with status, events count and messages processed', async () => {
             callLLMForExtraction.mockResolvedValue(
                 JSON.stringify({
-                    events: [{ event_type: 'action', summary: 'Event 1', importance: 3, characters_involved: [] }],
+                    events: [{ summary: 'Event 1', importance: 3, characters_involved: [] }],
                     reasoning: null,
                 })
             );
@@ -464,7 +463,7 @@ describe('extract', () => {
         it('throws error if chat changes during extraction when targetChatId provided', async () => {
             callLLMForExtraction.mockResolvedValue(
                 JSON.stringify({
-                    events: [{ event_type: 'action', summary: 'Event 1', importance: 3, characters_involved: [] }],
+                    events: [{ summary: 'Event 1', importance: 3, characters_involved: [] }],
                     reasoning: null,
                 })
             );
@@ -479,7 +478,7 @@ describe('extract', () => {
         it('saves normally when chat ID matches targetChatId', async () => {
             callLLMForExtraction.mockResolvedValue(
                 JSON.stringify({
-                    events: [{ event_type: 'action', summary: 'Event 1', importance: 3, characters_involved: [] }],
+                    events: [{ summary: 'Event 1', importance: 3, characters_involved: [] }],
                     reasoning: null,
                 })
             );
@@ -493,7 +492,7 @@ describe('extract', () => {
         it('saves normally when no targetChatId provided (backwards compatible)', async () => {
             callLLMForExtraction.mockResolvedValue(
                 JSON.stringify({
-                    events: [{ event_type: 'action', summary: 'Event 1', importance: 3, characters_involved: [] }],
+                    events: [{ summary: 'Event 1', importance: 3, characters_involved: [] }],
                     reasoning: null,
                 })
             );

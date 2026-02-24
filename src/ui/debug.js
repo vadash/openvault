@@ -7,7 +7,7 @@
 import { getDeps } from '../deps.js';
 import { MEMORIES_KEY } from '../constants.js';
 import { getOpenVaultData, showToast } from '../utils.js';
-import { getEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
+import { getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { scoreMemories } from '../retrieval/math.js';
 import { getScoringParams } from '../retrieval/scoring.js';
 import { parseRecentMessages, extractQueryContext, buildBM25Tokens, buildEmbeddingQuery } from '../retrieval/query-context.js';
@@ -91,7 +91,7 @@ export async function copyMemoryWeights() {
         // Get embedding for the actual query (not raw user messages)
         let contextEmbedding = null;
         if (isEmbeddingsEnabled() && embeddingQuery) {
-            contextEmbedding = await getEmbedding(embeddingQuery);
+            contextEmbedding = await getQueryEmbedding(embeddingQuery);
         }
 
         // Score all memories using shared params

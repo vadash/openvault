@@ -6,7 +6,8 @@ import { setDeps, resetDeps } from '../src/deps.js';
 import {
     cosineSimilarity,
     isEmbeddingsEnabled,
-    getEmbedding,
+    getQueryEmbedding,
+    getDocumentEmbedding,
     generateEmbeddingsForMemories,
     clearEmbeddingCache,
     formatForEmbedding,
@@ -135,22 +136,22 @@ describe('embeddings', () => {
         });
     });
 
-    describe('getEmbedding', () => {
+    describe('getQueryEmbedding', () => {
         it('returns null when ollama not configured', async () => {
             setDeps({
                 getExtensionSettings: () => ({ [extensionName]: { embeddingSource: 'ollama' } }),
             });
-            const result = await getEmbedding('test text');
+            const result = await getQueryEmbedding('test text');
             expect(result).toBeNull();
         });
 
         it('returns null for empty text', async () => {
-            const result = await getEmbedding('');
+            const result = await getQueryEmbedding('');
             expect(result).toBeNull();
         });
 
         it('returns null for whitespace-only text', async () => {
-            const result = await getEmbedding('   \n\t  ');
+            const result = await getQueryEmbedding('   \n\t  ');
             expect(result).toBeNull();
         });
 
@@ -172,7 +173,7 @@ describe('embeddings', () => {
                 fetch: mockFetch,
             });
 
-            const result = await getEmbedding('test text');
+            const result = await getQueryEmbedding('test text');
 
             expect(mockFetch).toHaveBeenCalledWith(
                 'http://localhost:11434/api/embeddings',
@@ -206,7 +207,7 @@ describe('embeddings', () => {
                 fetch: mockFetch,
             });
 
-            await getEmbedding('test');
+            await getQueryEmbedding('test');
 
             expect(mockFetch).toHaveBeenCalledWith(
                 'http://localhost:11434/api/embeddings',
@@ -233,7 +234,7 @@ describe('embeddings', () => {
                 fetch: mockFetch,
             });
 
-            const result = await getEmbedding('test');
+            const result = await getQueryEmbedding('test');
             expect(result).toBeNull();
         });
 
@@ -252,7 +253,7 @@ describe('embeddings', () => {
                 fetch: mockFetch,
             });
 
-            const result = await getEmbedding('test');
+            const result = await getQueryEmbedding('test');
             expect(result).toBeNull();
         });
 
@@ -274,12 +275,78 @@ describe('embeddings', () => {
                 fetch: mockFetch,
             });
 
-            await getEmbedding('  test text  ');
+            await getQueryEmbedding('  test text  ');
 
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.any(String),
                 expect.objectContaining({
                     body: JSON.stringify({ model: 'model', prompt: 'test text' }),
+                })
+            );
+        });
+    });
+
+    describe('getDocumentEmbedding', () => {
+        it('returns null for empty summary', async () => {
+            const result = await getDocumentEmbedding('', ['COMBAT']);
+            expect(result).toBeNull();
+        });
+
+        it('formats tags into text before embedding', async () => {
+            const mockFetch = vi.fn().mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({ embedding: [0.1, 0.2] }),
+            });
+            setDeps({
+                console: mockConsole,
+                getExtensionSettings: () => ({
+                    [extensionName]: {
+                        embeddingSource: 'ollama',
+                        ollamaUrl: 'http://localhost:11434',
+                        embeddingModel: 'model',
+                        embeddingTagFormat: 'bracket',
+                        debugMode: false,
+                    }
+                }),
+                fetch: mockFetch,
+            });
+
+            const result = await getDocumentEmbedding('Test summary', ['COMBAT', 'INJURY']);
+
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.objectContaining({
+                    body: JSON.stringify({ model: 'model', prompt: '[COMBAT] [INJURY] Test summary' }),
+                })
+            );
+            expect(result).toEqual([0.1, 0.2]);
+        });
+
+        it('skips NONE tags in formatting', async () => {
+            const mockFetch = vi.fn().mockResolvedValue({
+                ok: true,
+                json: () => Promise.resolve({ embedding: [0.1] }),
+            });
+            setDeps({
+                console: mockConsole,
+                getExtensionSettings: () => ({
+                    [extensionName]: {
+                        embeddingSource: 'ollama',
+                        ollamaUrl: 'http://localhost:11434',
+                        embeddingModel: 'model',
+                        embeddingTagFormat: 'bracket',
+                        debugMode: false,
+                    }
+                }),
+                fetch: mockFetch,
+            });
+
+            await getDocumentEmbedding('Test summary', ['NONE']);
+
+            expect(mockFetch).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.objectContaining({
+                    body: JSON.stringify({ model: 'model', prompt: 'Test summary' }),
                 })
             );
         });

@@ -13,7 +13,7 @@ import { escapeHtml } from '../../utils/dom.js';
 import { getDeps } from '../../deps.js';
 import { MEMORIES_KEY, MEMORIES_PER_PAGE } from '../../constants.js';
 import { deleteMemory as deleteMemoryAction, updateMemory as updateMemoryAction } from '../../data/actions.js';
-import { getEmbedding, isEmbeddingsEnabled } from '../../embeddings.js';
+import { getDocumentEmbedding, isEmbeddingsEnabled } from '../../embeddings.js';
 import { refreshStats } from '../status.js';
 
 export class MemoryList extends Component {
@@ -182,7 +182,7 @@ export class MemoryList extends Component {
             // Auto-generate embedding if needed
             const memory = this._getMemoryById(id);
             if (memory && !memory.embedding && isEmbeddingsEnabled()) {
-                const embedding = await getEmbedding(summary);
+                const embedding = await getDocumentEmbedding(summary, memory.tags);
                 if (embedding) {
                     memory.embedding = embedding;
                     await getDeps().saveChatConditional();
