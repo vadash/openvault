@@ -503,4 +503,22 @@ describe('extract', () => {
             expect(saveOpenVaultData).toHaveBeenCalled();
         });
     });
+
+    describe('prompt language policy', () => {
+        it('extraction prompt instructs summaries in source language, not English', async () => {
+            const { buildExtractionPrompt: realBuild } = await vi.importActual('../src/prompts.js');
+
+            const result = realBuild({
+                messages: 'Test message',
+                names: { char: 'Alice', user: 'User' },
+                context: { memories: [], charDesc: '', personaDesc: '' },
+            });
+
+            const systemPrompt = result[0].content;
+            // Must NOT force English summaries
+            expect(systemPrompt).not.toMatch(/past tense, English/i);
+            // Must instruct source-language summaries
+            expect(systemPrompt).toMatch(/SAME LANGUAGE as the input/i);
+        });
+    });
 });

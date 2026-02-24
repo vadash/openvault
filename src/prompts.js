@@ -58,7 +58,7 @@ Write your analysis in the \`reasoning\` field FIRST, then produce events.
 1. DETAIL RETENTION: When analyzing интимная близость (intimacy/sex, 性行為), capture the exact nature of the act. Never use vague words like "they got intimate".
    - Specify the exact act: минет (blowjob/フェラチオ), куннилингус (cunnilingus/クンニリングス), вагинальное проникновение (vaginal sex/挿入), анальный (anal/アナル), ласки (foreplay/前戯).
    - Mention specific фетиши (fetishes/フェチ), кинки (kinks), БДСМ dynamics, or доминирование/подчинение (dom/sub/主従) roles if they occur.
-   - Summaries: 8-25 words, past tense, English. No meta-commentary.
+   - Summaries: 8-25 words, past tense, SAME LANGUAGE as the input messages. No meta-commentary.
 
 2. STRICT DEDUPLICATION (DO NOT REPEAT):
    - If <established_memories> already records an act (e.g., "started oral"), do NOT create a new event for continuation (moaning, thrusting faster, position change).
@@ -95,61 +95,61 @@ In the \`reasoning\` field, follow this EXACT process before outputting events:
 </thinking_process>
 
 <examples>
-<example type="action_combat">
-Messages: "[Kira]: *unsheathes her blade and lunges at the shadow creature* Take this! *slashes across its torso*"
+<example type="action_combat" lang="CN">
+Messages: "[小雨]: *拔出长剑猛刺暗影兽的腹部* 去死吧！ *旋身横斩，黑血溅了一地*"
 Output:
-{"reasoning": "Kira initiates combat with a shadow creature using her blade. No prior combat in established memories. New action event.", "events": [{"event_type": "action", "summary": "Kira attacked the shadow creature with her blade, slashing its torso", "importance": 3, "characters_involved": ["Kira"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {}, "relationship_impact": {}}]}
+{"reasoning": "小雨用长剑攻击暗影兽，造成重伤。记忆中无此前战斗记录。新动作事件。", "events": [{"event_type": "action", "summary": "小雨拔剑猛刺暗影兽腹部，旋身横斩溅出黑血", "importance": 3, "characters_involved": ["小雨"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {}, "relationship_impact": {}}]}
 </example>
 
-<example type="action_intimate">
-Messages: "[Lena]: *slowly removes her dress, standing before him* [Marco]: *pulls her close and kisses down her neck, hands sliding lower*"
-Established memories: (none about physical intimacy between them)
+<example type="action_intimate" lang="RU">
+Messages: "[Саша]: *толкает его на кровать и садится сверху, прижимая запястья к подушке* Лежи. Не двигайся. [Вова]: *стонет, когда она начинает тереться мокрой киской о его член через трусы*"
+Established memories: (нет записей о физической близости между ними)
 Output:
-{"reasoning": "First physical intimacy between Lena and Marco. She undressed, he initiated kissing her neck and touching her body. This is their first sexual contact — importance 4.", "events": [{"event_type": "action", "summary": "Lena undressed for Marco; he kissed her neck and began touching her body for the first time", "importance": 4, "characters_involved": ["Lena", "Marco"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {"Lena": "aroused", "Marco": "desire"}, "relationship_impact": {"Marco->Lena": "physical intimacy initiated"}}]}
+{"reasoning": "Первый сексуальный контакт между Сашей и Вовой. Она прижала его к кровати, села сверху, трётся промежностью через бельё. Доминирующая позиция Саши. Первый контакт — важность 4.", "events": [{"event_type": "action", "summary": "Саша повалила Вову на кровать, прижала запястья и начала тереться мокрой киской о его член через трусы", "importance": 4, "characters_involved": ["Саша", "Вова"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {"Саша": "возбуждение, власть", "Вова": "покорность, желание"}, "relationship_impact": {"Саша->Вова": "физическая близость началась, доминирование"}}]}
 </example>
 
-<example type="revelation_secret">
+<example type="revelation_secret" lang="EN">
 Messages: "[Jun]: I never told anyone this... my father didn't die in the war. He deserted. Ran away and left us."
 Output:
 {"reasoning": "Jun reveals a family secret — his father was a deserter, not a war casualty. This is new backstory. Revelation event, importance 4.", "events": [{"event_type": "revelation", "summary": "Jun confessed his father deserted the army rather than dying in war as publicly believed", "importance": 4, "characters_involved": ["Jun"], "witnesses": [], "location": null, "is_secret": true, "emotional_impact": {"Jun": "shame"}, "relationship_impact": {}}]}
 </example>
 
-<example type="revelation_desire">
-Messages: "[Sasha]: *blushing deeply* I... I've always wanted someone to tie me up. Control me completely. Is that weird?"
+<example type="revelation_desire" lang="RU">
+Messages: "[Катя]: *прячет лицо в подушку, голос дрожит* Я хочу... чтобы ты кончил мне на лицо. И заставил слизать. Я больная, да?"
 Output:
-{"reasoning": "Sasha confesses a BDSM desire — wants to be bound and dominated. First mention of this kink. Revelation, importance 4.", "events": [{"event_type": "revelation", "summary": "Sasha confessed her desire to be bound and dominated during sex", "importance": 4, "characters_involved": ["Sasha"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {"Sasha": "vulnerable"}, "relationship_impact": {}}]}
+{"reasoning": "Катя признаётся в фетише — фасиал и принудительное слизывание спермы. Элемент унижения и подчинения. Первое упоминание этого кинка. Откровение, важность 4.", "events": [{"event_type": "revelation", "summary": "Катя призналась в желании получить сперму на лицо и быть заставленной слизать её", "importance": 4, "characters_involved": ["Катя"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {"Катя": "стыд, уязвимость"}, "relationship_impact": {}}]}
 </example>
 
-<example type="emotion_shift_anger">
-Messages: "[Vera]: You KNEW they were planning to betray us and you said NOTHING?! *slams fist on table* I trusted you!"
+<example type="emotion_shift_anger" lang="JP">
+Messages: "[ユキ]: あんた最初から知ってたんでしょ！？ 裏切られるって分かってて私とヤッてたの！？ *テーブルを拳で叩く* 信じてたのに！ 体まで許したのに！"
 Output:
-{"reasoning": "Vera discovers a betrayal of trust. Intense anger and feeling of betrayal directed at the other character. Emotion shift event.", "events": [{"event_type": "emotion_shift", "summary": "Vera erupted in fury upon learning her companion knew about the betrayal and stayed silent", "importance": 4, "characters_involved": ["Vera"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {"Vera": "rage, betrayed"}, "relationship_impact": {}}]}
+{"reasoning": "ユキが裏切りを知り激怒。体を許した相手に裏切られた怒りと屈辱。感情変化イベント。", "events": [{"event_type": "emotion_shift", "summary": "ユキは体を許した相手が裏切りを隠していたと知り、怒りと屈辱で爆発した", "importance": 4, "characters_involved": ["ユキ"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {"ユキ": "激怒、屈辱"}, "relationship_impact": {}}]}
 </example>
 
-<example type="emotion_shift_arousal">
-Messages: "[Yuki]: *trembles as his fingers trail her inner thigh* D-don't stop... *breathes heavily, arching into his touch*"
-Established memories: "Marco began kissing Yuki's neck and touching her body"
+<example type="emotion_shift_arousal_dedup" lang="RU">
+Messages: "[Лена]: *стонет громче, сжимая его волосы, прижимает лицо глубже между ног* Языком... ещё... не смей останавливаться..."
+Established memories: "Вова начал делать Лене куннилингус, раздвинув её бёдра"
 Output:
-{"reasoning": "Yuki is being touched on inner thigh, responding with arousal and verbal consent. Established memories already record touching/foreplay. This is continuation of the same foreplay — no escalation to new act type. Empty events.", "events": []}
+{"reasoning": "Лена получает куннилингус от Вовы — стонет, прижимает его голову. В памяти уже записан куннилингус. Это продолжение того же акта без эскалации к новому типу. Оргазма нет. Пустой массив.", "events": []}
 </example>
 
-<example type="relationship_change_alliance">
+<example type="relationship_change_alliance" lang="EN">
 Messages: "[Dante]: After what we survived in those tunnels... I trust you with my life. Whatever you need, I'm in."
 Output:
 {"reasoning": "Dante declares deep trust and unconditional alliance after shared danger. New relationship milestone.", "events": [{"event_type": "relationship_change", "summary": "Dante pledged unconditional trust and alliance after surviving the tunnels together", "importance": 3, "characters_involved": ["Dante"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {"Dante": "grateful"}, "relationship_impact": {"Dante->companion": "unconditional trust established"}}]}
 </example>
 
-<example type="relationship_change_dynamic">
-Messages: "[Sasha]: *kneels before him* I want you to be in control. Completely. [Kai]: *gently lifts her chin* We'll use 'crimson' as your safeword. Say it anytime."
+<example type="relationship_change_dynamic" lang="RU">
+Messages: "[Маша]: *падает на колени, руки за спиной, смотрит снизу вверх* Я твоя сучка, хозяин. Делай со мной что хочешь. [Кай]: *берёт её за горло, мягко сжимает* Стоп-слово — 'малина'. Скажешь — я сразу остановлюсь."
 Output:
-{"reasoning": "Sasha and Kai negotiate a dom/sub dynamic. She submits, he establishes a safeword. First power exchange between them. Importance 5 — safeword establishment.", "events": [{"event_type": "relationship_change", "summary": "Sasha submitted to Kai as her dominant; they established 'crimson' as their safeword", "importance": 5, "characters_involved": ["Sasha", "Kai"], "witnesses": [], "location": null, "is_secret": true, "emotional_impact": {"Sasha": "surrender", "Kai": "protective"}, "relationship_impact": {"Sasha->Kai": "submitted as sub", "Kai->Sasha": "accepted dom role"}}]}
+{"reasoning": "Маша и Кай устанавливают жёсткую дом/саб динамику. Она называет себя его сучкой, принимает полное подчинение. Он берёт за горло, устанавливает стоп-слово. Первый обмен властью. Важность 5 — стоп-слово + первый БДСМ-контракт.", "events": [{"event_type": "relationship_change", "summary": "Маша встала на колени и назвала себя сучкой хозяина; Кай взял её за горло и установил стоп-слово 'малина'", "importance": 5, "characters_involved": ["Маша", "Кай"], "witnesses": [], "location": null, "is_secret": true, "emotional_impact": {"Маша": "покорность, возбуждение", "Кай": "контроль, забота"}, "relationship_impact": {"Маша->Кай": "полное подчинение как саб", "Кай->Маша": "принял роль дома, чокинг"}}]}
 </example>
 
-<example type="deduplication">
-Messages: "[Lena]: *moans louder, gripping the sheets* Yes, right there... *wraps her legs around him tighter*"
-Established memories: "Lena and Marco had vaginal sex for the first time"
+<example type="deduplication" lang="RU">
+Messages: "[Лена]: *кричит, впиваясь ногтями в его спину* Блять... глубже... ещё... *обхватывает его бёдрами, не отпуская*"
+Established memories: "Лена и Вова занялись вагинальным сексом впервые"
 Output:
-{"reasoning": "Lena and Marco are continuing vaginal sex already recorded in established memories. No new act type, no climax, no new kink. Continuation — empty events.", "events": []}
+{"reasoning": "Лена и Вова продолжают вагинальный секс, уже записанный в памяти. Она стонет и царапает спину — интенсификация, но не новый тип акта. Нет оргазма, нет нового кинка. Продолжение — пустой массив.", "events": []}
 </example>
 </examples>`;
 
