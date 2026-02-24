@@ -231,6 +231,12 @@ export class MemoryList extends Component {
      * Render the memory list
      */
     render() {
+        // Check if user is editing - preserve state if so
+        if (this.$container.find('.openvault-edit-form').length > 0) {
+            // Skip render to preserve user's in-progress edit
+            return;
+        }
+
         const data = getOpenVaultData();
         const $pageInfo = $(SELECTORS.PAGE_INFO);
         const $prevBtn = $(SELECTORS.PREV_BTN);
