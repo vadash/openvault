@@ -251,6 +251,15 @@ describe('query-context', () => {
     });
 
     describe('buildBM25Tokens', () => {
+        it('filters post-stem runt tokens (< 3 chars after stemming)', () => {
+            // "боюсь" (5 chars) stems to "бо" (2 chars) via Russian Snowball
+            const tokens = buildBM25Tokens('боюсь страшно', null);
+            // "бо" should be filtered out, "страшн" (stem of страшно) should remain
+            for (const t of tokens) {
+                expect(t.length).toBeGreaterThanOrEqual(3);
+            }
+        });
+
         it('includes original user message tokens (stemmed)', () => {
             const userMessage = 'Where is Alice now?';
             const entities = { entities: [], weights: {} };

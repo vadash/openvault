@@ -75,7 +75,8 @@ export function tokenize(text) {
     // Using 'gu' flag for Unicode-aware matching
     return (text.toLowerCase().match(/[\p{L}0-9_]+/gu) || [])
         .filter(word => word.length > 2 && !STOP_WORDS.has(word))
-        .map(stemWord);
+        .map(stemWord)
+        .filter(word => word.length > 2);  // Post-stem length filter (e.g. "боюсь" → "бо" filtered)
 }
 
 /**
