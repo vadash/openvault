@@ -2,7 +2,7 @@
  * Tests for src/extraction/scheduler.js
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { estimateTokens } from '../src/utils/text.js';
+import { estimateTokens } from '../src/utils.js';
 import {
     getExtractedMessageIds,
     getUnextractedMessageIds,

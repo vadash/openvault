@@ -5,7 +5,7 @@
  * Zero side effects, easily testable.
  */
 
-import { escapeHtml } from '../../utils/dom.js';
+import { escapeHtml } from '../../utils.js';
 import { formatMemoryImportance, formatMemoryDate, formatWitnesses } from '../formatting.js';
 import { isEmbeddingsEnabled } from '../../embeddings.js';
 import { CLASSES } from '../base/constants.js';

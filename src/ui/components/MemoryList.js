@@ -9,7 +9,7 @@ import { SELECTORS, CLASSES } from '../base/constants.js';
 import { renderMemoryItem, renderMemoryEdit } from '../templates/memory.js';
 import { filterMemories, sortMemoriesByDate, getPaginationInfo, extractCharactersSet } from '../calculations.js';
 import { getOpenVaultData, showToast } from '../../utils.js';
-import { escapeHtml } from '../../utils/dom.js';
+import { escapeHtml } from '../../utils.js';
 import { getDeps } from '../../deps.js';
 import { MEMORIES_KEY, MEMORIES_PER_PAGE } from '../../constants.js';
 import { deleteMemory as deleteMemoryAction, updateMemory as updateMemoryAction } from '../../data/actions.js';

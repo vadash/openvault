@@ -6,7 +6,7 @@
  */
 
 import { MEMORIES_KEY, PROCESSED_MESSAGES_KEY } from '../constants.js';
-import { estimateTokens } from '../utils/text.js';
+import { estimateTokens } from '../utils.js';
 
 /**
  * Get set of message IDs that have been processed (extracted or attempted)

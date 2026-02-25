@@ -4,7 +4,7 @@
  * Pure template functions for rendering character states.
  */
 
-import { escapeHtml } from '../../utils/dom.js';
+import { escapeHtml } from '../../utils.js';
 
 /**
  * Render a single character state as HTML
