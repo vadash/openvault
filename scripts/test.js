@@ -2,7 +2,6 @@ import { exec } from 'child_process'
 
 const commands = [
   'npm run sync-version',
-  'npm run build:css',
   'vitest run --reporter=dot'
 ]
 
