@@ -1,6 +1,6 @@
 {
     "name": "openvault",
-    "version": "2.00",
+    "version": "3.00",
     "type": "module",
     "description": "SillyTavern memory extension",
     "scripts": {
@@ -17,6 +17,7 @@
     "devDependencies": {
         "@biomejs/biome": "2.4.4",
         "jsdom": "^27.4.0",
+        "jsonrepair": "^3.13.2",
         "repomix": "^0.3.2",
         "snowball-stemmers": "^0.6.0",
         "vitest": "^4.0.16"

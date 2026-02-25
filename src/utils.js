@@ -6,7 +6,7 @@
 
 import { CHARACTERS_KEY, extensionName, LAST_PROCESSED_KEY, MEMORIES_KEY, METADATA_KEY } from './constants.js';
 import { getDeps } from './deps.js';
-import { jsonrepair } from './vendor/json-repair.js';
+import { jsonrepair } from 'https://esm.sh/jsonrepair';
 
 // --- Async ---
 
@@ -235,9 +235,16 @@ export function safeParseJSON(input) {
     try {
         let cleanedInput = stripThinkingTags(input);
 
-        const jsonMatch = cleanedInput.match(/\[[\s\S]*?\]|\{[\s\S]*?\}/);
-        if (jsonMatch) {
-            cleanedInput = jsonMatch[0];
+        // Strip markdown code fences
+        const codeBlockMatch = cleanedInput.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+        if (codeBlockMatch) {
+            cleanedInput = codeBlockMatch[1].trim();
+        }
+
+        // Extract JSON using bracket balancing to handle nested structures
+        const extracted = extractBalancedJSON(cleanedInput);
+        if (extracted) {
+            cleanedInput = extracted;
         }
 
         const repaired = jsonrepair(cleanedInput);
@@ -253,6 +260,37 @@ export function safeParseJSON(input) {
         getDeps().console.error('[OpenVault] Raw LLM response:', input);
         return null;
     }
+}
+
+/**
+ * Extract the first balanced JSON object or array from a string.
+ * Uses bracket counting to correctly handle nested structures.
+ * @param {string} str - Input string potentially containing JSON
+ * @returns {string|null} Extracted JSON substring or null
+ */
+function extractBalancedJSON(str) {
+    const startIdx = str.search(/[\[{]/);
+    if (startIdx === -1) return null;
+
+    const open = str[startIdx];
+    const close = open === '{' ? '}' : ']';
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+
+    for (let i = startIdx; i < str.length; i++) {
+        const ch = str[i];
+        if (escape) { escape = false; continue; }
+        if (ch === '\\' && inString) { escape = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === open) depth++;
+        else if (ch === close) {
+            depth--;
+            if (depth === 0) return str.slice(startIdx, i + 1);
+        }
+    }
+    return null;
 }
 
 /**

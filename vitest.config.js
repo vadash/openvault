@@ -24,6 +24,8 @@ export default defineConfig({
             'https://esm.sh/zod@4': path.resolve(__dirname, 'node_modules/zod'),
             // Map https://esm.sh/snowball-stemmers@0.6.0 to local package for tests
             'https://esm.sh/snowball-stemmers@0.6.0': path.resolve(__dirname, 'node_modules/snowball-stemmers'),
+            // Map https://esm.sh/jsonrepair to local package for tests
+            'https://esm.sh/jsonrepair': path.resolve(__dirname, 'node_modules/jsonrepair'),
         },
     },
 });
