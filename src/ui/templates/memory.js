@@ -8,7 +8,14 @@
 import { escapeHtml } from '../../utils.js';
 import { formatMemoryImportance, formatMemoryDate, formatWitnesses } from '../formatting.js';
 import { isEmbeddingsEnabled } from '../../embeddings.js';
-import { CLASSES } from '../base/constants.js';
+
+// CSS class constants (inlined from constants.js)
+const CLASSES = {
+    MEMORY_CARD: 'openvault-memory-card',
+    PLACEHOLDER: 'openvault-placeholder',
+    CHARACTER_TAG: 'openvault-character-tag',
+    MEMORY_CHARACTERS: 'openvault-memory-characters',
+};
 
 // =============================================================================
 // Template Functions
