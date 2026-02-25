@@ -1,5 +1,5 @@
 import { z } from 'https://esm.sh/zod@4';
-import { log, stripThinkingTags } from '../utils.js';
+import { stripThinkingTags } from '../utils.js';
 
 // --- Schemas (inlined from schemas/) ---
 

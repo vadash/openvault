@@ -276,8 +276,6 @@ export { getExtractedMessageIds, getUnextractedMessageIds } from './extraction/s
 // Data Actions (from src/data/actions.js)
 // =============================================================================
 
-import { MEMORIES_KEY, METADATA_KEY } from './constants.js';
-
 /**
  * Update a memory by ID
  * @param {string} id - Memory ID to update

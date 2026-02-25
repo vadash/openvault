@@ -428,7 +428,7 @@ function bindUIElements() {
         }
 
         // Auto-populate prefix fields from model defaults
-        const prefixes = embeddingModelPrefixes[value] || embeddingModelPrefixes['_default'];
+        const prefixes = embeddingModelPrefixes[value] || embeddingModelPrefixes._default;
         const settings = getSettings();
         settings.embeddingQueryPrefix = prefixes.queryPrefix;
         settings.embeddingDocPrefix = prefixes.docPrefix;

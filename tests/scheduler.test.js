@@ -1,16 +1,9 @@
 /**
  * Tests for src/extraction/scheduler.js
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MEMORIES_KEY, PROCESSED_MESSAGES_KEY } from '../src/constants.js';
-import {
-    getBackfillMessageIds,
-    getBackfillStats,
-    getExtractedMessageIds,
-    getNextBatch,
-    getUnextractedMessageIds,
-    isBatchReady,
-} from '../src/extraction/scheduler.js';
+import { describe, expect, it } from 'vitest';
+import { PROCESSED_MESSAGES_KEY } from '../src/constants.js';
+import { getNextBatch } from '../src/extraction/scheduler.js';
 import { estimateTokens } from '../src/utils.js';
 
 describe('scheduler token-aware batching', () => {

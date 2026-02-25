@@ -16,7 +16,7 @@
  * @param {string} characterFilter - Character filter (empty = all)
  * @returns {Array} Filtered memories
  */
-export function filterMemories(memories, typeFilter, characterFilter) {
+export function filterMemories(memories, _typeFilter, characterFilter) {
     return memories.filter((m) => {
         if (characterFilter && !m.characters_involved?.includes(characterFilter)) return false;
         return true;
@@ -178,7 +178,7 @@ export function getBatchProgressInfo(stats) {
  * @returns {number} Clamped value between 1-600
  */
 export function validateRPM(value, defaultValue = 30) {
-    const parsed = parseInt(value);
+    const parsed = parseInt(value, 10);
     const num = Number.isNaN(parsed) ? defaultValue : parsed;
     return Math.max(1, Math.min(600, num));
 }

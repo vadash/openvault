@@ -176,7 +176,7 @@ export function extractQueryContext(messages, activeCharacters = []) {
     });
 
     // Add known character names with high priority
-    const charNamesSet = new Set(activeCharacters.map((c) => c.toLowerCase()));
+    const _charNamesSet = new Set(activeCharacters.map((c) => c.toLowerCase()));
     for (const charName of activeCharacters) {
         if (charName && charName.length >= 2) {
             const current = entityScores.get(charName) || { count: 0, weightSum: 0 };

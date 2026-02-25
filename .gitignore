@@ -5,3 +5,10 @@
 
 /repomix*.xml
 /repomix*
+
+# Biome ignores
+/src/vendor/
+/dist/
+/coverage/
+/*.md
+/templates/

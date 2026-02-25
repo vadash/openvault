@@ -2,7 +2,7 @@
  * Tests for src/retrieval/query-context.js
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultSettings, extensionName, QUERY_CONTEXT_DEFAULTS } from '../src/constants.js';
+import { defaultSettings, extensionName } from '../src/constants.js';
 import { resetDeps, setDeps } from '../src/deps.js';
 
 // Mock getOptimalChunkSize
@@ -116,7 +116,7 @@ describe('query-context', () => {
                 // Marcus appears in newest (weight 1.0) and oldest (weight ~0.64)
                 // Sarah appears only in index 1 (weight ~0.91)
                 // Marcus should have higher total weight
-                expect(result.weights['Marcus']).toBeGreaterThan(result.weights['Sarah']);
+                expect(result.weights.Marcus).toBeGreaterThan(result.weights.Sarah);
             });
 
             it('returns top entities sorted by weight', () => {

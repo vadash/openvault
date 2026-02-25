@@ -409,7 +409,7 @@ function getStrategy(source) {
  * Get all available source keys
  * @returns {string[]} Array of source keys
  */
-function getAvailableSources() {
+function _getAvailableSources() {
     return Object.keys(strategies);
 }
 

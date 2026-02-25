@@ -5,6 +5,9 @@
         "clientKind": "git",
         "useIgnoreFile": true
     },
+    "files": {
+        "ignoreUnknown": false
+    },
     "formatter": {
         "enabled": true,
         "formatWithErrors": false,
@@ -48,10 +51,19 @@
             },
             "style": {
                 "useConst": "error",
-                "useBlockStatements": "off"
+                "useBlockStatements": "off",
+                "useNodejsImportProtocol": "off",
+                "useTemplate": "off"
             },
             "complexity": {
                 "noForEach": "off"
+            },
+            "correctness": {
+                "noUnusedVariables": "warn",
+                "noInnerDeclarations": "warn"
+            },
+            "a11y": {
+                "useButtonType": "off"
             }
         }
     }

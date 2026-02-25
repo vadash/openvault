@@ -3,7 +3,7 @@
  * Tests the pure mathematical functions for scoring.
  */
 import { describe, expect, it } from 'vitest';
-import { calculateScore, cosineSimilarity, scoreMemories, tokenize } from '../src/retrieval/math.js';
+import { calculateScore, scoreMemories, tokenize } from '../src/retrieval/math.js';
 
 describe('math.js - alpha-blend scoring', () => {
     it('BM25 bonus is capped at (1-alpha) * combinedBoostWeight', () => {

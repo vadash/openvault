@@ -1,9 +1,9 @@
 ((t, n) => {
-    'object' == typeof exports && 'undefined' != typeof module
+    'object' === typeof exports && 'undefined' !== typeof module
         ? n(exports)
-        : 'function' == typeof define && define.amd
+        : 'function' === typeof define && define.amd
           ? define(['exports'], n)
-          : n(((t = 'undefined' != typeof globalThis ? globalThis : t || self).JSONRepair = {}));
+          : n(((t = 'undefined' !== typeof globalThis ? globalThis : t || self).JSONRepair = {}));
 })(this, (t) => {
     class x extends Error {
         constructor(t, n) {
@@ -321,17 +321,17 @@ ${(v = n ? v : B(v, ','))}
                 return !1;
             }
             function $() {
-                let t = !1;
+                let _t = !1;
                 for (b(); '+' === g[d]; ) {
-                    (t = !0), d++, b();
+                    (_t = !0), d++, b();
                     var n = (v = B(v, '"', !0)).length,
                         r = w();
                     v = r ? ((r = v), (n = n), (e = 1), r.substring(0, n) + r.substring(n + e)) : D(v, '"');
                 }
-                var e;
-                t;
+                var _e;
+                _t;
             }
-            function r(t, n) {
+            function _r(t, n) {
                 return g.slice(d, d + t.length) === t && ((v += n), (d += t.length), !0);
             }
             function l(t) {
@@ -355,7 +355,7 @@ ${(v = n ? v : B(v, ','))}
                 for (; 0 < n && T(g, n); ) n--;
                 return n;
             }
-            function i() {
+            function _i() {
                 return d >= g.length || j(g[d]) || T(g, d);
             }
             function s(t) {

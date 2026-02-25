@@ -102,7 +102,7 @@ async function autoHideOldMessages() {
  * @param {object} options - Generation options
  * @param {boolean} dryRun - If true, don't actually do retrieval
  */
-export async function onBeforeGeneration(type, options, dryRun = false) {
+export async function onBeforeGeneration(type, _options, dryRun = false) {
     // Skip if disabled, manual mode, or dry run
     if (!isAutomaticMode() || dryRun) {
         return;

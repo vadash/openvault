@@ -548,7 +548,7 @@ export function scoreMemories(memories, contextEmbedding, chatLength, constants,
     }
 
     // Compute raw BM25 scores
-    const rawBM25Scores = memories.map((memory, index) => {
+    const rawBM25Scores = memories.map((_memory, index) => {
         if (tokens && idfMap && memoryTokensList) {
             return bm25Score(tokens, memoryTokensList[index], idfMap, avgDL);
         }

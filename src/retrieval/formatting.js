@@ -123,7 +123,7 @@ export function formatContextForInjection(
     memories,
     presentCharacters,
     emotionalInfo,
-    characterName,
+    _characterName,
     tokenBudget,
     chatLength = 0
 ) {
