@@ -15,7 +15,7 @@ import { getOpenVaultData, showToast, log } from './src/utils.js';
 import { setChatLoadingCooldown } from './src/state.js';
 import { loadSettings } from './src/ui/settings.js';
 import { setStatus } from './src/ui/status.js';
-import { refreshAllUI } from './src/ui/browser.js';
+import { refreshAllUI } from './src/ui/render.js';
 import { extractMemories } from './src/extraction/extract.js';
 import { retrieveAndInjectContext } from './src/retrieval/retrieve.js';
 import { updateEventListeners } from './src/listeners.js';

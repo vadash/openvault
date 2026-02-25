@@ -7,15 +7,82 @@
 import { getDeps } from './deps.js';
 import { getOpenVaultData, getCurrentChatId, showToast, safeSetExtensionPrompt, withTimeout, log, isAutomaticMode } from './utils.js';
 import { clearEmbeddingCache } from './embeddings.js';
-import { getExtractedMessageIds, getNextBatch } from './extraction/scheduler.js';
+import { getExtractedMessageIds, getNextBatch, getBackfillStats } from './extraction/scheduler.js';
 import { extensionName, MEMORIES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
 import { operationState, setGenerationLock, clearGenerationLock, isChatLoadingCooldown, setChatLoadingCooldown, resetOperationStatesIfSafe } from './state.js';
 import { setStatus } from './ui/status.js';
-import { refreshAllUI, resetMemoryBrowserPage } from './ui/browser.js';
+import { refreshAllUI, resetMemoryBrowserPage } from './ui/render.js';
 import { extractMemories } from './extraction/extract.js';
+import { extractAllMessages } from './extraction/batch.js';
 import { updateInjection } from './retrieval/retrieve.js';
-import { autoHideOldMessages } from './auto-hide.js';
-import { checkAndTriggerBackfill } from './backfill.js';
+
+// =============================================================================
+// Auto-Hide Old Messages (inlined from auto-hide.js)
+// =============================================================================
+
+/**
+ * Auto-hide old messages beyond the threshold
+ * Hides messages in pairs (user-assistant) to maintain conversation coherence
+ * Messages are marked with is_system=true which excludes them from context
+ * IMPORTANT: Only hides messages that have already been extracted into memories
+ */
+async function autoHideOldMessages() {
+    const deps = getDeps();
+    const settings = deps.getExtensionSettings()[extensionName];
+    if (!settings.autoHideEnabled) return;
+
+    const context = deps.getContext();
+    const chat = context.chat || [];
+    const threshold = settings.autoHideThreshold || 50;
+
+    // Get messages that have been extracted into memories
+    const data = getOpenVaultData();
+    const extractedMessageIds = getExtractedMessageIds(data);
+
+    // Get visible (non-hidden) messages with their original indices
+    const visibleMessages = chat
+        .map((m, idx) => ({ ...m, idx }))
+        .filter(m => !m.is_system);
+
+    // If we have fewer messages than threshold, nothing to hide
+    if (visibleMessages.length <= threshold) return;
+
+    // Calculate how many messages to hide
+    const toHideCount = visibleMessages.length - threshold;
+
+    // Round down to nearest even number (for pairs)
+    const pairsToHide = Math.floor(toHideCount / 2);
+    const messagesToHide = pairsToHide * 2;
+
+    if (messagesToHide <= 0) return;
+
+    // Hide the oldest messages, but ONLY if they've been extracted
+    let hiddenCount = 0;
+    let skippedCount = 0;
+    for (let i = 0; i < messagesToHide && i < visibleMessages.length; i++) {
+        const msgIdx = visibleMessages[i].idx;
+
+        // Only hide if this message has been extracted into memories
+        if (extractedMessageIds.has(msgIdx)) {
+            chat[msgIdx].is_system = true;
+            hiddenCount++;
+        } else {
+            skippedCount++;
+        }
+    }
+
+    if (hiddenCount > 0) {
+        await getDeps().saveChatConditional();
+        log(`Auto-hid ${hiddenCount} messages (skipped ${skippedCount} not yet extracted) - threshold: ${threshold}`);
+        showToast('info', `Auto-hid ${hiddenCount} old messages`);
+    } else if (skippedCount > 0) {
+        log(`Auto-hide: ${skippedCount} messages need extraction before hiding`);
+    }
+}
+
+// =============================================================================
+// Event Handlers
+// =============================================================================
 
 /**
  * Handle pre-generation event
@@ -218,6 +285,52 @@ export async function onMessageReceived(messageId) {
         checkAndTriggerBackfill(updateEventListeners, chatIdBeforeExtraction);
     }
 }
+
+// =============================================================================
+// Backfill Check (inlined from backfill.js)
+// =============================================================================
+
+/**
+ * Check and trigger automatic backfill if there are enough unprocessed messages
+ * Uses same logic as manual "Backfill Chat History" button
+ * @param {function} updateEventListenersFn - Function to update event listeners after backfill
+ * @param {string} targetChatId - Optional chat ID to verify we haven't switched chats
+ */
+async function checkAndTriggerBackfill(updateEventListenersFn, targetChatId) {
+    if (!isAutomaticMode()) return;
+
+    // Don't backfill if chat has changed since this was queued
+    if (targetChatId && getCurrentChatId() !== targetChatId) return;
+
+    const deps = getDeps();
+    const settings = deps.getExtensionSettings()[extensionName];
+    const context = deps.getContext();
+    const chat = context.chat || [];
+    if (chat.length === 0) return;
+
+    const data = getOpenVaultData();
+    if (!data) return;
+
+    const messageCount = settings.messagesPerExtraction || 10;
+
+    // Use scheduler to check for backfill work
+    const stats = getBackfillStats(chat, data, messageCount);
+
+    if (stats.completeBatches >= 1) {
+        log(`Auto-backfill: ${stats.totalUnextracted} messages ready (${stats.completeBatches} batches)`);
+        showToast('info', `Auto-backfill: ${stats.completeBatches} batches...`, 'OpenVault');
+
+        try {
+            await extractAllMessages(updateEventListenersFn);
+        } catch (error) {
+            deps.console.error('[OpenVault] Auto-backfill error:', error);
+        }
+    }
+}
+
+// =============================================================================
+// Event Listener Management
+// =============================================================================
 
 /**
  * Event type to handler mapping for DRY listener management

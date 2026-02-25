@@ -1,22 +1,22 @@
 /**
- * MemoryList Component
+ * UI Render Layer
  *
- * Manages the memory browser list display, pagination, search, and filtering.
- * Refactored from class-based to function-based approach.
+ * Consolidated rendering functions for memory list, character states, and browser orchestration.
+ * Refactored from class-based components to function-based approach.
  */
 
-import { renderMemoryItem, renderMemoryEdit } from '../templates/memory.js';
-import { filterMemories, sortMemoriesByDate, getPaginationInfo, extractCharactersSet } from '../calculations.js';
-import { getOpenVaultData, showToast } from '../../utils.js';
-import { escapeHtml } from '../../utils.js';
-import { getDeps } from '../../deps.js';
-import { MEMORIES_KEY, MEMORIES_PER_PAGE } from '../../constants.js';
-import { deleteMemory as deleteMemoryAction, updateMemory as updateMemoryAction } from '../../data/actions.js';
-import { getDocumentEmbedding, isEmbeddingsEnabled } from '../../embeddings.js';
-import { refreshStats } from '../status.js';
+import { renderMemoryItem, renderMemoryEdit, renderCharacterState } from './templates.js';
+import { filterMemories, sortMemoriesByDate, getPaginationInfo, extractCharactersSet, buildCharacterStateData } from './calculations.js';
+import { getOpenVaultData, showToast, escapeHtml } from '../utils.js';
+import { getDeps } from '../deps.js';
+import { MEMORIES_KEY, MEMORIES_PER_PAGE, CHARACTERS_KEY } from '../constants.js';
+import { deleteMemory as deleteMemoryAction, updateMemory as updateMemoryAction } from '../data/actions.js';
+import { getDocumentEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
+import { refreshStats } from './status.js';
 
-// DOM Selectors (inlined from constants.js)
+// DOM Selectors
 const SELECTORS = {
+    CHARACTER_STATES: '#openvault_character_states',
     MEMORY_LIST: '#openvault_memory_list',
     PAGE_INFO: '#openvault_page_info',
     PREV_BTN: '#openvault_prev_page',
@@ -24,7 +24,6 @@ const SELECTORS = {
     SEARCH_INPUT: '#openvault_memory_search',
     FILTER_TYPE: '#openvault_filter_type',
     FILTER_CHARACTER: '#openvault_filter_character',
-    CHARACTER_STATES: '#openvault_character_states',
     MEMORY_CARD: '.openvault-memory-card',
     DELETE_BTN: '.openvault-delete-memory',
     EDIT_BTN: '.openvault-edit-memory',
@@ -41,16 +40,15 @@ const CLASSES = {
     MEMORY_CHARACTERS: 'openvault-memory-characters',
 };
 
-// State
-let state = {
+// =============================================================================
+// Memory List State and Helpers
+// =============================================================================
+
+let memoryListState = {
     page: 0,
     searchQuery: '',
 };
 let searchTimeout = null;
-
-// =============================================================================
-// Helper Functions
-// =============================================================================
 
 function getMemoryById(id) {
     const data = getOpenVaultData();
@@ -73,7 +71,7 @@ function filterBySearch(memories, query) {
 async function deleteMemory(id) {
     const deleted = await deleteMemoryAction(id);
     if (deleted) {
-        render();
+        renderMemoryList();
         populateCharacterFilter();
         refreshStats();
         showToast('success', 'Memory deleted');
@@ -100,7 +98,6 @@ async function saveEdit(id, btnElement) {
     const $card = $(SELECTORS.MEMORY_LIST).find(`[data-id="${id}"]`);
     const $btn = $(btnElement);
 
-    // Gather values
     const summary = $card.find('[data-field="summary"]').val().trim();
     const importance = parseInt($card.find('[data-field="importance"]').val(), 10);
 
@@ -109,12 +106,10 @@ async function saveEdit(id, btnElement) {
         return;
     }
 
-    // Disable button during save
     $btn.prop('disabled', true);
 
     const updated = await updateMemoryAction(id, { summary, importance });
     if (updated) {
-        // Auto-generate embedding if needed
         const memory = getMemoryById(id);
         if (memory && !memory.embedding && isEmbeddingsEnabled()) {
             const embedding = await getDocumentEmbedding(summary);
@@ -124,7 +119,6 @@ async function saveEdit(id, btnElement) {
             }
         }
 
-        // Re-render card
         const updatedMemory = getMemoryById(id);
         if (updatedMemory) {
             $card.replaceWith(renderMemoryItem(updatedMemory));
@@ -157,73 +151,61 @@ function populateCharacterFilter() {
         $filter.append(optionsHtml);
     }
 
-    // Restore selection if still valid
     if (currentValue && characters.includes(currentValue)) {
         $filter.val(currentValue);
     }
 }
 
-// =============================================================================
-// Event Handlers (delegated)
-// =============================================================================
-
-function bindEvents() {
+function bindMemoryListEvents() {
     const $container = $(SELECTORS.MEMORY_LIST);
 
-    // Delete button
     $container.off('click', SELECTORS.DELETE_BTN);
     $container.on('click', SELECTORS.DELETE_BTN, async (e) => {
         const id = $(e.currentTarget).data('id');
         await deleteMemory(id);
     });
 
-    // Edit button
     $container.off('click', SELECTORS.EDIT_BTN);
     $container.on('click', SELECTORS.EDIT_BTN, (e) => {
         const id = $(e.currentTarget).data('id');
         enterEditMode(id);
     });
 
-    // Cancel edit
     $container.off('click', SELECTORS.CANCEL_EDIT_BTN);
     $container.on('click', SELECTORS.CANCEL_EDIT_BTN, (e) => {
         const id = $(e.currentTarget).data('id');
         exitEditMode(id);
     });
 
-    // Save edit
     $container.off('click', SELECTORS.SAVE_EDIT_BTN);
     $container.on('click', SELECTORS.SAVE_EDIT_BTN, async (e) => {
         const id = $(e.currentTarget).data('id');
         await saveEdit(id, e.currentTarget);
     });
 
-    // Search input with debounce
     const $search = $(SELECTORS.SEARCH_INPUT);
     $search.off('input');
     $search.on('input', () => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
-            state.searchQuery = $search.val().toLowerCase().trim();
-            state.page = 0;
-            render();
+            memoryListState.searchQuery = $search.val().toLowerCase().trim();
+            memoryListState.page = 0;
+            renderMemoryList();
         }, 200);
     });
 }
 
 // =============================================================================
-// Render Function
+// Memory List Render
 // =============================================================================
 
-export function render() {
+export function renderMemoryList() {
     const $container = $(SELECTORS.MEMORY_LIST);
     const $pageInfo = $(SELECTORS.PAGE_INFO);
     const $prevBtn = $(SELECTORS.PREV_BTN);
     const $nextBtn = $(SELECTORS.NEXT_BTN);
 
-    // Check if user is editing - preserve state if so
     if ($container.find('.openvault-edit-form').length > 0) {
-        // Skip render to preserve user's in-progress edit
         return;
     }
 
@@ -238,68 +220,106 @@ export function render() {
     }
 
     const memories = data[MEMORIES_KEY] || [];
-
-    // Get filter values
     const characterFilter = $(SELECTORS.FILTER_CHARACTER).val();
 
-    // Filter, search, and sort
     let filteredMemories = filterMemories(memories, '', characterFilter);
-    filteredMemories = filterBySearch(filteredMemories, state.searchQuery);
+    filteredMemories = filterBySearch(filteredMemories, memoryListState.searchQuery);
     filteredMemories = sortMemoriesByDate(filteredMemories);
 
-    // Pagination
-    const pagination = getPaginationInfo(filteredMemories.length, state.page, MEMORIES_PER_PAGE);
-    state.page = pagination.currentPage;
+    const pagination = getPaginationInfo(filteredMemories.length, memoryListState.page, MEMORIES_PER_PAGE);
+    memoryListState.page = pagination.currentPage;
     const pageMemories = filteredMemories.slice(pagination.startIdx, pagination.endIdx);
 
-    // Render memories
     if (pageMemories.length === 0) {
-        const message = state.searchQuery ? 'No memories match your search' : 'No memories yet';
+        const message = memoryListState.searchQuery ? 'No memories match your search' : 'No memories yet';
         $container.html(`<p class="${CLASSES.PLACEHOLDER}">${message}</p>`);
     } else {
         const html = pageMemories.map(renderMemoryItem).join('');
         $container.html(html);
     }
 
-    // Update pagination controls
     $pageInfo.text(`Page ${pagination.currentPage + 1} of ${pagination.totalPages}`);
     $prevBtn.prop('disabled', !pagination.hasPrev);
     $nextBtn.prop('disabled', !pagination.hasNext);
 
-    // Populate character filter
     populateCharacterFilter();
 }
 
-// =============================================================================
-// Public API
-// =============================================================================
-
-export function initMemoryList() {
-    bindEvents();
-    render();
-}
-
 export function prevPage() {
-    if (state.page > 0) {
-        state.page--;
-        render();
+    if (memoryListState.page > 0) {
+        memoryListState.page--;
+        renderMemoryList();
     }
 }
 
 export function nextPage() {
-    state.page++;
-    render();
+    memoryListState.page++;
+    renderMemoryList();
 }
 
 export function resetAndRender() {
-    state.page = 0;
-    render();
+    memoryListState.page = 0;
+    renderMemoryList();
 }
 
-export function resetPage() {
-    state.page = 0;
+export function resetMemoryBrowserPage() {
+    memoryListState.page = 0;
 }
 
 export function populateFilter() {
     populateCharacterFilter();
 }
+
+// =============================================================================
+// Character States Render
+// =============================================================================
+
+export function renderCharacterStates() {
+    const $container = $(SELECTORS.CHARACTER_STATES);
+    const data = getOpenVaultData();
+
+    if (!data) {
+        $container.html(`<p class="${CLASSES.PLACEHOLDER}">No chat loaded</p>`);
+        return;
+    }
+
+    const characters = data[CHARACTERS_KEY] || {};
+    const charNames = Object.keys(characters);
+
+    if (charNames.length === 0) {
+        $container.html(`<p class="${CLASSES.PLACEHOLDER}">No character data yet</p>`);
+        return;
+    }
+
+    const html = charNames
+        .sort()
+        .map(name => renderCharacterState(buildCharacterStateData(name, characters[name])))
+        .join('');
+
+    $container.html(html);
+}
+
+// =============================================================================
+// Browser Orchestration Layer
+// =============================================================================
+
+export function initBrowser() {
+    bindMemoryListEvents();
+    renderMemoryList();
+    renderCharacterStates();
+
+    $(SELECTORS.PREV_BTN).on('click', prevPage);
+    $(SELECTORS.NEXT_BTN).on('click', nextPage);
+}
+
+export function refreshAllUI() {
+    refreshStats();
+    renderMemoryList();
+    renderCharacterStates();
+}
+
+export {
+    prevPage as browserPrevPage,
+    nextPage as browserNextPage,
+    resetAndRender as browserResetAndRender,
+};

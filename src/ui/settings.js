@@ -3,17 +3,20 @@
  *
  * Handles loading settings, binding UI elements, and updating the interface.
  * Refactored to use raw jQuery instead of bindings.js abstraction.
+ * Action handlers inlined from actions.js.
  */
 
 import { getDeps } from '../deps.js';
-import { extensionName, extensionFolderPath, defaultSettings, QUERY_CONTEXT_DEFAULTS, UI_DEFAULT_HINTS, embeddingModelPrefixes } from '../constants.js';
-import { refreshAllUI, prevPage, nextPage, resetAndRender, initBrowser } from './browser.js';
+import { extensionName, extensionFolderPath, defaultSettings, QUERY_CONTEXT_DEFAULTS, UI_DEFAULT_HINTS, embeddingModelPrefixes, MEMORIES_KEY } from '../constants.js';
+import { refreshAllUI, prevPage, nextPage, resetAndRender, initBrowser } from './render.js';
 import { validateRPM } from './calculations.js';
-import { setEmbeddingStatusCallback, getEmbeddingStatus } from '../embeddings.js';
-import { updateEmbeddingStatusDisplay } from './status.js';
+import { setEmbeddingStatusCallback, getEmbeddingStatus, isEmbeddingsEnabled, generateEmbeddingsForMemories } from '../embeddings.js';
+import { updateEmbeddingStatusDisplay, setStatus } from './status.js';
 import { testOllamaConnection, copyMemoryWeights } from './debug.js';
 import { updateEventListeners } from '../listeners.js';
-import { handleExtractAll, handleDeleteChatData, handleDeleteEmbeddings, backfillEmbeddings } from './actions.js';
+import { extractAllMessages } from '../extraction/batch.js';
+import { deleteCurrentChatData, deleteCurrentChatEmbeddings } from '../data/actions.js';
+import { getOpenVaultData, showToast } from '../utils.js';
 
 // =============================================================================
 // Helper Functions (inlined from bindings.js)
@@ -34,6 +37,88 @@ function getSettings() {
 function saveSetting(key, value) {
     getSettings()[key] = value;
     getDeps().saveSettingsDebounced();
+}
+
+// =============================================================================
+// Action Handlers (inlined from actions.js)
+// =============================================================================
+
+async function handleExtractAll() {
+    await extractAllMessages(updateEventListeners);
+}
+
+async function handleDeleteChatData() {
+    if (!confirm('Are you sure you want to delete all OpenVault data for this chat?')) {
+        return;
+    }
+
+    const deleted = await deleteCurrentChatData();
+    if (deleted) {
+        showToast('success', 'Chat memories deleted');
+        refreshAllUI();
+    }
+}
+
+async function handleDeleteEmbeddings() {
+    if (!confirm('Are you sure you want to delete all embeddings for this chat?')) {
+        return;
+    }
+
+    const data = getOpenVaultData();
+    if (!data) {
+        showToast('warning', 'No chat data available');
+        return;
+    }
+
+    const count = await deleteCurrentChatEmbeddings();
+    if (count > 0) {
+        showToast('success', `Deleted ${count} embeddings`);
+        refreshAllUI();
+    } else {
+        showToast('info', 'No embeddings to delete');
+    }
+}
+
+async function backfillEmbeddings() {
+    if (!isEmbeddingsEnabled()) {
+        showToast('warning', 'Configure Ollama URL and embedding model first');
+        return;
+    }
+
+    const data = getOpenVaultData();
+    if (!data) {
+        showToast('warning', 'No chat data available');
+        return;
+    }
+
+    const memories = data[MEMORIES_KEY] || [];
+    const needsEmbedding = memories.filter(m => !m.embedding);
+
+    if (needsEmbedding.length === 0) {
+        showToast('info', 'All memories already have embeddings');
+        return;
+    }
+
+    showToast('info', `Generating embeddings for ${needsEmbedding.length} memories...`);
+    setStatus('extracting');
+
+    try {
+        const count = await generateEmbeddingsForMemories(needsEmbedding);
+
+        if (count > 0) {
+            await getDeps().saveChatConditional();
+            showToast('success', `Generated ${count} embeddings`);
+            console.log(`[OpenVault] Backfill complete: generated ${count} embeddings for existing memories`);
+        } else {
+            showToast('warning', 'No embeddings generated - check Ollama connection');
+        }
+    } catch (error) {
+        console.error('[OpenVault] Backfill embeddings error:', error);
+        showToast('error', `Embedding generation failed: ${error.message}`);
+    }
+
+    setStatus('ready');
+    refreshAllUI();
 }
 
 // =============================================================================

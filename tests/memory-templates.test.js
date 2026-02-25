@@ -1,4 +1,4 @@
-import { renderMemoryItem, renderMemoryEdit } from '../src/ui/templates/memory.js';
+import { renderMemoryItem, renderMemoryEdit } from '../src/ui/templates.js';
 
 const mockMemory = {
     id: 'test-1',

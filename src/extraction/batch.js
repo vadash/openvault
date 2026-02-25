@@ -9,7 +9,7 @@ import { getOpenVaultData, showToast, log, safeSetExtensionPrompt, getCurrentCha
 import { getBackfillMessageIds, getExtractedMessageIds } from './scheduler.js';
 import { extensionName } from '../constants.js';
 import { setStatus } from '../ui/status.js';
-import { refreshAllUI } from '../ui/browser.js';
+import { refreshAllUI } from '../ui/render.js';
 import { clearAllLocks } from '../state.js';
 import { extractMemories } from './extract.js';
 

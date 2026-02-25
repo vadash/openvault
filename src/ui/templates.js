@@ -1,15 +1,15 @@
 /**
- * Memory Card Templates
+ * UI Templates
  *
- * Pure template functions for rendering memory items.
+ * Pure template functions for rendering UI elements.
  * Zero side effects, easily testable.
  */
 
-import { escapeHtml } from '../../utils.js';
-import { formatMemoryImportance, formatMemoryDate, formatWitnesses } from '../formatting.js';
-import { isEmbeddingsEnabled } from '../../embeddings.js';
+import { escapeHtml } from '../utils.js';
+import { formatMemoryImportance, formatMemoryDate, formatWitnesses } from './formatting.js';
+import { isEmbeddingsEnabled } from '../embeddings.js';
 
-// CSS class constants (inlined from constants.js)
+// CSS class constants
 const CLASSES = {
     MEMORY_CARD: 'openvault-memory-card',
     PLACEHOLDER: 'openvault-placeholder',
@@ -18,13 +18,11 @@ const CLASSES = {
 };
 
 // =============================================================================
-// Template Functions
+// Memory Card Templates
 // =============================================================================
 
 /**
  * Build badge HTML for a memory card
- * @param {Object} memory - Memory object
- * @returns {string} HTML string
  */
 function buildBadges(memory) {
     const badges = [];
@@ -51,8 +49,6 @@ function buildBadges(memory) {
 
 /**
  * Build character tags HTML
- * @param {string[]} characters - Array of character names
- * @returns {string} HTML string
  */
 function buildCharacterTags(characters) {
     if (!characters || characters.length === 0) return '';
@@ -66,8 +62,6 @@ function buildCharacterTags(characters) {
 
 /**
  * Build card header HTML
- * @param {Object} memory - Memory object
- * @returns {string} HTML string
  */
 function buildCardHeader(memory) {
     const date = formatMemoryDate(memory.created_at);
@@ -83,9 +77,6 @@ function buildCardHeader(memory) {
 
 /**
  * Build card footer HTML
- * @param {Object} memory - Memory object
- * @param {string} badges - Pre-rendered badges HTML
- * @returns {string} HTML string
  */
 function buildCardFooter(memory, badges) {
     const id = escapeHtml(memory.id);
@@ -108,8 +99,6 @@ function buildCardFooter(memory, badges) {
 
 /**
  * Render a single memory item as a card
- * @param {Object} memory - Memory object
- * @returns {string} HTML string
  */
 export function renderMemoryItem(memory) {
     const id = escapeHtml(memory.id);
@@ -126,14 +115,8 @@ export function renderMemoryItem(memory) {
     `;
 }
 
-// =============================================================================
-// Edit Mode Templates
-// =============================================================================
-
 /**
  * Build importance select options
- * @param {number} current - Current importance value
- * @returns {string} HTML string
  */
 function buildImportanceOptions(current) {
     return [1, 2, 3, 4, 5]
@@ -142,18 +125,7 @@ function buildImportanceOptions(current) {
 }
 
 /**
- * Build tag checkboxes for edit mode
- * @param {string[]} currentTags - Currently selected tags
- * @returns {string} HTML string
- */
-function buildTagCheckboxes(currentTags) {
-    return '';
-}
-
-/**
  * Build edit form fields
- * @param {Object} memory - Memory object
- * @returns {string} HTML string
  */
 function buildEditFields(memory) {
     const importance = memory.importance || 3;
@@ -170,8 +142,6 @@ function buildEditFields(memory) {
 
 /**
  * Build edit action buttons
- * @param {string} id - Memory ID
- * @returns {string} HTML string
  */
 function buildEditActions(id) {
     const escapedId = escapeHtml(id);
@@ -189,8 +159,6 @@ function buildEditActions(id) {
 
 /**
  * Render edit mode template for a memory
- * @param {Object} memory - Memory object
- * @returns {string} HTML string
  */
 export function renderMemoryEdit(memory) {
     const id = escapeHtml(memory.id);
@@ -202,6 +170,28 @@ export function renderMemoryEdit(memory) {
                 ${buildEditFields(memory)}
                 ${buildEditActions(memory.id)}
             </div>
+        </div>
+    `;
+}
+
+// =============================================================================
+// Character State Templates
+// =============================================================================
+
+/**
+ * Render a single character state as HTML
+ */
+export function renderCharacterState(charData) {
+    return `
+        <div class="openvault-character-item">
+            <div class="openvault-character-name">${escapeHtml(charData.name)}</div>
+            <div class="openvault-emotion">
+                <span class="openvault-emotion-label">${escapeHtml(charData.emotion)}${charData.emotionSource || ''}</span>
+                <div class="openvault-emotion-bar">
+                    <div class="openvault-emotion-fill" style="width: ${charData.intensityPercent}%"></div>
+                </div>
+            </div>
+            <div class="openvault-memory-witnesses">Known events: ${charData.knownCount}</div>
         </div>
     `;
 }

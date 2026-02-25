@@ -6,67 +6,6 @@ import { setDeps, resetDeps } from '../src/deps.js';
 import { extensionName, defaultSettings } from '../src/constants.js';
 import { scoreMemories } from '../src/retrieval/math.js';
 
-// Store reference to cosineSimilarity mock for MockWorker
-let cosineSimilarityMock = vi.fn();
-
-// Mock Worker for Node.js test environment
-// Matches the caching pattern in src/retrieval/worker.js
-let mockWorkerCachedMemories = [];
-
-class MockWorker {
-    constructor() {
-        this.listeners = {};
-    }
-    addEventListener(event, handler) {
-        this.listeners[event] = handler;
-    }
-    removeEventListener(event) {
-        delete this.listeners[event];
-    }
-    postMessage(data) {
-        const { memories, memoriesChanged, contextEmbedding, chatLength, limit, constants, settings } = data;
-
-        // Update cache if new memories provided (matches worker.js behavior)
-        if (memoriesChanged && memories) {
-            mockWorkerCachedMemories = memories;
-        }
-
-        const scored = mockWorkerCachedMemories.map(memory => {
-            const messageIds = memory.message_ids || [0];
-            const maxMessageId = Math.max(...messageIds);
-            const distance = Math.max(0, chatLength - maxMessageId);
-            const importance = memory.importance || 3;
-            const lambda = constants.BASE_LAMBDA / (importance * importance);
-            let score = importance * Math.exp(-lambda * distance);
-            if (importance === 5) {
-                score = Math.max(score, constants.IMPORTANCE_5_FLOOR);
-            }
-            if (contextEmbedding && memory.embedding) {
-                const similarity = cosineSimilarityMock(contextEmbedding, memory.embedding);
-                const threshold = settings.vectorSimilarityThreshold || 0.5;
-                // Alpha-blend scoring: vector bonus = alpha * boostWeight * normalizedSim
-                const alpha = settings.alpha ?? 0.7;
-                const boostWeight = settings.combinedBoostWeight ?? 15;
-                if (similarity > threshold) {
-                    const normalizedSim = (similarity - threshold) / (1 - threshold);
-                    score += alpha * boostWeight * normalizedSim;
-                }
-            }
-            return { memory, score };
-        });
-        scored.sort((a, b) => b.score - a.score);
-        const results = scored.slice(0, limit).map(s => s.memory);
-
-        setTimeout(() => {
-            if (this.listeners.message) {
-                this.listeners.message({ data: { success: true, results } });
-            }
-        }, 0);
-    }
-}
-globalThis.Worker = MockWorker;
-globalThis.URL = URL;
-
 // Mock the embeddings module
 vi.mock('../src/embeddings.js', () => ({
     getQueryEmbedding: vi.fn(),
@@ -147,10 +86,6 @@ describe('scoring', () => {
 
         // Reset all mocks
         vi.clearAllMocks();
-
-        // Reset mock worker cache
-        mockWorkerCachedMemories = [];
-        cosineSimilarityMock = cosineSimilarity;
 
         // Default mock behaviors
         isEmbeddingsEnabled.mockReturnValue(false);
