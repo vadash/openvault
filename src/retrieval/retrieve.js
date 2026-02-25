@@ -5,6 +5,21 @@
  * Returns result objects; callers handle UI feedback (toasts, status).
  */
 
+/**
+ * RetrievalContext - Consolidated retrieval parameters
+ *
+ * @typedef {Object} RetrievalContext
+ * @property {string} recentContext - Recent messages for BM25 matching
+ * @property {string} userMessages - Last 3 user messages for embedding (capped at 1000 chars)
+ * @property {number} chatLength - Current chat length for distance scoring
+ * @property {string} primaryCharacter - POV character name
+ * @property {string[]} activeCharacters - All active characters in scene
+ * @property {string} headerName - Header for injection ("Scene" or character name)
+ * @property {number} preFilterTokens - Smart mode pre-filter token budget
+ * @property {number} finalTokens - Final context token budget
+ * @property {boolean} smartRetrievalEnabled - Whether to use LLM for selection
+ */
+
 import { getDeps } from '../deps.js';
 import { getOpenVaultData, safeSetExtensionPrompt, log, isExtensionEnabled, isAutomaticMode } from '../utils.js';
 import { extensionName, MEMORIES_KEY, CHARACTERS_KEY } from '../constants.js';
@@ -36,7 +51,7 @@ function _getHiddenMemories(chat, memories) {
  * Build retrieval context from current state
  * @param {Object} opts - Options
  * @param {string} [opts.pendingUserMessage] - User message not yet in chat
- * @returns {import('./context.js').RetrievalContext}
+ * @returns {RetrievalContext}
  */
 export function buildRetrievalContext(opts = {}) {
     const deps = getDeps();
@@ -96,7 +111,7 @@ export function injectContext(contextText) {
  * Core retrieval logic: select relevant memories, format, and inject
  * @param {Object[]} memoriesToUse - Pre-filtered memories to select from
  * @param {Object} data - OpenVault data object
- * @param {import('./context.js').RetrievalContext} ctx - Retrieval context
+ * @param {RetrievalContext} ctx - Retrieval context
  * @returns {Promise<{memories: Object[], context: string}|null>}
  */
 async function selectFormatAndInject(memoriesToUse, data, ctx) {

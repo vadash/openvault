@@ -18,7 +18,7 @@ import { setStatus } from './src/ui/status.js';
 import { refreshAllUI } from './src/ui/render.js';
 import { extractMemories } from './src/extraction/extract.js';
 import { retrieveAndInjectContext } from './src/retrieval/retrieve.js';
-import { updateEventListeners } from './src/listeners.js';
+import { updateEventListeners } from './src/events.js';
 
 // Re-export extensionName for external use
 export { extensionName };

@@ -12,8 +12,7 @@ import { extensionName, MEMORIES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.j
 import { operationState, setGenerationLock, clearGenerationLock, isChatLoadingCooldown, setChatLoadingCooldown, resetOperationStatesIfSafe } from './state.js';
 import { setStatus } from './ui/status.js';
 import { refreshAllUI, resetMemoryBrowserPage } from './ui/render.js';
-import { extractMemories } from './extraction/extract.js';
-import { extractAllMessages } from './extraction/batch.js';
+import { extractMemories, extractAllMessages } from './extraction/extract.js';
 import { updateInjection } from './retrieval/retrieve.js';
 
 // =============================================================================
@@ -356,6 +355,9 @@ export function updateEventListeners(_skipInitialization = false) {
         eventSource.removeListener(eventTypes[type], handler);
         if (isAutomaticMode()) {
             eventSource.on(eventTypes[type], handler);
+            if (type === 'GENERATION_AFTER_COMMANDS') {
+                eventSource.makeFirst(eventTypes[type], handler);
+            }
         }
     });
 

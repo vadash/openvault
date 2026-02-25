@@ -9,10 +9,10 @@
 import { getDeps } from '../deps.js';
 import { extensionName, extensionFolderPath, defaultSettings, QUERY_CONTEXT_DEFAULTS, UI_DEFAULT_HINTS, embeddingModelPrefixes, MEMORIES_KEY } from '../constants.js';
 import { refreshAllUI, prevPage, nextPage, resetAndRender, initBrowser } from './render.js';
-import { validateRPM } from './calculations.js';
+import { validateRPM } from './helpers.js';
 import { setEmbeddingStatusCallback, getEmbeddingStatus, isEmbeddingsEnabled, generateEmbeddingsForMemories } from '../embeddings.js';
 import { updateEmbeddingStatusDisplay, setStatus } from './status.js';
-import { updateEventListeners } from '../listeners.js';
+import { updateEventListeners } from '../events.js';
 
 /**
  * Test Ollama connection
@@ -54,7 +54,7 @@ async function testOllamaConnection() {
         $btn.html('<i class="fa-solid fa-plug"></i> Test');
     }, 3000);
 }
-import { extractAllMessages } from '../extraction/batch.js';
+import { extractAllMessages } from '../extraction/extract.js';
 import { deleteCurrentChatData, deleteCurrentChatEmbeddings } from '../data/actions.js';
 import { getOpenVaultData, showToast } from '../utils.js';
 

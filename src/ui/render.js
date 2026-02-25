@@ -6,7 +6,7 @@
  */
 
 import { renderMemoryItem, renderMemoryEdit, renderCharacterState } from './templates.js';
-import { filterMemories, sortMemoriesByDate, getPaginationInfo, extractCharactersSet, buildCharacterStateData } from './calculations.js';
+import { filterMemories, sortMemoriesByDate, getPaginationInfo, extractCharactersSet, buildCharacterStateData } from './helpers.js';
 import { getOpenVaultData, showToast, escapeHtml } from '../utils.js';
 import { getDeps } from '../deps.js';
 import { MEMORIES_KEY, MEMORIES_PER_PAGE, CHARACTERS_KEY } from '../constants.js';
