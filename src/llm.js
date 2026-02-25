@@ -8,7 +8,7 @@
 import { extensionName } from './constants.js';
 import { getDeps } from './deps.js';
 import { getExtractionJsonSchema, getRetrievalJsonSchema } from './extraction/structured.js';
-import { log, showToast } from './utils.js';
+import { log, showToast, withTimeout } from './utils.js';
 
 /**
  * LLM configuration presets
@@ -18,12 +18,14 @@ export const LLM_CONFIGS = {
         profileSettingKey: 'extractionProfile',
         maxTokens: 4000,
         errorContext: 'Extraction',
+        timeoutMs: 120000, // 2 minutes max for extraction
         getJsonSchema: getExtractionJsonSchema,
     },
     retrieval: {
         profileSettingKey: 'retrievalProfile',
         maxTokens: 4000,
         errorContext: 'Smart retrieval',
+        timeoutMs: 60000, // 60 seconds max for retrieval
         getJsonSchema: getRetrievalJsonSchema,
     },
 };
@@ -38,7 +40,7 @@ export const LLM_CONFIGS = {
  * @throws {Error} If the LLM call fails or no profile is available
  */
 export async function callLLM(messages, config, options = {}) {
-    const { profileSettingKey, maxTokens, errorContext, getJsonSchema } = config;
+    const { profileSettingKey, maxTokens, errorContext, timeoutMs, getJsonSchema } = config;
     const deps = getDeps();
     const extension_settings = deps.getExtensionSettings();
     const settings = extension_settings[extensionName];
@@ -66,7 +68,8 @@ export async function callLLM(messages, config, options = {}) {
 
         const jsonSchema = options.structured && getJsonSchema ? getJsonSchema() : undefined;
 
-        const result = await deps.connectionManager.sendRequest(
+        // Separate the promise so we can wrap it
+        const requestPromise = deps.connectionManager.sendRequest(
             profileId,
             messages,
             maxTokens,
@@ -76,6 +79,13 @@ export async function callLLM(messages, config, options = {}) {
                 stream: false,
             },
             jsonSchema ? { jsonSchema } : {} // 5th parameter
+        );
+
+        // Wrap the network request in our timeout utility
+        const result = await withTimeout(
+            requestPromise,
+            timeoutMs || 120000,
+            `${errorContext} API`
         );
 
         const content = result?.content || result || '';
@@ -101,7 +111,10 @@ export async function callLLM(messages, config, options = {}) {
     } catch (error) {
         const errorMessage = error.message || 'Unknown error';
         log(`${errorContext} LLM call error: ${errorMessage}`);
-        showToast('error', `${errorContext} failed: ${errorMessage}`);
+        // Only show toast if it's NOT a timeout to prevent toast spam during retries
+        if (!errorMessage.includes('timed out')) {
+            showToast('error', `${errorContext} failed: ${errorMessage}`);
+        }
         throw error;
     }
 }

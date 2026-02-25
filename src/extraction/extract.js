@@ -12,6 +12,11 @@ import {
     MEMORIES_KEY,
     PROCESSED_MESSAGES_KEY,
 } from '../constants.js';
+
+/**
+ * Maximum number of retry attempts for a failed extraction batch
+ */
+const MAX_BATCH_RETRIES = 3;
 import { getDeps } from '../deps.js';
 import { enrichEventsWithEmbeddings } from '../embeddings.js';
 import { callLLMForExtraction } from '../llm.js';
@@ -382,53 +387,63 @@ export async function extractAllMessages(updateEventListenersFn) {
     // Process in batches - re-fetch indices each iteration to handle chat mutations
     let totalEvents = 0;
     let batchesProcessed = 0;
+    let currentBatch = null;
+    let retryCount = 0;
 
     while (true) {
-        // Re-fetch current state to handle chat mutations (deletions/additions)
-        const freshContext = getDeps().getContext();
-        const freshChat = freshContext.chat;
-        const freshData = getOpenVaultData();
+        // If we have no current batch or need to get a fresh one (after successful extraction)
+        if (!currentBatch) {
+            // Re-fetch current state to handle chat mutations (deletions/additions)
+            const freshContext = getDeps().getContext();
+            const freshChat = freshContext.chat;
+            const freshData = getOpenVaultData();
 
-        // Debug: log processed message tracking state
-        const processedCount = (freshData?.processed_message_ids || []).length;
-        const memoryCount = (freshData?.memories || []).length;
-        log(`Backfill state: ${processedCount} processed messages tracked, ${memoryCount} memories stored`);
+            // Debug: log processed message tracking state
+            const processedCount = (freshData?.processed_message_ids || []).length;
+            const memoryCount = (freshData?.memories || []).length;
+            log(`Backfill state: ${processedCount} processed messages tracked, ${memoryCount} memories stored`);
 
-        if (!freshChat || !freshData) {
-            log('Backfill: Lost chat context, stopping');
-            break;
+            if (!freshChat || !freshData) {
+                log('Backfill: Lost chat context, stopping');
+                break;
+            }
+
+            const { messageIds: freshIds, batchCount: remainingBatches } = getBackfillMessageIds(
+                freshChat,
+                freshData,
+                messageCount
+            );
+
+            log(
+                `Backfill check: ${freshIds.length} unextracted messages available, ${remainingBatches} complete batches remaining`
+            );
+
+            // No more complete batches available
+            if (freshIds.length < messageCount) {
+                log(`Backfill: No more complete batches available (need ${messageCount}, have ${freshIds.length})`);
+                break;
+            }
+
+            // Take first batch from fresh list (oldest unextracted messages)
+            currentBatch = freshIds.slice(0, messageCount);
         }
-
-        const { messageIds: freshIds, batchCount: remainingBatches } = getBackfillMessageIds(
-            freshChat,
-            freshData,
-            messageCount
-        );
-
-        log(
-            `Backfill check: ${freshIds.length} unextracted messages available, ${remainingBatches} complete batches remaining`
-        );
-
-        // No more complete batches available
-        if (freshIds.length < messageCount) {
-            log(`Backfill: No more complete batches available (need ${messageCount}, have ${freshIds.length})`);
-            break;
-        }
-
-        // Take first batch from fresh list (oldest unextracted messages)
-        const batch = freshIds.slice(0, messageCount);
-        batchesProcessed++;
 
         // Update progress toast (use initial estimate for display consistency)
         const progress = Math.round((batchesProcessed / initialBatchCount) * 100);
+        const retryText = retryCount > 0 ? ` (retry ${retryCount}/${MAX_BATCH_RETRIES})` : '';
         $('.openvault-backfill-toast .toast-message').text(
-            `Backfill: ${batchesProcessed}/${initialBatchCount} batches (${Math.min(progress, 100)}%) - Processing...`
+            `Backfill: ${batchesProcessed}/${initialBatchCount} batches (${Math.min(progress, 100)}%) - Processing...${retryText}`
         );
 
         try {
-            log(`Processing batch ${batchesProcessed}/${initialBatchCount}...`);
-            const result = await extractMemories(batch, targetChatId);
+            log(`Processing batch ${batchesProcessed + 1}/${initialBatchCount}${retryText}...`);
+            const result = await extractMemories(currentBatch, targetChatId);
             totalEvents += result?.events_created || 0;
+
+            // Success - clear current batch and reset retry count
+            currentBatch = null;
+            retryCount = 0;
+            batchesProcessed++;
 
             // Delay between batches based on rate limit setting
             const rpm = settings.backfillMaxRPM || 30;
@@ -445,10 +460,21 @@ export async function extractAllMessages(updateEventListenersFn) {
                 setStatus('ready');
                 return;
             }
-            console.error('[OpenVault] Batch extraction error:', error);
-            $('.openvault-backfill-toast .toast-message').text(
-                `Backfill: Batch ${batchesProcessed} failed, continuing...`
-            );
+
+            retryCount++;
+            const isTimeout = error.message.includes('timed out');
+            const errorType = isTimeout ? 'timeout' : 'error';
+
+            if (retryCount < MAX_BATCH_RETRIES) {
+                log(`Batch ${batchesProcessed + 1} failed with ${errorType}, retrying (${retryCount}/${MAX_BATCH_RETRIES})...`);
+            } else {
+                log(`Batch ${batchesProcessed + 1} failed after ${MAX_BATCH_RETRIES} retries, skipping...`);
+                console.error('[OpenVault] Batch extraction error:', error);
+                // Move to next batch
+                currentBatch = null;
+                retryCount = 0;
+                batchesProcessed++; // Still count as processed (even if failed)
+            }
         }
     }
 
