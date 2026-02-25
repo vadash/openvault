@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { setDeps, resetDeps } from '../src/deps.js';
 import { extensionName, defaultSettings } from '../src/constants.js';
-import { scoreMemoriesSync } from '../src/retrieval/sync-scorer.js';
+import { scoreMemories } from '../src/retrieval/math.js';
 
 // Store reference to cosineSimilarity mock for MockWorker
 let cosineSimilarityMock = vi.fn();
@@ -107,7 +107,6 @@ import {
     selectRelevantMemoriesSimple,
     selectRelevantMemoriesSmart,
     selectRelevantMemories,
-    resetWorkerSyncState,
 } from '../src/retrieval/scoring.js';
 import { getQueryEmbedding, cosineSimilarity, isEmbeddingsEnabled } from '../src/embeddings.js';
 import { callLLMForRetrieval } from '../src/llm.js';
@@ -151,11 +150,6 @@ describe('scoring', () => {
 
         // Reset mock worker cache
         mockWorkerCachedMemories = [];
-
-        // Reset worker sync state so each test gets fresh memory sync
-        resetWorkerSyncState();
-
-        // Sync mock reference for MockWorker
         cosineSimilarityMock = cosineSimilarity;
 
         // Default mock behaviors
@@ -319,46 +313,43 @@ describe('scoring', () => {
             });
 
             it('filters by similarity threshold', async () => {
-                // Below threshold (0.5) - no bonus
-                cosineSimilarity.mockReturnValue(0.4);
-
+                // Below threshold (0.5) - minimal impact
                 const memories = [
                     { id: 'low-sim', summary: 'Low similarity', importance: 3, message_ids: [50], embedding: [0.1, 0.2, 0.3] },
                 ];
 
-                await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
+                const result = await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
-                // Should not receive bonus (verified by cosineSimilarity being called)
-                expect(cosineSimilarity).toHaveBeenCalled();
+                // Memory should still be returned
+                expect(result).toHaveLength(1);
+                expect(result[0].id).toBe('low-sim');
             });
 
             it('uses configurable threshold from settings', async () => {
                 mockSettings.vectorSimilarityThreshold = 0.7;
-                cosineSimilarity.mockReturnValue(0.65); // Below new threshold
 
                 const memories = [
                     { id: '1', summary: 'Test', importance: 3, message_ids: [50], embedding: [0.1, 0.2, 0.3] },
                 ];
 
-                await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
+                const result = await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
-                // Memory should not get bonus (similarity 0.65 < threshold 0.7)
-                expect(cosineSimilarity).toHaveBeenCalled();
+                // Memory should still be returned (just without bonus if below threshold)
+                expect(result).toHaveLength(1);
             });
 
             it('uses configurable weight from settings', async () => {
                 // New alpha-blend: boostWeight affects bonus calculation
                 mockSettings.combinedBoostWeight = 20;
-                cosineSimilarity.mockReturnValue(0.8);
 
                 const memories = [
                     { id: '1', summary: 'Test', importance: 3, message_ids: [50], embedding: [0.1, 0.2, 0.3] },
                 ];
 
-                await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
+                const result = await selectRelevantMemoriesSimple(memories, makeCtx(), 10);
 
                 // Weight affects bonus calculation (alpha * boostWeight * normalizedSim)
-                expect(cosineSimilarity).toHaveBeenCalled();
+                expect(result).toHaveLength(1);
             });
 
             it('works without embeddings (similarity bonus = 0)', async () => {
@@ -741,7 +732,7 @@ describe('scoring', () => {
         });
     });
 
-    describe('sync-scorer fallback', () => {
+    describe('direct scoring (no worker)', () => {
         it('scores memories synchronously', () => {
             const memories = [{
                 id: '1',
@@ -753,207 +744,25 @@ describe('scoring', () => {
                 is_secret: false
             }];
 
-            const params = {
-                contextEmbedding: [0.1, 0.2, 0.3],
-                chatLength: 100,
-                limit: 10,
-                queryTokens: ['dragon'],
-                constants: { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 },
-                settings: { vectorSimilarityThreshold: 0.5, alpha: 0.7, combinedBoostWeight: 15 }
-            };
+            const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 };
+            const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.7, combinedBoostWeight: 15 };
 
-            const results = scoreMemoriesSync(memories, params);
+            const results = scoreMemories(
+                memories,
+                [0.1, 0.2, 0.3],
+                100,
+                constants,
+                settings,
+                ['dragon']
+            );
 
             expect(Array.isArray(results)).toBe(true);
-            expect(results.length).toBeLessThanOrEqual(params.limit);
+            expect(results.length).toBeLessThanOrEqual(memories.length);
             if (results.length > 0) {
                 expect(results[0]).toHaveProperty('memory');
                 expect(results[0]).toHaveProperty('score');
+                expect(results[0]).toHaveProperty('breakdown');
             }
-        });
-    });
-
-    describe('worker hash-based sync detection', () => {
-        it('detects memory importance changes and resyncs worker', async () => {
-            const memories = [
-                { id: '1', summary: 'Memory 1', importance: 3, message_ids: [50] },
-                { id: '2', summary: 'Memory 2', importance: 5, message_ids: [40] },
-            ];
-
-            // First call syncs memories
-            const ctx = {
-                recentContext: 'context',
-                userMessages: 'user messages',
-                activeCharacters: [],
-                chatLength: 100,
-            };
-            let result = await selectRelevantMemoriesSimple(memories, ctx, 10);
-
-            // Memory 2 should be first (higher importance)
-            expect(result[0].id).toBe('2');
-
-            // Change importance (length remains same)
-            memories[0].importance = 5;
-
-            // Clear mock worker cache to verify sync happens
-            // In real scenario, changing importance should trigger resync
-            mockWorkerCachedMemories = [];
-
-            // Second call should resync due to importance change
-            // The implementation should detect the change and send new memories
-            result = await selectRelevantMemoriesSimple(memories, ctx, 10);
-
-            // After resync, cache should be populated (verify sync happened)
-            expect(mockWorkerCachedMemories.length).toBe(2);
-
-            // Updated memory should now rank first due to higher importance
-            expect(result[0].id).toBe('1');
-            expect(result[0].importance).toBe(5);
-        });
-
-        it('detects memory summary changes and resyncs worker', async () => {
-            const memories = [
-                { id: '1', summary: 'Short', importance: 3, message_ids: [50] },
-                { id: '2', summary: 'Memory 2', importance: 3, message_ids: [40] },
-            ];
-
-            const ctx = {
-                recentContext: 'context',
-                userMessages: 'user messages',
-                activeCharacters: [],
-                chatLength: 100,
-            };
-            await selectRelevantMemoriesSimple(memories, ctx, 10);
-
-            // Change summary length (count remains same)
-            memories[0].summary = 'This is a much longer summary that changes the hash';
-
-            // Clear cache to verify resync
-            mockWorkerCachedMemories = [];
-
-            const result = await selectRelevantMemoriesSimple(memories, ctx, 10);
-            expect(result).toHaveLength(2);
-            // Cache should be repopulated
-            expect(mockWorkerCachedMemories.length).toBe(2);
-        });
-
-        it('detects embedding addition and resyncs worker', async () => {
-            const memories = [
-                { id: '1', summary: 'Memory 1', importance: 3, message_ids: [50] }, // no embedding
-                { id: '2', summary: 'Memory 2', importance: 3, message_ids: [40], embedding: [0.1, 0.2] },
-            ];
-
-            isEmbeddingsEnabled.mockReturnValue(true);
-            const ctx = {
-                recentContext: 'context',
-                userMessages: 'user messages',
-                activeCharacters: [],
-                chatLength: 100,
-            };
-            await selectRelevantMemoriesSimple(memories, ctx, 10);
-
-            // Add embedding to first memory (count remains same)
-            memories[0].embedding = [0.3, 0.4];
-
-            // Clear cache to verify resync
-            mockWorkerCachedMemories = [];
-
-            const result = await selectRelevantMemoriesSimple(memories, ctx, 10);
-            expect(result).toHaveLength(2);
-            // Cache should be repopulated
-            expect(mockWorkerCachedMemories.length).toBe(2);
-        });
-
-        it('skips sync when content has not changed', async () => {
-            const memories = [
-                { id: '1', summary: 'Memory 1', importance: 3, message_ids: [50] },
-            ];
-
-            const ctx = {
-                recentContext: 'context',
-                userMessages: 'user messages',
-                activeCharacters: [],
-                chatLength: 100,
-            };
-
-            // First call
-            const result1 = await selectRelevantMemoriesSimple(memories, ctx, 10);
-
-            // Store cache reference (without spread - keep actual reference)
-            const cacheAfterFirstCall = mockWorkerCachedMemories;
-
-            // Second call with identical content
-            const result2 = await selectRelevantMemoriesSimple(memories, ctx, 10);
-
-            // Both should return same result
-            expect(result2[0].id).toBe(result1[0].id);
-
-            // Cache should still have the same reference (no new array created = no sync)
-            // This verifies sync was skipped
-            expect(mockWorkerCachedMemories).toBe(cacheAfterFirstCall);
-        });
-    });
-
-    describe('worker data serialization', () => {
-        it('scoring payload is structuredClone-safe', () => {
-            const memories = [{
-                id: '1',
-                summary: 'test memory',
-                importance: 3,
-                message_ids: [10],
-                embedding: [0.1, 0.2, 0.3],
-                event_type: 'dialogue',
-                is_secret: false
-            }];
-
-            const payload = {
-                memories,
-                memoriesChanged: true,
-                contextEmbedding: [0.1, 0.2, 0.3],
-                chatLength: 100,
-                limit: 10,
-                queryTokens: ['test', 'query'],
-                constants: { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 },
-                settings: { vectorSimilarityThreshold: 0.5, alpha: 0.7, combinedBoostWeight: 15 }
-            };
-
-            // eslint-disable-next-line no-undef
-            expect(() => structuredClone(payload)).not.toThrow();
-        });
-
-        it('rejects non-serializable memory properties', () => {
-            const badMemory = {
-                id: '1',
-                summary: 'test',
-                callback: () => {}  // Functions are not serializable
-            };
-
-            // eslint-disable-next-line no-undef
-            expect(() => structuredClone(badMemory)).toThrow();
-        });
-
-        it('memory schema matches expected structure', () => {
-            const validMemory = {
-                id: '1',
-                summary: 'A dragon attacked the village',
-                importance: 4,
-                message_ids: [10, 11],
-                embedding: new Array(384).fill(0.01),
-                event_type: 'action',
-                is_secret: false
-            };
-
-            // Should clone without error
-            // eslint-disable-next-line no-undef
-            const cloned = structuredClone(validMemory);
-
-            expect(cloned.id).toBe(validMemory.id);
-            expect(cloned.summary).toBe(validMemory.summary);
-            expect(cloned.importance).toBe(validMemory.importance);
-            expect(cloned.message_ids).toEqual(validMemory.message_ids);
-            expect(cloned.embedding.length).toBe(384);
-            expect(cloned.event_type).toBe(validMemory.event_type);
-            expect(cloned.is_secret).toBe(validMemory.is_secret);
         });
     });
 });

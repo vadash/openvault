@@ -13,34 +13,7 @@ import { callLLMForRetrieval } from '../llm.js';
 import { buildSmartRetrievalPrompt } from '../prompts.js';
 import { getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { extractQueryContext, buildEmbeddingQuery, buildBM25Tokens, parseRecentMessages } from './query-context.js';
-import { scoreMemoriesSync } from './sync-scorer.js';
-
-// Lazy-initialized worker
-let scoringWorker = null;
-
-// Track synced memory state to avoid redundant transfers
-let lastSyncedMemoryHash = -1;
-
-/**
- * Compute a fast hash of memory array for change detection
- * Hash = sum of (summary length + importance * 10 + hasEmbedding)
- * Good enough for cache invalidation; collisions just cause redundant sync
- * @param {Object[]} memories - Memories to hash
- * @returns {number} Computed hash value
- */
-function computeMemoryHash(memories) {
-    return memories.reduce((acc, m) =>
-        acc + (m.summary?.length || 0) + (m.importance || 3) * 10 + (m.embedding ? 1 : 0),
-    0);
-}
-
-/**
- * Reset worker state (for testing)
- * Clears the cached sync hash so next call will send full memories
- */
-export function resetWorkerSyncState() {
-    lastSyncedMemoryHash = -1;
-}
+import { scoreMemories } from './math.js';
 
 /**
  * Build scoring parameters from extension settings
@@ -64,137 +37,29 @@ export function getScoringParams() {
     };
 }
 
-// Worker timeout in milliseconds (10 seconds should be plenty for scoring)
-const WORKER_TIMEOUT_MS = 10000;
-
 /**
- * Terminate the current worker and clear reference
- */
-function terminateWorker() {
-    if (scoringWorker) {
-        scoringWorker.terminate();
-        scoringWorker = null;
-        lastSyncedMemoryHash = -1; // Reset sync state
-        log('Scoring worker terminated');
-    }
-}
-
-/**
- * Gets or creates the scoring worker with error handling.
- * Returns null if worker creation fails (fallback to sync scoring).
- */
-function getScoringWorker() {
-    if (!scoringWorker) {
-        try {
-            scoringWorker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
-            scoringWorker.onerror = (e) => {
-                console.error('[OpenVault] Worker load error:', e);
-                scoringWorker = null;
-            };
-        } catch (e) {
-            console.error('[OpenVault] Worker creation failed, using main thread:', e);
-            return null;
-        }
-    }
-    return scoringWorker;
-}
-
-/**
- * Run scoring in web worker with timeout and error recovery
+ * Score memories synchronously (main-thread).
  * @param {Object[]} memories - Memories to score
  * @param {number[]|null} contextEmbedding - Context embedding
  * @param {number} chatLength - Current chat length
  * @param {number} limit - Maximum results
  * @param {string|string[]} queryTokens - Query text or pre-tokenized array for BM25
  */
-function runWorkerScoring(memories, contextEmbedding, chatLength, limit, queryTokens) {
-    const worker = getScoringWorker();
-
-    // Fallback to sync scoring if worker unavailable
-    if (!worker) {
-        console.log('[OpenVault] Using synchronous scoring fallback');
-        const { constants, settings } = getScoringParams();
-        return Promise.resolve(
-            scoreMemoriesSync(memories, {
-                contextEmbedding,
-                chatLength,
-                limit,
-                queryTokens: Array.isArray(queryTokens) ? queryTokens : [],
-                constants,
-                settings
-            }).map(r => r.memory)
-        );
-    }
-
-    return new Promise((resolve, reject) => {
-        let timeoutId = null;
-
-        const cleanup = () => {
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-                timeoutId = null;
-            }
-            worker.removeEventListener('message', handler);
-            worker.removeEventListener('error', errorHandler);
-        };
-
-        const handler = (e) => {
-            cleanup();
-            if (e.data.success) {
-                resolve(e.data.results);
-            } else {
-                reject(new Error(e.data.error));
-            }
-        };
-
-        const errorHandler = (e) => {
-            cleanup();
-            // Worker crashed - terminate and let it respawn on next call
-            terminateWorker();
-            reject(new Error(`Worker error: ${e.message || 'Unknown error'}`));
-        };
-
-        const timeoutHandler = () => {
-            cleanup();
-            // Worker timed out - terminate and respawn
-            log('Scoring worker timed out, terminating');
-            terminateWorker();
-            reject(new Error('Worker scoring timed out'));
-        };
-
-        worker.addEventListener('message', handler);
-        worker.addEventListener('error', errorHandler);
-
-        // Set timeout
-        timeoutId = setTimeout(timeoutHandler, WORKER_TIMEOUT_MS);
-
-        const { constants, settings } = getScoringParams();
-
-        // Compute hash to detect any memory content changes (not just count)
-        const currentHash = computeMemoryHash(memories);
-        const needsSync = currentHash !== lastSyncedMemoryHash;
-
-        worker.postMessage({
-            // Only include memories if sync needed (reduces Structured Clone overhead)
-            memories: needsSync ? memories : null,
-            memoriesChanged: needsSync,
-            contextEmbedding,
-            chatLength,
-            limit,
-            queryTokens: Array.isArray(queryTokens) ? queryTokens : undefined,
-            queryText: typeof queryTokens === 'string' ? queryTokens : undefined,
-            constants,
-            settings
-        });
-
-        if (needsSync) {
-            lastSyncedMemoryHash = currentHash;
-        }
-    });
+function scoreMemoriesDirect(memories, contextEmbedding, chatLength, limit, queryTokens) {
+    const { constants, settings } = getScoringParams();
+    const scored = scoreMemories(
+        memories,
+        contextEmbedding,
+        chatLength,
+        constants,
+        settings,
+        queryTokens
+    );
+    return scored.slice(0, limit).map(r => r.memory);
 }
 
 /**
- * Select relevant memories using forgetfulness curve scoring (via Web Worker)
+ * Select relevant memories using forgetfulness curve scoring
  * @param {Object[]} memories - Available memories
  * @param {Object} ctx - Retrieval context object
  * @param {string} ctx.recentContext - Recent chat context (for query context extraction)
@@ -228,7 +93,7 @@ export async function selectRelevantMemoriesSimple(memories, ctx, limit) {
         contextEmbedding = await getQueryEmbedding(embeddingQuery);
     }
 
-    return runWorkerScoring(memories, contextEmbedding, chatLength, limit, bm25Tokens);
+    return scoreMemoriesDirect(memories, contextEmbedding, chatLength, limit, bm25Tokens);
 }
 
 /**
