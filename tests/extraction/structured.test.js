@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     getExtractionJsonSchema,
     getRetrievalJsonSchema,
+    parseEvent,
     parseExtractionResponse,
     parseRetrievalResponse,
-    parseEvent,
 } from '../../src/extraction/structured.js';
 
 describe('getExtractionJsonSchema', () => {
@@ -46,9 +46,7 @@ describe('parseExtractionResponse', () => {
     it('parses valid JSON response', () => {
         const json = JSON.stringify({
             reasoning: null,
-            events: [
-                { summary: 'Test event', importance: 3, characters_involved: ['Alice'] }
-            ],
+            events: [{ summary: 'Test event', importance: 3, characters_involved: ['Alice'] }],
         });
 
         const result = parseExtractionResponse(json);
@@ -57,14 +55,16 @@ describe('parseExtractionResponse', () => {
     });
 
     it('strips markdown code blocks', () => {
-        const content = '```json\n{"reasoning": null, "events": [{"summary": "Test", "importance": 3, "characters_involved": []}]}\n```';
+        const content =
+            '```json\n{"reasoning": null, "events": [{"summary": "Test", "importance": 3, "characters_involved": []}]}\n```';
         const result = parseExtractionResponse(content);
         expect(result.events).toHaveLength(1);
         expect(result.events[0].summary).toBe('Test');
     });
 
     it('strips markdown without json language tag', () => {
-        const content = '```\n{"reasoning": null, "events": [{"summary": "Test", "importance": 3, "characters_involved": []}]}\n```';
+        const content =
+            '```\n{"reasoning": null, "events": [{"summary": "Test", "importance": 3, "characters_involved": []}]}\n```';
         const result = parseExtractionResponse(content);
         expect(result.events).toHaveLength(1);
     });
@@ -76,8 +76,8 @@ describe('parseExtractionResponse', () => {
     it('throws on schema validation failure', () => {
         const invalid = JSON.stringify({
             events: [
-                { importance: 3, characters_involved: [] } // missing summary
-            ]
+                { importance: 3, characters_involved: [] }, // missing summary
+            ],
         });
         expect(() => parseExtractionResponse(invalid)).toThrow('Schema validation failed');
     });
@@ -85,9 +85,7 @@ describe('parseExtractionResponse', () => {
     it('applies defaults from schema', () => {
         const minimal = JSON.stringify({
             reasoning: null,
-            events: [
-                { summary: 'Test' }
-            ]
+            events: [{ summary: 'Test' }],
         });
         const result = parseExtractionResponse(minimal);
         expect(result.events[0].importance).toBe(3);
@@ -96,21 +94,24 @@ describe('parseExtractionResponse', () => {
     });
 
     it('strips <reasoning> tags before parsing', () => {
-        const content = '<reasoning>Let me analyze this conversation...</reasoning>\n{"reasoning": null, "events": [{"summary": "Test", "importance": 3, "characters_involved": []}]}';
+        const content =
+            '<reasoning>Let me analyze this conversation...</reasoning>\n{"reasoning": null, "events": [{"summary": "Test", "importance": 3, "characters_involved": []}]}';
         const result = parseExtractionResponse(content);
         expect(result.events).toHaveLength(1);
         expect(result.events[0].summary).toBe('Test');
     });
 
     it('strips <thinking> tags before parsing', () => {
-        const content = '<thinking>Analysis here</thinking>\n{"reasoning": null, "events": [{"summary": "Event", "importance": 3, "characters_involved": []}]}';
+        const content =
+            '<thinking>Analysis here</thinking>\n{"reasoning": null, "events": [{"summary": "Event", "importance": 3, "characters_involved": []}]}';
         const result = parseExtractionResponse(content);
         expect(result.events).toHaveLength(1);
         expect(result.events[0].summary).toBe('Event');
     });
 
     it('handles both reasoning tags and markdown', () => {
-        const content = '<reasoning>Thinking...</reasoning>\n```json\n{"reasoning": null, "events": [{"summary": "Test", "importance": 3, "characters_involved": []}]}\n```';
+        const content =
+            '<reasoning>Thinking...</reasoning>\n```json\n{"reasoning": null, "events": [{"summary": "Test", "importance": 3, "characters_involved": []}]}\n```';
         const result = parseExtractionResponse(content);
         expect(result.events).toHaveLength(1);
         expect(result.events[0].summary).toBe('Test');
@@ -131,9 +132,7 @@ describe('parseExtractionResponse', () => {
     it('parses events from response', () => {
         const json = JSON.stringify({
             reasoning: 'Test reasoning',
-            events: [
-                { summary: 'Alice attacked Bob', importance: 3, characters_involved: ['Alice'] }
-            ],
+            events: [{ summary: 'Alice attacked Bob', importance: 3, characters_involved: ['Alice'] }],
         });
         const result = parseExtractionResponse(json);
         expect(result.events[0].summary).toBe('Alice attacked Bob');
@@ -159,7 +158,8 @@ describe('parseEvent', () => {
     });
 
     it('strips reasoning tags for single event', () => {
-        const content = '<reasoning>Analyzing event...</reasoning>\n{"summary": "Event", "importance": 4, "characters_involved": ["Alice"]}';
+        const content =
+            '<reasoning>Analyzing event...</reasoning>\n{"summary": "Event", "importance": 4, "characters_involved": ["Alice"]}';
         const result = parseEvent(content);
         expect(result.summary).toBe('Event');
         expect(result.importance).toBe(4);

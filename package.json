@@ -1,26 +1,27 @@
 {
-  "name": "openvault",
-  "version": "2.00",
-  "type": "module",
-  "description": "SillyTavern memory extension",
-  "scripts": {
-    "clear": "node -e \"process.stdout.write('\\u001B[2J\\u001B[0;0f')\"",
-    "lint": "eslint .",
-    "test": "node scripts/test.js",
-    "sync-version": "node scripts/sync-version.js",
+    "name": "openvault",
+    "version": "2.00",
+    "type": "module",
+    "description": "SillyTavern memory extension",
+    "scripts": {
+        "clear": "node -e \"process.stdout.write('\\u001B[2J\\u001B[0;0f')\"",
+        "lint": "biome check .",
+        "lint:fix": "biome check --write .",
+        "format": "biome format --write .",
+        "test": "node scripts/test.js",
+        "sync-version": "node scripts/sync-version.js",
         "repomix": "npm run repomix:source && npm run repomix:tests",
-    "repomix:source": "npx repomix --style markdown --output repomix-source.md --ignore \"tests/**,**/*.test.js,**/*.spec.ts,node_modules/**,repomix-*.md,style.css,docs/**,.worktrees/**,logs/**,tmp/**,package-lock.json\"",
-    "repomix:tests": "npx repomix --style markdown --output repomix-tests.md --include \"tests/**/*.js\""
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.39.2",
-    "eslint": "^9.39.2",
-    "jsdom": "^27.4.0",
-    "repomix": "^0.3.2",
-    "snowball-stemmers": "^0.6.0",
-    "vitest": "^4.0.16"
-  },
-  "dependencies": {
-    "zod": "^4.3.6"
-  }
+        "repomix:source": "npx repomix --style markdown --output repomix-source.md --ignore \"tests/**,**/*.test.js,**/*.spec.ts,node_modules/**,repomix-*.md,style.css,docs/**,.worktrees/**,logs/**,tmp/**,package-lock.json\"",
+        "repomix:tests": "npx repomix --style markdown --output repomix-tests.md --include \"tests/**/*.js\""
+    },
+    "devDependencies": {
+        "@biomejs/biome": "2.4.4",
+        "jsdom": "^27.4.0",
+        "repomix": "^0.3.2",
+        "snowball-stemmers": "^0.6.0",
+        "vitest": "^4.0.16"
+    },
+    "dependencies": {
+        "zod": "^4.3.6"
+    }
 }

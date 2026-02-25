@@ -4,18 +4,18 @@
  * Handles status indicator and statistics display.
  */
 
+import { CHARACTERS_KEY, defaultSettings, extensionName, MEMORIES_KEY } from '../constants.js';
 import { getDeps } from '../deps.js';
-import { getOpenVaultData, log } from '../utils.js';
 import { getExtractedMessageIds } from '../extraction/scheduler.js';
-import { MEMORIES_KEY, CHARACTERS_KEY, extensionName, defaultSettings } from '../constants.js';
-import { getStatusText, calculateExtractionStats, getBatchProgressInfo } from './helpers.js';
+import { getOpenVaultData, log } from '../utils.js';
+import { calculateExtractionStats, getBatchProgressInfo, getStatusText } from './helpers.js';
 
 // Status icon mapping
 const STATUS_ICONS = {
     ready: 'fa-solid fa-check',
     extracting: 'fa-solid fa-cog fa-spin',
     retrieving: 'fa-solid fa-magnifying-glass',
-    error: 'fa-solid fa-triangle-exclamation'
+    error: 'fa-solid fa-triangle-exclamation',
 };
 
 // Status subtext mapping
@@ -23,7 +23,7 @@ const STATUS_SUBTEXT = {
     ready: 'OpenVault is idle',
     extracting: 'Processing memories...',
     retrieving: 'Finding relevant memories...',
-    error: 'An error occurred'
+    error: 'An error occurred',
 };
 
 /**
@@ -107,7 +107,7 @@ export function refreshStats() {
 
     const memories = data[MEMORIES_KEY] || [];
     const eventCount = memories.length;
-    const embeddingCount = memories.filter(m => m.embedding?.length > 0).length;
+    const embeddingCount = memories.filter((m) => m.embedding?.length > 0).length;
     const charCount = Object.keys(data[CHARACTERS_KEY] || {}).length;
 
     // Update new stat cards

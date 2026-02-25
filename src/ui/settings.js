@@ -6,13 +6,26 @@
  * Action handlers inlined from actions.js.
  */
 
+import {
+    defaultSettings,
+    embeddingModelPrefixes,
+    extensionFolderPath,
+    extensionName,
+    MEMORIES_KEY,
+    QUERY_CONTEXT_DEFAULTS,
+    UI_DEFAULT_HINTS,
+} from '../constants.js';
 import { getDeps } from '../deps.js';
-import { extensionName, extensionFolderPath, defaultSettings, QUERY_CONTEXT_DEFAULTS, UI_DEFAULT_HINTS, embeddingModelPrefixes, MEMORIES_KEY } from '../constants.js';
-import { refreshAllUI, prevPage, nextPage, resetAndRender, initBrowser } from './render.js';
-import { validateRPM } from './helpers.js';
-import { setEmbeddingStatusCallback, getEmbeddingStatus, isEmbeddingsEnabled, generateEmbeddingsForMemories } from '../embeddings.js';
-import { updateEmbeddingStatusDisplay, setStatus } from './status.js';
+import {
+    generateEmbeddingsForMemories,
+    getEmbeddingStatus,
+    isEmbeddingsEnabled,
+    setEmbeddingStatusCallback,
+} from '../embeddings.js';
 import { updateEventListeners } from '../events.js';
+import { validateRPM } from './helpers.js';
+import { initBrowser, nextPage, prevPage, refreshAllUI, resetAndRender } from './render.js';
+import { setStatus, updateEmbeddingStatusDisplay } from './status.js';
 
 /**
  * Test Ollama connection
@@ -33,7 +46,7 @@ async function testOllamaConnection() {
     try {
         const response = await fetch(`${url}/api/tags`, {
             method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
         });
 
         if (response.ok) {
@@ -54,9 +67,9 @@ async function testOllamaConnection() {
         $btn.html('<i class="fa-solid fa-plug"></i> Test');
     }, 3000);
 }
+
 import { extractAllMessages } from '../extraction/extract.js';
-import { deleteCurrentChatData, deleteCurrentChatEmbeddings } from '../utils.js';
-import { getOpenVaultData, showToast } from '../utils.js';
+import { deleteCurrentChatData, deleteCurrentChatEmbeddings, getOpenVaultData, showToast } from '../utils.js';
 
 // =============================================================================
 // Helper Functions (inlined from bindings.js)
@@ -132,7 +145,7 @@ async function backfillEmbeddings() {
     }
 
     const memories = data[MEMORIES_KEY] || [];
-    const needsEmbedding = memories.filter(m => !m.embedding);
+    const needsEmbedding = memories.filter((m) => !m.embedding);
 
     if (needsEmbedding.length === 0) {
         showToast('info', 'All memories already have embeddings');
@@ -166,7 +179,7 @@ async function backfillEmbeddings() {
 // =============================================================================
 
 function populateDefaultHints() {
-    $('.openvault-default-hint').each(function() {
+    $('.openvault-default-hint').each(function () {
         const key = $(this).data('default-key');
         const value = UI_DEFAULT_HINTS[key];
 
@@ -184,7 +197,10 @@ function populateDefaultHints() {
 
 function migrateSettings(settings) {
     // If alpha not set but legacy vector/keyword weights exist, compute alpha
-    if (settings.alpha === undefined && (settings.vectorSimilarityWeight !== undefined || settings.keywordMatchWeight !== undefined)) {
+    if (
+        settings.alpha === undefined &&
+        (settings.vectorSimilarityWeight !== undefined || settings.keywordMatchWeight !== undefined)
+    ) {
         const vw = settings.vectorSimilarityWeight ?? 15;
         const kw = settings.keywordMatchWeight ?? 3.0;
         settings.alpha = vw / (vw + kw);
@@ -244,7 +260,7 @@ export async function loadSettings() {
 // =============================================================================
 
 function initTabs() {
-    $('.openvault-tab-btn').on('click', function() {
+    $('.openvault-tab-btn').on('click', function () {
         const tabId = $(this).data('tab');
 
         // Update tab buttons
@@ -266,23 +282,23 @@ function initTabs() {
 
 function bindUIElements() {
     // Basic toggles
-    $('#openvault_enabled').on('change', function() {
+    $('#openvault_enabled').on('change', function () {
         saveSetting('enabled', $(this).is(':checked'));
         updateEventListeners();
     });
 
-    $('#openvault_debug').on('change', function() {
+    $('#openvault_debug').on('change', function () {
         saveSetting('debugMode', $(this).is(':checked'));
     });
 
     // Extraction settings
-    $('#openvault_messages_per_extraction').on('input', function() {
+    $('#openvault_messages_per_extraction').on('input', function () {
         const value = parseInt($(this).val(), 10);
         saveSetting('messagesPerExtraction', value);
         $('#openvault_messages_per_extraction_value').text(value);
     });
 
-    $('#openvault_extraction_rearview').on('input', function() {
+    $('#openvault_extraction_rearview').on('input', function () {
         const value = parseInt($(this).val(), 10);
         saveSetting('extractionRearviewTokens', value);
         $('#openvault_extraction_rearview_value').text(value);
@@ -290,20 +306,20 @@ function bindUIElements() {
     });
 
     // Retrieval pipeline settings
-    $('#openvault_prefilter_budget').on('input', function() {
+    $('#openvault_prefilter_budget').on('input', function () {
         const value = parseInt($(this).val(), 10);
         saveSetting('retrievalPreFilterTokens', value);
         $('#openvault_prefilter_budget_value').text(value);
         updateWordsDisplay(value, 'openvault_prefilter_budget_words');
     });
 
-    $('#openvault_smart_retrieval').on('change', function() {
+    $('#openvault_smart_retrieval').on('change', function () {
         saveSetting('smartRetrievalEnabled', $(this).is(':checked'));
         const settings = getSettings();
         $('#openvault_retrieval_profile_group').toggle(settings.smartRetrievalEnabled);
     });
 
-    $('#openvault_final_budget').on('input', function() {
+    $('#openvault_final_budget').on('input', function () {
         const value = parseInt($(this).val(), 10);
         saveSetting('retrievalFinalTokens', value);
         $('#openvault_final_budget_value').text(value);
@@ -311,68 +327,68 @@ function bindUIElements() {
     });
 
     // Auto-hide settings
-    $('#openvault_auto_hide').on('change', function() {
+    $('#openvault_auto_hide').on('change', function () {
         saveSetting('autoHideEnabled', $(this).is(':checked'));
     });
 
-    $('#openvault_auto_hide_threshold').on('input', function() {
+    $('#openvault_auto_hide_threshold').on('input', function () {
         const value = parseInt($(this).val(), 10);
         saveSetting('autoHideThreshold', value);
         $('#openvault_auto_hide_threshold_value').text(value);
     });
 
     // Scoring weights (alpha-blend)
-    $('#openvault_alpha').on('input', function() {
+    $('#openvault_alpha').on('input', function () {
         const value = parseFloat($(this).val());
         saveSetting('alpha', value);
         $('#openvault_alpha_value').text(value);
     });
 
-    $('#openvault_combined_weight').on('input', function() {
+    $('#openvault_combined_weight').on('input', function () {
         const value = parseFloat($(this).val());
         saveSetting('combinedBoostWeight', value);
         $('#openvault_combined_weight_value').text(value);
     });
 
-    $('#openvault_vector_threshold').on('input', function() {
+    $('#openvault_vector_threshold').on('input', function () {
         const value = parseFloat($(this).val());
         saveSetting('vectorSimilarityThreshold', value);
         $('#openvault_vector_threshold_value').text(value);
     });
 
-    $('#openvault_dedup_threshold').on('input', function() {
+    $('#openvault_dedup_threshold').on('input', function () {
         const value = parseFloat($(this).val());
         saveSetting('dedupSimilarityThreshold', value);
         $('#openvault_dedup_threshold_value').text(value);
     });
 
     // Query context enhancement settings
-    $('#openvault_entity_window').on('input', function() {
+    $('#openvault_entity_window').on('input', function () {
         const value = parseInt($(this).val(), 10);
         saveSetting('entityWindowSize', value);
         $('#openvault_entity_window_value').text(value);
     });
 
-    $('#openvault_embedding_window').on('input', function() {
+    $('#openvault_embedding_window').on('input', function () {
         const value = parseInt($(this).val(), 10);
         saveSetting('embeddingWindowSize', value);
         $('#openvault_embedding_window_value').text(value);
     });
 
-    $('#openvault_top_entities').on('input', function() {
+    $('#openvault_top_entities').on('input', function () {
         const value = parseInt($(this).val(), 10);
         saveSetting('topEntitiesCount', value);
         $('#openvault_top_entities_value').text(value);
     });
 
-    $('#openvault_entity_boost').on('input', function() {
+    $('#openvault_entity_boost').on('input', function () {
         const value = parseFloat($(this).val());
         saveSetting('entityBoostWeight', value);
         $('#openvault_entity_boost_value').text(value);
     });
 
     // Backfill settings
-    $('#openvault_backfill_rpm').on('change', function() {
+    $('#openvault_backfill_rpm').on('change', function () {
         let value = $(this).val();
         value = validateRPM(value, 30);
         saveSetting('backfillMaxRPM', value);
@@ -380,23 +396,23 @@ function bindUIElements() {
     });
 
     // Embedding settings
-    $('#openvault_ollama_url').on('change', function() {
+    $('#openvault_ollama_url').on('change', function () {
         saveSetting('ollamaUrl', $(this).val().trim());
     });
 
-    $('#openvault_embedding_model').on('change', function() {
+    $('#openvault_embedding_model').on('change', function () {
         saveSetting('embeddingModel', $(this).val().trim());
     });
 
-    $('#openvault_embedding_query_prefix').on('change', function() {
+    $('#openvault_embedding_query_prefix').on('change', function () {
         saveSetting('embeddingQueryPrefix', $(this).val());
     });
 
-    $('#openvault_embedding_doc_prefix').on('change', function() {
+    $('#openvault_embedding_doc_prefix').on('change', function () {
         saveSetting('embeddingDocPrefix', $(this).val());
     });
 
-    $('#openvault_embedding_source').on('change', async function() {
+    $('#openvault_embedding_source').on('change', async function () {
         const value = $(this).val();
 
         // Reset old strategy before switching to prevent VRAM leak
@@ -424,11 +440,11 @@ function bindUIElements() {
     });
 
     // Profile selectors
-    $('#openvault_extraction_profile').on('change', function() {
+    $('#openvault_extraction_profile').on('change', function () {
         saveSetting('extractionProfile', $(this).val());
     });
 
-    $('#openvault_retrieval_profile').on('change', function() {
+    $('#openvault_retrieval_profile').on('change', function () {
         saveSetting('retrievalProfile', $(this).val());
     });
 
@@ -445,12 +461,12 @@ function bindUIElements() {
     $('#openvault_next_page').on('click', () => nextPage());
 
     // Memory browser filters
-    $('#openvault_filter_type').on('change', function() {
+    $('#openvault_filter_type').on('change', function () {
         saveSetting('filter_type', $(this).val());
         resetAndRender();
     });
 
-    $('#openvault_filter_character').on('change', function() {
+    $('#openvault_filter_character').on('change', function () {
         saveSetting('filter_character', $(this).val());
         resetAndRender();
     });

@@ -5,8 +5,15 @@
  * All external dependencies (SillyTavern, browser globals) are accessed through this module.
  */
 
-import { getContext as stGetContext, extension_settings as stExtensionSettings } from '../../../../extensions.js';
-import { saveChatConditional as stSaveChatConditional, setExtensionPrompt as stSetExtensionPrompt, extension_prompt_types as stPromptTypes, saveSettingsDebounced as stSaveSettingsDebounced, eventSource as stEventSource, event_types as stEventTypes } from '../../../../../script.js';
+import {
+    eventSource as stEventSource,
+    event_types as stEventTypes,
+    extension_prompt_types as stPromptTypes,
+    saveChatConditional as stSaveChatConditional,
+    saveSettingsDebounced as stSaveSettingsDebounced,
+    setExtensionPrompt as stSetExtensionPrompt,
+} from '../../../../../script.js';
+import { extension_settings as stExtensionSettings, getContext as stGetContext } from '../../../../extensions.js';
 import { ConnectionManagerRequestService as stConnectionManager } from '../../../shared.js';
 
 /**
@@ -26,8 +33,7 @@ const defaultDeps = {
     eventTypes: stEventTypes,
 
     // Prompt injection
-    setExtensionPrompt: (name, content, type, position) =>
-        stSetExtensionPrompt(name, content, type, position),
+    setExtensionPrompt: (name, content, type, position) => stSetExtensionPrompt(name, content, type, position),
     extension_prompt_types: stPromptTypes,
 
     // LLM communication

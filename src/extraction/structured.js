@@ -1,5 +1,5 @@
 import { z } from 'https://esm.sh/zod@4';
-import { stripThinkingTags, log } from '../utils.js';
+import { log, stripThinkingTags } from '../utils.js';
 
 // --- Schemas (inlined from schemas/) ---
 
@@ -79,9 +79,9 @@ function stripMarkdown(content) {
  */
 function parseStructuredResponse(content, schema) {
     // Strip thinking/reasoning tags first (models may return extended thinking)
-    let cleanedContent = stripThinkingTags(content);
+    const cleanedContent = stripThinkingTags(content);
     // Then strip markdown code blocks
-    let jsonContent = stripMarkdown(cleanedContent);
+    const jsonContent = stripMarkdown(cleanedContent);
 
     let parsed;
     try {
@@ -116,8 +116,8 @@ export function getExtractionJsonSchema() {
  */
 export function parseExtractionResponse(content) {
     // Strip thinking/reasoning tags first
-    let cleanedContent = stripThinkingTags(content);
-    let jsonContent = stripMarkdown(cleanedContent);
+    const cleanedContent = stripThinkingTags(content);
+    const jsonContent = stripMarkdown(cleanedContent);
 
     let parsed;
     try {

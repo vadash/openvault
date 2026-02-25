@@ -17,7 +17,7 @@
  * @returns {Array} Filtered memories
  */
 export function filterMemories(memories, typeFilter, characterFilter) {
-    return memories.filter(m => {
+    return memories.filter((m) => {
         if (characterFilter && !m.characters_involved?.includes(characterFilter)) return false;
         return true;
     });
@@ -63,7 +63,7 @@ export function getPaginationInfo(totalItems, currentPage, itemsPerPage) {
 export function extractCharactersSet(memories) {
     const characters = new Set();
     for (const memory of memories) {
-        for (const char of (memory.characters_involved || [])) {
+        for (const char of memory.characters_involved || []) {
             characters.add(char);
         }
     }
@@ -84,9 +84,7 @@ export function buildCharacterStateData(name, charData) {
     let emotionSource = '';
     if (charData.emotion_from_messages) {
         const { min, max } = charData.emotion_from_messages;
-        emotionSource = min === max
-            ? ` (msg ${min})`
-            : ` (msgs ${min}-${max})`;
+        emotionSource = min === max ? ` (msg ${min})` : ` (msgs ${min}-${max})`;
     }
 
     return {
@@ -109,7 +107,7 @@ export function buildCharacterStateData(name, charData) {
  */
 export function calculateExtractionStats(chat, extractedMessageIds, messageCount, bufferSize = 0) {
     const totalMessages = chat.length;
-    const hiddenMessages = chat.filter(m => m.is_system).length;
+    const hiddenMessages = chat.filter((m) => m.is_system).length;
     const extractedCount = extractedMessageIds.size;
 
     // Calculate extractable messages (total minus buffer)
@@ -192,7 +190,7 @@ export function validateRPM(value, defaultValue = 30) {
  * @returns {Array} Array of option objects {id, name, selected}
  */
 export function buildProfileOptions(profiles, currentValue) {
-    return profiles.map(profile => ({
+    return profiles.map((profile) => ({
         id: profile.id,
         name: profile.name,
         selected: profile.id === currentValue,
@@ -256,9 +254,7 @@ export function getStatusText(status) {
 export function formatEmotionSource(emotionFromMessages) {
     if (!emotionFromMessages) return '';
     const { min, max } = emotionFromMessages;
-    return min === max
-        ? ` (msg ${min})`
-        : ` (msgs ${min}-${max})`;
+    return min === max ? ` (msg ${min})` : ` (msgs ${min}-${max})`;
 }
 
 /**

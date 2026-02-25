@@ -47,7 +47,11 @@ function formatCharacters(characterName, userName, characterDescription, persona
  */
 export function buildExtractionPrompt({ messages, names, context = {} }) {
     const { char: characterName, user: userName } = names;
-    const { memories: existingMemories = [], charDesc: characterDescription = '', personaDesc: personaDescription = '' } = context;
+    const {
+        memories: existingMemories = [],
+        charDesc: characterDescription = '',
+        personaDesc: personaDescription = '',
+    } = context;
 
     const systemPrompt = `You are an expert narrative archivist specializing in character psychology, slice-of-life, and adult 18+ roleplay (эротика, повседневность, 官能小説, 日常系).
 Your task: extract exact, highly detailed, concise memories into structured JSON.
@@ -163,7 +167,7 @@ Write your analysis in the \`reasoning\` field first, then produce the events ar
 
     return [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
+        { role: 'user', content: userPrompt },
     ];
 }
 
@@ -243,6 +247,6 @@ Write your reasoning in the \`reasoning\` field first, then list the selected me
 
     return [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
+        { role: 'user', content: userPrompt },
     ];
 }

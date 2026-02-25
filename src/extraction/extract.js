@@ -5,20 +5,35 @@
  * Previously: ExtractionPipeline class + 5 separate stage files.
  */
 
+import {
+    CHARACTERS_KEY,
+    extensionName,
+    LAST_PROCESSED_KEY,
+    MEMORIES_KEY,
+    PROCESSED_MESSAGES_KEY,
+} from '../constants.js';
 import { getDeps } from '../deps.js';
-import { getOpenVaultData, log, saveOpenVaultData, isExtensionEnabled, showToast, safeSetExtensionPrompt, getCurrentChatId } from '../utils.js';
-import { MEMORIES_KEY, LAST_PROCESSED_KEY, PROCESSED_MESSAGES_KEY, extensionName } from '../constants.js';
-import { buildExtractionPrompt } from '../prompts.js';
-import { sortMemoriesBySequence, sliceToTokenBudget, estimateTokens } from '../utils.js';
-import { callLLMForExtraction } from '../llm.js';
-import { parseExtractionResponse } from './structured.js';
 import { enrichEventsWithEmbeddings } from '../embeddings.js';
+import { callLLMForExtraction } from '../llm.js';
+import { buildExtractionPrompt } from '../prompts.js';
 import { cosineSimilarity } from '../retrieval/math.js';
-import { CHARACTERS_KEY } from '../constants.js';
-import { getBackfillMessageIds, getExtractedMessageIds } from './scheduler.js';
-import { setStatus } from '../ui/status.js';
-import { refreshAllUI } from '../ui/render.js';
 import { clearAllLocks } from '../state.js';
+import { refreshAllUI } from '../ui/render.js';
+import { setStatus } from '../ui/status.js';
+import {
+    estimateTokens,
+    getCurrentChatId,
+    getOpenVaultData,
+    isExtensionEnabled,
+    log,
+    safeSetExtensionPrompt,
+    saveOpenVaultData,
+    showToast,
+    sliceToTokenBudget,
+    sortMemoriesBySequence,
+} from '../utils.js';
+import { getBackfillMessageIds, getExtractedMessageIds } from './scheduler.js';
+import { parseExtractionResponse } from './structured.js';
 
 /**
  * Update character states based on extracted events
@@ -31,9 +46,8 @@ function updateCharacterStatesFromEvents(events, data) {
     for (const event of events) {
         // Get message range for this event
         const messageIds = event.message_ids || [];
-        const messageRange = messageIds.length > 0
-            ? { min: Math.min(...messageIds), max: Math.max(...messageIds) }
-            : null;
+        const messageRange =
+            messageIds.length > 0 ? { min: Math.min(...messageIds), max: Math.max(...messageIds) } : null;
 
         // Update emotional impact
         if (event.emotional_impact) {
@@ -57,7 +71,7 @@ function updateCharacterStatesFromEvents(events, data) {
         }
 
         // Add event to witnesses' knowledge
-        for (const witness of (event.witnesses || [])) {
+        for (const witness of event.witnesses || []) {
             if (!data[CHARACTERS_KEY][witness]) {
                 data[CHARACTERS_KEY][witness] = {
                     name: witness,
@@ -88,12 +102,12 @@ function selectMemoriesForExtraction(data, settings) {
     // Step A: Recency - most recent memories (sorted desc by sequence)
     const recentSorted = sortMemoriesBySequence(allMemories, false);
     const recencyMemories = sliceToTokenBudget(recentSorted, recencyBudget);
-    const selectedIds = new Set(recencyMemories.map(m => m.id));
+    const selectedIds = new Set(recencyMemories.map((m) => m.id));
 
     // Step B: Importance - from remaining, importance >= 4
-    const remaining = allMemories.filter(m => !selectedIds.has(m.id));
+    const remaining = allMemories.filter((m) => !selectedIds.has(m.id));
     const highImportance = remaining
-        .filter(m => (m.importance || 3) >= 4)
+        .filter((m) => (m.importance || 3) >= 4)
         .sort((a, b) => {
             // Sort by importance desc, then sequence desc
             const impDiff = (b.importance || 3) - (a.importance || 3);
@@ -112,7 +126,7 @@ function selectMemoriesForExtraction(data, settings) {
     const fillBudget = importanceBudget - usedImportanceBudget;
     let fillMemories = [];
     if (fillBudget > 0) {
-        const stillRemaining = remaining.filter(m => !selectedIds.has(m.id));
+        const stillRemaining = remaining.filter((m) => !selectedIds.has(m.id));
         const recentRemaining = sortMemoriesBySequence(stillRemaining, false);
         fillMemories = sliceToTokenBudget(recentRemaining, fillBudget);
     }
@@ -130,7 +144,7 @@ function selectMemoriesForExtraction(data, settings) {
 function filterSimilarEvents(newEvents, existingMemories, threshold = 0.85) {
     if (!existingMemories?.length) return newEvents;
 
-    return newEvents.filter(event => {
+    return newEvents.filter((event) => {
         if (!event.embedding) return true;
 
         for (const memory of existingMemories) {
@@ -178,9 +192,7 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
 
     if (messageIds && messageIds.length > 0) {
         // Targeted mode: When specific IDs are provided (e.g., backfill)
-        messagesToExtract = messageIds
-            .map(id => ({ id, ...chat[id] }))
-            .filter(m => m != null);
+        messagesToExtract = messageIds.map((id) => ({ id, ...chat[id] })).filter((m) => m != null);
     } else {
         // Incremental mode: Extract last few unprocessed messages
         const lastProcessedId = data[LAST_PROCESSED_KEY] || -1;
@@ -188,7 +200,7 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
 
         messagesToExtract = chat
             .map((m, idx) => ({ id: idx, ...m }))
-            .filter(m => !m.is_system && m.id > lastProcessedId)
+            .filter((m) => !m.is_system && m.id > lastProcessedId)
             .slice(-messageCount);
     }
 
@@ -206,10 +218,12 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
         const characterName = context.name2;
         const userName = context.name1;
 
-        const messagesText = messages.map(m => {
-            const speaker = m.is_user ? userName : (m.name || characterName);
-            return `[${speaker}]: ${m.mes}`;
-        }).join('\n\n');
+        const messagesText = messages
+            .map((m) => {
+                const speaker = m.is_user ? userName : m.name || characterName;
+                return `[${speaker}]: ${m.mes}`;
+            })
+            .join('\n\n');
 
         const existingMemories = selectMemoriesForExtraction(data, settings);
         const characterDescription = context.characters?.[context.characterId]?.description || '';
@@ -231,7 +245,7 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
         let events = validated.events;
 
         // Enrich with metadata
-        const messageIdsArray = messages.map(m => m.id);
+        const messageIdsArray = messages.map((m) => m.id);
         const minMessageId = Math.min(...messageIdsArray);
 
         events = events.map((event, index) => ({
@@ -253,7 +267,7 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
         log(`LLM returned ${events.length} events from ${messages.length} messages`);
 
         // Track processed message IDs
-        const processedIds = messages.map(m => m.id);
+        const processedIds = messages.map((m) => m.id);
         data[PROCESSED_MESSAGES_KEY] = data[PROCESSED_MESSAGES_KEY] || [];
         data[PROCESSED_MESSAGES_KEY].push(...processedIds);
         log(`Marked ${processedIds.length} messages as processed (total: ${data[PROCESSED_MESSAGES_KEY].length})`);
@@ -328,7 +342,11 @@ export async function extractAllMessages(updateEventListenersFn) {
     }
 
     // Get initial estimate for progress display
-    const { messageIds: initialMessageIds, batchCount: initialBatchCount } = getBackfillMessageIds(chat, data, messageCount);
+    const { messageIds: initialMessageIds, batchCount: initialBatchCount } = getBackfillMessageIds(
+        chat,
+        data,
+        messageCount
+    );
     const alreadyExtractedIds = getExtractedMessageIds(data);
 
     if (alreadyExtractedIds.size > 0) {
@@ -337,7 +355,10 @@ export async function extractAllMessages(updateEventListenersFn) {
 
     if (initialMessageIds.length === 0) {
         if (alreadyExtractedIds.size > 0) {
-            showToast('info', `All eligible messages already extracted (${alreadyExtractedIds.size} messages have memories)`);
+            showToast(
+                'info',
+                `All eligible messages already extracted (${alreadyExtractedIds.size} messages have memories)`
+            );
         } else {
             showToast('warning', `Not enough messages for a complete batch (need ${messageCount})`);
         }
@@ -346,16 +367,14 @@ export async function extractAllMessages(updateEventListenersFn) {
 
     // Show persistent progress toast
     setStatus('extracting');
-    $(toastr?.info(
-        `Backfill: 0/${initialBatchCount} batches (0%)`,
-        'OpenVault - Extracting',
-        {
+    $(
+        toastr?.info(`Backfill: 0/${initialBatchCount} batches (0%)`, 'OpenVault - Extracting', {
             timeOut: 0,
             extendedTimeOut: 0,
             tapToDismiss: false,
-            toastClass: 'toast openvault-backfill-toast'
-        }
-    ));
+            toastClass: 'toast openvault-backfill-toast',
+        })
+    );
 
     // Capture chat ID to detect if user switches during backfill
     const targetChatId = getCurrentChatId();
@@ -380,9 +399,15 @@ export async function extractAllMessages(updateEventListenersFn) {
             break;
         }
 
-        const { messageIds: freshIds, batchCount: remainingBatches } = getBackfillMessageIds(freshChat, freshData, messageCount);
+        const { messageIds: freshIds, batchCount: remainingBatches } = getBackfillMessageIds(
+            freshChat,
+            freshData,
+            messageCount
+        );
 
-        log(`Backfill check: ${freshIds.length} unextracted messages available, ${remainingBatches} complete batches remaining`);
+        log(
+            `Backfill check: ${freshIds.length} unextracted messages available, ${remainingBatches} complete batches remaining`
+        );
 
         // No more complete batches available
         if (freshIds.length < messageCount) {
@@ -409,7 +434,7 @@ export async function extractAllMessages(updateEventListenersFn) {
             const rpm = settings.backfillMaxRPM || 30;
             const delayMs = Math.ceil(60000 / rpm);
             log(`Rate limiting: waiting ${delayMs}ms (${rpm} RPM)`);
-            await new Promise(resolve => setTimeout(resolve, delayMs));
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
         } catch (error) {
             // If chat changed, stop backfill entirely
             if (error.message === 'Chat changed during extraction') {

@@ -6,7 +6,8 @@
 }
 
 @keyframes pulse-glow {
-    0%, 100% {
+    0%,
+    100% {
         opacity: 1;
         box-shadow: 0 0 10px rgba(72, 136, 204, 0.5);
     }
@@ -17,13 +18,22 @@
 }
 
 @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
 }
 
 /* Layout - Tab Navigation & Sections */
@@ -51,7 +61,7 @@
 
 .openvault-tab-btn:hover {
     opacity: 0.85;
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.1));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.1));
 }
 
 .openvault-tab-btn.active {
@@ -97,7 +107,7 @@
 
 /* Card UI Components */
 .openvault-card {
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
     border: 1px solid var(--SmartThemeBorderColor, #333);
     border-radius: 8px;
     padding: 12px;
@@ -123,18 +133,20 @@
 }
 
 .openvault-memory-card {
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
     border: 1px solid var(--SmartThemeBorderColor, #333);
     border-radius: 8px;
     padding: 12px;
     margin-bottom: 10px;
     border-left: 4px solid var(--SmartThemeEmColor, #48c);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
 }
 
 .openvault-memory-card:hover {
     transform: translateX(2px);
-    box-shadow: -2px 2px 8px rgba(0,0,0,0.2);
+    box-shadow: -2px 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .openvault-memory-card.action {
@@ -233,7 +245,7 @@
     font-size: 0.7em;
     padding: 2px 8px;
     border-radius: 10px;
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.3));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3));
 }
 
 .openvault-memory-card-badge.importance {
@@ -264,7 +276,7 @@
     padding: 8px 10px;
     border: 1px solid var(--SmartThemeBorderColor, #333);
     border-radius: 6px;
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
     color: var(--SmartThemeBodyColor, #ccc);
     resize: vertical;
     font-family: inherit;
@@ -297,7 +309,7 @@
     padding: 6px 8px;
     border: 1px solid var(--SmartThemeBorderColor, #333);
     border-radius: 6px;
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
     color: var(--SmartThemeBodyColor, #ccc);
 }
 
@@ -395,7 +407,7 @@
 }
 
 .openvault-stat-card {
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
     border: 1px solid var(--SmartThemeBorderColor, #333);
     border-radius: 8px;
     padding: 12px;
@@ -433,14 +445,14 @@
     align-items: center;
     gap: 8px;
     padding: 10px 12px;
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
     border: 1px solid var(--SmartThemeBorderColor, #333);
     border-radius: 6px;
     cursor: pointer;
 }
 
 .openvault-quick-toggle:hover {
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.3));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3));
 }
 
 .openvault-quick-toggle input[type="checkbox"] {
@@ -461,7 +473,7 @@
     flex: 1;
     text-align: center;
     padding: 10px;
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
     border-radius: 4px;
 }
 
@@ -479,7 +491,7 @@
 }
 
 .openvault-batch-info {
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
     border-radius: 4px;
     padding: 8px 12px;
     margin-bottom: 10px;
@@ -592,7 +604,7 @@
     padding: 8px 10px 8px 32px;
     border: 1px solid var(--SmartThemeBorderColor, #333);
     border-radius: 6px;
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
     color: var(--SmartThemeBodyColor, #ccc);
 }
 
@@ -630,7 +642,7 @@
 .openvault-advanced-toggle summary {
     cursor: pointer;
     padding: 8px 12px;
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.15));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.15));
     border-radius: 6px;
     font-size: 0.85em;
     color: var(--SmartThemeEmColor, #888);
@@ -640,7 +652,7 @@
 }
 
 .openvault-advanced-toggle summary:hover {
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.25));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.25));
 }
 
 .openvault-advanced-toggle[open] summary {
@@ -649,7 +661,7 @@
 
 .openvault-advanced-content {
     padding: 12px;
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.1));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.1));
     border-radius: 0 0 6px 6px;
 }
 
@@ -781,7 +793,7 @@
 .openvault-memory-item {
     padding: 8px;
     margin-bottom: 8px;
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
     border-radius: 4px;
     border-left: 3px solid var(--SmartThemeEmColor, #48c);
 }
@@ -868,7 +880,7 @@
 .openvault-character-item {
     padding: 10px;
     margin-bottom: 8px;
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
     border-radius: 4px;
 }
 
@@ -908,7 +920,7 @@
     font-size: 0.8em;
     padding: 2px 8px;
     border-radius: 4px;
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.3));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3));
     color: var(--SmartThemeEmColor, #888);
 }
 
@@ -951,7 +963,7 @@
 .openvault-help-content {
     margin-top: 8px;
     padding: 10px;
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.2));
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
     border-radius: 4px;
     border-left: 3px solid var(--SmartThemeEmColor, #48c);
 }
@@ -971,7 +983,7 @@
 }
 
 .openvault-help-content code {
-    background: rgba(0,0,0,0.3);
+    background: rgba(0, 0, 0, 0.3);
     padding: 1px 4px;
     border-radius: 3px;
     font-size: 0.9em;

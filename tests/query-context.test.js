@@ -1,28 +1,28 @@
 /**
  * Tests for src/retrieval/query-context.js
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { setDeps, resetDeps } from '../src/deps.js';
-import { extensionName, defaultSettings, QUERY_CONTEXT_DEFAULTS } from '../src/constants.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { defaultSettings, extensionName, QUERY_CONTEXT_DEFAULTS } from '../src/constants.js';
+import { resetDeps, setDeps } from '../src/deps.js';
 
 // Mock getOptimalChunkSize
 vi.mock('../src/embeddings/strategies.js', () => ({
-    getOptimalChunkSize: () => 500
+    getOptimalChunkSize: () => 500,
 }));
 
 // Import after mocks
 import {
-    extractQueryContext,
-    buildEmbeddingQuery,
     buildBM25Tokens,
-    parseRecentMessages
+    buildEmbeddingQuery,
+    extractQueryContext,
+    parseRecentMessages,
 } from '../src/retrieval/query-context.js';
 
 describe('query-context', () => {
     beforeEach(() => {
         setDeps({
             getExtensionSettings: () => ({
-                [extensionName]: { ...defaultSettings }
+                [extensionName]: { ...defaultSettings },
             }),
             saveSettingsDebounced: vi.fn(),
         });
@@ -40,7 +40,7 @@ describe('query-context', () => {
                 const messages = [
                     { mes: 'Sarah went to the Cabin with Marcus' },
                     { mes: 'They talked for hours.' },
-                    { mes: 'It was a good day.' }
+                    { mes: 'It was a good day.' },
                 ];
                 const result = extractQueryContext(messages);
 
@@ -53,7 +53,7 @@ describe('query-context', () => {
                 const messages = [
                     { mes: 'Саша пошла в Москву' },
                     { mes: 'Там было хорошо.' },
-                    { mes: 'Она вернулась домой.' }
+                    { mes: 'Она вернулась домой.' },
                 ];
                 const result = extractQueryContext(messages);
 
@@ -65,7 +65,7 @@ describe('query-context', () => {
                 const messages = [
                     { mes: 'The quick fox. Then Sarah arrived. This is a test.' },
                     { mes: 'Another message here.' },
-                    { mes: 'And one more.' }
+                    { mes: 'And one more.' },
                 ];
                 const result = extractQueryContext(messages);
 
@@ -79,7 +79,7 @@ describe('query-context', () => {
                 const messages = [
                     { mes: 'После обеда Саша ушла. Когда она вернулась...' },
                     { mes: 'Она была рада.' },
-                    { mes: 'Все было хорошо.' }
+                    { mes: 'Все было хорошо.' },
                 ];
                 const result = extractQueryContext(messages);
 
@@ -92,7 +92,7 @@ describe('query-context', () => {
                 const messages = [
                     { mes: 'Mr Jo went home. Sarah stayed.' },
                     { mes: 'It was late.' },
-                    { mes: 'Time to sleep.' }
+                    { mes: 'Time to sleep.' },
                 ];
                 const result = extractQueryContext(messages);
 
@@ -105,11 +105,11 @@ describe('query-context', () => {
         describe('recency weighting', () => {
             it('weights recent messages higher', () => {
                 const messages = [
-                    { mes: 'Marcus arrived at the door.' },    // newest, index 0
-                    { mes: 'Sarah left earlier.' },            // middle, index 1
-                    { mes: 'Bob was there too.' },             // index 2
-                    { mes: 'Charlie came by.' },               // index 3
-                    { mes: 'Marcus spoke first.' }             // oldest, index 4
+                    { mes: 'Marcus arrived at the door.' }, // newest, index 0
+                    { mes: 'Sarah left earlier.' }, // middle, index 1
+                    { mes: 'Bob was there too.' }, // index 2
+                    { mes: 'Charlie came by.' }, // index 3
+                    { mes: 'Marcus spoke first.' }, // oldest, index 4
                 ];
                 const result = extractQueryContext(messages);
 
@@ -121,11 +121,11 @@ describe('query-context', () => {
 
             it('returns top entities sorted by weight', () => {
                 const messages = [
-                    { mes: 'Alice talked to Bob. Alice smiled.' },  // Alice 2x, Bob 1x
-                    { mes: 'Charlie arrived at noon.' },            // Charlie 1x
-                    { mes: 'David waved hello.' },                  // David 1x
-                    { mes: 'Alice left the room.' },                // Alice 1x
-                    { mes: 'Everyone said goodbye.' }               // no entities
+                    { mes: 'Alice talked to Bob. Alice smiled.' }, // Alice 2x, Bob 1x
+                    { mes: 'Charlie arrived at noon.' }, // Charlie 1x
+                    { mes: 'David waved hello.' }, // David 1x
+                    { mes: 'Alice left the room.' }, // Alice 1x
+                    { mes: 'Everyone said goodbye.' }, // no entities
                 ];
                 const result = extractQueryContext(messages);
 
@@ -139,7 +139,7 @@ describe('query-context', () => {
                 const messages = [
                     { mes: 'Someone mentioned the cabin.' },
                     { mes: 'It was quiet outside.' },
-                    { mes: 'Nothing else happened.' }
+                    { mes: 'Nothing else happened.' },
                 ];
                 const activeCharacters = ['Elena', 'Viktor'];
                 const result = extractQueryContext(messages, activeCharacters);
@@ -156,7 +156,7 @@ describe('query-context', () => {
                     { mes: 'Alice and Bob talked.' },
                     { mes: 'Alice went home.' },
                     { mes: 'Alice came back.' },
-                    { mes: 'Charlie arrived.' }
+                    { mes: 'Charlie arrived.' },
                 ];
                 const result = extractQueryContext(messages);
 
@@ -185,7 +185,7 @@ describe('query-context', () => {
                 const messages = [
                     { mes: 'just lowercase text here' },
                     { mes: 'more lowercase words' },
-                    { mes: 'nothing special' }
+                    { mes: 'nothing special' },
                 ];
                 const result = extractQueryContext(messages);
                 expect(result.entities).toEqual([]);
@@ -195,11 +195,7 @@ describe('query-context', () => {
 
     describe('buildEmbeddingQuery', () => {
         it('concatenates messages without duplication', () => {
-            const messages = [
-                { mes: 'newest message' },
-                { mes: 'second message' },
-                { mes: 'third message' }
-            ];
+            const messages = [{ mes: 'newest message' }, { mes: 'second message' }, { mes: 'third message' }];
             const entities = { entities: [], weights: {} };
             const query = buildEmbeddingQuery(messages, entities);
 
@@ -215,7 +211,7 @@ describe('query-context', () => {
             const messages = [{ mes: 'some context' }];
             const entities = {
                 entities: ['Alice', 'Cabin', 'Secret'],
-                weights: { Alice: 2.0, Cabin: 1.5, Secret: 1.0 }
+                weights: { Alice: 2.0, Cabin: 1.5, Secret: 1.0 },
             };
             const query = buildEmbeddingQuery(messages, entities);
 
@@ -226,11 +222,7 @@ describe('query-context', () => {
 
         it('respects chunk size limit', () => {
             const longMessage = 'word '.repeat(500);
-            const messages = [
-                { mes: longMessage },
-                { mes: longMessage },
-                { mes: longMessage }
-            ];
+            const messages = [{ mes: longMessage }, { mes: longMessage }, { mes: longMessage }];
             const entities = { entities: ['Entity'], weights: { Entity: 1 } };
             const query = buildEmbeddingQuery(messages, entities);
 
@@ -265,7 +257,7 @@ describe('query-context', () => {
             const entities = { entities: [], weights: {} };
             const tokens = buildBM25Tokens(userMessage, entities);
 
-            expect(tokens).toContain('alic');  // 'alice' stemmed by English Snowball
+            expect(tokens).toContain('alic'); // 'alice' stemmed by English Snowball
             // 'where' and 'is' are stop words, should be filtered
             expect(tokens).not.toContain('where');
             expect(tokens).not.toContain('is');
@@ -275,30 +267,30 @@ describe('query-context', () => {
             const userMessage = 'hello';
             const entities = {
                 entities: ['Sasha'],
-                weights: { Sasha: 2.0 }
+                weights: { Sasha: 2.0 },
             };
             const tokens = buildBM25Tokens(userMessage, entities);
 
             // Weight 2.0 * default boost 5.0 = 10.0, ceil = 10 repeats
-            const sashaCount = tokens.filter(t => t === 'sasha').length;
+            const sashaCount = tokens.filter((t) => t === 'sasha').length;
             expect(sashaCount).toBe(10);
         });
 
         it('handles empty user message', () => {
             const entities = {
                 entities: ['Alice'],
-                weights: { Alice: 1.5 }
+                weights: { Alice: 1.5 },
             };
             const tokens = buildBM25Tokens('', entities);
 
             // Should still have entity tokens (stemmed)
-            expect(tokens).toContain('alic');  // 'Alice' stemmed
+            expect(tokens).toContain('alic'); // 'Alice' stemmed
         });
 
         it('handles null entities', () => {
             const tokens = buildBM25Tokens('test query', null);
             expect(tokens).toContain('test');
-            expect(tokens).toContain('queri');  // 'query' stemmed by English Snowball
+            expect(tokens).toContain('queri'); // 'query' stemmed by English Snowball
         });
     });
 

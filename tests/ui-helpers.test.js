@@ -1,24 +1,24 @@
 /**
  * Tests for src/ui/helpers.js
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-    filterMemories,
-    sortMemoriesByDate,
-    getPaginationInfo,
-    extractCharactersSet,
     buildCharacterStateData,
-    calculateExtractionStats,
-    getBatchProgressInfo,
-    validateRPM,
     buildProfileOptions,
-    formatMemoryImportance,
-    formatMemoryDate,
-    formatWitnesses,
-    getStatusText,
+    calculateExtractionStats,
+    extractCharactersSet,
+    filterMemories,
     formatEmotionSource,
     formatHiddenMessagesText,
     formatMemoryContextCount,
+    formatMemoryDate,
+    formatMemoryImportance,
+    formatWitnesses,
+    getBatchProgressInfo,
+    getPaginationInfo,
+    getStatusText,
+    sortMemoriesByDate,
+    validateRPM,
 } from '../src/ui/helpers.js';
 
 describe('ui/helpers', () => {
@@ -37,7 +37,7 @@ describe('ui/helpers', () => {
         it('filters by character', () => {
             const result = filterMemories(memories, '', 'Alice');
             expect(result).toHaveLength(2);
-            expect(result.every(m => m.characters_involved.includes('Alice'))).toBe(true);
+            expect(result.every((m) => m.characters_involved.includes('Alice'))).toBe(true);
         });
 
         it('returns empty array when no matches', () => {
@@ -159,9 +159,7 @@ describe('ui/helpers', () => {
         });
 
         it('returns sorted array', () => {
-            const memories = [
-                { characters_involved: ['Zelda', 'Alice', 'Mike'] },
-            ];
+            const memories = [{ characters_involved: ['Zelda', 'Alice', 'Mike'] }];
 
             const result = extractCharactersSet(memories);
 

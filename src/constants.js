@@ -11,7 +11,7 @@ const currentUrl = new URL(import.meta.url);
 const pathFromST = currentUrl.pathname;
 // Handle both Unix and Windows paths, remove /src/constants.js suffix
 export const extensionFolderPath = pathFromST
-    .replace(/^\/([A-Z]:)/, '$1')  // Fix Windows drive letter (e.g., /C: -> C:)
+    .replace(/^\/([A-Z]:)/, '$1') // Fix Windows drive letter (e.g., /C: -> C:)
     .replace(/[/\\]src[/\\]constants\.js$/, '');
 
 // Metadata keys for chat storage
@@ -29,11 +29,11 @@ export const defaultSettings = {
     debugMode: false,
     // Extraction settings
     messagesPerExtraction: 30,
-    extractionBuffer: 5,         // Recent messages to exclude from auto-extraction
+    extractionBuffer: 5, // Recent messages to exclude from auto-extraction
     extractionRearviewTokens: 12000, // Token budget for extraction memory context
     // Retrieval pipeline settings (token-based)
     retrievalPreFilterTokens: 20000, // Smart mode: pre-filter budget for LLM pool
-    retrievalFinalTokens: 10000,     // Final context budget (both modes)
+    retrievalFinalTokens: 10000, // Final context budget (both modes)
     smartRetrievalEnabled: false,
     // Auto-hide settings
     autoHideEnabled: true,
@@ -44,20 +44,20 @@ export const defaultSettings = {
     embeddingSource: 'multilingual-e5-small', // model name or 'ollama'
     ollamaUrl: '',
     embeddingModel: '',
-    embeddingQueryPrefix: 'query: ',                       // Asymmetric: query-side prefix
-    embeddingDocPrefix: 'passage: ',                       // Asymmetric: doc-side prefix
+    embeddingQueryPrefix: 'query: ', // Asymmetric: query-side prefix
+    embeddingDocPrefix: 'passage: ', // Asymmetric: doc-side prefix
     // Alpha-blend scoring (new)
-    alpha: 0.7,                    // Vector vs keyword blend: 1.0 = vector only, 0.0 = BM25 only
-    combinedBoostWeight: 15,       // Max boost points for retrieval (BM25 + vector)
+    alpha: 0.7, // Vector vs keyword blend: 1.0 = vector only, 0.0 = BM25 only
+    combinedBoostWeight: 15, // Max boost points for retrieval (BM25 + vector)
     // Legacy keys (kept for migration/backwards compat)
     vectorSimilarityWeight: 15,
     vectorSimilarityThreshold: 0.5,
     keywordMatchWeight: 3.0,
     // Deduplication settings
-    dedupSimilarityThreshold: 0.85,     // Cosine similarity threshold for filtering duplicates (0-1)
+    dedupSimilarityThreshold: 0.85, // Cosine similarity threshold for filtering duplicates (0-1)
     // Forgetfulness curve settings (scoring)
-    forgetfulnessBaseLambda: 0.05,      // Base decay rate for exponential curve
-    forgetfulnessImportance5Floor: 5,   // Minimum score for importance-5 memories
+    forgetfulnessBaseLambda: 0.05, // Base decay rate for exponential curve
+    forgetfulnessImportance5Floor: 5, // Minimum score for importance-5 memories
 };
 
 // Embedding prefix defaults per model
@@ -65,9 +65,9 @@ export const defaultSettings = {
 // User can still override manually.
 export const embeddingModelPrefixes = {
     'multilingual-e5-small': { queryPrefix: 'query: ', docPrefix: 'passage: ' },
-    'bge-small-en-v1.5':    { queryPrefix: 'Represent this sentence for searching relevant passages: ', docPrefix: '' },
-    'embeddinggemma-300m':   { queryPrefix: 'search for similar scenes: ', docPrefix: '' },
-    '_default':              { queryPrefix: 'query: ', docPrefix: 'passage: ' },
+    'bge-small-en-v1.5': { queryPrefix: 'Represent this sentence for searching relevant passages: ', docPrefix: '' },
+    'embeddinggemma-300m': { queryPrefix: 'search for similar scenes: ', docPrefix: '' },
+    _default: { queryPrefix: 'query: ', docPrefix: 'passage: ' },
 };
 
 // Timeout constants
@@ -79,11 +79,11 @@ export const MEMORIES_PER_PAGE = 20;
 
 // Query context extraction defaults
 export const QUERY_CONTEXT_DEFAULTS = {
-    entityWindowSize: 10,       // messages to scan for entities
-    embeddingWindowSize: 5,     // messages for embedding query
-    recencyDecayFactor: 0.09,   // weight reduction per position
-    topEntitiesCount: 5,        // max entities to inject
-    entityBoostWeight: 5.0      // BM25 boost for extracted entities
+    entityWindowSize: 10, // messages to scan for entities
+    embeddingWindowSize: 5, // messages for embedding query
+    recencyDecayFactor: 0.09, // weight reduction per position
+    topEntitiesCount: 5, // max entities to inject
+    entityBoostWeight: 5.0, // BM25 boost for extracted entities
 };
 
 // UI hint defaults - derived from defaultSettings and QUERY_CONTEXT_DEFAULTS
@@ -113,4 +113,3 @@ export const UI_DEFAULT_HINTS = {
     retrievalPreFilterTokens: defaultSettings.retrievalPreFilterTokens,
     backfillRateLimit: defaultSettings.backfillMaxRPM,
 };
-

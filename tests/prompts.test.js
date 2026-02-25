@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { buildExtractionPrompt, buildSmartRetrievalPrompt } from '../src/prompts.js';
 
 describe('buildExtractionPrompt', () => {
@@ -66,9 +66,7 @@ describe('buildExtractionPrompt', () => {
         const args = {
             ...baseArgs,
             context: {
-                memories: [
-                    { importance: 3, summary: 'Alice waved at Bob', sequence: 1 }
-                ],
+                memories: [{ importance: 3, summary: 'Alice waved at Bob', sequence: 1 }],
                 charDesc: '',
                 personaDesc: '',
             },

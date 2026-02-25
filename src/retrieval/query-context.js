@@ -5,25 +5,76 @@
  * Supports both Latin and Cyrillic text. Uses rule-based extraction (no ML model).
  */
 
-import { getDeps } from '../deps.js';
 import { extensionName, QUERY_CONTEXT_DEFAULTS } from '../constants.js';
+import { getDeps } from '../deps.js';
 import { getOptimalChunkSize } from '../embeddings.js';
 import { tokenize } from './math.js';
 
 // Common sentence starters to exclude (Latin)
 const LATIN_STARTERS = new Set([
-    'The', 'This', 'That', 'Then', 'There', 'These', 'Those',
-    'When', 'Where', 'What', 'Which', 'While', 'Who', 'Why',
-    'How', 'Here', 'Now', 'Just', 'But', 'And', 'Yet', 'Still',
-    'Also', 'Only', 'Even', 'Well', 'Much', 'Very', 'Some'
+    'The',
+    'This',
+    'That',
+    'Then',
+    'There',
+    'These',
+    'Those',
+    'When',
+    'Where',
+    'What',
+    'Which',
+    'While',
+    'Who',
+    'Why',
+    'How',
+    'Here',
+    'Now',
+    'Just',
+    'But',
+    'And',
+    'Yet',
+    'Still',
+    'Also',
+    'Only',
+    'Even',
+    'Well',
+    'Much',
+    'Very',
+    'Some',
 ]);
 
 // Common sentence starters to exclude (Cyrillic/Russian)
 const CYRILLIC_STARTERS = new Set([
-    'После', 'Когда', 'Потом', 'Затем', 'Тогда', 'Здесь', 'Там',
-    'Это', 'Эта', 'Этот', 'Эти', 'Что', 'Как', 'Где', 'Куда',
-    'Почему', 'Зачем', 'Кто', 'Чей', 'Какой', 'Какая', 'Какое',
-    'Пока', 'Если', 'Хотя', 'Также', 'Ещё', 'Уже', 'Вот', 'Вон'
+    'После',
+    'Когда',
+    'Потом',
+    'Затем',
+    'Тогда',
+    'Здесь',
+    'Там',
+    'Это',
+    'Эта',
+    'Этот',
+    'Эти',
+    'Что',
+    'Как',
+    'Где',
+    'Куда',
+    'Почему',
+    'Зачем',
+    'Кто',
+    'Чей',
+    'Какой',
+    'Какая',
+    'Какое',
+    'Пока',
+    'Если',
+    'Хотя',
+    'Также',
+    'Ещё',
+    'Уже',
+    'Вот',
+    'Вон',
 ]);
 
 /**
@@ -105,7 +156,7 @@ export function extractQueryContext(messages, activeCharacters = []) {
 
     // Process each message
     messagesToScan.forEach((msg, index) => {
-        const recencyWeight = 1 - (index * settings.recencyDecayFactor);
+        const recencyWeight = 1 - index * settings.recencyDecayFactor;
         const text = msg.mes || msg.message || '';
         const entities = extractFromText(text);
 
@@ -125,7 +176,7 @@ export function extractQueryContext(messages, activeCharacters = []) {
     });
 
     // Add known character names with high priority
-    const charNamesSet = new Set(activeCharacters.map(c => c.toLowerCase()));
+    const charNamesSet = new Set(activeCharacters.map((c) => c.toLowerCase()));
     for (const charName of activeCharacters) {
         if (charName && charName.length >= 2) {
             const current = entityScores.get(charName) || { count: 0, weightSum: 0 };
@@ -223,10 +274,10 @@ export function parseRecentMessages(recentContext, count = 10) {
     if (!recentContext) return [];
 
     // Split by newlines and filter empty
-    const lines = recentContext.split('\n').filter(line => line.trim());
+    const lines = recentContext.split('\n').filter((line) => line.trim());
 
     // Take last N messages, then reverse so newest is first
     const recent = lines.slice(-count).reverse();
 
-    return recent.map(line => ({ mes: line }));
+    return recent.map((line) => ({ mes: line }));
 }

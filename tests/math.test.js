@@ -2,8 +2,8 @@
  * Tests for src/retrieval/math.js
  * Tests the pure mathematical functions for scoring.
  */
-import { describe, it, expect } from 'vitest';
-import { calculateScore, scoreMemories, tokenize, cosineSimilarity } from '../src/retrieval/math.js';
+import { describe, expect, it } from 'vitest';
+import { calculateScore, cosineSimilarity, scoreMemories, tokenize } from '../src/retrieval/math.js';
 
 describe('math.js - alpha-blend scoring', () => {
     it('BM25 bonus is capped at (1-alpha) * combinedBoostWeight', () => {
@@ -60,9 +60,7 @@ describe('math.js - alpha-blend scoring', () => {
     });
 
     it('gracefully handles all-zero BM25 scores', () => {
-        const memories = [
-            { summary: 'no match here', importance: 3, message_ids: [90] },
-        ];
+        const memories = [{ summary: 'no match here', importance: 3, message_ids: [90] }];
         const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 };
         const settings = {
             vectorSimilarityThreshold: 0.5,
@@ -136,8 +134,8 @@ describe('math.js - IDF-aware entity boost', () => {
         const results = scoreMemories(memories, null, 100, constants, settings, queryTokens);
 
         // Find the dragon memory and a suzy memory
-        const dragonMemory = results.find(r => r.memory.summary.includes('dragon'));
-        const suzyMemory = results.find(r => r.memory.summary.includes('Suzy'));
+        const dragonMemory = results.find((r) => r.memory.summary.includes('dragon'));
+        const suzyMemory = results.find((r) => r.memory.summary.includes('Suzy'));
 
         // Both should get some BM25 bonus, but dragon should rank higher
         // because "dragon" is rare (1/21 docs) vs "suzi" (10/21 docs)
@@ -172,14 +170,12 @@ describe('math.js - IDF-aware entity boost', () => {
         const results = scoreMemories(memories, null, 100, constants, settings, queryTokens);
 
         // "dragon" is rare (1/10 docs), IDF is high → BM25 bonus should be significant
-        const dragonMemory = results.find(r => r.memory.summary.includes('dragon'));
+        const dragonMemory = results.find((r) => r.memory.summary.includes('dragon'));
         expect(dragonMemory.breakdown.bm25Bonus).toBeGreaterThan(3.0);
     });
 
     it('handles empty query tokens gracefully', () => {
-        const memories = [
-            { summary: 'test memory', importance: 3, message_ids: [10] },
-        ];
+        const memories = [{ summary: 'test memory', importance: 3, message_ids: [10] }];
         const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 };
         const settings = {
             vectorSimilarityThreshold: 0.5,
@@ -192,9 +188,7 @@ describe('math.js - IDF-aware entity boost', () => {
     });
 
     it('handles null/undefined query tokens', () => {
-        const memories = [
-            { summary: 'test memory', importance: 3, message_ids: [10] },
-        ];
+        const memories = [{ summary: 'test memory', importance: 3, message_ids: [10] }];
         const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 };
         const settings = {
             vectorSimilarityThreshold: 0.5,

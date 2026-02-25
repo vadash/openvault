@@ -5,9 +5,9 @@
  * Zero side effects, easily testable.
  */
 
-import { escapeHtml } from '../utils.js';
-import { formatMemoryImportance, formatMemoryDate, formatWitnesses } from './helpers.js';
 import { isEmbeddingsEnabled } from '../embeddings.js';
+import { escapeHtml } from '../utils.js';
+import { formatMemoryDate, formatMemoryImportance, formatWitnesses } from './helpers.js';
 
 // CSS class constants
 const CLASSES = {
@@ -35,13 +35,19 @@ function buildBadges(memory) {
     badges.push(`<span class="openvault-memory-card-badge importance">${stars}</span>`);
 
     if (needsEmbed) {
-        badges.push(`<span class="openvault-memory-card-badge pending-embed" title="Embedding pending"><i class="fa-solid fa-rotate-right"></i></span>`);
+        badges.push(
+            `<span class="openvault-memory-card-badge pending-embed" title="Embedding pending"><i class="fa-solid fa-rotate-right"></i></span>`
+        );
     }
     if (witnessText) {
-        badges.push(`<span class="openvault-memory-card-badge witness"><i class="fa-solid fa-eye"></i> ${escapeHtml(witnessText)}</span>`);
+        badges.push(
+            `<span class="openvault-memory-card-badge witness"><i class="fa-solid fa-eye"></i> ${escapeHtml(witnessText)}</span>`
+        );
     }
     if (location) {
-        badges.push(`<span class="openvault-memory-card-badge location"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(location)}</span>`);
+        badges.push(
+            `<span class="openvault-memory-card-badge location"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(location)}</span>`
+        );
     }
 
     return badges.join('');
@@ -53,9 +59,7 @@ function buildBadges(memory) {
 function buildCharacterTags(characters) {
     if (!characters || characters.length === 0) return '';
 
-    const tags = characters
-        .map(c => `<span class="${CLASSES.CHARACTER_TAG}">${escapeHtml(c)}</span>`)
-        .join('');
+    const tags = characters.map((c) => `<span class="${CLASSES.CHARACTER_TAG}">${escapeHtml(c)}</span>`).join('');
 
     return `<div class="${CLASSES.MEMORY_CHARACTERS}" style="margin-top: 8px;">${tags}</div>`;
 }
@@ -119,9 +123,7 @@ export function renderMemoryItem(memory) {
  * Build importance select options
  */
 function buildImportanceOptions(current) {
-    return [1, 2, 3, 4, 5]
-        .map(i => `<option value="${i}"${i === current ? ' selected' : ''}>${i}</option>`)
-        .join('');
+    return [1, 2, 3, 4, 5].map((i) => `<option value="${i}"${i === current ? ' selected' : ''}>${i}</option>`).join('');
 }
 
 /**

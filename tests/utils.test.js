@@ -1,27 +1,27 @@
 /**
  * Tests for src/utils.js
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { setDeps, resetDeps } from '../src/deps.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CHARACTERS_KEY, extensionName, LAST_PROCESSED_KEY, MEMORIES_KEY, METADATA_KEY } from '../src/constants.js';
+import { resetDeps, setDeps } from '../src/deps.js';
 import {
-    withTimeout,
-    getOpenVaultData,
+    escapeHtml,
+    generateId,
     getCurrentChatId,
+    getExtractedMessageIds,
+    getOpenVaultData,
+    getUnextractedMessageIds,
+    isAutomaticMode,
+    isExtensionEnabled,
+    log,
+    safeParseJSON,
+    safeSetExtensionPrompt,
     saveOpenVaultData,
     showToast,
-    safeSetExtensionPrompt,
-    generateId,
-    escapeHtml,
-    log,
-    getExtractedMessageIds,
-    getUnextractedMessageIds,
-    isExtensionEnabled,
-    isAutomaticMode,
-    safeParseJSON,
     sortMemoriesBySequence,
     stripThinkingTags,
+    withTimeout,
 } from '../src/utils.js';
-import { extensionName, METADATA_KEY, MEMORIES_KEY, CHARACTERS_KEY, LAST_PROCESSED_KEY } from '../src/constants.js';
 
 describe('utils', () => {
     let mockConsole;
@@ -41,7 +41,7 @@ describe('utils', () => {
             console: mockConsole,
             getContext: () => mockContext,
             getExtensionSettings: () => ({
-                [extensionName]: { enabled: true, debugMode: true }
+                [extensionName]: { enabled: true, debugMode: true },
             }),
         });
     });
@@ -58,7 +58,7 @@ describe('utils', () => {
         });
 
         it('rejects when promise exceeds timeout', async () => {
-            const promise = new Promise(resolve => setTimeout(resolve, 100));
+            const promise = new Promise((resolve) => setTimeout(resolve, 100));
             await expect(withTimeout(promise, 10, 'Test')).rejects.toThrow('Test timed out after 10ms');
         });
     });
@@ -209,7 +209,9 @@ describe('utils', () => {
         it('returns false on error', () => {
             setDeps({
                 console: mockConsole,
-                setExtensionPrompt: () => { throw new Error('Prompt failed'); },
+                setExtensionPrompt: () => {
+                    throw new Error('Prompt failed');
+                },
                 extension_prompt_types: { IN_PROMPT: 3 },
             });
 
@@ -380,7 +382,7 @@ describe('utils', () => {
         it('returns true when enabled is true (automatic mode is now implicit)', () => {
             setDeps({
                 getExtensionSettings: () => ({
-                    [extensionName]: { enabled: true }
+                    [extensionName]: { enabled: true },
                 }),
             });
             expect(isAutomaticMode()).toBe(true);
@@ -389,7 +391,7 @@ describe('utils', () => {
         it('returns false when disabled', () => {
             setDeps({
                 getExtensionSettings: () => ({
-                    [extensionName]: { enabled: false }
+                    [extensionName]: { enabled: false },
                 }),
             });
             expect(isAutomaticMode()).toBe(false);
@@ -447,7 +449,7 @@ describe('utils', () => {
                 { id: '3', sequence: 20 },
             ];
             const sorted = sortMemoriesBySequence(memories);
-            expect(sorted.map(m => m.id)).toEqual(['2', '3', '1']);
+            expect(sorted.map((m) => m.id)).toEqual(['2', '3', '1']);
         });
 
         it('sorts by sequence descending when specified', () => {
@@ -457,7 +459,7 @@ describe('utils', () => {
                 { id: '3', sequence: 20 },
             ];
             const sorted = sortMemoriesBySequence(memories, false);
-            expect(sorted.map(m => m.id)).toEqual(['1', '3', '2']);
+            expect(sorted.map((m) => m.id)).toEqual(['1', '3', '2']);
         });
 
         it('falls back to created_at when sequence missing', () => {
@@ -467,7 +469,7 @@ describe('utils', () => {
                 { id: '3', sequence: 200 },
             ];
             const sorted = sortMemoriesBySequence(memories);
-            expect(sorted.map(m => m.id)).toEqual(['2', '3', '1']);
+            expect(sorted.map((m) => m.id)).toEqual(['2', '3', '1']);
         });
 
         it('does not mutate original array', () => {
@@ -552,7 +554,7 @@ describe('utils', () => {
             const result = safeParseJSON(input);
             expect(result).toEqual({ value: 42 });
         });
-});
+    });
 
     describe('safeParseJSON with conversational filler', () => {
         it('extracts JSON from conversational response', () => {

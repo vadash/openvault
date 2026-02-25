@@ -7,13 +7,13 @@
 import { estimateTokens } from '../utils.js';
 
 // Narrative engine constants
-export const CURRENT_SCENE_SIZE = 100;   // "Current Scene" = last 100 messages
-export const LEADING_UP_SIZE = 500;     // "Leading Up" = messages 101-500 ago
+export const CURRENT_SCENE_SIZE = 100; // "Current Scene" = last 100 messages
+export const LEADING_UP_SIZE = 500; // "Leading Up" = messages 101-500 ago
 
 // Gap thresholds (for separators in "Story So Far")
-const GAP_SMALL = 15;    // No separator
-const GAP_MEDIUM = 100;  // "..."
-const GAP_LARGE = 500;   // "...Later..." / "...Much later..."
+const GAP_SMALL = 15; // No separator
+const GAP_MEDIUM = 100; // "..."
+const GAP_LARGE = 500; // "...Later..." / "...Much later..."
 
 /**
  * Get gap separator text based on message distance
@@ -119,12 +119,15 @@ export function assignMemoriesToBuckets(memories, chatLength) {
  * @param {number} chatLength - Current chat length for context
  * @returns {string} Formatted context string
  */
-export function formatContextForInjection(memories, presentCharacters, emotionalInfo, characterName, tokenBudget, chatLength = 0) {
-    const lines = [
-        '<scene_memory>',
-        `(#${chatLength} messages)`,
-        ''
-    ];
+export function formatContextForInjection(
+    memories,
+    presentCharacters,
+    emotionalInfo,
+    characterName,
+    tokenBudget,
+    chatLength = 0
+) {
+    const lines = ['<scene_memory>', `(#${chatLength} messages)`, ''];
 
     // Assign memories to buckets
     const buckets = assignMemoriesToBuckets(memories, chatLength);
@@ -188,9 +191,9 @@ export function formatContextForInjection(memories, presentCharacters, emotional
 
     // Filter buckets to only include fitting memories
     const filteredBuckets = {
-        old: buckets.old.filter(m => fittingMemoryIds.has(m.id)),
-        mid: buckets.mid.filter(m => fittingMemoryIds.has(m.id)),
-        recent: buckets.recent.filter(m => fittingMemoryIds.has(m.id)),
+        old: buckets.old.filter((m) => fittingMemoryIds.has(m.id)),
+        mid: buckets.mid.filter((m) => fittingMemoryIds.has(m.id)),
+        recent: buckets.recent.filter((m) => fittingMemoryIds.has(m.id)),
     };
 
     // Render OLD bucket (with gap separators)

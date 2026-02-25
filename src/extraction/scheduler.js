@@ -18,13 +18,13 @@ export function getExtractedMessageIds(data) {
     if (!data) return extractedIds;
 
     // From memories (legacy tracking)
-    for (const memory of (data[MEMORIES_KEY] || [])) {
-        for (const msgId of (memory.message_ids || [])) {
+    for (const memory of data[MEMORIES_KEY] || []) {
+        for (const msgId of memory.message_ids || []) {
             extractedIds.add(msgId);
         }
     }
     // From processed message tracking (includes messages with no events)
-    for (const msgId of (data[PROCESSED_MESSAGES_KEY] || [])) {
+    for (const msgId of data[PROCESSED_MESSAGES_KEY] || []) {
         extractedIds.add(msgId);
     }
     return extractedIds;
@@ -83,7 +83,7 @@ export function getNextBatch(chat, data, batchSize, bufferSize = 0, maxTokens) {
     }
 
     // Token-aware batching: accumulate messages until token limit
-    let batch = [];
+    const batch = [];
     let currentTokens = 0;
 
     for (const id of unextractedIds) {

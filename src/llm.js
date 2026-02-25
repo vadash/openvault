@@ -5,10 +5,10 @@
  * Prompts must be arrays of message objects with System/User roles.
  */
 
-import { getDeps } from './deps.js';
-import { log, showToast } from './utils.js';
 import { extensionName } from './constants.js';
+import { getDeps } from './deps.js';
 import { getExtractionJsonSchema, getRetrievalJsonSchema } from './extraction/structured.js';
+import { log, showToast } from './utils.js';
 
 /**
  * LLM configuration presets
@@ -25,7 +25,7 @@ export const LLM_CONFIGS = {
         maxTokens: 4000,
         errorContext: 'Smart retrieval',
         getJsonSchema: getRetrievalJsonSchema,
-    }
+    },
 };
 
 /**
@@ -50,13 +50,15 @@ export async function callLLM(messages, config, options = {}) {
         profileId = extension_settings?.connectionManager?.selectedProfile;
         if (profileId) {
             const profiles = extension_settings?.connectionManager?.profiles || [];
-            const profile = profiles.find(p => p.id === profileId);
+            const profile = profiles.find((p) => p.id === profileId);
             log(`No ${profileSettingKey} set, using current profile: ${profile?.name || profileId}`);
         }
     }
 
     if (!profileId) {
-        throw new Error(`No connection profile available for ${errorContext.toLowerCase()}. Please configure a profile in Connection Manager.`);
+        throw new Error(
+            `No connection profile available for ${errorContext.toLowerCase()}. Please configure a profile in Connection Manager.`
+        );
     }
 
     try {
@@ -71,9 +73,9 @@ export async function callLLM(messages, config, options = {}) {
             {
                 includePreset: true,
                 includeInstruct: true,
-                stream: false
+                stream: false,
             },
-            jsonSchema ? { jsonSchema } : {}  // 5th parameter
+            jsonSchema ? { jsonSchema } : {} // 5th parameter
         );
 
         const content = result?.content || result || '';

@@ -20,12 +20,12 @@
  * @property {boolean} smartRetrievalEnabled - Whether to use LLM for selection
  */
 
+import { CHARACTERS_KEY, extensionName, MEMORIES_KEY } from '../constants.js';
 import { getDeps } from '../deps.js';
-import { getOpenVaultData, safeSetExtensionPrompt, log, isExtensionEnabled, isAutomaticMode } from '../utils.js';
-import { extensionName, MEMORIES_KEY, CHARACTERS_KEY } from '../constants.js';
-import { getActiveCharacters, getPOVContext, filterMemoriesByPOV } from '../pov.js';
-import { selectRelevantMemories } from './scoring.js';
+import { filterMemoriesByPOV, getActiveCharacters, getPOVContext } from '../pov.js';
+import { getOpenVaultData, isAutomaticMode, isExtensionEnabled, log, safeSetExtensionPrompt } from '../utils.js';
 import { formatContextForInjection } from './formatting.js';
+import { selectRelevantMemories } from './scoring.js';
 
 /**
  * Get memories from hidden (system) messages that need retrieval
@@ -40,7 +40,7 @@ import { formatContextForInjection } from './formatting.js';
  * @returns {Object[]} Memories whose oldest source message is hidden
  */
 function _getHiddenMemories(chat, memories) {
-    return memories.filter(m => {
+    return memories.filter((m) => {
         if (!m.message_ids?.length) return false;
         const minId = Math.min(...m.message_ids);
         return chat[minId]?.is_system;
@@ -61,13 +61,19 @@ export function buildRetrievalContext(opts = {}) {
     const { povCharacters, isGroupChat } = getPOVContext();
 
     // Build recent context (all non-system messages)
-    let recentContext = chat.filter(m => !m.is_system).map(m => m.mes).join('\n');
+    let recentContext = chat
+        .filter((m) => !m.is_system)
+        .map((m) => m.mes)
+        .join('\n');
     if (opts.pendingUserMessage) {
         recentContext += '\n\n[User is about to say]: ' + opts.pendingUserMessage;
     }
 
     // Build user messages for embedding (last 3 user messages, capped at 1000 chars)
-    let userMsgs = chat.filter(m => !m.is_system && m.is_user).slice(-3).map(m => m.mes);
+    let userMsgs = chat
+        .filter((m) => !m.is_system && m.is_user)
+        .slice(-3)
+        .map((m) => m.mes);
     if (opts.pendingUserMessage) {
         userMsgs.push(opts.pendingUserMessage);
         userMsgs = userMsgs.slice(-3);
@@ -131,7 +137,7 @@ async function selectFormatAndInject(memoriesToUse, data, ctx) {
     };
 
     // Get present characters (excluding POV)
-    const presentCharacters = activeCharacters.filter(c => c !== primaryCharacter);
+    const presentCharacters = activeCharacters.filter((c) => c !== primaryCharacter);
 
     // Format and inject
     const formattedContext = formatContextForInjection(
@@ -189,7 +195,9 @@ export async function retrieveAndInjectContext() {
 
         // Filter memories by POV
         const accessibleMemories = filterMemoriesByPOV(hiddenMemories, povCharacters, data);
-        log(`Retrieval filter: total=${memories.length}, hidden=${hiddenMemories.length}, pov=${accessibleMemories.length} (mode=${isGroupChat ? 'group' : 'narrator'}, chars=[${povCharacters.join(', ')}])`);
+        log(
+            `Retrieval filter: total=${memories.length}, hidden=${hiddenMemories.length}, pov=${accessibleMemories.length} (mode=${isGroupChat ? 'group' : 'narrator'}, chars=[${povCharacters.join(', ')}])`
+        );
 
         // Fallback to hidden memories if POV filter is too strict
         let memoriesToUse = accessibleMemories;
@@ -258,7 +266,9 @@ export async function updateInjection(pendingUserMessage = '') {
 
     // Filter memories by POV
     const accessibleMemories = filterMemoriesByPOV(hiddenMemories, povCharacters, data);
-    log(`POV filter: ${memories.length} total -> ${hiddenMemories.length} hidden -> ${accessibleMemories.length} accessible`);
+    log(
+        `POV filter: ${memories.length} total -> ${hiddenMemories.length} hidden -> ${accessibleMemories.length} accessible`
+    );
 
     // Fallback to hidden memories if POV filter is too strict
     let memoriesToUse = accessibleMemories;

@@ -4,8 +4,8 @@
  * Handles operation state machine, generation locks, and chat loading cooldown.
  */
 
-import { getDeps } from './deps.js';
 import { GENERATION_LOCK_TIMEOUT_MS } from './constants.js';
+import { getDeps } from './deps.js';
 
 // Operation state machine to prevent concurrent operations
 export const operationState = {

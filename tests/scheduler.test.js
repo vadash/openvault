@@ -1,34 +1,34 @@
 /**
  * Tests for src/extraction/scheduler.js
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { estimateTokens } from '../src/utils.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MEMORIES_KEY, PROCESSED_MESSAGES_KEY } from '../src/constants.js';
 import {
+    getBackfillMessageIds,
+    getBackfillStats,
     getExtractedMessageIds,
+    getNextBatch,
     getUnextractedMessageIds,
     isBatchReady,
-    getNextBatch,
-    getBackfillStats,
-    getBackfillMessageIds,
 } from '../src/extraction/scheduler.js';
-import { MEMORIES_KEY, PROCESSED_MESSAGES_KEY } from '../src/constants.js';
+import { estimateTokens } from '../src/utils.js';
 
 describe('scheduler token-aware batching', () => {
     it('limits batch to maxTokens parameter', () => {
         // Create chat with very long messages
         const longMessage = 'x'.repeat(2000); // ~570 tokens
         const chat = [
-            { mes: longMessage, is_user: true },   // ~570 tokens
-            { mes: longMessage, is_user: false },  // ~570 tokens
-            { mes: longMessage, is_user: true },   // ~570 tokens
-            { mes: longMessage, is_user: false },  // ~570 tokens
-            { mes: longMessage, is_user: true },   // ~570 tokens
-            { mes: longMessage, is_user: false },  // ~570 tokens
-            { mes: longMessage, is_user: true },   // ~570 tokens
-            { mes: longMessage, is_user: false },  // ~570 tokens
-            { mes: longMessage, is_user: true },   // ~570 tokens
-            { mes: longMessage, is_user: false },  // ~570 tokens
-            { mes: 'short', is_user: false },      // ~2 tokens
+            { mes: longMessage, is_user: true }, // ~570 tokens
+            { mes: longMessage, is_user: false }, // ~570 tokens
+            { mes: longMessage, is_user: true }, // ~570 tokens
+            { mes: longMessage, is_user: false }, // ~570 tokens
+            { mes: longMessage, is_user: true }, // ~570 tokens
+            { mes: longMessage, is_user: false }, // ~570 tokens
+            { mes: longMessage, is_user: true }, // ~570 tokens
+            { mes: longMessage, is_user: false }, // ~570 tokens
+            { mes: longMessage, is_user: true }, // ~570 tokens
+            { mes: longMessage, is_user: false }, // ~570 tokens
+            { mes: 'short', is_user: false }, // ~2 tokens
         ];
 
         const data = {};
@@ -107,7 +107,7 @@ describe('scheduler token-aware batching', () => {
         ];
 
         const data = {
-            [PROCESSED_MESSAGES_KEY]: [0, 1] // Already extracted
+            [PROCESSED_MESSAGES_KEY]: [0, 1], // Already extracted
         };
 
         const batch = getNextBatch(chat, data, 2, 0, 6000);

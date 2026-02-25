@@ -1,12 +1,12 @@
 /**
  * Tests for src/retrieval/formatting.js
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-    formatContextForInjection,
-    getMemoryPosition,
     assignMemoriesToBuckets,
     CURRENT_SCENE_SIZE,
+    formatContextForInjection,
+    getMemoryPosition,
     LEADING_UP_SIZE,
 } from '../src/retrieval/formatting.js';
 
@@ -52,9 +52,9 @@ describe('formatting', () => {
         it('assigns memories to correct buckets with fixed windows', () => {
             // Chat length 5000: recent > 4900, mid > 4500, old <= 4500
             const memories = [
-                { id: '1', message_ids: [100] },    // old (< 4500)
-                { id: '2', message_ids: [4600] },   // mid (4500-4900)
-                { id: '3', message_ids: [4950] },   // recent (> 4900)
+                { id: '1', message_ids: [100] }, // old (< 4500)
+                { id: '2', message_ids: [4600] }, // mid (4500-4900)
+                { id: '3', message_ids: [4950] }, // recent (> 4900)
             ];
             const result = assignMemoriesToBuckets(memories, 5000);
 
@@ -69,25 +69,25 @@ describe('formatting', () => {
         it('handles boundary at CURRENT_SCENE_SIZE (100)', () => {
             // Chat length 5000: recent threshold = 4900
             const memories = [
-                { id: '1', message_ids: [4900] },  // exactly at boundary = recent
-                { id: '2', message_ids: [4899] },  // just below = mid
+                { id: '1', message_ids: [4900] }, // exactly at boundary = recent
+                { id: '2', message_ids: [4899] }, // just below = mid
             ];
             const result = assignMemoriesToBuckets(memories, 5000);
 
-            expect(result.recent.some(m => m.id === '1')).toBe(true);
-            expect(result.mid.some(m => m.id === '2')).toBe(true);
+            expect(result.recent.some((m) => m.id === '1')).toBe(true);
+            expect(result.mid.some((m) => m.id === '2')).toBe(true);
         });
 
         it('handles boundary at LEADING_UP_SIZE (500)', () => {
             // Chat length 5000: mid threshold = 4500
             const memories = [
-                { id: '1', message_ids: [4500] },  // exactly at boundary = mid
-                { id: '2', message_ids: [4499] },  // just below = old
+                { id: '1', message_ids: [4500] }, // exactly at boundary = mid
+                { id: '2', message_ids: [4499] }, // just below = old
             ];
             const result = assignMemoriesToBuckets(memories, 5000);
 
-            expect(result.mid.some(m => m.id === '1')).toBe(true);
-            expect(result.old.some(m => m.id === '2')).toBe(true);
+            expect(result.mid.some((m) => m.id === '1')).toBe(true);
+            expect(result.old.some((m) => m.id === '2')).toBe(true);
         });
 
         it('puts everything in recent when chat < CURRENT_SCENE_SIZE', () => {
@@ -105,8 +105,8 @@ describe('formatting', () => {
         it('has no old bucket when chat < LEADING_UP_SIZE', () => {
             // Chat length 200: recent > 100, mid > -300 (clamped to 0)
             const memories = [
-                { id: '1', message_ids: [50] },   // mid (0-100)
-                { id: '2', message_ids: [150] },  // recent (> 100)
+                { id: '1', message_ids: [50] }, // mid (0-100)
+                { id: '2', message_ids: [150] }, // recent (> 100)
             ];
             const result = assignMemoriesToBuckets(memories, 200);
 
@@ -175,9 +175,7 @@ describe('formatting', () => {
 
         // Timeline bucket tests
         it('renders old bucket with markdown header', () => {
-            const memories = [
-                { id: '1', summary: 'Old event', message_ids: [50], sequence: 50000, importance: 3 },
-            ];
+            const memories = [{ id: '1', summary: 'Old event', message_ids: [50], sequence: 50000, importance: 3 }];
             const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
             expect(result).toContain('## The Story So Far');
@@ -185,9 +183,7 @@ describe('formatting', () => {
         });
 
         it('renders mid bucket with markdown header', () => {
-            const memories = [
-                { id: '1', summary: 'Mid event', message_ids: [4600], sequence: 460000, importance: 3 },
-            ];
+            const memories = [{ id: '1', summary: 'Mid event', message_ids: [4600], sequence: 460000, importance: 3 }];
             const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
             expect(result).toContain('## Leading Up To This Moment');
@@ -237,9 +233,7 @@ describe('formatting', () => {
 
         // Memory formatting tests (simplified format)
         it('formats memories with stars only (no message numbers)', () => {
-            const memories = [
-                { id: '1', summary: 'Test event', message_ids: [4980], sequence: 498000, importance: 3 },
-            ];
+            const memories = [{ id: '1', summary: 'Test event', message_ids: [4980], sequence: 498000, importance: 3 }];
             const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
             expect(result).toContain('[★★★] Test event');
@@ -259,7 +253,14 @@ describe('formatting', () => {
 
         it('does NOT mark secret memories with [Secret] prefix (inverted logic)', () => {
             const memories = [
-                { id: '1', summary: 'Secret info', message_ids: [450], sequence: 450000, importance: 3, is_secret: true },
+                {
+                    id: '1',
+                    summary: 'Secret info',
+                    message_ids: [450],
+                    sequence: 450000,
+                    importance: 3,
+                    is_secret: true,
+                },
             ];
             const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
 
@@ -271,7 +272,14 @@ describe('formatting', () => {
         describe('[Known] tag (inverted from [Secret])', () => {
             it('no tag for secret memories (default private)', () => {
                 const memories = [
-                    { id: '1', summary: 'Private event', message_ids: [450], sequence: 450000, importance: 3, is_secret: true },
+                    {
+                        id: '1',
+                        summary: 'Private event',
+                        message_ids: [450],
+                        sequence: 450000,
+                        importance: 3,
+                        is_secret: true,
+                    },
                 ];
                 const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
 
@@ -282,7 +290,15 @@ describe('formatting', () => {
 
             it('no tag for non-secret with 2 or fewer witnesses (default private)', () => {
                 const memories = [
-                    { id: '1', summary: 'Semi-private event', message_ids: [450], sequence: 450000, importance: 3, is_secret: false, witnesses: ['Alice', 'Bob'] },
+                    {
+                        id: '1',
+                        summary: 'Semi-private event',
+                        message_ids: [450],
+                        sequence: 450000,
+                        importance: 3,
+                        is_secret: false,
+                        witnesses: ['Alice', 'Bob'],
+                    },
                 ];
                 const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
 
@@ -292,7 +308,15 @@ describe('formatting', () => {
 
             it('adds [Known] tag for non-secret with more than 2 witnesses', () => {
                 const memories = [
-                    { id: '1', summary: 'Public event', message_ids: [450], sequence: 450000, importance: 3, is_secret: false, witnesses: ['Alice', 'Bob', 'Charlie'] },
+                    {
+                        id: '1',
+                        summary: 'Public event',
+                        message_ids: [450],
+                        sequence: 450000,
+                        importance: 3,
+                        is_secret: false,
+                        witnesses: ['Alice', 'Bob', 'Charlie'],
+                    },
                 ];
                 const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
 
@@ -301,7 +325,15 @@ describe('formatting', () => {
 
             it('no tag when witnesses array is empty', () => {
                 const memories = [
-                    { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3, is_secret: false, witnesses: [] },
+                    {
+                        id: '1',
+                        summary: 'Event',
+                        message_ids: [450],
+                        sequence: 450000,
+                        importance: 3,
+                        is_secret: false,
+                        witnesses: [],
+                    },
                 ];
                 const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
 
@@ -310,7 +342,14 @@ describe('formatting', () => {
 
             it('no tag when witnesses field is missing', () => {
                 const memories = [
-                    { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3, is_secret: false },
+                    {
+                        id: '1',
+                        summary: 'Event',
+                        message_ids: [450],
+                        sequence: 450000,
+                        importance: 3,
+                        is_secret: false,
+                    },
                 ];
                 const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
 
@@ -321,24 +360,27 @@ describe('formatting', () => {
         // Emotional trajectory in Current Scene
         describe('emotional trajectory in Current Scene', () => {
             it('shows character emotions in simplified format', () => {
-                const memories = [
-                    { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 },
-                ];
+                const memories = [{ id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 }];
                 const presentCharacters = ['Bob'];
                 const emotionalInfo = {
                     emotion: 'anxious',
-                    characterEmotions: { 'Alice': 'anxious', 'Bob': 'caring' }
+                    characterEmotions: { Alice: 'anxious', Bob: 'caring' },
                 };
-                const result = formatContextForInjection(memories, presentCharacters, emotionalInfo, 'Alice', 10000, 500);
+                const result = formatContextForInjection(
+                    memories,
+                    presentCharacters,
+                    emotionalInfo,
+                    'Alice',
+                    10000,
+                    500
+                );
 
                 expect(result).toContain('## Current Scene');
                 expect(result).toContain('Emotions: Alice anxious, Bob caring');
             });
 
             it('omits emotions line when no character emotions', () => {
-                const memories = [
-                    { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 },
-                ];
+                const memories = [{ id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 }];
                 const emotionalInfo = { emotion: 'neutral' };
                 const result = formatContextForInjection(memories, [], emotionalInfo, 'Alice', 10000, 500);
 
@@ -346,12 +388,10 @@ describe('formatting', () => {
             });
 
             it('omits neutral emotions from trajectory', () => {
-                const memories = [
-                    { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 },
-                ];
+                const memories = [{ id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 }];
                 const emotionalInfo = {
                     emotion: 'happy',
-                    characterEmotions: { 'Alice': 'happy', 'Bob': 'neutral' }
+                    characterEmotions: { Alice: 'happy', Bob: 'neutral' },
                 };
                 const result = formatContextForInjection(memories, [], emotionalInfo, 'Alice', 10000, 500);
 
@@ -360,15 +400,17 @@ describe('formatting', () => {
             });
 
             it('limits emotions to 5 characters', () => {
-                const memories = [
-                    { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 },
-                ];
+                const memories = [{ id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 }];
                 const emotionalInfo = {
                     emotion: 'happy',
                     characterEmotions: {
-                        'Alice': 'happy', 'Bob': 'sad', 'Charlie': 'angry',
-                        'Dave': 'excited', 'Eve': 'calm', 'Frank': 'worried'
-                    }
+                        Alice: 'happy',
+                        Bob: 'sad',
+                        Charlie: 'angry',
+                        Dave: 'excited',
+                        Eve: 'calm',
+                        Frank: 'worried',
+                    },
                 };
                 const result = formatContextForInjection(memories, [], emotionalInfo, 'Alice', 10000, 500);
 
@@ -379,9 +421,7 @@ describe('formatting', () => {
             });
 
             it('omits emotions line when emotionalInfo is string (legacy format)', () => {
-                const memories = [
-                    { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 },
-                ];
+                const memories = [{ id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 }];
                 const result = formatContextForInjection(memories, [], 'excited', 'Alice', 10000, 500);
 
                 expect(result).not.toContain('Emotions:');
@@ -406,9 +446,7 @@ describe('formatting', () => {
         });
 
         it('formats multiple present characters', () => {
-            const memories = [
-                { id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 },
-            ];
+            const memories = [{ id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 }];
             const presentCharacters = ['Bob', 'Charlie', 'Dave'];
             const result = formatContextForInjection(memories, presentCharacters, null, 'Alice', 10000, 500);
 
@@ -449,9 +487,7 @@ describe('formatting', () => {
         });
 
         it('handles chatLength of 0', () => {
-            const memories = [
-                { id: '1', summary: 'Event', message_ids: [5], sequence: 5000, importance: 3 },
-            ];
+            const memories = [{ id: '1', summary: 'Event', message_ids: [5], sequence: 5000, importance: 3 }];
             const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 0);
 
             // All memories should be in RECENT when chatLength is 0
@@ -583,7 +619,7 @@ describe('formatting', () => {
                         message_ids: [4980],
                         sequence: 498000,
                         importance: 4,
-                        emotional_impact: { 'Alice': 'guilt', 'Bob': 'shock' }
+                        emotional_impact: { Alice: 'guilt', Bob: 'shock' },
                     },
                 ];
                 const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
@@ -600,7 +636,7 @@ describe('formatting', () => {
                         message_ids: [4980],
                         sequence: 498000,
                         importance: 5,
-                        emotional_impact: ['fear']
+                        emotional_impact: ['fear'],
                     },
                 ];
                 const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
@@ -614,23 +650,56 @@ describe('formatting', () => {
                 const memories = [
                     // Old bucket (position < 4500 in 5000 chat)
                     { id: '1', summary: 'Bought a sword', message_ids: [100], sequence: 100000, importance: 2 },
-                    { id: '2', summary: 'Elder warned of goblins', message_ids: [105], sequence: 105000, importance: 3 },
+                    {
+                        id: '2',
+                        summary: 'Elder warned of goblins',
+                        message_ids: [105],
+                        sequence: 105000,
+                        importance: 3,
+                    },
                     { id: '3', summary: 'Met Marcus at tavern', message_ids: [800], sequence: 800000, importance: 2 },
-                    { id: '4', summary: 'Great battle began', message_ids: [2000], sequence: 2000000, importance: 4, emotional_impact: ['fear', 'determination'] },
+                    {
+                        id: '4',
+                        summary: 'Great battle began',
+                        message_ids: [2000],
+                        sequence: 2000000,
+                        importance: 4,
+                        emotional_impact: ['fear', 'determination'],
+                    },
 
                     // Mid bucket (4500-4950)
-                    { id: '5', summary: 'Goblin stole the amulet', message_ids: [4550], sequence: 455000, importance: 4, emotional_impact: { 'Hero': 'anger' } },
-                    { id: '6', summary: 'Tracked goblin into forest', message_ids: [4553], sequence: 455300, importance: 3 },
+                    {
+                        id: '5',
+                        summary: 'Goblin stole the amulet',
+                        message_ids: [4550],
+                        sequence: 455000,
+                        importance: 4,
+                        emotional_impact: { Hero: 'anger' },
+                    },
+                    {
+                        id: '6',
+                        summary: 'Tracked goblin into forest',
+                        message_ids: [4553],
+                        sequence: 455300,
+                        importance: 3,
+                    },
 
                     // Recent bucket (> 4950)
-                    { id: '7', summary: 'Goblin camp was burned', message_ids: [4980], sequence: 498000, importance: 5, emotional_impact: { 'Hero': 'triumph' } },
+                    {
+                        id: '7',
+                        summary: 'Goblin camp was burned',
+                        message_ids: [4980],
+                        sequence: 498000,
+                        importance: 5,
+                        emotional_impact: { Hero: 'triumph' },
+                    },
                     { id: '8', summary: 'Goblin is cornered', message_ids: [4985], sequence: 498500, importance: 4 },
                 ];
 
                 const presentCharacters = ['Goblin'];
                 const emotionalInfo = {
                     emotion: 'anxious',
-                    characterEmotions: { 'Hero': 'determined', 'Goblin': 'terrified' }
+                    characterEmotions: { Hero: 'determined', Goblin: 'terrified' },
                 };
 
                 const result = formatContextForInjection(

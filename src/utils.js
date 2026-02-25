@@ -4,8 +4,8 @@
  * Consolidated utility functions for the extension.
  */
 
+import { CHARACTERS_KEY, extensionName, LAST_PROCESSED_KEY, MEMORIES_KEY, METADATA_KEY } from './constants.js';
 import { getDeps } from './deps.js';
-import { extensionName, METADATA_KEY, MEMORIES_KEY, CHARACTERS_KEY, LAST_PROCESSED_KEY } from './constants.js';
 import { jsonrepair } from './vendor/json-repair.js';
 
 // --- Async ---
@@ -20,9 +20,7 @@ import { jsonrepair } from './vendor/json-repair.js';
 export function withTimeout(promise, ms, operation = 'Operation') {
     return Promise.race([
         promise,
-        new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(`${operation} timed out after ${ms}ms`)), ms)
-        )
+        new Promise((_, reject) => setTimeout(() => reject(new Error(`${operation} timed out after ${ms}ms`)), ms)),
     ]);
 }
 
@@ -94,12 +92,7 @@ export function isAutomaticMode() {
 export function safeSetExtensionPrompt(content) {
     try {
         const deps = getDeps();
-        deps.setExtensionPrompt(
-            extensionName,
-            content,
-            deps.extension_prompt_types.IN_PROMPT,
-            0
-        );
+        deps.setExtensionPrompt(extensionName, content, deps.extension_prompt_types.IN_PROMPT, 0);
         return true;
     } catch (error) {
         getDeps().console.error('[OpenVault] Failed to set extension prompt:', error);
@@ -150,7 +143,9 @@ export async function saveOpenVaultData(expectedChatId = null) {
     if (expectedChatId !== null) {
         const currentId = getCurrentChatId();
         if (currentId !== expectedChatId) {
-            getDeps().console.warn(`[OpenVault] Chat changed during operation (expected: ${expectedChatId}, current: ${currentId}), aborting save`);
+            getDeps().console.warn(
+                `[OpenVault] Chat changed during operation (expected: ${expectedChatId}, current: ${currentId}), aborting save`
+            );
             return false;
         }
     }
@@ -296,7 +291,7 @@ export async function updateMemory(id, updates) {
         return false;
     }
 
-    const memory = data[MEMORIES_KEY]?.find(m => m.id === id);
+    const memory = data[MEMORIES_KEY]?.find((m) => m.id === id);
     if (!memory) {
         log(`Memory ${id} not found`);
         return false;
@@ -335,7 +330,7 @@ export async function deleteMemory(id) {
         return false;
     }
 
-    const idx = data[MEMORIES_KEY]?.findIndex(m => m.id === id);
+    const idx = data[MEMORIES_KEY]?.findIndex((m) => m.id === id);
     if (idx === -1) {
         log(`Memory ${id} not found`);
         return false;

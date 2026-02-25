@@ -4,9 +4,9 @@
  * Handles point-of-view determination and character detection for memory filtering.
  */
 
+import { CHARACTERS_KEY, MEMORIES_KEY } from './constants.js';
 import { getDeps } from './deps.js';
 import { getOpenVaultData, log } from './utils.js';
-import { MEMORIES_KEY, CHARACTERS_KEY } from './constants.js';
 
 /**
  * Filter memories by POV accessibility
@@ -32,12 +32,13 @@ export function filterMemoriesByPOV(memories, povCharacters, data) {
     }
 
     // Filter memories by POV - memories that ANY of the POV characters know
-    const povCharactersLower = povCharacters.map(c => c.toLowerCase());
-    return memories.filter(m => {
+    const povCharactersLower = povCharacters.map((c) => c.toLowerCase());
+    return memories.filter((m) => {
         // Any POV character was a witness (case-insensitive)
-        if (m.witnesses?.some(w => povCharactersLower.includes(w.toLowerCase()))) return true;
+        if (m.witnesses?.some((w) => povCharactersLower.includes(w.toLowerCase()))) return true;
         // Non-secret events that any POV character is involved in
-        if (!m.is_secret && m.characters_involved?.some(c => povCharactersLower.includes(c.toLowerCase()))) return true;
+        if (!m.is_secret && m.characters_involved?.some((c) => povCharactersLower.includes(c.toLowerCase())))
+            return true;
         // Explicitly in any POV character's known events
         if (knownEventIds.has(m.id)) return true;
         return false;
@@ -59,10 +60,10 @@ export function getActiveCharacters() {
 
     // Add group members if in group chat
     if (context.groupId) {
-        const group = context.groups?.find(g => g.id === context.groupId);
+        const group = context.groups?.find((g) => g.id === context.groupId);
         if (group?.members) {
             for (const member of group.members) {
-                const char = context.characters?.find(c => c.avatar === member);
+                const char = context.characters?.find((c) => c.avatar === member);
                 if (char?.name && !characters.includes(char.name)) {
                     characters.push(char.name);
                 }
@@ -94,11 +95,11 @@ export function detectPresentCharactersFromMessages(messageCount = 2) {
 
     // Get all known character names from memories
     const knownCharacters = new Set();
-    for (const memory of (data[MEMORIES_KEY] || [])) {
-        for (const char of (memory.characters_involved || [])) {
+    for (const memory of data[MEMORIES_KEY] || []) {
+        for (const char of memory.characters_involved || []) {
             knownCharacters.add(char.toLowerCase());
         }
-        for (const witness of (memory.witnesses || [])) {
+        for (const witness of memory.witnesses || []) {
             knownCharacters.add(witness.toLowerCase());
         }
     }
@@ -112,9 +113,7 @@ export function detectPresentCharactersFromMessages(messageCount = 2) {
     if (context.name2) knownCharacters.add(context.name2.toLowerCase());
 
     // Scan recent messages
-    const recentMessages = chat
-        .filter(m => !m.is_system)
-        .slice(-messageCount);
+    const recentMessages = chat.filter((m) => !m.is_system).slice(-messageCount);
 
     const presentCharacters = new Set();
 
@@ -148,7 +147,7 @@ export function detectPresentCharactersFromMessages(messageCount = 2) {
             }
         }
         // Fallback: check context names
-        if (!result.some(r => r.toLowerCase() === lowerName)) {
+        if (!result.some((r) => r.toLowerCase() === lowerName)) {
             if (context.name1?.toLowerCase() === lowerName) result.push(context.name1);
             else if (context.name2?.toLowerCase() === lowerName) result.push(context.name2);
             else result.push(lowerName); // Keep lowercase if no match found
@@ -174,7 +173,7 @@ export function getPOVContext() {
         log(`Group chat mode: POV character = ${context.name2}`);
         return {
             povCharacters: [context.name2],
-            isGroupChat: true
+            isGroupChat: true,
         };
     } else {
         // Solo chat (narrator mode): Detect characters from recent messages
@@ -189,7 +188,7 @@ export function getPOVContext() {
         log(`Narrator mode: POV characters = ${presentCharacters.join(', ')}`);
         return {
             povCharacters: presentCharacters,
-            isGroupChat: false
+            isGroupChat: false,
         };
     }
 }

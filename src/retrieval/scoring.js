@@ -5,15 +5,15 @@
  * Uses forgetfulness curve (exponential decay) and optional vector similarity.
  */
 
-import { getDeps } from '../deps.js';
-import { log, sliceToTokenBudget, estimateTokens } from '../utils.js';
-import { parseRetrievalResponse } from '../extraction/structured.js';
 import { extensionName } from '../constants.js';
+import { getDeps } from '../deps.js';
+import { getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
+import { parseRetrievalResponse } from '../extraction/structured.js';
 import { callLLMForRetrieval } from '../llm.js';
 import { buildSmartRetrievalPrompt } from '../prompts.js';
-import { getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
-import { extractQueryContext, buildEmbeddingQuery, buildBM25Tokens, parseRecentMessages } from './query-context.js';
+import { estimateTokens, log, sliceToTokenBudget } from '../utils.js';
 import { scoreMemories } from './math.js';
+import { buildBM25Tokens, buildEmbeddingQuery, extractQueryContext, parseRecentMessages } from './query-context.js';
 
 /**
  * Build scoring parameters from extension settings
@@ -32,8 +32,8 @@ export function getScoringParams() {
             combinedBoostWeight: settings.combinedBoostWeight ?? 15,
             // Keep old keys for any code that still reads them during transition
             vectorSimilarityWeight: settings.vectorSimilarityWeight,
-            keywordMatchWeight: settings.keywordMatchWeight ?? 1.0
-        }
+            keywordMatchWeight: settings.keywordMatchWeight ?? 1.0,
+        },
     };
 }
 
@@ -47,15 +47,8 @@ export function getScoringParams() {
  */
 function scoreMemoriesDirect(memories, contextEmbedding, chatLength, limit, queryTokens) {
     const { constants, settings } = getScoringParams();
-    const scored = scoreMemories(
-        memories,
-        contextEmbedding,
-        chatLength,
-        constants,
-        settings,
-        queryTokens
-    );
-    return scored.slice(0, limit).map(r => r.memory);
+    const scored = scoreMemories(memories, contextEmbedding, chatLength, constants, settings, queryTokens);
+    return scored.slice(0, limit).map((r) => r.memory);
 }
 
 /**
@@ -84,7 +77,9 @@ export async function selectRelevantMemoriesSimple(memories, ctx, limit) {
 
     // Log extracted entities for debugging
     if (queryContext.entities.length > 0 || embeddingQuery) {
-        log(`Query context: entities=[${queryContext.entities.join(', ')}], embeddingQuery="${embeddingQuery?.slice(0, 100)}${embeddingQuery?.length > 100 ? '...' : ''}"`);
+        log(
+            `Query context: entities=[${queryContext.entities.join(', ')}], embeddingQuery="${embeddingQuery?.slice(0, 100)}${embeddingQuery?.length > 100 ? '...' : ''}"`
+        );
     }
 
     // Get embedding for enriched query if enabled
@@ -117,12 +112,14 @@ export async function selectRelevantMemoriesSmart(memories, ctx, limit) {
     log(`Smart retrieval: analyzing ${memories.length} memories to select ${limit} most relevant`);
 
     // Build numbered list of memories with importance
-    const numberedList = memories.map((m, i) => {
-        const importance = m.importance || 3;
-        const importanceTag = `[\u2605${'\u2605'.repeat(importance - 1)}]`; // Show 1-5 stars
-        const secretTag = m.is_secret ? '[Secret] ' : '';
-        return `${i + 1}. ${importanceTag} ${secretTag}${m.summary}`;
-    }).join('\n');
+    const numberedList = memories
+        .map((m, i) => {
+            const importance = m.importance || 3;
+            const importanceTag = `[\u2605${'\u2605'.repeat(importance - 1)}]`; // Show 1-5 stars
+            const secretTag = m.is_secret ? '[Secret] ' : '';
+            return `${i + 1}. ${importanceTag} ${secretTag}${m.summary}`;
+        })
+        .join('\n');
 
     const prompt = buildSmartRetrievalPrompt(recentContext, numberedList, primaryCharacter, limit);
 
@@ -142,15 +139,17 @@ export async function selectRelevantMemoriesSmart(memories, ctx, limit) {
 
         // Convert 1-indexed to 0-indexed and filter valid indices
         const selectedMemories = selectedIndices
-            .map(i => memories[i - 1]) // Convert to 0-indexed
-            .filter(m => m !== undefined);
+            .map((i) => memories[i - 1]) // Convert to 0-indexed
+            .filter((m) => m !== undefined);
 
         if (selectedMemories.length === 0) {
             log('Smart retrieval: Invalid indices from LLM, falling back to simple mode');
             return selectRelevantMemoriesSimple(memories, ctx, limit);
         }
 
-        log(`Smart retrieval: LLM selected ${selectedMemories.length} memories. Reasoning: ${parsed.reasoning || 'none provided'}`);
+        log(
+            `Smart retrieval: LLM selected ${selectedMemories.length} memories. Reasoning: ${parsed.reasoning || 'none provided'}`
+        );
         return selectedMemories;
     } catch (error) {
         log(`Smart retrieval error: ${error.message}, falling back to simple mode`);
@@ -190,7 +189,9 @@ export async function selectRelevantMemories(memories, ctx) {
         // Smart mode: Two-stage pipeline
         // Stage 1: Pre-filter to give LLM a manageable pool
         const stage1Results = sliceToTokenBudget(scored, preFilterTokens);
-        log(`Stage 1: ${memories.length} memories -> ${scored.length} scored -> ${stage1Results.length} after token filter (${preFilterTokens} budget)`);
+        log(
+            `Stage 1: ${memories.length} memories -> ${scored.length} scored -> ${stage1Results.length} after token filter (${preFilterTokens} budget)`
+        );
 
         if (stage1Results.length === 0) return [];
 
@@ -211,7 +212,9 @@ export async function selectRelevantMemories(memories, ctx) {
     } else {
         // Simple mode: Single-stage - slice directly to final budget
         const finalResults = sliceToTokenBudget(scored, finalTokens);
-        log(`Retrieval: ${memories.length} memories -> ${scored.length} scored -> ${finalResults.length} after token filter (${finalTokens} budget)`);
+        log(
+            `Retrieval: ${memories.length} memories -> ${scored.length} scored -> ${finalResults.length} after token filter (${finalTokens} budget)`
+        );
         return finalResults;
     }
 }

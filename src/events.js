@@ -4,16 +4,31 @@
  * Handles all SillyTavern event subscriptions and processing.
  */
 
-import { getDeps } from './deps.js';
-import { getOpenVaultData, getCurrentChatId, showToast, safeSetExtensionPrompt, withTimeout, log, isAutomaticMode } from './utils.js';
-import { clearEmbeddingCache } from './embeddings.js';
-import { getExtractedMessageIds, getNextBatch, getBackfillStats } from './extraction/scheduler.js';
 import { extensionName, MEMORIES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
-import { operationState, setGenerationLock, clearGenerationLock, isChatLoadingCooldown, setChatLoadingCooldown, resetOperationStatesIfSafe } from './state.js';
-import { setStatus } from './ui/status.js';
-import { refreshAllUI, resetMemoryBrowserPage } from './ui/render.js';
-import { extractMemories, extractAllMessages } from './extraction/extract.js';
+import { getDeps } from './deps.js';
+import { clearEmbeddingCache } from './embeddings.js';
+import { extractAllMessages, extractMemories } from './extraction/extract.js';
+import { getBackfillStats, getExtractedMessageIds, getNextBatch } from './extraction/scheduler.js';
 import { updateInjection } from './retrieval/retrieve.js';
+import {
+    clearGenerationLock,
+    isChatLoadingCooldown,
+    operationState,
+    resetOperationStatesIfSafe,
+    setChatLoadingCooldown,
+    setGenerationLock,
+} from './state.js';
+import { refreshAllUI, resetMemoryBrowserPage } from './ui/render.js';
+import { setStatus } from './ui/status.js';
+import {
+    getCurrentChatId,
+    getOpenVaultData,
+    isAutomaticMode,
+    log,
+    safeSetExtensionPrompt,
+    showToast,
+    withTimeout,
+} from './utils.js';
 
 // =============================================================================
 // Auto-Hide Old Messages (inlined from auto-hide.js)
@@ -39,9 +54,7 @@ async function autoHideOldMessages() {
     const extractedMessageIds = getExtractedMessageIds(data);
 
     // Get visible (non-hidden) messages with their original indices
-    const visibleMessages = chat
-        .map((m, idx) => ({ ...m, idx }))
-        .filter(m => !m.is_system);
+    const visibleMessages = chat.map((m, idx) => ({ ...m, idx })).filter((m) => !m.is_system);
 
     // If we have fewer messages than threshold, nothing to hide
     if (visibleMessages.length <= threshold) return;
@@ -132,19 +145,17 @@ export async function onBeforeGeneration(type, options, dryRun = false) {
         // Get context for retrieval - use the last user message if available
         const context = getDeps().getContext();
         const chat = context.chat || [];
-        const lastUserMessage = [...chat].reverse().find(m => m.is_user && !m.is_system);
+        const lastUserMessage = [...chat].reverse().find((m) => m.is_user && !m.is_system);
         const pendingUserMessage = lastUserMessage?.mes || '';
 
         // Show toast notification during retrieval
         showToast('info', 'Retrieving memories...', 'OpenVault', { timeOut: 2000 });
 
         // Do memory retrieval before generation
-        log(`>>> Pre-generation retrieval starting (type: ${type}, message: "${pendingUserMessage.substring(0, 50)}...")`);
-        await withTimeout(
-            updateInjection(pendingUserMessage),
-            RETRIEVAL_TIMEOUT_MS,
-            'Memory retrieval'
+        log(
+            `>>> Pre-generation retrieval starting (type: ${type}, message: "${pendingUserMessage.substring(0, 50)}...")`
         );
+        await withTimeout(updateInjection(pendingUserMessage), RETRIEVAL_TIMEOUT_MS, 'Memory retrieval');
         log('>>> Pre-generation retrieval complete');
 
         setStatus('ready');
@@ -251,16 +262,23 @@ export async function onMessageReceived(messageId) {
             return;
         }
 
-        log(`Auto-extract: extracting batch of ${batchToExtract.length} messages (indices ${batchToExtract[0]}-${batchToExtract[batchToExtract.length - 1]})`);
+        log(
+            `Auto-extract: extracting batch of ${batchToExtract.length} messages (indices ${batchToExtract[0]}-${batchToExtract[batchToExtract.length - 1]})`
+        );
 
         // Show extraction indicator
         setStatus('extracting');
-        showToast('info', `Extracting memories (messages ${batchToExtract[0] + 1}-${batchToExtract[batchToExtract.length - 1] + 1})...`, 'OpenVault', {
-            timeOut: 0,
-            extendedTimeOut: 0,
-            tapToDismiss: false,
-            toastClass: 'toast openvault-extracting-toast'
-        });
+        showToast(
+            'info',
+            `Extracting memories (messages ${batchToExtract[0] + 1}-${batchToExtract[batchToExtract.length - 1] + 1})...`,
+            'OpenVault',
+            {
+                timeOut: 0,
+                extendedTimeOut: 0,
+                tapToDismiss: false,
+                toastClass: 'toast openvault-extracting-toast',
+            }
+        );
 
         // Pass chatId to extractMemories for integrity check during long LLM calls
         const result = await extractMemories(batchToExtract, chatIdBeforeExtraction);
@@ -268,7 +286,11 @@ export async function onMessageReceived(messageId) {
         // Clear the persistent toast and show success
         $('.openvault-extracting-toast').remove();
         if (result && result.status === 'success' && result.events_created > 0) {
-            showToast('success', `Extracted ${result.events_created} events from ${result.messages_processed} messages`, 'OpenVault');
+            showToast(
+                'success',
+                `Extracted ${result.events_created} events from ${result.messages_processed} messages`,
+                'OpenVault'
+            );
             refreshAllUI();
         }
     } catch (error) {
@@ -338,7 +360,7 @@ const EVENT_MAP = [
     ['GENERATION_AFTER_COMMANDS', onBeforeGeneration],
     ['GENERATION_ENDED', onGenerationEnded],
     ['MESSAGE_RECEIVED', onMessageReceived],
-    ['CHAT_CHANGED', onChatChanged]
+    ['CHAT_CHANGED', onChatChanged],
 ];
 
 /**

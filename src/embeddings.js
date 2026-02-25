@@ -5,10 +5,10 @@
  * Supports multiple embedding models with lazy loading.
  */
 
-import { getDeps } from './deps.js';
-import { log } from './utils.js';
 import { extensionName } from './constants.js';
+import { getDeps } from './deps.js';
 import { cosineSimilarity } from './retrieval/math.js';
+import { log } from './utils.js';
 
 // =============================================================================
 // Strategy Classes (from src/embeddings/strategies.js)
@@ -94,7 +94,7 @@ const TRANSFORMERS_MODELS = {
         dtypeWASM: 'q8',
         dimensions: 384,
         description: '384d · 118M params · 100+ langs · MTEB: 55.8',
-        optimalChunkSize: 500,  // chars, conservative for 512 tokens
+        optimalChunkSize: 500, // chars, conservative for 512 tokens
     },
     'bge-small-en-v1.5': {
         name: 'Xenova/bge-small-en-v1.5',
@@ -102,7 +102,7 @@ const TRANSFORMERS_MODELS = {
         dtypeWASM: 'q8',
         dimensions: 384,
         description: '384d · 133MB · English · MTEB: 62.17 · SOTA RAG',
-        optimalChunkSize: 500,  // chars, conservative for 512 tokens
+        optimalChunkSize: 500, // chars, conservative for 512 tokens
     },
     'embeddinggemma-300m': {
         name: 'onnx-community/embeddinggemma-300m-ONNX',
@@ -388,7 +388,7 @@ const strategies = {
     'multilingual-e5-small': new TransformersStrategy(),
     'bge-small-en-v1.5': new TransformersStrategy(),
     'embeddinggemma-300m': new TransformersStrategy(),
-    'ollama': new OllamaStrategy(),
+    ollama: new OllamaStrategy(),
 };
 
 // Configure model-specific transformers strategies
@@ -418,7 +418,7 @@ function getAvailableSources() {
  * @param {Function} callback - Status callback
  */
 function setGlobalStatusCallback(callback) {
-    Object.values(strategies).forEach(strategy => {
+    Object.values(strategies).forEach((strategy) => {
         if (strategy.setStatusCallback) {
             strategy.setStatusCallback(callback);
         }
@@ -587,7 +587,7 @@ export async function generateEmbeddingsForMemories(memories) {
         return 0;
     }
 
-    const validMemories = memories.filter(m => m.summary && !m.embedding);
+    const validMemories = memories.filter((m) => m.summary && !m.embedding);
 
     if (validMemories.length === 0) {
         return 0;
@@ -622,7 +622,7 @@ export async function enrichEventsWithEmbeddings(events) {
         return 0;
     }
 
-    const validEvents = events.filter(e => e.summary && !e.embedding);
+    const validEvents = events.filter((e) => e.summary && !e.embedding);
 
     if (validEvents.length === 0) {
         return 0;

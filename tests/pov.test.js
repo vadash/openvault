@@ -1,15 +1,15 @@
 /**
  * Tests for src/pov.js
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { setDeps, resetDeps } from '../src/deps.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CHARACTERS_KEY, extensionName, MEMORIES_KEY } from '../src/constants.js';
+import { resetDeps, setDeps } from '../src/deps.js';
 import {
+    detectPresentCharactersFromMessages,
     filterMemoriesByPOV,
     getActiveCharacters,
-    detectPresentCharactersFromMessages,
     getPOVContext,
 } from '../src/pov.js';
-import { MEMORIES_KEY, CHARACTERS_KEY, extensionName } from '../src/constants.js';
 
 describe('pov', () => {
     let mockConsole;
@@ -100,8 +100,8 @@ describe('pov', () => {
                     Alice: {
                         name: 'Alice',
                         known_events: ['known-evt'],
-                    }
-                }
+                    },
+                },
             };
             const result = filterMemoriesByPOV(memories, ['Alice'], data);
             expect(result).toHaveLength(1);
@@ -116,8 +116,8 @@ describe('pov', () => {
             ];
             const result = filterMemoriesByPOV(memories, ['Alice', 'Bob'], { [CHARACTERS_KEY]: {} });
             expect(result).toHaveLength(2);
-            expect(result.map(m => m.id)).toContain('1');
-            expect(result.map(m => m.id)).toContain('2');
+            expect(result.map((m) => m.id)).toContain('1');
+            expect(result.map((m) => m.id)).toContain('2');
         });
 
         it('combines known_events from multiple POV characters', () => {
@@ -129,16 +129,14 @@ describe('pov', () => {
                 [CHARACTERS_KEY]: {
                     Alice: { known_events: ['evt-1'] },
                     Bob: { known_events: ['evt-2'] },
-                }
+                },
             };
             const result = filterMemoriesByPOV(memories, ['Alice', 'Bob'], data);
             expect(result).toHaveLength(2);
         });
 
         it('handles memories without witnesses array', () => {
-            const memories = [
-                { id: '1', characters_involved: ['Alice'], is_secret: false },
-            ];
+            const memories = [{ id: '1', characters_involved: ['Alice'], is_secret: false }];
             const result = filterMemoriesByPOV(memories, ['Alice'], { [CHARACTERS_KEY]: {} });
             expect(result).toHaveLength(1);
         });
@@ -160,10 +158,12 @@ describe('pov', () => {
 
         it('includes group members in group chat', () => {
             mockContext.groupId = 'group-123';
-            mockContext.groups = [{
-                id: 'group-123',
-                members: ['avatar1.png', 'avatar2.png'],
-            }];
+            mockContext.groups = [
+                {
+                    id: 'group-123',
+                    members: ['avatar1.png', 'avatar2.png'],
+                },
+            ];
             mockContext.characters = [
                 { avatar: 'avatar1.png', name: 'Bob' },
                 { avatar: 'avatar2.png', name: 'Charlie' },
@@ -178,25 +178,29 @@ describe('pov', () => {
 
         it('does not duplicate character names', () => {
             mockContext.groupId = 'group-123';
-            mockContext.groups = [{
-                id: 'group-123',
-                members: ['avatar1.png'],
-            }];
+            mockContext.groups = [
+                {
+                    id: 'group-123',
+                    members: ['avatar1.png'],
+                },
+            ];
             mockContext.characters = [
                 { avatar: 'avatar1.png', name: 'Alice' }, // same as name2
             ];
 
             const result = getActiveCharacters();
-            const aliceCount = result.filter(n => n === 'Alice').length;
+            const aliceCount = result.filter((n) => n === 'Alice').length;
             expect(aliceCount).toBe(1);
         });
 
         it('handles group without members', () => {
             mockContext.groupId = 'group-123';
-            mockContext.groups = [{
-                id: 'group-123',
-                // no members
-            }];
+            mockContext.groups = [
+                {
+                    id: 'group-123',
+                    // no members
+                },
+            ];
 
             const result = getActiveCharacters();
             expect(result).toContain('Alice');
@@ -213,7 +217,7 @@ describe('pov', () => {
                 openvault: {
                     memories: [],
                     character_states: {},
-                }
+                },
             };
             const result = detectPresentCharactersFromMessages(2);
             // No messages to scan, no characters detected
@@ -221,9 +225,7 @@ describe('pov', () => {
         });
 
         it('detects character from message sender', () => {
-            mockContext.chat = [
-                { name: 'Bob', mes: 'Hello', is_system: false },
-            ];
+            mockContext.chat = [{ name: 'Bob', mes: 'Hello', is_system: false }];
             mockContext.chatMetadata.openvault = {
                 [MEMORIES_KEY]: [],
                 [CHARACTERS_KEY]: { Bob: { name: 'Bob' } },
@@ -278,9 +280,7 @@ describe('pov', () => {
         });
 
         it('preserves original case from character states', () => {
-            mockContext.chat = [
-                { name: 'narrator', mes: 'ALICE arrived', is_system: false },
-            ];
+            mockContext.chat = [{ name: 'narrator', mes: 'ALICE arrived', is_system: false }];
             mockContext.chatMetadata.openvault = {
                 [MEMORIES_KEY]: [],
                 [CHARACTERS_KEY]: { Alice: { name: 'Alice' } },
@@ -302,9 +302,7 @@ describe('pov', () => {
 
         it('detects characters in solo chat (narrator mode)', () => {
             mockContext.groupId = null;
-            mockContext.chat = [
-                { name: 'Bob', mes: 'Test', is_system: false },
-            ];
+            mockContext.chat = [{ name: 'Bob', mes: 'Test', is_system: false }];
             mockContext.chatMetadata.openvault = {
                 [MEMORIES_KEY]: [],
                 [CHARACTERS_KEY]: { Bob: { name: 'Bob' } },

@@ -5,14 +5,25 @@
  * Refactored from class-based components to function-based approach.
  */
 
-import { renderMemoryItem, renderMemoryEdit, renderCharacterState } from './templates.js';
-import { filterMemories, sortMemoriesByDate, getPaginationInfo, extractCharactersSet, buildCharacterStateData } from './helpers.js';
-import { getOpenVaultData, showToast, escapeHtml } from '../utils.js';
+import { CHARACTERS_KEY, MEMORIES_KEY, MEMORIES_PER_PAGE } from '../constants.js';
 import { getDeps } from '../deps.js';
-import { MEMORIES_KEY, MEMORIES_PER_PAGE, CHARACTERS_KEY } from '../constants.js';
-import { deleteMemory as deleteMemoryAction, updateMemory as updateMemoryAction } from '../utils.js';
 import { getDocumentEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
+import {
+    deleteMemory as deleteMemoryAction,
+    escapeHtml,
+    getOpenVaultData,
+    showToast,
+    updateMemory as updateMemoryAction,
+} from '../utils.js';
+import {
+    buildCharacterStateData,
+    extractCharactersSet,
+    filterMemories,
+    getPaginationInfo,
+    sortMemoriesByDate,
+} from './helpers.js';
 import { refreshStats } from './status.js';
+import { renderCharacterState, renderMemoryEdit, renderMemoryItem } from './templates.js';
 
 // DOM Selectors
 const SELECTORS = {
@@ -44,7 +55,7 @@ const CLASSES = {
 // Memory List State and Helpers
 // =============================================================================
 
-let memoryListState = {
+const memoryListState = {
     page: 0,
     searchQuery: '',
 };
@@ -53,18 +64,16 @@ let searchTimeout = null;
 function getMemoryById(id) {
     const data = getOpenVaultData();
     if (!data) return null;
-    return data[MEMORIES_KEY]?.find(m => m.id === id) || null;
+    return data[MEMORIES_KEY]?.find((m) => m.id === id) || null;
 }
 
 function filterBySearch(memories, query) {
     if (!query) return memories;
-    return memories.filter(m => {
+    return memories.filter((m) => {
         const summary = (m.summary || '').toLowerCase();
         const characters = (m.characters_involved || []).join(' ').toLowerCase();
         const location = (m.location || '').toLowerCase();
-        return summary.includes(query) ||
-               characters.includes(query) ||
-               location.includes(query);
+        return summary.includes(query) || characters.includes(query) || location.includes(query);
     });
 }
 
@@ -146,7 +155,7 @@ function populateCharacterFilter() {
 
     if (characters.length > 0) {
         const optionsHtml = characters
-            .map(char => `<option value="${escapeHtml(char)}">${escapeHtml(char)}</option>`)
+            .map((char) => `<option value="${escapeHtml(char)}">${escapeHtml(char)}</option>`)
             .join('');
         $filter.append(optionsHtml);
     }
@@ -293,7 +302,7 @@ export function renderCharacterStates() {
 
     const html = charNames
         .sort()
-        .map(name => renderCharacterState(buildCharacterStateData(name, characters[name])))
+        .map((name) => renderCharacterState(buildCharacterStateData(name, characters[name])))
         .join('');
 
     $container.html(html);
@@ -318,8 +327,4 @@ export function refreshAllUI() {
     renderCharacterStates();
 }
 
-export {
-    prevPage as browserPrevPage,
-    nextPage as browserNextPage,
-    resetAndRender as browserResetAndRender,
-};
+export { prevPage as browserPrevPage, nextPage as browserNextPage, resetAndRender as browserResetAndRender };
