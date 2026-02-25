@@ -253,11 +253,10 @@ export async function selectRelevantMemoriesSmart(memories, ctx, limit) {
 
     // Build numbered list of memories with importance
     const numberedList = memories.map((m, i) => {
-        const typeTag = `[${(m.tags || ['NONE']).join(', ')}]`;
         const importance = m.importance || 3;
         const importanceTag = `[\u2605${'\u2605'.repeat(importance - 1)}]`; // Show 1-5 stars
         const secretTag = m.is_secret ? '[Secret] ' : '';
-        return `${i + 1}. ${typeTag} ${importanceTag} ${secretTag}${m.summary}`;
+        return `${i + 1}. ${importanceTag} ${secretTag}${m.summary}`;
     }).join('\n');
 
     const prompt = buildSmartRetrievalPrompt(recentContext, numberedList, primaryCharacter, limit);

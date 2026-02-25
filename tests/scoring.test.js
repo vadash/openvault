@@ -552,10 +552,10 @@ describe('scoring', () => {
             expect(result[0].id).toBe('0');
         });
 
-        it('includes tags and importance in numbered list', async () => {
+        it('includes importance in numbered list', async () => {
             const memories = [
-                { id: '0', summary: 'Test memory', tags: ['SECRET', 'LORE'], importance: 5 },
-                { id: '1', summary: 'Another', tags: ['SOCIAL'], importance: 2, is_secret: true },
+                { id: '0', summary: 'Test memory', importance: 5 },
+                { id: '1', summary: 'Another', importance: 2, is_secret: true },
             ];
 
             callLLMForRetrieval.mockResolvedValue('{"selected": [1]}');
@@ -565,8 +565,8 @@ describe('scoring', () => {
             // Verify the prompt was built with formatted list
             const promptCall = buildSmartRetrievalPrompt.mock.calls[0];
             const numberedList = promptCall[1];
-            expect(numberedList).toContain('[SECRET, LORE]');
             expect(numberedList).toContain('[★★★★★]');
+            expect(numberedList).toContain('[★★]');
             expect(numberedList).toContain('[Secret]');
             expect(numberedList).not.toContain('event_type');
         });

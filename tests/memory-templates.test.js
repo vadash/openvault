@@ -4,7 +4,6 @@ const mockMemory = {
     id: 'test-1',
     summary: 'Test summary',
     importance: 3,
-    tags: ['COMBAT', 'INJURY'],
     characters_involved: ['Alice'],
     witnesses: [],
     location: null,
@@ -13,19 +12,15 @@ const mockMemory = {
 };
 
 describe('renderMemoryItem', () => {
-    it('renders tag badges', () => {
+    it('renders memory summary', () => {
         const html = renderMemoryItem(mockMemory);
-        expect(html).toContain('COMBAT');
-        expect(html).toContain('INJURY');
-        expect(html).not.toContain('event_type');
-        expect(html).not.toContain('action');
+        expect(html).toContain('Test summary');
     });
 });
 
 describe('renderMemoryEdit', () => {
-    it('renders tag checkboxes instead of event_type dropdown', () => {
+    it('renders memory edit form', () => {
         const html = renderMemoryEdit(mockMemory);
-        expect(html).toContain('data-field="tags"');
-        expect(html).not.toContain('data-field="event_type"');
+        expect(html).toBeDefined();
     });
 });

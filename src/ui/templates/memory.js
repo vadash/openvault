@@ -8,30 +8,11 @@
 import { escapeHtml } from '../../utils/dom.js';
 import { formatMemoryImportance, formatMemoryDate, formatWitnesses } from '../formatting.js';
 import { isEmbeddingsEnabled } from '../../embeddings.js';
-import { TAG_ICONS, TAG_LIST, CLASSES } from '../base/constants.js';
+import { CLASSES } from '../base/constants.js';
 
 // =============================================================================
 // Template Functions
 // =============================================================================
-
-/**
- * Get icon class for a tag
- * @param {string} tag - Tag name
- * @returns {string} Font Awesome icon class
- */
-export function getTagIcon(tag) {
-    return TAG_ICONS[tag] || TAG_ICONS.default;
-}
-
-/**
- * Build type-safe CSS class name from tags
- * @param {string[]} tags - Tags array
- * @returns {string} CSS class name
- */
-export function getTypeClass(tags) {
-    const first = Array.isArray(tags) ? tags[0] : tags;
-    return (first || 'NONE').toLowerCase().replace(/[^a-zA-Z0-9-]/g, '');
-}
 
 /**
  * Build badge HTML for a memory card
@@ -82,19 +63,11 @@ function buildCharacterTags(characters) {
  * @returns {string} HTML string
  */
 function buildCardHeader(memory) {
-    const tags = memory.tags || ['NONE'];
-    const typeClass = getTypeClass(tags);
     const date = formatMemoryDate(memory.created_at);
-    const iconClass = getTagIcon(tags[0]);
-    const tagBadges = tags.map(t => `<span class="openvault-memory-card-tag">${escapeHtml(t)}</span>`).join(' ');
 
     return `
         <div class="openvault-memory-card-header">
-            <div class="openvault-memory-card-icon ${typeClass}">
-                <i class="${iconClass}"></i>
-            </div>
             <div class="openvault-memory-card-meta">
-                <span class="openvault-memory-card-type">${tagBadges}</span>
                 <span class="openvault-memory-card-date">${escapeHtml(date)}</span>
             </div>
         </div>
@@ -133,12 +106,11 @@ function buildCardFooter(memory, badges) {
  */
 export function renderMemoryItem(memory) {
     const id = escapeHtml(memory.id);
-    const typeClass = getTypeClass(memory.tags);
     const badges = buildBadges(memory);
     const characterTags = buildCharacterTags(memory.characters_involved);
 
     return `
-        <div class="${CLASSES.MEMORY_CARD} ${typeClass}" data-id="${id}">
+        <div class="${CLASSES.MEMORY_CARD}" data-id="${id}">
             ${buildCardHeader(memory)}
             <div class="openvault-memory-card-summary">${escapeHtml(memory.summary || 'No summary')}</div>
             ${buildCardFooter(memory, badges)}
@@ -168,10 +140,7 @@ function buildImportanceOptions(current) {
  * @returns {string} HTML string
  */
 function buildTagCheckboxes(currentTags) {
-    const selected = new Set(currentTags || ['NONE']);
-    return TAG_LIST
-        .map(t => `<label><input type="checkbox" value="${t}"${selected.has(t) ? ' checked' : ''}> ${t}</label>`)
-        .join(' ');
+    return '';
 }
 
 /**
@@ -181,7 +150,6 @@ function buildTagCheckboxes(currentTags) {
  */
 function buildEditFields(memory) {
     const importance = memory.importance || 3;
-    const tags = memory.tags || ['NONE'];
 
     return `
         <div class="openvault-edit-row">
@@ -189,10 +157,6 @@ function buildEditFields(memory) {
                 Importance
                 <select data-field="importance">${buildImportanceOptions(importance)}</select>
             </label>
-            <div data-field="tags">
-                Tags
-                ${buildTagCheckboxes(tags)}
-            </div>
         </div>
     `;
 }
@@ -223,10 +187,9 @@ function buildEditActions(id) {
  */
 export function renderMemoryEdit(memory) {
     const id = escapeHtml(memory.id);
-    const typeClass = getTypeClass(memory.tags);
 
     return `
-        <div class="${CLASSES.MEMORY_CARD} ${typeClass}" data-id="${id}">
+        <div class="${CLASSES.MEMORY_CARD}" data-id="${id}">
             <div class="openvault-edit-form">
                 <textarea class="openvault-edit-textarea" data-field="summary">${escapeHtml(memory.summary || '')}</textarea>
                 ${buildEditFields(memory)}

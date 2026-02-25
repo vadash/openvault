@@ -10,7 +10,6 @@ import {
     getDocumentEmbedding,
     generateEmbeddingsForMemories,
     clearEmbeddingCache,
-    formatForEmbedding,
 } from '../src/embeddings.js';
 import { TransformersStrategy } from '../src/embeddings/strategies.js';
 import { extensionName, defaultSettings } from '../src/constants.js';
@@ -288,11 +287,11 @@ describe('embeddings', () => {
 
     describe('getDocumentEmbedding', () => {
         it('returns null for empty summary', async () => {
-            const result = await getDocumentEmbedding('', ['COMBAT']);
+            const result = await getDocumentEmbedding('');
             expect(result).toBeNull();
         });
 
-        it('formats tags into text before embedding', async () => {
+        it('calls Ollama API with summary text', async () => {
             const mockFetch = vi.fn().mockResolvedValue({
                 ok: true,
                 json: () => Promise.resolve({ embedding: [0.1, 0.2] }),
@@ -304,44 +303,13 @@ describe('embeddings', () => {
                         embeddingSource: 'ollama',
                         ollamaUrl: 'http://localhost:11434',
                         embeddingModel: 'model',
-                        embeddingTagFormat: 'bracket',
                         debugMode: false,
                     }
                 }),
                 fetch: mockFetch,
             });
 
-            const result = await getDocumentEmbedding('Test summary', ['COMBAT', 'INJURY']);
-
-            expect(mockFetch).toHaveBeenCalledWith(
-                expect.any(String),
-                expect.objectContaining({
-                    body: JSON.stringify({ model: 'model', prompt: '[COMBAT] [INJURY] Test summary' }),
-                })
-            );
-            expect(result).toEqual([0.1, 0.2]);
-        });
-
-        it('skips NONE tags in formatting', async () => {
-            const mockFetch = vi.fn().mockResolvedValue({
-                ok: true,
-                json: () => Promise.resolve({ embedding: [0.1] }),
-            });
-            setDeps({
-                console: mockConsole,
-                getExtensionSettings: () => ({
-                    [extensionName]: {
-                        embeddingSource: 'ollama',
-                        ollamaUrl: 'http://localhost:11434',
-                        embeddingModel: 'model',
-                        embeddingTagFormat: 'bracket',
-                        debugMode: false,
-                    }
-                }),
-                fetch: mockFetch,
-            });
-
-            await getDocumentEmbedding('Test summary', ['NONE']);
+            const result = await getDocumentEmbedding('Test summary');
 
             expect(mockFetch).toHaveBeenCalledWith(
                 expect.any(String),
@@ -349,6 +317,7 @@ describe('embeddings', () => {
                     body: JSON.stringify({ model: 'model', prompt: 'Test summary' }),
                 })
             );
+            expect(result).toEqual([0.1, 0.2]);
         });
     });
 
@@ -496,28 +465,6 @@ describe('embeddings', () => {
             // This test verifies the integration point
             // Implementation requires modifying settings.js binding
             expect(true).toBe(true); // Placeholder for integration test
-        });
-    });
-
-    describe('formatForEmbedding', () => {
-        it('prepends bracket tags to summary', () => {
-            expect(formatForEmbedding('Test summary', ['COMBAT', 'INJURY'], { embeddingTagFormat: 'bracket' }))
-                .toBe('[COMBAT] [INJURY] Test summary');
-        });
-
-        it('skips NONE tag', () => {
-            expect(formatForEmbedding('Test summary', ['NONE'], { embeddingTagFormat: 'bracket' }))
-                .toBe('Test summary');
-        });
-
-        it('returns plain summary when format is none', () => {
-            expect(formatForEmbedding('Test summary', ['COMBAT'], { embeddingTagFormat: 'none' }))
-                .toBe('Test summary');
-        });
-
-        it('handles missing tags', () => {
-            expect(formatForEmbedding('Test summary', null, {}))
-                .toBe('Test summary');
         });
     });
 

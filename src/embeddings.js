@@ -88,18 +88,14 @@ export async function getQueryEmbedding(text) {
 }
 
 /**
- * Get document embedding (with doc prefix and tag formatting applied)
+ * Get document embedding (with doc prefix applied by strategy)
  * @param {string} summary - Memory summary text
- * @param {string[]|null} tags - Tags from extraction
  * @returns {Promise<number[]|null>} Embedding vector
  */
-export async function getDocumentEmbedding(summary, tags) {
+export async function getDocumentEmbedding(summary) {
     if (!summary) return null;
 
-    const settings = getDeps().getExtensionSettings()[extensionName];
-    const text = formatForEmbedding(summary, tags, settings);
-
-    const cacheKey = `d:${text}`;
+    const cacheKey = `d:${summary}`;
     if (embeddingCache.has(cacheKey)) {
         const value = embeddingCache.get(cacheKey);
         embeddingCache.delete(cacheKey);
@@ -107,9 +103,10 @@ export async function getDocumentEmbedding(summary, tags) {
         return value;
     }
 
+    const settings = getDeps().getExtensionSettings()[extensionName];
     const source = settings?.embeddingSource || 'multilingual-e5-small';
     const strategy = getStrategy(source);
-    const result = await strategy.getDocumentEmbedding(text);
+    const result = await strategy.getDocumentEmbedding(summary);
 
     if (embeddingCache.size >= MAX_CACHE_SIZE) {
         const firstKey = embeddingCache.keys().next().value;
@@ -143,29 +140,6 @@ async function processInBatches(items, batchSize, fn) {
 // cosineSimilarity imported from ./retrieval/math.js for DRY
 
 // =============================================================================
-// Tag Formatting
-// =============================================================================
-
-/**
- * Format memory text for document embedding with tag prefix
- * @param {string} summary - Memory summary text
- * @param {string[]|null} tags - Tags from extraction
- * @param {Object} settings - Extension settings
- * @returns {string} Formatted text for embedding
- */
-export function formatForEmbedding(summary, tags, settings) {
-    const format = settings?.embeddingTagFormat ?? 'bracket';
-    if (format === 'none' || !tags?.length) return summary;
-
-    const tagPrefix = tags
-        .filter(t => t !== 'NONE')
-        .map(t => `[${t}]`)
-        .join(' ');
-
-    return tagPrefix ? `${tagPrefix} ${summary}` : summary;
-}
-
-// =============================================================================
 // Batch Operations
 // =============================================================================
 
@@ -190,8 +164,7 @@ export async function generateEmbeddingsForMemories(memories) {
     const strategy = getStrategy(source);
 
     const embeddings = await processInBatches(validMemories, 5, async (m) => {
-        const text = formatForEmbedding(m.summary, m.tags, settings);
-        return strategy.getDocumentEmbedding(text);
+        return strategy.getDocumentEmbedding(m.summary);
     });
 
     let count = 0;
@@ -228,18 +201,16 @@ export async function enrichEventsWithEmbeddings(events) {
     const strategy = getStrategy(source);
 
     const embeddings = await processInBatches(validEvents, 5, async (e) => {
-        const text = formatForEmbedding(e.summary, e.tags, settings);
         if (settings?.debugMode) {
-            log(`Embedding doc: "${text.slice(0, 80)}${text.length > 80 ? '...' : ''}"`);
+            log(`Embedding doc: "${e.summary.slice(0, 80)}${e.summary.length > 80 ? '...' : ''}"`);
         }
-        return strategy.getDocumentEmbedding(text);
+        return strategy.getDocumentEmbedding(e.summary);
     });
 
     let count = 0;
     for (let i = 0; i < validEvents.length; i++) {
         if (embeddings[i]) {
             validEvents[i].embedding = embeddings[i];
-            validEvents[i].embedding_tags = validEvents[i].tags || ['NONE'];
             count++;
         }
     }

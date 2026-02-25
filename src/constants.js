@@ -46,7 +46,6 @@ export const defaultSettings = {
     embeddingModel: '',
     embeddingQueryPrefix: 'query: ',                       // Asymmetric: query-side prefix
     embeddingDocPrefix: 'passage: ',                       // Asymmetric: doc-side prefix
-    embeddingTagFormat: 'bracket',                         // Tag format: 'bracket' = [TAG], 'none' = disable
     // Alpha-blend scoring (new)
     alpha: 0.7,                    // Vector vs keyword blend: 1.0 = vector only, 0.0 = BM25 only
     combinedBoostWeight: 15,       // Max boost points for retrieval (BM25 + vector)

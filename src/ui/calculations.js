@@ -8,13 +8,12 @@
 /**
  * Filter memories by type and character
  * @param {Array} memories - Array of memory objects
- * @param {string} typeFilter - Event type filter (empty = all)
+ * @param {string} typeFilter - Event type filter (empty = all) - DEPRECATED, ignored
  * @param {string} characterFilter - Character filter (empty = all)
  * @returns {Array} Filtered memories
  */
 export function filterMemories(memories, typeFilter, characterFilter) {
     return memories.filter(m => {
-        if (typeFilter && !m.tags?.includes(typeFilter)) return false;
         if (characterFilter && !m.characters_involved?.includes(characterFilter)) return false;
         return true;
     });

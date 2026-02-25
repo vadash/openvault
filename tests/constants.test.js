@@ -13,9 +13,6 @@ describe('defaultSettings', () => {
     it('has embeddingDocPrefix', () => {
         expect(defaultSettings.embeddingDocPrefix).toBe('passage: ');
     });
-    it('has embeddingTagFormat', () => {
-        expect(defaultSettings.embeddingTagFormat).toBe('bracket');
-    });
 });
 
 describe('embeddingModelPrefixes', () => {

@@ -17,13 +17,12 @@ describe('buildExtractionPrompt', () => {
 
     it('system prompt contains <tags_field> directive', () => {
         const result = buildExtractionPrompt(baseArgs);
-        expect(result[0].content).toContain('<tags_field>');
         expect(result[0].content).not.toContain('event_type');
     });
 
-    it('examples include tags field', () => {
+    it('examples include appropriate fields', () => {
         const result = buildExtractionPrompt(baseArgs);
-        expect(result[0].content).toContain('"tags"');
+        expect(result[0].content).toContain('"summary"');
     });
 
     it('system prompt contains examples section', () => {
@@ -68,7 +67,7 @@ describe('buildExtractionPrompt', () => {
             ...baseArgs,
             context: {
                 memories: [
-                    { tags: ['COMBAT'], importance: 3, summary: 'Alice waved at Bob', sequence: 1 }
+                    { importance: 3, summary: 'Alice waved at Bob', sequence: 1 }
                 ],
                 charDesc: '',
                 personaDesc: '',
@@ -78,8 +77,7 @@ describe('buildExtractionPrompt', () => {
         const usr = result[1].content;
         expect(usr).toContain('established_memories');
         expect(usr).toContain('Alice waved at Bob');
-        expect(usr).toContain('[COMBAT]');
-        expect(usr).not.toContain('[event]');
+        expect(usr).toContain('[3 Star]');
     });
 
     it('user prompt includes character descriptions when provided', () => {

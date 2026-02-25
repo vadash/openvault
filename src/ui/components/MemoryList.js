@@ -110,11 +110,9 @@ export class MemoryList extends Component {
             const summary = (m.summary || '').toLowerCase();
             const characters = (m.characters_involved || []).join(' ').toLowerCase();
             const location = (m.location || '').toLowerCase();
-            const tags = (m.tags || []).join(' ').toLowerCase();
             return summary.includes(query) ||
                    characters.includes(query) ||
-                   location.includes(query) ||
-                   tags.includes(query);
+                   location.includes(query);
         });
     }
 
@@ -163,11 +161,6 @@ export class MemoryList extends Component {
         // Gather values
         const summary = $card.find('[data-field="summary"]').val().trim();
         const importance = parseInt($card.find('[data-field="importance"]').val(), 10);
-        const tags = [];
-        $card.find('[data-field="tags"] input:checked').each(function() {
-            tags.push($(this).val());
-        });
-        if (tags.length === 0) tags.push('NONE');
 
         if (!summary) {
             showToast('warning', 'Summary cannot be empty');
@@ -177,12 +170,12 @@ export class MemoryList extends Component {
         // Disable button during save
         $btn.prop('disabled', true);
 
-        const updated = await updateMemoryAction(id, { summary, importance, tags });
+        const updated = await updateMemoryAction(id, { summary, importance });
         if (updated) {
             // Auto-generate embedding if needed
             const memory = this._getMemoryById(id);
             if (memory && !memory.embedding && isEmbeddingsEnabled()) {
-                const embedding = await getDocumentEmbedding(summary, memory.tags);
+                const embedding = await getDocumentEmbedding(summary);
                 if (embedding) {
                     memory.embedding = embedding;
                     await getDeps().saveChatConditional();
@@ -257,11 +250,10 @@ export class MemoryList extends Component {
         const memories = data[MEMORIES_KEY] || [];
 
         // Get filter values
-        const typeFilter = $(SELECTORS.FILTER_TYPE).val();
         const characterFilter = $(SELECTORS.FILTER_CHARACTER).val();
 
         // Filter, search, and sort
-        let filteredMemories = filterMemories(memories, typeFilter, characterFilter);
+        let filteredMemories = filterMemories(memories, '', characterFilter);
         filteredMemories = this._filterBySearch(filteredMemories, this.state.searchQuery);
         filteredMemories = sortMemoriesByDate(filteredMemories);
 

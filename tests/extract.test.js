@@ -359,7 +359,7 @@ describe('extract', () => {
             isEmbeddingsEnabled.mockReturnValue(true);
             callLLMForExtraction.mockResolvedValue(
                 JSON.stringify({
-                    events: [{ summary: 'Event 1', importance: 3, tags: ['COMBAT'], characters_involved: [] }],
+                    events: [{ summary: 'Event 1', importance: 3, characters_involved: [] }],
                     reasoning: null,
                 })
             );
