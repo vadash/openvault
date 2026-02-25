@@ -12,8 +12,48 @@ import { refreshAllUI, prevPage, nextPage, resetAndRender, initBrowser } from '.
 import { validateRPM } from './calculations.js';
 import { setEmbeddingStatusCallback, getEmbeddingStatus, isEmbeddingsEnabled, generateEmbeddingsForMemories } from '../embeddings.js';
 import { updateEmbeddingStatusDisplay, setStatus } from './status.js';
-import { testOllamaConnection, copyMemoryWeights } from './debug.js';
 import { updateEventListeners } from '../listeners.js';
+
+/**
+ * Test Ollama connection
+ */
+async function testOllamaConnection() {
+    const $btn = $('#openvault_test_ollama_btn');
+    const url = $('#openvault_ollama_url').val().trim();
+
+    if (!url) {
+        $btn.removeClass('success').addClass('error');
+        $btn.html('<i class="fa-solid fa-xmark"></i> No URL');
+        return;
+    }
+
+    $btn.removeClass('success error');
+    $btn.html('<i class="fa-solid fa-spinner fa-spin"></i> Testing...');
+
+    try {
+        const response = await fetch(`${url}/api/tags`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (response.ok) {
+            $btn.removeClass('error').addClass('success');
+            $btn.html('<i class="fa-solid fa-check"></i> Connected');
+        } else {
+            throw new Error(`HTTP ${response.status}`);
+        }
+    } catch (err) {
+        $btn.removeClass('success').addClass('error');
+        $btn.html('<i class="fa-solid fa-xmark"></i> Failed');
+        console.error('[OpenVault] Ollama test failed:', err);
+    }
+
+    // Reset button after 3 seconds
+    setTimeout(() => {
+        $btn.removeClass('success error');
+        $btn.html('<i class="fa-solid fa-plug"></i> Test');
+    }, 3000);
+}
 import { extractAllMessages } from '../extraction/batch.js';
 import { deleteCurrentChatData, deleteCurrentChatEmbeddings } from '../data/actions.js';
 import { getOpenVaultData, showToast } from '../utils.js';
@@ -422,9 +462,6 @@ function bindUIElements() {
 
     // Test Ollama connection button
     $('#openvault_test_ollama_btn').on('click', testOllamaConnection);
-
-    // Debug: copy memory weights button
-    $('#openvault_copy_weights_btn').on('click', copyMemoryWeights);
 }
 
 // =============================================================================

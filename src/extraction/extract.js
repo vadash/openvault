@@ -9,12 +9,116 @@ import { getDeps } from '../deps.js';
 import { getOpenVaultData, log, saveOpenVaultData, isExtensionEnabled } from '../utils.js';
 import { MEMORIES_KEY, LAST_PROCESSED_KEY, PROCESSED_MESSAGES_KEY, extensionName } from '../constants.js';
 import { buildExtractionPrompt } from '../prompts.js';
-import { selectMemoriesForExtraction } from './context-builder.js';
+import { sortMemoriesBySequence, sliceToTokenBudget, estimateTokens } from '../utils.js';
 import { callLLMForExtraction } from '../llm.js';
 import { parseExtractionResponse } from './structured.js';
 import { enrichEventsWithEmbeddings } from '../embeddings.js';
 import { cosineSimilarity } from '../retrieval/math.js';
-import { updateCharacterStatesFromEvents } from './parser.js';
+import { CHARACTERS_KEY } from '../constants.js';
+
+/**
+ * Update character states based on extracted events
+ * @param {Array} events - Extracted events
+ * @param {Object} data - OpenVault data object
+ */
+function updateCharacterStatesFromEvents(events, data) {
+    data[CHARACTERS_KEY] = data[CHARACTERS_KEY] || {};
+
+    for (const event of events) {
+        // Get message range for this event
+        const messageIds = event.message_ids || [];
+        const messageRange = messageIds.length > 0
+            ? { min: Math.min(...messageIds), max: Math.max(...messageIds) }
+            : null;
+
+        // Update emotional impact
+        if (event.emotional_impact) {
+            for (const [charName, emotion] of Object.entries(event.emotional_impact)) {
+                if (!data[CHARACTERS_KEY][charName]) {
+                    data[CHARACTERS_KEY][charName] = {
+                        name: charName,
+                        current_emotion: 'neutral',
+                        emotion_intensity: 5,
+                        known_events: [],
+                    };
+                }
+
+                // Update emotion and track which messages it's from
+                data[CHARACTERS_KEY][charName].current_emotion = emotion;
+                data[CHARACTERS_KEY][charName].last_updated = Date.now();
+                if (messageRange) {
+                    data[CHARACTERS_KEY][charName].emotion_from_messages = messageRange;
+                }
+            }
+        }
+
+        // Add event to witnesses' knowledge
+        for (const witness of (event.witnesses || [])) {
+            if (!data[CHARACTERS_KEY][witness]) {
+                data[CHARACTERS_KEY][witness] = {
+                    name: witness,
+                    current_emotion: 'neutral',
+                    emotion_intensity: 5,
+                    known_events: [],
+                };
+            }
+            if (!data[CHARACTERS_KEY][witness].known_events.includes(event.id)) {
+                data[CHARACTERS_KEY][witness].known_events.push(event.id);
+            }
+        }
+    }
+}
+
+/**
+ * Select relevant memories for extraction context using hybrid recency/importance
+ * @param {Object} data - OpenVault data object
+ * @param {Object} settings - Extension settings
+ * @returns {Object[]} Selected memories sorted chronologically
+ */
+function selectMemoriesForExtraction(data, settings) {
+    const allMemories = data[MEMORIES_KEY] || [];
+    const totalBudget = settings.extractionRearviewTokens || 12000;
+    const recencyBudget = Math.floor(totalBudget * 0.25);
+    const importanceBudget = totalBudget - recencyBudget;
+
+    // Step A: Recency - most recent memories (sorted desc by sequence)
+    const recentSorted = sortMemoriesBySequence(allMemories, false);
+    const recencyMemories = sliceToTokenBudget(recentSorted, recencyBudget);
+    const selectedIds = new Set(recencyMemories.map(m => m.id));
+
+    // Step B: Importance - from remaining, importance >= 4
+    const remaining = allMemories.filter(m => !selectedIds.has(m.id));
+    const highImportance = remaining
+        .filter(m => (m.importance || 3) >= 4)
+        .sort((a, b) => {
+            // Sort by importance desc, then sequence desc
+            const impDiff = (b.importance || 3) - (a.importance || 3);
+            return impDiff !== 0 ? impDiff : (b.sequence || 0) - (a.sequence || 0);
+        });
+    const importanceMemories = sliceToTokenBudget(highImportance, importanceBudget);
+
+    // Calculate remaining budget after importance selection
+    let usedImportanceBudget = 0;
+    for (const m of importanceMemories) {
+        usedImportanceBudget += estimateTokens(m.summary);
+        selectedIds.add(m.id);
+    }
+
+    // Step C: Fill remaining importance budget with more recent memories
+    const fillBudget = importanceBudget - usedImportanceBudget;
+    let fillMemories = [];
+    if (fillBudget > 0) {
+        const stillRemaining = remaining.filter(m => !selectedIds.has(m.id));
+        const recentRemaining = sortMemoriesBySequence(stillRemaining, false);
+        fillMemories = sliceToTokenBudget(recentRemaining, fillBudget);
+    }
+
+    // Step D: Merge all selected memories
+    const mergedMemories = [...recencyMemories, ...importanceMemories, ...fillMemories];
+
+    // Step E: Final sort by sequence ascending (chronological order for LLM)
+    return sortMemoriesBySequence(mergedMemories, true);
+}
 
 /**
  * Filter out events that are too similar to existing memories
