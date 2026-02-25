@@ -7,7 +7,7 @@
 
 import { getDeps } from '../deps.js';
 import { extensionName, QUERY_CONTEXT_DEFAULTS } from '../constants.js';
-import { getOptimalChunkSize } from '../embeddings/strategies.js';
+import { getOptimalChunkSize } from '../embeddings.js';
 import { tokenize } from './math.js';
 
 // Common sentence starters to exclude (Latin)

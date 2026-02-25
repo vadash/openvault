@@ -10,7 +10,7 @@ import { filterMemories, sortMemoriesByDate, getPaginationInfo, extractCharacter
 import { getOpenVaultData, showToast, escapeHtml } from '../utils.js';
 import { getDeps } from '../deps.js';
 import { MEMORIES_KEY, MEMORIES_PER_PAGE, CHARACTERS_KEY } from '../constants.js';
-import { deleteMemory as deleteMemoryAction, updateMemory as updateMemoryAction } from '../data/actions.js';
+import { deleteMemory as deleteMemoryAction, updateMemory as updateMemoryAction } from '../utils.js';
 import { getDocumentEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { refreshStats } from './status.js';
 

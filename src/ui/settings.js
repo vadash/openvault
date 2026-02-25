@@ -55,7 +55,7 @@ async function testOllamaConnection() {
     }, 3000);
 }
 import { extractAllMessages } from '../extraction/extract.js';
-import { deleteCurrentChatData, deleteCurrentChatEmbeddings } from '../data/actions.js';
+import { deleteCurrentChatData, deleteCurrentChatEmbeddings } from '../utils.js';
 import { getOpenVaultData, showToast } from '../utils.js';
 
 // =============================================================================
