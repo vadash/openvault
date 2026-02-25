@@ -8,7 +8,10 @@
     "lint": "eslint .",
     "test": "node scripts/test.js",
     "sync-version": "node scripts/sync-version.js",
-    "build:css": "node scripts/build-css.js"
+    "build:css": "node scripts/build-css.js",
+    "repomix": "npm run repomix:source && npm run repomix:tests",
+    "repomix:source": "npx repomix --style markdown --output repomix-source.md --ignore \"tests/**,**/*.test.js,**/*.spec.ts,node_modules/**,repomix-*.md,style.css,docs/**,.worktrees/**,logs/**,tmp/**,package-lock.json\"",
+    "repomix:tests": "npx repomix --style markdown --output repomix-tests.md --include \"tests/**/*.js\""
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
