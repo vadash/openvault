@@ -292,6 +292,8 @@ export function calculateScore(memory, contextEmbedding, chatLength, constants, 
  * @returns {Array<{memory: Object, score: number, breakdown: Object}>} Scored and sorted memories
  */
 export function scoreMemories(memories, contextEmbedding, chatLength, constants, settings, queryTokens) {
+    const start = performance.now();
+
     // Precompute BM25 data if query tokens provided
     let tokens = null;
     let idfMap = null;
@@ -334,5 +336,9 @@ export function scoreMemories(memories, contextEmbedding, chatLength, constants,
     });
 
     scored.sort((a, b) => b.score - a.score);
+
+    const duration = performance.now() - start;
+    console.log(`[OpenVault] Scoring ${memories.length} memories took ${duration.toFixed(2)}ms`);
+
     return scored;
 }
