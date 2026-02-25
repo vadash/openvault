@@ -1,7 +1,42 @@
 import { z } from 'https://esm.sh/zod@4';
-import { ExtractionResponseSchema, EventSchema } from './schemas/event-schema.js';
-import { RetrievalResponseSchema } from './schemas/retrieval-schema.js';
 import { stripThinkingTags, log } from '../utils.js';
+
+// --- Schemas (inlined from schemas/) ---
+
+/**
+ * Schema for relationship impact between characters
+ */
+export const RelationshipImpactSchema = z.record(z.string(), z.string());
+
+/**
+ * Schema for a single memory event
+ */
+export const EventSchema = z.object({
+    summary: z.string().min(1, 'Summary is required'),
+    importance: z.number().int().min(1).max(5).default(3),
+    characters_involved: z.array(z.string()).default([]),
+    witnesses: z.array(z.string()).default([]),
+    location: z.string().nullable().default(null),
+    is_secret: z.boolean().default(false),
+    emotional_impact: z.record(z.string(), z.string()).optional().default({}),
+    relationship_impact: RelationshipImpactSchema.optional().default({}),
+});
+
+/**
+ * Schema for the full extraction response from LLM (structured format)
+ */
+export const ExtractionResponseSchema = z.object({
+    reasoning: z.string().nullable().default(null),
+    events: z.array(EventSchema),
+});
+
+/**
+ * Schema for smart retrieval LLM response
+ */
+export const RetrievalResponseSchema = z.object({
+    reasoning: z.string().nullable().default(null),
+    selected: z.array(z.number().int().min(1)),
+});
 
 /**
  * Convert Zod schema to ConnectionManager jsonSchema format

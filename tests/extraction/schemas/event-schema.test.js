@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { EventSchema, ExtractionResponseSchema } from '../../../src/extraction/schemas/event-schema.js';
+import { EventSchema, ExtractionResponseSchema } from '../../../src/extraction/structured.js';
 
 describe('EventSchema', () => {
     it('requires summary', () => {
