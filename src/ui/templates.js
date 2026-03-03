@@ -229,3 +229,33 @@ export function renderReflectionProgress(reflectionState, threshold) {
 
     return `<div class="openvault-reflection-counters">${items}</div>`;
 }
+
+/**
+ * Render a single community as an accordion item.
+ * @param {string} id - Community ID (e.g., "C0")
+ * @param {Object} community - { title, summary, findings, nodeKeys }
+ * @returns {string} HTML
+ */
+export function renderCommunityAccordion(id, community) {
+    const memberCount = community.nodeKeys?.length || 0;
+    const findings = (community.findings || [])
+        .map(f => `<li>${escapeHtml(f)}</li>`)
+        .join('');
+    const members = (community.nodeKeys || [])
+        .map(k => escapeHtml(k))
+        .join(', ');
+
+    return `
+        <details class="openvault-community-item">
+            <summary>
+                <span class="openvault-community-title">${escapeHtml(community.title || id)}</span>
+                <span class="openvault-community-badge">${memberCount} entities</span>
+            </summary>
+            <div class="openvault-community-content">
+                <p>${escapeHtml(community.summary || 'No summary')}</p>
+                ${findings ? `<ul class="openvault-community-findings">${findings}</ul>` : ''}
+                <small class="openvault-community-members">Members: ${members}</small>
+            </div>
+        </details>
+    `;
+}

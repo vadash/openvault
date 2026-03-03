@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderMemoryItem, renderReflectionProgress } from '../src/ui/templates.js';
+import { renderMemoryItem, renderReflectionProgress, renderCommunityAccordion } from '../src/ui/templates.js';
 
 describe('ui/templates', () => {
     describe('renderMemoryItem', () => {
@@ -82,6 +82,64 @@ describe('ui/templates', () => {
             const state = { 'Alice': {} };
             const html = renderReflectionProgress(state, 30);
             expect(html).toContain('Alice: 0/30');
+        });
+    });
+
+    describe('renderCommunityAccordion', () => {
+        it('renders community title and member count', () => {
+            const community = {
+                title: 'The Royal Court',
+                summary: 'King Aldric rules from the Castle.',
+                findings: ['The King is powerful', 'The Guard is loyal'],
+                nodeKeys: ['king aldric', 'castle', 'royal guard'],
+            };
+            const html = renderCommunityAccordion('C0', community);
+            expect(html).toContain('The Royal Court');
+            expect(html).toContain('3 entities');
+        });
+
+        it('renders summary and findings', () => {
+            const community = {
+                title: 'Court',
+                summary: 'A powerful court.',
+                findings: ['Finding one', 'Finding two'],
+                nodeKeys: ['a'],
+            };
+            const html = renderCommunityAccordion('C0', community);
+            expect(html).toContain('A powerful court.');
+            expect(html).toContain('Finding one');
+            expect(html).toContain('Finding two');
+            expect(html).toContain('<li>');
+        });
+
+        it('renders member list', () => {
+            const community = {
+                title: 'Test',
+                summary: 'Test',
+                findings: [],
+                nodeKeys: ['alice', 'bob'],
+            };
+            const html = renderCommunityAccordion('C0', community);
+            expect(html).toContain('alice');
+            expect(html).toContain('bob');
+        });
+
+        it('uses community ID as fallback title', () => {
+            const community = { summary: 'No title', findings: [], nodeKeys: [] };
+            const html = renderCommunityAccordion('C5', community);
+            expect(html).toContain('C5');
+        });
+
+        it('handles empty findings', () => {
+            const community = { title: 'Test', summary: 'Test', findings: [], nodeKeys: [] };
+            const html = renderCommunityAccordion('C0', community);
+            expect(html).not.toContain('<ul');
+        });
+
+        it('shows 0 entities for empty nodeKeys', () => {
+            const community = { title: 'Test', summary: 'Test', findings: [], nodeKeys: [] };
+            const html = renderCommunityAccordion('C0', community);
+            expect(html).toContain('0 entities');
         });
     });
 });
