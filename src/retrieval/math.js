@@ -470,7 +470,6 @@ export function calculateScore(memory, contextEmbedding, chatLength, constants, 
     const recencyPenalty = baseAfterFloor - base;
 
     // === Alpha-Blend Scoring ===
-    // New: alpha + combinedBoostWeight (fallback to legacy for migration)
     const alpha = settings.alpha ?? 0.7;
     const boostWeight = settings.combinedBoostWeight ?? 15;
 

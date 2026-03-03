@@ -71,7 +71,6 @@ describe('math.js - alpha-blend scoring', () => {
         expect(results[0].breakdown.bm25Bonus).toBe(0);
     });
 
-
     it('respects vectorSimilarityThreshold in alpha-blend scoring', () => {
         // To test threshold, use orthogonal vectors (similarity = 0)
         const memory = { importance: 3, message_ids: [100], embedding: [1, 0] };

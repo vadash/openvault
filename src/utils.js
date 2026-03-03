@@ -317,9 +317,6 @@ export function sortMemoriesBySequence(memories, ascending = true) {
     });
 }
 
-// Re-export scheduler functions for backwards compatibility
-export { getExtractedMessageIds, getUnextractedMessageIds } from './extraction/scheduler.js';
-
 // =============================================================================
 // Data Actions (from src/data/actions.js)
 // =============================================================================

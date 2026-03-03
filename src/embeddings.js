@@ -7,7 +7,6 @@
 
 import { extensionName } from './constants.js';
 import { getDeps } from './deps.js';
-import { cosineSimilarity } from './retrieval/math.js';
 import { log } from './utils.js';
 
 // =============================================================================
@@ -653,7 +652,8 @@ export async function enrichEventsWithEmbeddings(events) {
 }
 
 // =============================================================================
-// Re-exports for backward compatibility
+// Exports
 // =============================================================================
 
-export { TRANSFORMERS_MODELS, getOptimalChunkSize, cosineSimilarity };
+export { TRANSFORMERS_MODELS };
+export { getOptimalChunkSize };

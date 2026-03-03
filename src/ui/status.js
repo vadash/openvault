@@ -31,7 +31,6 @@ const STATUS_SUBTEXT = {
  * @param {string} status - 'ready', 'extracting', 'retrieving', 'error'
  */
 export function setStatus(status) {
-    // Update legacy status badge
     const $indicator = $('#openvault_status');
     $indicator.removeClass('ready extracting retrieving error');
     $indicator.addClass(status);
@@ -91,17 +90,13 @@ export function updateEmbeddingStatusDisplay(statusText) {
 export function refreshStats() {
     const data = getOpenVaultData();
     if (!data) {
-        // Update new stat cards
+        // Update stat cards
         $('#openvault_stat_events').text('0');
         $('#openvault_stat_embeddings').text('0');
         $('#openvault_stat_characters').text('0');
         $('#openvault_stat_reflections').text('0');
         $('#openvault_stat_entities').text('0');
         $('#openvault_stat_communities').text('0');
-        // Update legacy badges
-        $('#openvault_stat_events_badge').text('0 events');
-        $('#openvault_stat_embeddings_badge').text('0 embeddings');
-        $('#openvault_stat_characters_badge').text('0 chars');
         // Update progress
         $('#openvault_batch_progress_fill').css('width', '0%');
         $('#openvault_batch_progress_label').text('No chat');
@@ -118,18 +113,13 @@ export function refreshStats() {
     const entityCount = Object.keys(data.graph?.nodes || {}).length;
     const communityCount = Object.keys(data.communities || {}).length;
 
-    // Update new stat cards
+    // Update stat cards
     $('#openvault_stat_events').text(eventCount);
     $('#openvault_stat_embeddings').text(embeddingCount);
     $('#openvault_stat_characters').text(charCount);
     $('#openvault_stat_reflections').text(reflectionCount);
     $('#openvault_stat_entities').text(entityCount);
     $('#openvault_stat_communities').text(communityCount);
-
-    // Update legacy badges
-    $('#openvault_stat_events_badge').text(`${eventCount} events`);
-    $('#openvault_stat_embeddings_badge').text(`${embeddingCount} embeddings`);
-    $('#openvault_stat_characters_badge').text(`${charCount} chars`);
 
     // Calculate batch progress
     const settings = getDeps().getExtensionSettings()[extensionName];

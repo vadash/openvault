@@ -192,26 +192,6 @@ function populateDefaultHints() {
 }
 
 // =============================================================================
-// Settings Migration
-// =============================================================================
-
-function migrateSettings(settings) {
-    // If alpha not set but legacy vector/keyword weights exist, compute alpha
-    if (
-        settings.alpha === undefined &&
-        (settings.vectorSimilarityWeight !== undefined || settings.keywordMatchWeight !== undefined)
-    ) {
-        const vw = settings.vectorSimilarityWeight ?? 15;
-        const kw = settings.keywordMatchWeight ?? 3.0;
-        settings.alpha = vw / (vw + kw);
-        settings.combinedBoostWeight = vw;
-        // Delete legacy keys after migration
-        delete settings.vectorSimilarityWeight;
-        delete settings.keywordMatchWeight;
-    }
-}
-
-// =============================================================================
 // Settings Loading
 // =============================================================================
 
@@ -224,9 +204,6 @@ export async function loadSettings() {
         ...defaultSettings,
         ...extension_settings[extensionName],
     });
-
-    // Migrate legacy settings to new format
-    migrateSettings(extension_settings[extensionName]);
 
     // Load HTML template
     const settingsHtml = await $.get(`${extensionFolderPath}/templates/settings_panel.html`);

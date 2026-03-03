@@ -4,13 +4,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CHARACTERS_KEY, extensionName, LAST_PROCESSED_KEY, MEMORIES_KEY, METADATA_KEY } from '../src/constants.js';
 import { resetDeps, setDeps } from '../src/deps.js';
+import { getExtractedMessageIds, getUnextractedMessageIds } from '../src/extraction/scheduler.js';
 import {
     escapeHtml,
     generateId,
     getCurrentChatId,
-    getExtractedMessageIds,
     getOpenVaultData,
-    getUnextractedMessageIds,
     isAutomaticMode,
     isExtensionEnabled,
     log,
