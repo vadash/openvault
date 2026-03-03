@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { toGraphology, detectCommunities, buildCommunityGroups } from '../../src/graph/communities.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resetDeps, setDeps } from '../../src/deps.js';
+import { defaultSettings, extensionName } from '../../src/constants.js';
+import { toGraphology, detectCommunities, buildCommunityGroups, updateCommunitySummaries } from '../../src/graph/communities.js';
 
 describe('toGraphology', () => {
     it('converts flat graph to graphology instance', () => {
@@ -78,5 +80,144 @@ describe('buildCommunityGroups', () => {
         expect(groups[0].nodeKeys).toContain('castle');
         expect(groups[0].nodeLines.length).toBeGreaterThan(0);
         expect(groups[1].nodeKeys).toContain('tavern');
+    });
+});
+
+// Mock LLM
+const mockCallLLM = vi.fn();
+vi.mock('../../src/llm.js', () => ({
+    callLLM: (...args) => mockCallLLM(...args),
+    LLM_CONFIGS: { community: { profileSettingKey: 'extractionProfile' } },
+}));
+
+// Mock embeddings
+vi.mock('../../src/embeddings.js', () => ({
+    getQueryEmbedding: vi.fn(async (text) => [0.1, 0.2, 0.3]),
+}));
+
+// Mock prompts
+vi.mock('../../src/prompts.js', () => ({
+    buildCommunitySummaryPrompt: vi.fn((nodes, edges) => [
+        { role: 'system', content: 'system' },
+        { role: 'user', content: `nodes: ${nodes.join(', ')}; edges: ${edges.join(', ')}` },
+    ]),
+}));
+
+// Mock structured
+vi.mock('../../src/extraction/structured.js', () => ({
+    parseCommunitySummaryResponse: vi.fn((content) => {
+        const parsed = JSON.parse(content);
+        return { title: parsed.title, summary: parsed.summary, findings: parsed.findings };
+    }),
+}));
+
+describe('updateCommunitySummaries', () => {
+    beforeEach(() => {
+        setDeps({
+            console: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
+            getExtensionSettings: () => ({
+                [extensionName]: { ...defaultSettings },
+            }),
+            Date: { now: () => 1000000 },
+        });
+
+        mockCallLLM.mockResolvedValue(JSON.stringify({
+            title: 'The Royal Court',
+            summary: 'King Aldric rules from the Castle...',
+            findings: ['The King is powerful'],
+        }));
+    });
+
+    afterEach(() => {
+        resetDeps();
+        vi.clearAllMocks();
+    });
+
+    it('generates summaries for new communities', async () => {
+        const graphData = {
+            nodes: {
+                king: { name: 'King', type: 'PERSON', description: 'Ruler', mentions: 3 },
+                castle: { name: 'Castle', type: 'PLACE', description: 'Fortress', mentions: 2 },
+            },
+            edges: {
+                'king__castle': { source: 'king', target: 'castle', description: 'Rules from', weight: 4 },
+            },
+        };
+        const communityGroups = {
+            0: {
+                nodeKeys: ['king', 'castle'],
+                nodeLines: ['- King (PERSON): Ruler', '- Castle (PLACE): Fortress'],
+                edgeLines: ['- King → Castle: Rules from [weight: 4]'],
+            },
+        };
+
+        const result = await updateCommunitySummaries(graphData, communityGroups, {});
+        expect(result['C0']).toBeDefined();
+        expect(result['C0'].title).toBe('The Royal Court');
+        expect(result['C0'].embedding).toEqual([0.1, 0.2, 0.3]);
+        expect(result['C0'].nodeKeys).toEqual(['king', 'castle']);
+    });
+
+    it('skips communities whose membership has not changed', async () => {
+        const communityGroups = {
+            0: {
+                nodeKeys: ['king', 'castle'],
+                nodeLines: ['- King: Ruler'],
+                edgeLines: [],
+            },
+        };
+        const existingCommunities = {
+            C0: {
+                nodeKeys: ['king', 'castle'],
+                title: 'Old Title',
+                summary: 'Old summary',
+                findings: ['Old finding'],
+                embedding: [0.5, 0.5],
+                lastUpdated: 500000,
+            },
+        };
+
+        const result = await updateCommunitySummaries({}, communityGroups, existingCommunities);
+        expect(result['C0'].title).toBe('Old Title'); // Unchanged
+        expect(mockCallLLM).not.toHaveBeenCalled(); // No LLM call needed
+    });
+
+    it('skips communities with fewer than 2 nodes', async () => {
+        const communityGroups = {
+            0: {
+                nodeKeys: ['king'],
+                nodeLines: ['- King: Ruler'],
+                edgeLines: [],
+            },
+        };
+
+        const result = await updateCommunitySummaries({}, communityGroups, {});
+        expect(result['C0']).toBeUndefined();
+        expect(mockCallLLM).not.toHaveBeenCalled();
+    });
+
+    it('handles LLM errors gracefully by keeping existing communities', async () => {
+        const communityGroups = {
+            0: {
+                nodeKeys: ['king', 'castle'],
+                nodeLines: ['- King: Ruler'],
+                edgeLines: [],
+            },
+        };
+        const existingCommunities = {
+            C0: {
+                nodeKeys: ['king', 'castle'],
+                title: 'Existing Title',
+                summary: 'Existing summary',
+                findings: ['Existing finding'],
+                embedding: [0.5, 0.5],
+                lastUpdated: 500000,
+            },
+        };
+
+        mockCallLLM.mockRejectedValue(new Error('LLM failed'));
+
+        const result = await updateCommunitySummaries({}, communityGroups, existingCommunities);
+        expect(result['C0'].title).toBe('Existing Title'); // Kept existing
     });
 });
