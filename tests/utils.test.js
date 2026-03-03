@@ -221,6 +221,34 @@ describe('utils', () => {
         });
     });
 
+    describe('safeSetExtensionPrompt with name parameter', () => {
+        it('passes custom name to setExtensionPrompt', () => {
+            const mockSetPrompt = vi.fn();
+            setDeps({
+                console: mockConsole,
+                getExtensionSettings: () => ({ [extensionName]: { debugMode: false } }),
+                setExtensionPrompt: mockSetPrompt,
+                extension_prompt_types: { IN_PROMPT: 0 },
+            });
+
+            safeSetExtensionPrompt('test content', 'openvault_world');
+            expect(mockSetPrompt).toHaveBeenCalledWith('openvault_world', 'test content', 0, 0);
+        });
+
+        it('defaults to extensionName when no name provided', () => {
+            const mockSetPrompt = vi.fn();
+            setDeps({
+                console: mockConsole,
+                getExtensionSettings: () => ({ [extensionName]: { debugMode: false } }),
+                setExtensionPrompt: mockSetPrompt,
+                extension_prompt_types: { IN_PROMPT: 0 },
+            });
+
+            safeSetExtensionPrompt('test content');
+            expect(mockSetPrompt).toHaveBeenCalledWith('openvault', 'test content', 0, 0);
+        });
+    });
+
     describe('generateId', () => {
         it('generates unique IDs with timestamp prefix', () => {
             setDeps({

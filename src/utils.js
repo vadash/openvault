@@ -87,12 +87,13 @@ export function isAutomaticMode() {
 /**
  * Safe wrapper for setExtensionPrompt with error handling
  * @param {string} content - Content to inject
+ * @param {string} [name] - Named slot (defaults to extensionName for backwards compatibility)
  * @returns {boolean} True if successful
  */
-export function safeSetExtensionPrompt(content) {
+export function safeSetExtensionPrompt(content, name = extensionName) {
     try {
         const deps = getDeps();
-        deps.setExtensionPrompt(extensionName, content, deps.extension_prompt_types.IN_PROMPT, 0);
+        deps.setExtensionPrompt(name, content, deps.extension_prompt_types.IN_PROMPT, 0);
         return true;
     } catch (error) {
         getDeps().console.error('[OpenVault] Failed to set extension prompt:', error);
