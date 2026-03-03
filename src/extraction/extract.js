@@ -41,6 +41,7 @@ import { getBackfillMessageIds, getExtractedMessageIds } from './scheduler.js';
 import { parseExtractionResponse } from './structured.js';
 import { initGraphState, upsertEntity, upsertRelationship } from '../graph/graph.js';
 import { accumulateImportance, shouldReflect, generateReflections } from '../reflection/reflect.js';
+import { detectCommunities, buildCommunityGroups, updateCommunitySummaries } from '../graph/communities.js';
 
 /**
  * Update character states based on extracted events
@@ -336,6 +337,27 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
                         deps.console.error(`[OpenVault] Reflection error for ${characterName}:`, error);
                     }
                 }
+            }
+        }
+
+        // Stage 4.7: Community detection (every 50 messages)
+        const prevCount = (data.graph_message_count || 0) - messages.length;
+        const currCount = data.graph_message_count || 0;
+        // Check if we crossed a 50-message boundary
+        if (Math.floor(currCount / 50) > Math.floor(prevCount / 50)) {
+            try {
+                const communityResult = detectCommunities(data.graph);
+                if (communityResult) {
+                    const groups = buildCommunityGroups(data.graph, communityResult.communities);
+                    data.communities = await updateCommunitySummaries(
+                        data.graph,
+                        groups,
+                        data.communities || {}
+                    );
+                    log(`Community detection: ${communityResult.count} communities found`);
+                }
+            } catch (error) {
+                deps.console.error('[OpenVault] Community detection error:', error);
             }
         }
 

@@ -40,6 +40,15 @@ vi.mock('../../src/reflection/reflect.js', () => ({
 
 import { accumulateImportance, shouldReflect, generateReflections } from '../../src/reflection/reflect.js';
 
+// Mock communities module
+vi.mock('../../src/graph/communities.js', () => ({
+    detectCommunities: vi.fn(() => null),
+    buildCommunityGroups: vi.fn(() => ({})),
+    updateCommunitySummaries: vi.fn(async () => ({})),
+}));
+
+import { detectCommunities, buildCommunityGroups, updateCommunitySummaries } from '../../src/graph/communities.js';
+
 import { extractMemories } from '../../src/extraction/extract.js';
 
 describe('extractMemories graph integration', () => {
@@ -182,5 +191,96 @@ describe('extractMemories reflection integration', () => {
         // Verify the reflection_state for the character was reset
         const charState = mockData.reflection_state?.['King Aldric'];
         expect(charState?.importance_sum).toBe(0);
+    });
+});
+
+describe('extractMemories community detection', () => {
+    let mockContext;
+    let mockData;
+
+    beforeEach(() => {
+        mockData = {
+            memories: [],
+            character_states: {},
+            last_processed_message_id: -1,
+            processed_message_ids: [],
+            graph: { nodes: {}, edges: {} },
+            graph_message_count: 0,
+            reflection_state: {},
+            communities: {},
+        };
+
+        mockContext = {
+            chat: [
+                { mes: 'Hello', is_user: true, name: 'User' },
+                { mes: 'Welcome to the Castle', is_user: false, name: 'King Aldric' },
+            ],
+            name1: 'User',
+            name2: 'King Aldric',
+            characterId: 'char1',
+            characters: { char1: { description: '' } },
+            chatMetadata: { openvault: mockData },
+            chatId: 'test-chat',
+            powerUserSettings: {},
+        };
+
+        setDeps({
+            getContext: () => mockContext,
+            getExtensionSettings: () => ({
+                [extensionName]: { ...defaultSettings, enabled: true },
+            }),
+            saveChatConditional: vi.fn(async () => true),
+            console: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
+            Date: { now: () => 1000000 },
+        });
+
+        vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+        resetDeps();
+    });
+
+    it('triggers community detection when graph_message_count reaches multiple of 50', async () => {
+        // Set graph_message_count to 49 - processing 2 messages will reach 51
+        mockData.graph_message_count = 49;
+        detectCommunities.mockReturnValue({ communities: { a: 0, b: 0 }, count: 1 });
+        buildCommunityGroups.mockReturnValue({ 0: { nodeKeys: ['a', 'b'], nodeLines: [], edgeLines: [] } });
+        updateCommunitySummaries.mockResolvedValue({ C0: { title: 'Test Community' } });
+
+        await extractMemories([0, 1]);
+
+        expect(detectCommunities).toHaveBeenCalledWith(mockData.graph);
+        expect(buildCommunityGroups).toHaveBeenCalled();
+        expect(updateCommunitySummaries).toHaveBeenCalled();
+    });
+
+    it('does not trigger community detection when below threshold', async () => {
+        mockData.graph_message_count = 10;
+
+        await extractMemories([0, 1]);
+
+        expect(detectCommunities).not.toHaveBeenCalled();
+        expect(buildCommunityGroups).not.toHaveBeenCalled();
+        expect(updateCommunitySummaries).not.toHaveBeenCalled();
+    });
+
+    it('does not trigger community detection when at exactly 50 but not crossing boundary', async () => {
+        mockData.graph_message_count = 50;
+
+        await extractMemories([0, 1]);
+
+        // At 50, after adding 2 messages we'd be at 52, which is still in the same 50-message bucket
+        expect(detectCommunities).not.toHaveBeenCalled();
+    });
+
+    it('handles community detection errors gracefully', async () => {
+        mockData.graph_message_count = 49;
+        detectCommunities.mockImplementation(() => { throw new Error('Detection failed'); });
+
+        const result = await extractMemories([0, 1]);
+
+        // Should still complete extraction successfully
+        expect(result.status).toBe('success');
     });
 });
