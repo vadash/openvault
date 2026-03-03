@@ -6,7 +6,7 @@
     "scripts": {
         "clear": "node -e \"process.stdout.write('\\u001B[2J\\u001B[0;0f')\"",
         "lint": "biome check .",
-        "lint:fix": "biome check --write .",
+        "lint:fix": "biome check --write --unsafe .",
         "format": "biome format --write .",
         "test": "node scripts/test.js",
         "sync-version": "node scripts/sync-version.js",
