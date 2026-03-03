@@ -23,11 +23,31 @@ export const EventSchema = z.object({
 });
 
 /**
+ * Schema for an entity (person, place, organization, object, or concept)
+ */
+export const EntitySchema = z.object({
+    name: z.string().min(1, 'Entity name is required').describe('Entity name, capitalized'),
+    type: z.enum(['PERSON', 'PLACE', 'ORGANIZATION', 'OBJECT', 'CONCEPT']),
+    description: z.string().min(1).describe('Comprehensive description of the entity'),
+});
+
+/**
+ * Schema for a relationship between two entities
+ */
+export const RelationshipSchema = z.object({
+    source: z.string().min(1).describe('Source entity name'),
+    target: z.string().min(1).describe('Target entity name'),
+    description: z.string().min(1).describe('Description of the relationship'),
+});
+
+/**
  * Schema for the full extraction response from LLM (structured format)
  */
 export const ExtractionResponseSchema = z.object({
     reasoning: z.string().nullable().default(null),
     events: z.array(EventSchema),
+    entities: z.array(EntitySchema).default([]),
+    relationships: z.array(RelationshipSchema).default([]),
 });
 
 /**

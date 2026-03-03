@@ -180,3 +180,55 @@ describe('parseEvent', () => {
         expect(result.importance).toBe(4);
     });
 });
+
+describe('Extended ExtractionResponseSchema', () => {
+    it('parses response with entities and relationships', () => {
+        const json = JSON.stringify({
+            reasoning: null,
+            events: [],
+            entities: [
+                { name: 'Castle', type: 'PLACE', description: 'An ancient fortress' }
+            ],
+            relationships: [
+                { source: 'King Aldric', target: 'Castle', description: 'Rules from the castle' }
+            ],
+        });
+        const result = parseExtractionResponse(json);
+        expect(result.entities).toHaveLength(1);
+        expect(result.entities[0].name).toBe('Castle');
+        expect(result.entities[0].type).toBe('PLACE');
+        expect(result.relationships).toHaveLength(1);
+        expect(result.relationships[0].source).toBe('King Aldric');
+    });
+
+    it('defaults entities and relationships to empty arrays', () => {
+        const json = JSON.stringify({
+            reasoning: null,
+            events: [],
+        });
+        const result = parseExtractionResponse(json);
+        expect(result.entities).toEqual([]);
+        expect(result.relationships).toEqual([]);
+    });
+
+    it('validates entity type enum', () => {
+        const json = JSON.stringify({
+            reasoning: null,
+            events: [],
+            entities: [
+                { name: 'Blob', type: 'INVALID_TYPE', description: 'Something' }
+            ],
+            relationships: [],
+        });
+        expect(() => parseExtractionResponse(json)).toThrow();
+    });
+
+    it('includes entities and relationships in JSON schema output', () => {
+        const schema = getExtractionJsonSchema();
+        const props = schema.value.properties;
+        expect(props).toHaveProperty('entities');
+        expect(props).toHaveProperty('relationships');
+        expect(props.entities.type).toBe('array');
+        expect(props.relationships.type).toBe('array');
+    });
+});
