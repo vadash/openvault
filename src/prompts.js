@@ -206,7 +206,7 @@ Your task: given the character's recent memories, generate exactly 3 high-level 
 Rules:
 - Questions should be answerable from the memory stream.
 - Focus on patterns, changes, and emotional arcs — not individual events.
-- Output exactly 3 questions as a JSON array.`;
+- Output as a JSON object with a "questions" array containing exactly 3 strings.`;
 
     const userPrompt = `<character>${characterName}</character>
 
@@ -215,7 +215,7 @@ ${memoryList}
 </recent_memories>
 
 What are the 3 most salient high-level questions we can answer about ${characterName}'s current state based on these memories?
-Respond strictly in the required JSON format.`;
+Respond strictly in the required JSON format: { "questions": ["question1", "question2", "question3"] }`;
 
     return [
         { role: 'system', content: systemPrompt },
@@ -246,7 +246,7 @@ Rules:
 
 <question>${question}</question>
 
-<memorys>
+<memories>
 ${memoryList}
 </memories>
 
