@@ -439,7 +439,7 @@ export function cosineSimilarity(vecA, vecB) {
  * @param {number[]|null} contextEmbedding - Context embedding for similarity
  * @param {number} chatLength - Current chat length
  * @param {Object} constants - Scoring constants (BASE_LAMBDA, IMPORTANCE_5_FLOOR)
- * @param {Object} settings - Scoring settings (vectorSimilarityThreshold, vectorSimilarityWeight, keywordMatchWeight)
+ * @param {Object} settings - Scoring settings (vectorSimilarityThreshold, alpha, combinedBoostWeight)
  * @param {number} [bm25Score] - Precomputed BM25 score
  * @returns {{total: number, base: number, baseAfterFloor: number, recencyPenalty: number, vectorBonus: number, vectorSimilarity: number, bm25Bonus: number, bm25Score: number, distance: number, importance: number}} Score breakdown
  */

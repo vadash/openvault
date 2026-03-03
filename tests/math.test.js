@@ -71,20 +71,6 @@ describe('math.js - alpha-blend scoring', () => {
         expect(results[0].breakdown.bm25Bonus).toBe(0);
     });
 
-    it('uses legacy settings as fallback when alpha not provided', () => {
-        const memory = { importance: 3, message_ids: [100], embedding: [1, 0, 0] };
-        const contextEmbedding = [1, 0, 0];
-        const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 };
-        const settings = {
-            vectorSimilarityThreshold: 0.5,
-            vectorSimilarityWeight: 15,
-            keywordMatchWeight: 3.0,
-            // No alpha or combinedBoostWeight - should fall back to legacy behavior
-        };
-        const result = calculateScore(memory, contextEmbedding, 100, constants, settings, 0);
-        // With default alpha=0.7 and combinedBoostWeight=15
-        expect(result.vectorBonus).toBeCloseTo(10.5, 1);
-    });
 
     it('respects vectorSimilarityThreshold in alpha-blend scoring', () => {
         // To test threshold, use orthogonal vectors (similarity = 0)

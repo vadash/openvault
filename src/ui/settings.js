@@ -205,6 +205,9 @@ function migrateSettings(settings) {
         const kw = settings.keywordMatchWeight ?? 3.0;
         settings.alpha = vw / (vw + kw);
         settings.combinedBoostWeight = vw;
+        // Delete legacy keys after migration
+        delete settings.vectorSimilarityWeight;
+        delete settings.keywordMatchWeight;
     }
 }
 

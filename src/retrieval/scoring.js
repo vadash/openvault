@@ -27,9 +27,6 @@ export function getScoringParams() {
             vectorSimilarityThreshold: settings.vectorSimilarityThreshold,
             alpha: settings.alpha ?? 0.7,
             combinedBoostWeight: settings.combinedBoostWeight ?? 15,
-            // Keep old keys for any code that still reads them during transition
-            vectorSimilarityWeight: settings.vectorSimilarityWeight,
-            keywordMatchWeight: settings.keywordMatchWeight ?? 1.0,
         },
     };
 }

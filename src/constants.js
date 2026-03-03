@@ -43,13 +43,10 @@ export const defaultSettings = {
     embeddingModel: '',
     embeddingQueryPrefix: 'query: ', // Asymmetric: query-side prefix
     embeddingDocPrefix: 'passage: ', // Asymmetric: doc-side prefix
-    // Alpha-blend scoring (new)
+    // Alpha-blend scoring
     alpha: 0.7, // Vector vs keyword blend: 1.0 = vector only, 0.0 = BM25 only
     combinedBoostWeight: 15, // Max boost points for retrieval (BM25 + vector)
-    // Legacy keys (kept for migration/backwards compat)
-    vectorSimilarityWeight: 15,
     vectorSimilarityThreshold: 0.5,
-    keywordMatchWeight: 3.0,
     // Deduplication settings
     dedupSimilarityThreshold: 0.85, // Cosine similarity threshold for filtering duplicates (0-1)
     // Forgetfulness curve settings (scoring)
