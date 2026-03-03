@@ -51,20 +51,40 @@ describe('buildExtractionPrompt', () => {
         expect(exampleCount).toBeGreaterThanOrEqual(6);
     });
 
-    it('system prompt contains multilingual anchoring terms', () => {
+    it('system prompt contains explicit output schema', () => {
         const result = buildExtractionPrompt(baseArgs);
         const sys = result[0].content;
-        // Russian terms
-        expect(sys).toContain('эротика');
-        // Should contain importance scale
-        expect(sys).toContain('1');
-        expect(sys).toContain('5');
+        expect(sys).toContain('<output_schema>');
+        expect(sys).toContain('</output_schema>');
+        // Schema explicitly declares all four top-level keys
+        expect(sys).toContain('"reasoning"');
+        expect(sys).toContain('"events"');
+        expect(sys).toContain('"entities"');
+        expect(sys).toContain('"relationships"');
+    });
+
+    it('system prompt contains content-type handling directive', () => {
+        const result = buildExtractionPrompt(baseArgs);
+        const sys = result[0].content;
+        // Handles adult/18+ content
+        expect(sys).toContain('18+');
+        // Handles various genres
+        expect(sys).toContain('romance');
+        expect(sys).toContain('slice-of-life');
     });
 
     it('system prompt instructs reasoning-first', () => {
         const result = buildExtractionPrompt(baseArgs);
         const sys = result[0].content;
         expect(sys).toMatch(/reasoning.*first|think.*before|reasoning.*field.*before/i);
+    });
+
+    it('system prompt contains importance scale 1-5', () => {
+        const result = buildExtractionPrompt(baseArgs);
+        const sys = result[0].content;
+        expect(sys).toContain('1');
+        expect(sys).toContain('5');
+        expect(sys).toContain('<importance_scale>');
     });
 
     it('user prompt contains messages in XML tags', () => {
@@ -104,6 +124,19 @@ describe('buildExtractionPrompt', () => {
         expect(usr).toContain('A brave warrior');
         expect(usr).toContain('A curious traveler');
     });
+
+    it('system prompt warns against bare array output', () => {
+        const result = buildExtractionPrompt(baseArgs);
+        const sys = result[0].content;
+        expect(sys).toContain('NEVER a bare array');
+    });
+
+    it('system prompt instructs English summaries with preserved names', () => {
+        const result = buildExtractionPrompt(baseArgs);
+        const sys = result[0].content;
+        expect(sys).toMatch(/summaries in ENGLISH/i);
+        expect(sys).toMatch(/never translate names/i);
+    });
 });
 
 describe('buildExtractionPrompt entity/relationship instructions', () => {
@@ -122,6 +155,40 @@ describe('buildExtractionPrompt entity/relationship instructions', () => {
     });
 });
 
+describe('buildExtractionPrompt unified structure', () => {
+    it('system prompt uses consistent XML section tags', () => {
+        const result = buildExtractionPrompt({
+            messages: '[Alice]: Hello',
+            names: { char: 'Alice', user: 'Bob' },
+            context: {},
+        });
+        const sys = result[0].content;
+        expect(sys).toContain('<role>');
+        expect(sys).toContain('</role>');
+        expect(sys).toContain('<output_schema>');
+        expect(sys).toContain('</output_schema>');
+        expect(sys).toContain('<examples>');
+        expect(sys).toContain('</examples>');
+    });
+
+    it('all examples include all four top-level JSON keys or are empty dedup examples', () => {
+        const result = buildExtractionPrompt({
+            messages: '[Alice]: Hello',
+            names: { char: 'Alice', user: 'Bob' },
+            context: {},
+        });
+        const sys = result[0].content;
+        // Extract all "Correct output:" JSON blocks
+        const outputBlocks = sys.match(/Correct output:\n(\{.*?\})\n<\/example>/gs);
+        expect(outputBlocks).not.toBeNull();
+        for (const block of outputBlocks) {
+            // Every example should have reasoning, events, entities, relationships keys
+            expect(block).toContain('"reasoning"');
+            expect(block).toContain('"events"');
+        }
+    });
+});
+
 describe('buildSalientQuestionsPrompt', () => {
     it('returns system/user message pair with character name', () => {
         const memories = [
@@ -134,6 +201,14 @@ describe('buildSalientQuestionsPrompt', () => {
         expect(result[1].role).toBe('user');
         expect(result[1].content).toContain('Alice');
         expect(result[1].content).toContain('Alice met Bob');
+    });
+
+    it('uses unified XML structure with role, output_schema, and examples', () => {
+        const result = buildSalientQuestionsPrompt('Alice', [{ summary: 'test', importance: 3 }]);
+        const sys = result[0].content;
+        expect(sys).toContain('<role>');
+        expect(sys).toContain('<output_schema>');
+        expect(sys).toContain('<examples>');
     });
 });
 
@@ -149,6 +224,15 @@ describe('buildInsightExtractionPrompt', () => {
         expect(result[1].content).toContain('How has Alice changed?');
         expect(result[1].content).toContain('ev_001');
         expect(result[1].content).toContain('Alice fought the dragon');
+    });
+
+    it('uses unified XML structure with role, output_schema, and examples', () => {
+        const memories = [{ id: 'ev_001', summary: 'test' }];
+        const result = buildInsightExtractionPrompt('Alice', 'test?', memories);
+        const sys = result[0].content;
+        expect(sys).toContain('<role>');
+        expect(sys).toContain('<output_schema>');
+        expect(sys).toContain('<examples>');
     });
 });
 
@@ -200,5 +284,13 @@ describe('buildCommunitySummaryPrompt', () => {
         const result = buildCommunitySummaryPrompt([], []);
         const user = result[1].content;
         expect(user).toContain('JSON');
+    });
+
+    it('uses unified XML structure with role, output_schema, and examples', () => {
+        const result = buildCommunitySummaryPrompt([], []);
+        const sys = result[0].content;
+        expect(sys).toContain('<role>');
+        expect(sys).toContain('<output_schema>');
+        expect(sys).toContain('<examples>');
     });
 });

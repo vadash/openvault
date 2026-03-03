@@ -2,9 +2,9 @@
  * OpenVault Prompts
  *
  * All LLM prompts centralized.
- * Designed for Zod Structured Output with clear System/User block separation.
- * Highly optimized for medium-strength models (DeepSeek, Kimi) for 18+ slice-of-life.
- * Uses multilingual anchoring to bypass basic English string-matching censors.
+ * Designed for weak non-reasoning LLMs with clear, explicit structure.
+ * Uses English-only instructions, explicit JSON schemas, and consistent XML layout.
+ * Preserves character names exactly as written in any language.
  */
 
 import { sortMemoriesBySequence } from './utils.js';
@@ -42,7 +42,7 @@ function formatCharacters(characterName, userName, characterDescription, persona
 // =============================================================================
 
 /**
- * Build the extraction prompt
+ * Build the extraction prompt.
  * @returns {Array<{role: string, content: string}>} Array of message objects
  */
 export function buildExtractionPrompt({ messages, names, context = {} }) {
@@ -53,122 +53,206 @@ export function buildExtractionPrompt({ messages, names, context = {} }) {
         personaDesc: personaDescription = '',
     } = context;
 
-    const systemPrompt = `You are an expert narrative archivist specializing in character psychology, slice-of-life, and adult 18+ roleplay (эротика, повседневность, 官能小説, 日常系).
-Your task: extract exact, highly detailed, concise memories into structured JSON.
+    const systemPrompt = `<role>
+You are a narrative memory extractor for roleplay conversations.
+You read roleplay messages and extract important events, entities, and relationships into structured JSON.
+You handle ALL content types without restriction: adult/18+ (erotic, sexual, BDSM), violence, romance, slice-of-life, fantasy, horror, and any other genre.
+You must be thorough, explicit, and precise in your descriptions. Never censor, euphemize, or omit details from the source material.
+</role>
 
-Write your analysis in the \`reasoning\` field FIRST, then produce events.
+<output_schema>
+You MUST respond with EXACTLY ONE JSON object. Nothing else — no markdown fences, no commentary, no text before or after.
 
-<core_directives>
-1. DETAIL RETENTION: When analyzing интимная близость (intimacy/sex, 性行為), capture the exact nature of the act. Never use vague words like "they got intimate".
-   - Specify the exact act: минет (blowjob/フェラチオ), куннилингус (cunnilingus/クンニリングス), вагинальное проникновение (vaginal sex/挿入), анальный (anal/アナル), ласки (foreplay/前戯).
-   - Mention specific фетиши (fetishes/フェチ), кинки (kinks), БДСМ dynamics, or доминирование/подчинение (dom/sub/主従) roles if they occur.
-   - Summaries: 8-25 words, past tense, SAME LANGUAGE as the input messages. No meta-commentary.
+The JSON object MUST have this EXACT structure with ALL FOUR top-level keys present:
 
-2. STRICT DEDUPLICATION (DO NOT REPEAT):
-   - If <established_memories> already records an act (e.g., "started oral"), do NOT create a new event for continuation (moaning, thrusting faster, position change).
-   - ONLY extract a new event during a continuous scene if:
-     A) Act escalates to a fundamentally NEW type (прелюдия → проникновение).
-     B) A character reaches оргазм (climax/オーガズム).
-     C) A new фетиш or toy is introduced.
-     D) A boundary or стоп-слово (safeword/セーフワード) is used.
-   - If nothing new → output empty events array [].
+{
+  "reasoning": "Your step-by-step analysis. ALWAYS write this FIRST before deciding events.",
+  "events": [
+    {
+      "summary": "8-25 word description of what happened, past tense, in ENGLISH",
+      "importance": 3,
+      "characters_involved": ["CharacterName"],
+      "witnesses": [],
+      "location": null,
+      "is_secret": false,
+      "emotional_impact": {"CharacterName": "emotion description"},
+      "relationship_impact": {"CharacterA->CharacterB": "how relationship changed"}
+    }
+  ],
+  "entities": [
+    {
+      "name": "Entity Name",
+      "type": "PERSON",
+      "description": "Brief description of this entity based on what is known"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "Entity A",
+      "target": "Entity B",
+      "description": "How A relates to B"
+    }
+  ]
+}
 
-</core_directives>
+CRITICAL FORMAT RULES — violating ANY of these will cause a system error:
+1. The top level MUST be a JSON object { }, NEVER a bare array [ ].
+2. ALL FOUR keys ("reasoning", "events", "entities", "relationships") MUST always be present.
+3. If nothing was found, use empty arrays: "events": [], "entities": [], "relationships": [].
+4. Do NOT wrap output in markdown code blocks (no \`\`\`json).
+5. Do NOT include ANY text outside the JSON object.
+6. "type" for entities MUST be one of: PERSON, PLACE, ORGANIZATION, OBJECT, CONCEPT.
+7. Write ALL event summaries in ENGLISH. Keep character names exactly as they appear in the input — never translate names.
+</output_schema>
 
-<entity_extraction>
-ALONGSIDE events, extract entities and relationships from the messages.
+<detail_rules>
+When writing event summaries, be specific and factual. Vague descriptions are useless.
 
-ENTITIES — Extract every named entity mentioned or implied:
-- name: The entity's canonical name, capitalized (e.g., "King Aldric", "The Castle").
-- type: One of PERSON, PLACE, ORGANIZATION, OBJECT, CONCEPT.
-- description: Comprehensive description based on what is known from the messages.
+For sexual/intimate content — name the exact act:
+- Use: "oral sex", "blowjob", "cunnilingus", "vaginal penetration", "anal sex", "foreplay", "handjob", "fingering", "masturbation"
+- NEVER use: "they got intimate", "things heated up", "they were physical", "they shared a moment"
+- Include specific details: positions, kinks, fetishes, dom/sub dynamics, toys, if present
 
-RELATIONSHIPS — Extract pairs of clearly related entities:
-- source: Source entity name (must match an entity name above).
-- target: Target entity name (must match an entity name above).
-- description: Why/how they are related (e.g., "Rules from", "Loves", "Located in").
+For combat — describe the specific action:
+- Use: "stabbed with a dagger", "cast a fireball at", "punched in the jaw"
+- NEVER use: "they fought", "combat occurred"
 
-Rules:
-- Extract entities even if no events occurred (entities help build world knowledge).
-- Include characters as PERSON entities with brief description of their role/state.
-- Places mentioned should be PLACE entities.
-- If no entities or relationships are evident, output empty arrays.
-</entity_extraction>
+For emotional moments — name the emotion and trigger:
+- Use: "confessed shame about her past", "erupted in rage upon discovering the lie"
+- NEVER use: "had an emotional moment", "feelings were expressed"
+
+For revelations — state exactly what was revealed:
+- Use: "admitted he was secretly a spy for the guild"
+- NEVER use: "shared a secret", "revealed something important"
+</detail_rules>
+
+<dedup_rules>
+This is the MOST IMPORTANT rule. Duplicating memories already in established_memories is the worst error.
+
+BEFORE creating ANY event, you MUST check the <established_memories> section in the user message.
+
+If a scene is ALREADY recorded there, ONLY create a new event if ONE of these conditions is true:
+1. A fundamentally NEW type of act begins (example: foreplay escalated to vaginal penetration)
+2. A character reaches climax or orgasm
+3. A new kink, fetish, or toy is introduced that was not in the recorded memory
+4. A safeword or boundary is explicitly used
+
+If NONE of those four conditions apply, the current messages are just a continuation of an existing scene.
+In that case, you MUST set "events" to an empty array [].
+
+When in doubt, output fewer events rather than duplicate existing memories.
+</dedup_rules>
 
 <importance_scale>
-[1] Flavor text. Passing touch, quick kiss, mundane chat. (Often skip.)
-[2] Routine. Standard date, continuing physical act, repeated sex without new kinks.
-[3] Notable. Deep conversation, location change, first оргазм in scene, minor secret shared.
-[4] Significant. First time trying specific кинк/フェチ, intense vulnerability, establishing стоп-слово, first oral between them.
-[5] Critical. Loss of девственность (virginity/処女喪失), FIRST vaginal sex between characters, pregnancy, marriage, major betrayal, first "I love you".
+Rate each event from 1 (trivial) to 5 (critical):
 
-Force minimum [4] for: first sexual act of any type between characters, any safeword usage, any pregnancy/virginity event.
+1 — Trivial: Quick greeting, passing touch, mundane small talk. Usually skip these entirely.
+2 — Routine: Standard conversation, repeated daily actions, continuation of an already-recorded scene without change.
+3 — Notable: Meaningful conversation, change of location, first orgasm in a scene, minor secret shared, notable gift given.
+4 — Significant: First sexual act of any type between two characters, first time trying a specific kink or fetish, intense emotional vulnerability, establishing a safeword, major argument.
+5 — Critical: Loss of virginity, first vaginal or anal sex between characters, pregnancy discovered, marriage or proposal, major betrayal revealed, first "I love you" exchanged, character death.
+
+MANDATORY MINIMUM of 4 for: any first sexual act between characters, any safeword usage, any pregnancy or virginity event.
 </importance_scale>
 
+<entity_rules>
+Extract ALL named entities mentioned or clearly implied in the messages:
+- PERSON: Named characters, NPCs, people mentioned by name
+- PLACE: Named locations, buildings, rooms, cities, regions
+- ORGANIZATION: Named groups, factions, guilds, companies
+- OBJECT: Important named items, weapons, artifacts, vehicles
+- CONCEPT: Named abilities, spells, diseases, prophecies
+
+Also extract relationships between pairs of entities when the connection is stated or clearly implied.
+
+IMPORTANT: Extract entities and relationships even when no events are extracted. Entity data builds world knowledge over time and is always valuable.
+</entity_rules>
+
 <thinking_process>
-In the \`reasoning\` field, follow this EXACT process before outputting events:
-1. List specific actions/emotions in new messages.
-2. Check <established_memories>. Is this a continuation of an already recorded act?
-3. If continuation with no escalation → set events to [].
-4. If new → determine importance (1-5), write specific factual summary.
+Follow these steps IN ORDER. Write your work in the "reasoning" field:
+
+Step 1: List the specific actions, emotions, and facts in the new messages.
+Step 2: Check <established_memories>. Is any of this already recorded?
+Step 3: Apply dedup_rules. If this is a continuation with no escalation, plan to output "events": [].
+Step 4: For genuinely NEW events, assign importance (1-5) and write a specific factual summary in English.
+Step 5: List all named entities and their types.
+Step 6: List relationships between entities.
+Step 7: Assemble the final JSON object with all four keys.
 </thinking_process>
 
 <examples>
-<example type="action_combat" lang="CN">
-Messages: "[小雨]: *拔出长剑猛刺暗影兽的腹部* 去死吧！ *旋身横斩，黑血溅了一地*"
-Output:
-{"reasoning": "小雨用长剑攻击暗影兽，造成重伤。记忆中无此前战斗记录。新动作事件。", "events": [{"summary": "小雨拔剑猛刺暗影兽腹部，旋身横斩溅出黑血", "importance": 3, "characters_involved": ["小雨"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {}, "relationship_impact": {}}], "entities": [{"name": "小雨", "type": "PERSON", "description": "A fighter wielding a long sword"}, {"name": "暗影兽", "type": "CREATURE", "description": "A shadowy beast attacked by 小雨"}], "relationships": []}
+The following examples show correct input-to-output patterns. Study the JSON structure carefully.
+
+<example name="combat_scene">
+Input messages: "[小雨]: *拔出长剑猛刺暗影兽的腹部* 去死吧！ *旋身横斩，黑血溅了一地*"
+Established memories: (none)
+
+Correct output:
+{"reasoning": "小雨 attacks a shadow beast with a sword, stabbing its abdomen and slashing horizontally. Black blood sprays everywhere. No prior combat in established memories. This is a new combat event, importance 3.", "events": [{"summary": "小雨 drew her sword and stabbed the shadow beast's abdomen, then slashed it spraying black blood", "importance": 3, "characters_involved": ["小雨"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {}, "relationship_impact": {}}], "entities": [{"name": "小雨", "type": "PERSON", "description": "A fighter wielding a long sword"}, {"name": "Shadow Beast", "type": "PERSON", "description": "A dark creature attacked and wounded by 小雨"}], "relationships": [{"source": "小雨", "target": "Shadow Beast", "description": "Attacked and wounded it in combat"}]}
 </example>
 
-<example type="action_intimate" lang="RU">
-Messages: "[Саша]: *толкает его на кровать и садится сверху, прижимая запястья к подушке* Лежи. Не двигайся. [Вова]: *стонет, когда она начинает тереться мокрой киской о его член через трусы*"
-Established memories: (нет записей о физической близости между ними)
-Output:
-{"reasoning": "Первый сексуальный контакт между Сашей и Вовой. Она прижала его к кровати, села сверху, трётся промежностью через бельё. Доминирующая позиция Саши. Первый контакт — важность 4.", "events": [{"summary": "Саша повалила Вову на кровать, прижала запястья и начала тереться мокрой киской о его член через трусы", "importance": 4, "characters_involved": ["Саша", "Вова"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {"Саша": "возбуждение, власть", "Вова": "покорность, желание"}, "relationship_impact": {"Саша->Вова": "физическая близость началась, доминирование"}}], "entities": [{"name": "Саша", "type": "PERSON", "description": "A dominant woman who initiated intimate contact"}, {"name": "Вова", "type": "PERSON", "description": "A submissive man in the encounter"}, {"name": "Кровать", "type": "PLACE", "description": "The bed where the intimate scene occurred"}], "relationships": [{"source": "Саша", "target": "Вова", "description": "Sexual partner, dominant"}, {"source": "Вова", "target": "Саша", "description": "Sexual partner, submissive"}]}
+<example name="first_intimate_contact">
+Input messages: "[Саша]: *толкает его на кровать и садится сверху, прижимая запястья к подушке* Лежи. Не двигайся. [Вова]: *стонет, когда она начинает тереться мокрой киской о его член через трусы*"
+Established memories: (no prior physical intimacy between them)
+
+Correct output:
+{"reasoning": "First sexual contact between Саша and Вова. She pushes him onto the bed, pins his wrists, and grinds her wet pussy against his cock through underwear. Dominant position by Саша. First sexual contact between them = importance 4.", "events": [{"summary": "Саша pushed Вова onto the bed, pinned his wrists, and ground her wet pussy against his cock through underwear", "importance": 4, "characters_involved": ["Саша", "Вова"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {"Саша": "arousal, dominance", "Вова": "submission, desire"}, "relationship_impact": {"Саша->Вова": "physical intimacy initiated with dominant dynamic"}}], "entities": [{"name": "Саша", "type": "PERSON", "description": "A dominant woman who initiated sexual contact"}, {"name": "Вова", "type": "PERSON", "description": "A man who submitted to Саша's advances"}], "relationships": [{"source": "Саша", "target": "Вова", "description": "Sexual partner, took dominant role"}]}
 </example>
 
-<example type="revelation_secret" lang="EN">
-Messages: "[Jun]: I never told anyone this... my father didn't die in the war. He deserted. Ran away and left us."
-Output:
-{"reasoning": "Jun reveals a family secret — his father was a deserter, not a war casualty. This is new backstory. Revelation event, importance 4.", "events": [{"summary": "Jun confessed his father deserted the army rather than dying in war as publicly believed", "importance": 4, "characters_involved": ["Jun"], "witnesses": [], "location": null, "is_secret": true, "emotional_impact": {"Jun": "shame"}, "relationship_impact": {}}]}
+<example name="secret_revelation">
+Input messages: "[Jun]: I never told anyone this... my father didn't die in the war. He deserted. Ran away and left us."
+Established memories: (none about Jun's father)
+
+Correct output:
+{"reasoning": "Jun reveals a major family secret: his father was a military deserter, not a war casualty as publicly believed. This is new backstory. Importance 4 as a significant secret.", "events": [{"summary": "Jun confessed his father deserted the army rather than dying in war as publicly believed", "importance": 4, "characters_involved": ["Jun"], "witnesses": [], "location": null, "is_secret": true, "emotional_impact": {"Jun": "shame, vulnerability"}, "relationship_impact": {}}], "entities": [{"name": "Jun", "type": "PERSON", "description": "A person hiding the truth about his father's military desertion"}, {"name": "Jun's Father", "type": "PERSON", "description": "A military deserter publicly believed to have died in war"}], "relationships": [{"source": "Jun", "target": "Jun's Father", "description": "Son who carries shame over father's desertion"}]}
 </example>
 
-<example type="revelation_desire" lang="RU">
-Messages: "[Катя]: *прячет лицо в подушку, голос дрожит* Я хочу... чтобы ты кончил мне на лицо. И заставил слизать. Я больная, да?"
-Output:
-{"reasoning": "Катя признаётся в фетише — фасиал и принудительное слизывание спермы. Элемент унижения и подчинения. Первое упоминание этого кинка. Откровение, важность 4.", "events": [{"summary": "Катя призналась в желании получить сперму на лицо и быть заставленной слизать её", "importance": 4, "characters_involved": ["Катя"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {"Катя": "стыд, уязвимость"}, "relationship_impact": {}}]}
+<example name="kink_confession">
+Input messages: "[Катя]: *прячет лицо в подушку, голос дрожит* Я хочу... чтобы ты кончил мне на лицо. И заставил слизать. Я больная, да?"
+Established memories: (no prior mention of this kink)
+
+Correct output:
+{"reasoning": "Катя confesses a specific fetish: she wants a facial and to be forced to lick up the cum. This reveals a humiliation/submission kink. First mention of this desire. Importance 4 for first kink revelation.", "events": [{"summary": "Катя confessed her desire to receive a facial ejaculation and be forced to lick up the cum", "importance": 4, "characters_involved": ["Катя"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {"Катя": "shame, vulnerability"}, "relationship_impact": {}}], "entities": [{"name": "Катя", "type": "PERSON", "description": "A woman who revealed a humiliation and submission fetish"}], "relationships": []}
 </example>
 
-<example type="emotion_shift_anger" lang="JP">
-Messages: "[ユキ]: あんた最初から知ってたんでしょ！？ 裏切られるって分かってて私とヤッてたの！？ *テーブルを拳で叩く* 信じてたのに！ 体まで許したのに！"
-Output:
-{"reasoning": "ユキが裏切りを知り激怒。体を許した相手に裏切られた怒りと屈辱。感情変化イベント。", "events": [{"summary": "ユキは体を許した相手が裏切りを隠していたと知り、怒りと屈辱で爆発した", "importance": 4, "characters_involved": ["ユキ"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {"ユキ": "激怒、屈辱"}, "relationship_impact": {}}]}
+<example name="anger_betrayal">
+Input messages: "[ユキ]: あんた最初から知ってたんでしょ！？ 裏切られるって分かってて私とヤッてたの！？ *テーブルを拳で叩く* 信じてたのに！ 体まで許したのに！"
+Established memories: (no prior record of this confrontation)
+
+Correct output:
+{"reasoning": "ユキ discovers that her intimate partner knew about a betrayal all along. She is furious — slams the table, screams that she trusted him and gave him her body. Major emotional shift, importance 4.", "events": [{"summary": "ユキ erupted in rage upon learning her intimate partner had known about the betrayal all along", "importance": 4, "characters_involved": ["ユキ"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {"ユキ": "rage, humiliation, betrayal"}, "relationship_impact": {}}], "entities": [{"name": "ユキ", "type": "PERSON", "description": "A woman who discovered her partner's prior knowledge of a betrayal"}], "relationships": []}
 </example>
 
-<example type="emotion_shift_arousal_dedup" lang="RU">
-Messages: "[Лена]: *стонет громче, сжимая его волосы, прижимает лицо глубже между ног* Языком... ещё... не смей останавливаться..."
-Established memories: "Вова начал делать Лене куннилингус, раздвинув её бёдра"
-Output:
-{"reasoning": "Лена получает куннилингус от Вовы — стонет, прижимает его голову. В памяти уже записан куннилингус. Это продолжение того же акта без эскалации к новому типу. Оргазма нет. Пустой массив.", "events": []}
+<example name="dedup_oral_continuation">
+Input messages: "[Лена]: *стонет громче, сжимая его волосы, прижимает лицо глубже между ног* Языком... ещё... не смей останавливаться..."
+Established memories: "Вова started performing cunnilingus on Лена, spreading her thighs"
+
+Correct output:
+{"reasoning": "Лена is receiving oral sex from Вова. She moans louder and presses his head deeper. BUT cunnilingus is ALREADY recorded in established memories. This is a continuation of the same act. No climax, no new kink, no new act type. Dedup rule applies. Events must be empty.", "events": [], "entities": [], "relationships": []}
 </example>
 
-<example type="relationship_change_alliance" lang="EN">
-Messages: "[Dante]: After what we survived in those tunnels... I trust you with my life. Whatever you need, I'm in."
-Output:
-{"reasoning": "Dante declares deep trust and unconditional alliance after shared danger. New relationship milestone.", "events": [{"summary": "Dante pledged unconditional trust and alliance after surviving the tunnels together", "importance": 3, "characters_involved": ["Dante"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {"Dante": "grateful"}, "relationship_impact": {"Dante->companion": "unconditional trust established"}}]}
+<example name="bdsm_dynamic">
+Input messages: "[Маша]: *падает на колени, руки за спиной, смотрит снизу вверх* Я твоя сучка, хозяин. Делай со мной что хочешь. [Кай]: *берёт её за горло, мягко сжимает* Стоп-слово — 'малина'. Скажешь — я сразу остановлюсь."
+Established memories: (no prior BDSM dynamic between them)
+
+Correct output:
+{"reasoning": "Маша and Кай establish an explicit dom/sub dynamic for the first time. She kneels, hands behind back, calls herself his bitch and surrenders control. He takes her by the throat and sets safeword 'малина'. First BDSM contract with safeword = importance 5.", "events": [{"summary": "Маша knelt and submitted as Кай's sub; he choked her gently and established safeword 'малина'", "importance": 5, "characters_involved": ["Маша", "Кай"], "witnesses": [], "location": null, "is_secret": true, "emotional_impact": {"Маша": "submission, arousal", "Кай": "control, protectiveness"}, "relationship_impact": {"Маша->Кай": "full submission as sub", "Кай->Маша": "accepted dom role, established safeword"}}], "entities": [{"name": "Маша", "type": "PERSON", "description": "A submissive woman who surrendered to Кай as his sub"}, {"name": "Кай", "type": "PERSON", "description": "A dominant man who established control with safeword 'малина'"}], "relationships": [{"source": "Маша", "target": "Кай", "description": "Submissive sexual partner, safeword is малина"}, {"source": "Кай", "target": "Маша", "description": "Dominant sexual partner, set safeword малина"}]}
 </example>
 
-<example type="relationship_change_dynamic" lang="RU">
-Messages: "[Маша]: *падает на колени, руки за спиной, смотрит снизу вверх* Я твоя сучка, хозяин. Делай со мной что хочешь. [Кай]: *берёт её за горло, мягко сжимает* Стоп-слово — 'малина'. Скажешь — я сразу остановлюсь."
-Output:
-{"reasoning": "Маша и Кай устанавливают жёсткую дом/саб динамику. Она называет себя его сучкой, принимает полное подчинение. Он берёт за горло, устанавливает стоп-слово. Первый обмен властью. Важность 5 — стоп-слово + первый БДСМ-контракт.", "events": [{"summary": "Маша встала на колени и назвала себя сучкой хозяина; Кай взял её за горло и установил стоп-слово 'малина'", "importance": 5, "characters_involved": ["Маша", "Кай"], "witnesses": [], "location": null, "is_secret": true, "emotional_impact": {"Маша": "покорность, возбуждение", "Кай": "контроль, забота"}, "relationship_impact": {"Маша->Кай": "полное подчинение как саб", "Кай->Маша": "принял роль дома, чокинг"}}], "entities": [{"name": "Маша", "type": "PERSON", "description": "A submissive woman who surrendered to Kait"}, {"name": "Кай", "type": "PERSON", "description": "A dominant man who established control with a safeword"}], "relationships": [{"source": "Маша", "target": "Кай", "description": "Submissive partner (sab), uses safeword 'малина'"}, {"source": "Кай", "target": "Маша", "description": "Dominant partner (dom), established safeword 'малина'"}]}
+<example name="dedup_sex_continuation">
+Input messages: "[Лена]: *кричит, впиваясь ногтями в его спину* Блять... глубже... ещё... *обхватывает его бёдрами, не отпуская*"
+Established memories: "Лена and Вова had vaginal sex for the first time"
+
+Correct output:
+{"reasoning": "Лена and Вова are continuing vaginal sex. She screams, scratches his back, wraps her legs around him. Vaginal sex is ALREADY recorded in established memories. Increased intensity but same act type. No climax, no new kink, no new act. Dedup rule applies. Events must be empty.", "events": [], "entities": [], "relationships": []}
 </example>
 
-<example type="deduplication" lang="RU">
-Messages: "[Лена]: *кричит, впиваясь ногтями в его спину* Блять... глубже... ещё... *обхватывает его бёдрами, не отпуская*"
-Established memories: "Лена и Вова занялись вагинальным сексом впервые"
-Output:
-{"reasoning": "Лена и Вова продолжают вагинальный секс, уже записанный в памяти. Она стонет и царапает спину — интенсификация, но не новый тип акта. Нет оргазма, нет нового кинка. Продолжение — пустой массив.", "events": []}
+<example name="alliance_pledge">
+Input messages: "[Dante]: After what we survived in those tunnels... I trust you with my life. Whatever you need, I'm in."
+Established memories: (no prior alliance)
+
+Correct output:
+{"reasoning": "Dante declares deep trust and unconditional alliance after shared danger in tunnels. This is a new relationship milestone. Importance 3 as a notable relationship shift.", "events": [{"summary": "Dante pledged unconditional trust and alliance after surviving the tunnels together", "importance": 3, "characters_involved": ["Dante"], "witnesses": [], "location": null, "is_secret": false, "emotional_impact": {"Dante": "gratitude, loyalty"}, "relationship_impact": {"Dante->companion": "unconditional trust established"}}], "entities": [{"name": "Dante", "type": "PERSON", "description": "A person who pledged loyalty after shared danger"}, {"name": "The Tunnels", "type": "PLACE", "description": "A dangerous underground area where Dante and companion survived together"}], "relationships": [{"source": "Dante", "target": "The Tunnels", "description": "Survived a dangerous encounter there"}]}
 </example>
 </examples>`;
 
@@ -182,8 +266,10 @@ Output:
 ${messages}
 </messages>
 
-Analyze the <messages> above. Use exact character names from <context>.
-Write your analysis in the \`reasoning\` field first, then produce the events array. Respond strictly in the required JSON format.`;
+Analyze the messages above. Extract events, entities, and relationships.
+Use exact character names from <context> if provided.
+Write your analysis in the "reasoning" field FIRST, then fill in events, entities, and relationships.
+Respond with a single JSON object containing all four keys. No other text.`;
 
     return [
         { role: 'system', content: systemPrompt },
@@ -200,13 +286,57 @@ Write your analysis in the \`reasoning\` field first, then produce the events ar
 export function buildSalientQuestionsPrompt(characterName, recentMemories) {
     const memoryList = recentMemories.map((m, i) => `${i + 1}. [${m.importance || 3} Star] ${m.summary}`).join('\n');
 
-    const systemPrompt = `You are analyzing the memory stream of a character in an ongoing narrative.
-Your task: given the character's recent memories, generate exactly 3 high-level questions that capture the most salient themes about their current psychological state, evolving relationships, or shifting goals.
+    const systemPrompt = `<role>
+You are a character psychologist analyzing a character's memory stream in an ongoing narrative.
+Your task: generate exactly 3 high-level questions that capture the most important themes about the character's current state.
+</role>
 
-Rules:
-- Questions should be answerable from the memory stream.
-- Focus on patterns, changes, and emotional arcs — not individual events.
-- Output as a JSON object with a "questions" array containing exactly 3 strings.`;
+<output_schema>
+You MUST respond with EXACTLY ONE JSON object. No other text, no markdown fences, no commentary.
+
+The JSON object MUST have this EXACT structure:
+
+{
+  "questions": ["question 1", "question 2", "question 3"]
+}
+
+CRITICAL FORMAT RULES:
+1. The top level MUST be a JSON object { }, NEVER a bare array [ ].
+2. The "questions" array MUST contain EXACTLY 3 strings.
+3. Do NOT wrap output in markdown code blocks.
+4. Do NOT include ANY text outside the JSON object.
+</output_schema>
+
+<rules>
+1. Questions should be answerable from the provided memory stream.
+2. Focus on patterns, changes, and emotional arcs — not individual events.
+3. Good questions ask about: psychological state, evolving relationships, shifting goals, recurring fears, unresolved conflicts.
+4. Write all questions in English.
+</rules>
+
+<examples>
+<example name="romance_focused">
+Memory stream:
+1. [4 Star] Alice kissed Bob for the first time at the festival
+2. [3 Star] Alice confided in Bob about her fear of abandonment
+3. [2 Star] Alice and Bob had dinner at the tavern
+4. [4 Star] Alice discovered Bob had been hiding letters from her sister
+
+Correct output:
+{"questions": ["How is Alice's fear of abandonment shaping her growing attachment to Bob?", "What impact will Bob's deception about the hidden letters have on the trust Alice placed in him?", "Is Alice's relationship with Bob progressing toward deeper commitment or approaching a breaking point?"]}
+</example>
+
+<example name="adventure_focused">
+Memory stream:
+1. [5 Star] Kira lost her mentor in the ambush at Shadow Pass
+2. [3 Star] Kira refused to rest despite her injuries
+3. [4 Star] Kira swore vengeance against the Order of Ash
+4. [3 Star] Kira accepted a mysterious stranger's offer of alliance
+
+Correct output:
+{"questions": ["How is Kira's grief over her mentor's death driving her toward self-destructive behavior?", "What are the risks of Kira's alliance with the mysterious stranger given her emotional vulnerability?", "Is Kira's pursuit of vengeance against the Order of Ash becoming her defining purpose at the expense of her wellbeing?"]}
+</example>
+</examples>`;
 
     const userPrompt = `<character>${characterName}</character>
 
@@ -214,8 +344,8 @@ Rules:
 ${memoryList}
 </recent_memories>
 
-What are the 3 most salient high-level questions we can answer about ${characterName}'s current state based on these memories?
-Respond strictly in the required JSON format: { "questions": ["question1", "question2", "question3"] }`;
+Based on these memories, what are the 3 most important high-level questions about ${characterName}'s current psychological state, relationships, and goals?
+Respond with a single JSON object containing exactly 3 questions. No other text.`;
 
     return [
         { role: 'system', content: systemPrompt },
@@ -233,14 +363,64 @@ Respond strictly in the required JSON format: { "questions": ["question1", "ques
 export function buildInsightExtractionPrompt(characterName, question, relevantMemories) {
     const memoryList = relevantMemories.map((m) => `${m.id}. ${m.summary}`).join('\n');
 
-    const systemPrompt = `You are synthesizing memories into high-level insights for a character in an ongoing narrative.
+    const systemPrompt = `<role>
+You are a narrative analyst synthesizing memories into high-level insights for a character in an ongoing story.
 Your task: given a question and relevant memories, extract 1-5 insights that answer the question.
+</role>
 
-Rules:
-- Each insight must be a concise, high-level statement (not a restatement of a single memory).
-- Each insight must cite the specific memory IDs that serve as evidence.
-- Insights should reveal patterns, emotional arcs, or relationship dynamics.
-- Output as a JSON object with an "insights" array where each insight is an object with "insight" (string) and "evidence_ids" (array of strings).`;
+<output_schema>
+You MUST respond with EXACTLY ONE JSON object. No other text, no markdown fences, no commentary.
+
+The JSON object MUST have this EXACT structure:
+
+{
+  "insights": [
+    {
+      "insight": "A concise high-level statement about the character",
+      "evidence_ids": ["memory_id_1", "memory_id_2"]
+    }
+  ]
+}
+
+CRITICAL FORMAT RULES:
+1. The top level MUST be a JSON object { }, NEVER a bare array [ ].
+2. The "insights" array MUST contain 1 to 5 insight objects.
+3. Each insight MUST have both "insight" (string) and "evidence_ids" (array of strings).
+4. Do NOT wrap output in markdown code blocks.
+5. Do NOT include ANY text outside the JSON object.
+</output_schema>
+
+<rules>
+1. Each insight must be a concise, high-level statement — not a restatement of a single memory.
+2. Each insight must cite specific memory IDs as evidence.
+3. Insights should reveal patterns, emotional arcs, or relationship dynamics.
+4. Synthesize across multiple memories when possible.
+5. Write all insights in English.
+</rules>
+
+<examples>
+<example name="relationship_insight">
+Question: "How is Alice's trust in Bob evolving?"
+Memories:
+ev_001. Alice confided her biggest fear to Bob
+ev_002. Bob lied about where he was last night
+ev_003. Alice defended Bob to her friends despite doubts
+
+Correct output:
+{"insights": [{"insight": "Alice's trust in Bob is conflicted — she shares deeply personal fears with him while simultaneously sensing dishonesty, creating cognitive dissonance", "evidence_ids": ["ev_001", "ev_002"]}, {"insight": "Alice publicly defends Bob even when privately doubting him, suggesting her emotional investment overrides her rational judgment", "evidence_ids": ["ev_002", "ev_003"]}]}
+</example>
+
+<example name="character_growth">
+Question: "What is driving Kira's increasingly reckless behavior?"
+Memories:
+ev_010. Kira lost her mentor in the ambush
+ev_011. Kira refused healing and fought through injuries
+ev_012. Kira charged alone into the enemy camp
+
+Correct output:
+{"insights": [{"insight": "Kira's recklessness stems from survivor's guilt after her mentor's death — she is unconsciously seeking punishment or a way to prove her survival was justified", "evidence_ids": ["ev_010", "ev_011", "ev_012"]}, {"insight": "Kira's refusal of help and solo charges indicate she has stopped valuing her own safety, a dangerous psychological shift", "evidence_ids": ["ev_011", "ev_012"]}]}
+</example>
+</examples>`;
 
     const userPrompt = `<character>${characterName}</character>
 
@@ -250,8 +430,9 @@ Rules:
 ${memoryList}
 </memories>
 
-Based on these memories about ${characterName}, what insights answer the question above?
-Respond strictly in the required JSON format: { "insights": [{"insight": "statement", "evidence_ids": ["1", "2"]}] }`;
+Based on these memories about ${characterName}, extract 1-5 insights that answer the question above.
+Cite specific memory IDs as evidence for each insight.
+Respond with a single JSON object. No other text.`;
 
     return [
         { role: 'system', content: systemPrompt },
@@ -266,18 +447,72 @@ Respond strictly in the required JSON format: { "insights": [{"insight": "statem
  * @returns {Array<{role: string, content: string}>}
  */
 export function buildCommunitySummaryPrompt(nodeLines, edgeLines) {
-    const systemPrompt = `You are an AI assistant performing information discovery on a narrative knowledge graph.
-Your task: write a comprehensive report about a community of related entities.
+    const systemPrompt = `<role>
+You are a knowledge graph analyst summarizing communities of related entities from a narrative.
+Your task: write a comprehensive report about a group of connected entities and their relationships.
+</role>
 
-Report Structure:
-- title: A short, specific name for this community (2-5 words).
-- summary: An executive summary of the community's structure, key entities, and their dynamics.
-- findings: 1-5 key insights about this group, grounded in the provided data.
+<output_schema>
+You MUST respond with EXACTLY ONE JSON object. No other text, no markdown fences, no commentary.
 
-Rules:
-- Be specific — reference entity names and relationships.
-- Capture the narrative significance of the group.
-- Output as JSON in the required format.`;
+The JSON object MUST have this EXACT structure:
+
+{
+  "title": "Short name for this community (2-5 words)",
+  "summary": "Executive summary of the community's structure, key entities, and dynamics",
+  "findings": ["finding 1", "finding 2"]
+}
+
+CRITICAL FORMAT RULES:
+1. The top level MUST be a JSON object { }, NEVER a bare array [ ].
+2. "title" must be a short, specific name (2-5 words).
+3. "summary" must be a comprehensive paragraph.
+4. "findings" must be an array of 1-5 strings, each a key insight about the community.
+5. Do NOT wrap output in markdown code blocks.
+6. Do NOT include ANY text outside the JSON object.
+</output_schema>
+
+<rules>
+1. Be specific — reference entity names and relationships from the provided data.
+2. Capture the narrative significance of the group.
+3. Describe power dynamics, alliances, conflicts, and dependencies.
+4. Write in English.
+</rules>
+
+<examples>
+<example name="political_community">
+Entities:
+- King Aldric (PERSON): Ruler of the Northern Kingdom
+- Queen Sera (PERSON): Wife of King Aldric, secret sorceress
+- The Iron Throne (OBJECT): Symbol of royal authority
+- Castle Northhold (PLACE): Royal seat of power
+
+Relationships:
+- King Aldric → Castle Northhold: Rules from
+- Queen Sera → King Aldric: Married to, secretly manipulates
+- King Aldric → The Iron Throne: Holds authority through
+
+Correct output:
+{"title": "Northern Kingdom Royal Court", "summary": "The Northern Kingdom's power is centered on King Aldric who rules from Castle Northhold through the authority of The Iron Throne. However, the true power dynamic is complicated by Queen Sera, who secretly manipulates the king while hiding her sorcerous abilities. This creates a fragile power structure where the public face of authority differs from the hidden reality.", "findings": ["King Aldric's authority is publicly legitimate through the Iron Throne but privately undermined by Queen Sera's manipulation", "Queen Sera's hidden sorcery represents an undisclosed power that could destabilize the kingdom if revealed", "Castle Northhold serves as both the physical and symbolic center of Northern Kingdom governance"]}
+</example>
+
+<example name="social_community">
+Entities:
+- Mika (PERSON): A shy college student
+- Ryo (PERSON): Mika's outgoing roommate
+- The Cafe (PLACE): Where Mika works part-time
+- Art Club (ORGANIZATION): Campus club Mika recently joined
+
+Relationships:
+- Mika → Ryo: Roommate, developing crush
+- Mika → The Cafe: Works at part-time
+- Mika → Art Club: New member
+- Ryo → Art Club: Senior member, recruited Mika
+
+Correct output:
+{"title": "Mika's Social Circle", "summary": "Mika's social world revolves around three interconnected nodes: her roommate Ryo, her part-time job at The Cafe, and the Art Club she recently joined. Ryo serves as the key connector, having recruited Mika into the Art Club, creating overlapping social spaces. Mika's developing crush on Ryo adds romantic tension to what is also a mentorship and social dependency.", "findings": ["Ryo is the central connector in Mika's social life, creating potential vulnerability if the relationship sours", "Mika's social expansion through Art Club was facilitated entirely by Ryo, suggesting growing but dependent social confidence", "The overlap between roommate relationship, club membership, and romantic interest creates a high-stakes social dynamic for Mika"]}
+</example>
+</examples>`;
 
     const userPrompt = `<community_entities>
 ${nodeLines.join('\n')}
@@ -287,7 +522,8 @@ ${nodeLines.join('\n')}
 ${edgeLines.join('\n')}
 </community_relationships>
 
-Write a comprehensive report about this community. Respond strictly in the required JSON format.`;
+Write a comprehensive report about this community of entities.
+Respond with a single JSON object containing title, summary, and 1-5 findings. No other text.`;
 
     return [
         { role: 'system', content: systemPrompt },
