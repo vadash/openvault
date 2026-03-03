@@ -165,3 +165,63 @@ export function parseEvent(content) {
 export function _testStripMarkdown(content) {
     return stripMarkdown(content);
 }
+
+// --- Reflection Schemas ---
+
+/**
+ * Schema for salient questions generated during reflection
+ * Exactly 3 high-level questions about a character's current state
+ */
+export const SalientQuestionsSchema = z.object({
+    questions: z.array(z.string()).length(3),
+});
+
+/**
+ * Schema for insight extraction during reflection
+ * 1-5 insights with evidence citations
+ */
+export const InsightExtractionSchema = z.object({
+    insights: z
+        .array(
+            z.object({
+                insight: z.string().min(1),
+                evidence_ids: z.array(z.string()),
+            })
+        )
+        .min(1)
+        .max(5),
+});
+
+/**
+ * Get jsonSchema for salient questions (reflection step 1)
+ * @returns {Object} ConnectionManager jsonSchema object
+ */
+export function getSalientQuestionsJsonSchema() {
+    return toJsonSchema(SalientQuestionsSchema, 'SalientQuestions');
+}
+
+/**
+ * Get jsonSchema for insight extraction (reflection step 2)
+ * @returns {Object} ConnectionManager jsonSchema object
+ */
+export function getInsightExtractionJsonSchema() {
+    return toJsonSchema(InsightExtractionSchema, 'InsightExtraction');
+}
+
+/**
+ * Parse salient questions response
+ * @param {string} content - Raw LLM response
+ * @returns {Object} Validated salient questions
+ */
+export function parseSalientQuestionsResponse(content) {
+    return parseStructuredResponse(content, SalientQuestionsSchema);
+}
+
+/**
+ * Parse insight extraction response
+ * @param {string} content - Raw LLM response
+ * @returns {Object} Validated insights
+ */
+export function parseInsightExtractionResponse(content) {
+    return parseStructuredResponse(content, InsightExtractionSchema);
+}

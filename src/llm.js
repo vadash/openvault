@@ -7,7 +7,11 @@
 
 import { extensionName } from './constants.js';
 import { getDeps } from './deps.js';
-import { getExtractionJsonSchema } from './extraction/structured.js';
+import {
+    getExtractionJsonSchema,
+    getSalientQuestionsJsonSchema,
+    getInsightExtractionJsonSchema,
+} from './extraction/structured.js';
 import { log, showToast, withTimeout } from './utils.js';
 
 /**
@@ -20,6 +24,20 @@ export const LLM_CONFIGS = {
         errorContext: 'Extraction',
         timeoutMs: 120000, // 2 minutes max for extraction
         getJsonSchema: getExtractionJsonSchema,
+    },
+    reflection_questions: {
+        profileSettingKey: 'extractionProfile',
+        maxTokens: 2000,
+        errorContext: 'Reflection (questions)',
+        timeoutMs: 90000,
+        getJsonSchema: getSalientQuestionsJsonSchema,
+    },
+    reflection_insights: {
+        profileSettingKey: 'extractionProfile',
+        maxTokens: 2000,
+        errorContext: 'Reflection (insights)',
+        timeoutMs: 90000,
+        getJsonSchema: getInsightExtractionJsonSchema,
     },
 };
 
