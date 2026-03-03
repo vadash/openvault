@@ -14,6 +14,9 @@
                 <button class="openvault-tab-btn" data-tab="memory-bank">
                     <i class="fa-solid fa-brain"></i> Memory Bank
                 </button>
+                <button class="openvault-tab-btn" data-tab="world">
+                    <i class="fa-solid fa-globe"></i> World
+                </button>
                 <button class="openvault-tab-btn" data-tab="configuration">
                     <i class="fa-solid fa-sliders"></i> Config
                 </button>
@@ -162,6 +165,52 @@
                         <div id="openvault_character_states" class="openvault-character-list">
                             <p class="openvault-placeholder">No character data yet</p>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================================================================
+                 TAB: WORLD
+                 ================================================================ -->
+            <div class="openvault-tab-content" data-tab="world">
+                <!-- Community Summaries -->
+                <div class="openvault-card">
+                    <div class="openvault-card-header">
+                        <span class="openvault-card-title">
+                            <i class="fa-solid fa-circle-nodes"></i> Communities
+                        </span>
+                        <span class="openvault-card-badge" id="openvault_community_count">0</span>
+                    </div>
+                    <div id="openvault_community_list" class="openvault-community-list">
+                        <p class="openvault-placeholder">No communities detected yet</p>
+                    </div>
+                </div>
+
+                <!-- Entity Browser -->
+                <div class="openvault-card" style="margin-top: 15px;">
+                    <div class="openvault-card-header">
+                        <span class="openvault-card-title">
+                            <i class="fa-solid fa-diagram-project"></i> Entities
+                        </span>
+                        <span class="openvault-card-badge" id="openvault_entity_count">0</span>
+                    </div>
+                    <div class="openvault-filters">
+                        <div class="openvault-search-container" style="flex: 1;">
+                            <i class="fa-solid fa-search"></i>
+                            <input type="text" id="openvault_entity_search" class="openvault-search-input"
+                                   placeholder="Search entities..." />
+                        </div>
+                        <select id="openvault_entity_type_filter" class="text_pole">
+                            <option value="">All Types</option>
+                            <option value="PERSON">Person</option>
+                            <option value="PLACE">Place</option>
+                            <option value="ORGANIZATION">Organization</option>
+                            <option value="OBJECT">Object</option>
+                            <option value="CONCEPT">Concept</option>
+                        </select>
+                    </div>
+                    <div id="openvault_entity_list" class="openvault-entity-list">
+                        <p class="openvault-placeholder">No entities extracted yet</p>
                     </div>
                 </div>
             </div>
