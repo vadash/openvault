@@ -55,6 +55,11 @@ export const defaultSettings = {
     // Forgetfulness curve settings (scoring)
     forgetfulnessBaseLambda: 0.05, // Base decay rate for exponential curve
     forgetfulnessImportance5Floor: 5, // Minimum score for importance-5 memories
+    // Reflection settings
+    reflectionThreshold: 30,
+    // World context settings
+    worldContextBudget: 2000,
+    communityDetectionInterval: 50,
 };
 
 // Embedding prefix defaults per model
@@ -108,4 +113,8 @@ export const UI_DEFAULT_HINTS = {
     // Summarization
     contextWindowSize: defaultSettings.extractionRearviewTokens,
     backfillRateLimit: defaultSettings.backfillMaxRPM,
+    // Features
+    reflectionThreshold: defaultSettings.reflectionThreshold,
+    worldContextBudget: defaultSettings.worldContextBudget,
+    communityDetectionInterval: defaultSettings.communityDetectionInterval,
 };
