@@ -13,7 +13,7 @@ import {
     getInsightExtractionJsonSchema,
     getSalientQuestionsJsonSchema,
 } from './extraction/structured.js';
-import { log, showToast, withTimeout } from './utils.js';
+import { log, logRequest, showToast, withTimeout } from './utils.js';
 
 /**
  * LLM configuration presets
@@ -107,6 +107,7 @@ export async function callLLM(messages, config, options = {}) {
 
         // Debug: log LLM response
         log(`LLM response received (${content.length} chars)`);
+        logRequest(errorContext, { messages, maxTokens, profileId, response: content });
         if (content.length === 0) {
             log(`ERROR: Empty LLM response! Full result: ${JSON.stringify(result).substring(0, 200)}`);
         }
@@ -130,6 +131,7 @@ export async function callLLM(messages, config, options = {}) {
         if (!errorMessage.includes('timed out')) {
             showToast('error', `${errorContext} failed: ${errorMessage}`);
         }
+        logRequest(errorContext, { messages, maxTokens, profileId, error });
         throw error;
     }
 }
