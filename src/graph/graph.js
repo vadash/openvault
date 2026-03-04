@@ -178,13 +178,25 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
         return key;
     }
 
-    const threshold = settings?.entityMergeSimilarityThreshold ?? 0.8;
+    const threshold = settings?.entityMergeSimilarityThreshold ?? 0.9;
     let bestMatch = null;
     let bestScore = 0;
+
+    // Token-overlap guard: extract word tokens from the new entity's key
+    const newTokens = new Set(key.split(/\s+/));
 
     for (const [existingKey, node] of Object.entries(graphData.nodes)) {
         if (node.type !== type) continue;
         if (!node.embedding) continue;
+
+        // Require token overlap or substring containment to prevent false merges
+        // Token overlap: "king aldric" & "king" share "king" — merge candidate
+        // Substring: "alice" & "alicia" — one contains the other — merge candidate
+        // No relation: "suzy" & "vova" — skip regardless of embedding similarity
+        const existingTokens = existingKey.split(/\s+/);
+        const hasTokenOverlap = existingTokens.some(t => newTokens.has(t));
+        const hasSubstring = key.includes(existingKey) || existingKey.includes(key);
+        if (!hasTokenOverlap && !hasSubstring) continue;
 
         const sim = cosineSimilarity(newEmbedding, node.embedding);
         if (sim >= threshold && sim > bestScore) {
@@ -194,6 +206,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
     }
 
     if (bestMatch) {
+        log(`[graph] Entity merged: "${name}" (${key}) → "${graphData.nodes[bestMatch].name}" (${bestMatch}), similarity: ${bestScore.toFixed(3)}`);
         upsertEntity(graphData, graphData.nodes[bestMatch].name, type, description, cap);
         // Record redirect so upsertRelationship can resolve
         if (!graphData._mergeRedirects) graphData._mergeRedirects = {};
@@ -277,7 +290,7 @@ export function redirectEdges(graphData, oldKey, newKey) {
  * @returns {Promise<{mergedCount: number, embeddedCount: number}>}
  */
 export async function consolidateGraph(graphData, settings) {
-    const threshold = settings?.entityMergeSimilarityThreshold ?? 0.8;
+    const threshold = settings?.entityMergeSimilarityThreshold ?? 0.9;
     let mergedCount = 0;
     let embeddedCount = 0;
 
@@ -308,8 +321,16 @@ export async function consolidateGraph(graphData, settings) {
         for (let i = 0; i < keys.length; i++) {
             if (mergeMap.has(keys[i])) continue; // Already merged
 
+            const tokensI = new Set(keys[i].split(/\s+/));
+
             for (let j = i + 1; j < keys.length; j++) {
                 if (mergeMap.has(keys[j])) continue;
+
+                // Token-overlap or substring guard: prevent false merges
+                const tokensJ = keys[j].split(/\s+/);
+                const hasTokenOverlap = tokensJ.some(t => tokensI.has(t));
+                const hasSubstring = keys[i].includes(keys[j]) || keys[j].includes(keys[i]);
+                if (!hasTokenOverlap && !hasSubstring) continue;
 
                 const nodeA = graphData.nodes[keys[i]];
                 const nodeB = graphData.nodes[keys[j]];

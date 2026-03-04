@@ -410,7 +410,8 @@ describe('_mergeRedirects serialization', () => {
         };
         getDocumentEmbedding.mockResolvedValue([0.99, 0.05]);
 
-        await mergeOrInsertEntity(graphData, 'Alicia', 'PERSON', 'Also Alice', 3, { entityMergeSimilarityThreshold: 0.8 });
+        // Use "Alice Smith" so token-overlap guard ("alice" token shared) allows merge
+        await mergeOrInsertEntity(graphData, 'Alice Smith', 'PERSON', 'Also Alice', 3, { entityMergeSimilarityThreshold: 0.8 });
 
         // _mergeRedirects should exist at runtime
         expect(graphData._mergeRedirects).toBeDefined();

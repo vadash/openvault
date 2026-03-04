@@ -544,8 +544,8 @@ export function updateUI() {
     $('#openvault_dedup_threshold').val(settings.dedupSimilarityThreshold ?? 0.85);
     $('#openvault_dedup_threshold_value').text(settings.dedupSimilarityThreshold ?? 0.85);
 
-    $('#openvault_entity_merge_threshold').val(settings.entityMergeSimilarityThreshold ?? 0.8);
-    $('#openvault_entity_merge_threshold_value').text(settings.entityMergeSimilarityThreshold ?? 0.8);
+    $('#openvault_entity_merge_threshold').val(settings.entityMergeSimilarityThreshold ?? 0.9);
+    $('#openvault_entity_merge_threshold_value').text(settings.entityMergeSimilarityThreshold ?? 0.9);
 
     $('#openvault_edge_description_cap').val(settings.edgeDescriptionCap ?? 5);
     $('#openvault_edge_description_cap_value').text(settings.edgeDescriptionCap ?? 5);
