@@ -26,6 +26,7 @@ import { updateEventListeners } from '../events.js';
 import { validateRPM } from './helpers.js';
 import { initBrowser, nextPage, prevPage, refreshAllUI, resetAndRender } from './render.js';
 import { setStatus, updateEmbeddingStatusDisplay } from './status.js';
+import { exportToClipboard } from './export-debug.js';
 
 /**
  * Test Ollama connection
@@ -438,6 +439,7 @@ function bindUIElements() {
     // Danger zone buttons
     $('#openvault_delete_chat_btn').on('click', handleDeleteChatData);
     $('#openvault_delete_embeddings_btn').on('click', handleDeleteEmbeddings);
+    $('#openvault_export_debug_btn').on('click', exportToClipboard);
 
     // Memory browser pagination
     $('#openvault_prev_page').on('click', () => prevPage());
