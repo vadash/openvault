@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createEmptyGraph, initGraphState, upsertEntity, upsertRelationship, mergeOrInsertEntity } from '../../src/graph/graph.js';
+import { createEmptyGraph, initGraphState, upsertEntity, upsertRelationship, mergeOrInsertEntity, redirectEdges } from '../../src/graph/graph.js';
 
 // Mock embeddings module
 vi.mock('../../src/embeddings.js', () => ({
@@ -282,5 +282,56 @@ describe('mergeOrInsertEntity', () => {
         const key = await mergeOrInsertEntity(graphData, 'Fortress', 'PLACE', 'A stronghold', 3, mockSettings);
         expect(key).toBe('fortress');
         expect(Object.keys(graphData.nodes)).toHaveLength(2);
+    });
+});
+
+describe('redirectEdges', () => {
+    let graphData;
+
+    beforeEach(() => {
+        graphData = { nodes: {}, edges: {} };
+        upsertEntity(graphData, 'Alice', 'PERSON', 'A');
+        upsertEntity(graphData, 'Bob', 'PERSON', 'B');
+        upsertEntity(graphData, 'Castle', 'PLACE', 'C');
+    });
+
+    it('redirects edges from old key to new key', () => {
+        upsertRelationship(graphData, 'Bob', 'Castle', 'Lives in');
+        redirectEdges(graphData, 'bob', 'alice');
+        expect(graphData.edges['alice__castle']).toBeDefined();
+        expect(graphData.edges['alice__castle'].description).toBe('Lives in');
+        expect(graphData.edges['bob__castle']).toBeUndefined();
+    });
+
+    it('merges edge descriptions when redirect creates a duplicate', () => {
+        upsertRelationship(graphData, 'Alice', 'Castle', 'Rules from');
+        upsertRelationship(graphData, 'Bob', 'Castle', 'Visits often');
+        redirectEdges(graphData, 'bob', 'alice');
+        expect(graphData.edges['alice__castle'].description).toContain('Rules from');
+        expect(graphData.edges['alice__castle'].description).toContain('Visits often');
+        expect(graphData.edges['bob__castle']).toBeUndefined();
+    });
+
+    it('handles edges where old key is the target', () => {
+        upsertRelationship(graphData, 'Castle', 'Bob', 'Contains');
+        redirectEdges(graphData, 'bob', 'alice');
+        expect(graphData.edges['castle__alice']).toBeDefined();
+        expect(graphData.edges['castle__bob']).toBeUndefined();
+    });
+
+    it('does nothing when no edges reference old key', () => {
+        upsertRelationship(graphData, 'Alice', 'Castle', 'Rules from');
+        const edgesBefore = { ...graphData.edges };
+        redirectEdges(graphData, 'bob', 'alice');
+        expect(graphData.edges).toEqual(edgesBefore);
+    });
+
+    it('removes self-loops after redirection', () => {
+        upsertEntity(graphData, 'Charlie', 'PERSON', 'C');
+        upsertRelationship(graphData, 'Charlie', 'Bob', 'Knows');
+        redirectEdges(graphData, 'bob', 'charlie');
+        // Edge would become charlie__charlie (self-loop), should be removed
+        expect(graphData.edges['charlie__charlie']).toBeUndefined();
+        expect(graphData.edges['charlie__bob']).toBeUndefined();
     });
 });

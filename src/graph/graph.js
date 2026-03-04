@@ -182,3 +182,55 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
     graphData.nodes[key].embedding = newEmbedding;
     return key;
 }
+
+/**
+ * Redirect all edges from oldKey to newKey.
+ * If redirection creates a duplicate edge, merges descriptions and sums weights.
+ * Removes old edges after redirection. Self-loops are discarded.
+ *
+ * @param {Object} graphData - The graph object { nodes, edges }
+ * @param {string} oldKey - Normalized key being removed
+ * @param {string} newKey - Normalized key to redirect to
+ */
+export function redirectEdges(graphData, oldKey, newKey) {
+    const edgesToRemove = [];
+    const edgesToAdd = [];
+
+    for (const [edgeKey, edge] of Object.entries(graphData.edges)) {
+        let src = edge.source;
+        let tgt = edge.target;
+        let changed = false;
+
+        if (src === oldKey) { src = newKey; changed = true; }
+        if (tgt === oldKey) { tgt = newKey; changed = true; }
+
+        if (changed) {
+            // Skip self-loops
+            if (src === tgt) {
+                edgesToRemove.push(edgeKey);
+                continue;
+            }
+            edgesToRemove.push(edgeKey);
+            edgesToAdd.push({ source: src, target: tgt, description: edge.description, weight: edge.weight });
+        }
+    }
+
+    // Remove old edges
+    for (const key of edgesToRemove) {
+        delete graphData.edges[key];
+    }
+
+    // Add redirected edges (merge if duplicate)
+    for (const newEdge of edgesToAdd) {
+        const newEdgeKey = `${newEdge.source}__${newEdge.target}`;
+        const existing = graphData.edges[newEdgeKey];
+        if (existing) {
+            existing.weight += newEdge.weight;
+            if (!existing.description.includes(newEdge.description)) {
+                existing.description = existing.description + ' | ' + newEdge.description;
+            }
+        } else {
+            graphData.edges[newEdgeKey] = newEdge;
+        }
+    }
+}
