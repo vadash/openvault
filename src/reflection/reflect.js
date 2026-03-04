@@ -51,6 +51,31 @@ export function accumulateImportance(reflectionState, newEvents) {
 }
 
 /**
+ * Filter out reflections that are too similar to existing reflections for the same character.
+ * @param {Array} newReflections - Newly generated reflections
+ * @param {Array} existingMemories - All existing memories
+ * @param {number} threshold - Cosine similarity threshold (default: 0.90)
+ * @returns {Array} Filtered reflections
+ */
+export function filterDuplicateReflections(newReflections, existingMemories, threshold = 0.90) {
+    const existingReflections = existingMemories.filter((m) => m.type === 'reflection' && m.embedding);
+
+    return newReflections.filter((ref) => {
+        if (!ref.embedding) return true;
+
+        const sameCharReflections = existingReflections.filter((m) => m.character === ref.character);
+        for (const existing of sameCharReflections) {
+            const sim = cosineSimilarity(ref.embedding, existing.embedding);
+            if (sim >= threshold) {
+                log(`Reflection dedup: Skipping "${ref.summary}" (${(sim * 100).toFixed(1)}% similar to existing)`);
+                return false;
+            }
+        }
+        return true;
+    });
+}
+
+/**
  * Run the 3-step reflection pipeline for a single character.
  *
  * Step 1: Generate 3 salient questions from recent memories
@@ -154,6 +179,13 @@ export async function generateReflections(characterName, allMemories, characterS
     // Generate embeddings for reflections
     await enrichEventsWithEmbeddings(reflections);
 
-    log(`Reflection: Generated ${reflections.length} reflections for ${characterName}`);
-    return reflections;
+    // Dedup: filter reflections too similar to existing ones
+    const reflectionDedupThreshold = settings.reflectionDedupThreshold ?? 0.90;
+    const dedupedReflections = filterDuplicateReflections(reflections, allMemories, reflectionDedupThreshold);
+    if (dedupedReflections.length < reflections.length) {
+        log(`Reflection dedup: Filtered ${reflections.length - dedupedReflections.length} duplicate reflections for ${characterName}`);
+    }
+
+    log(`Reflection: Generated ${dedupedReflections.length} reflections for ${characterName}`);
+    return dedupedReflections;
 }

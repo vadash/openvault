@@ -58,6 +58,7 @@ export const defaultSettings = {
     // Reflection settings
     reflectionThreshold: 40,
     maxInsightsPerReflection: 3,
+    reflectionDedupThreshold: 0.90,
     // World context settings
     worldContextBudget: 2000,
     communityDetectionInterval: 50,
