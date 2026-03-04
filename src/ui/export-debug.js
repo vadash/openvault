@@ -7,13 +7,82 @@
 import { CHARACTERS_KEY, extensionName, MEMORIES_KEY } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { isEmbeddingsEnabled } from '../embeddings.js';
-import { getLastRetrievalDebug } from '../retrieval/debug-cache.js';
+import { getCachedScoringDetails, getLastRetrievalDebug } from '../retrieval/debug-cache.js';
 import { getOpenVaultData, showToast } from '../utils.js';
 
 const _RECENT_CONTEXT_CAP = 2000;
 
 /**
- * Strip embedding arrays from an object (shallow clone).
+ * Build scoring statistics from cached scoring details.
+ * @param {Array<Object>|null} scoringDetails
+ * @returns {Object}
+ */
+function buildScoringStats(scoringDetails) {
+    if (!scoringDetails || scoringDetails.length === 0) {
+        return null;
+    }
+
+    const totalScored = scoringDetails.length;
+    let reflectionsScored = 0;
+    let reflectionsSelected = 0;
+    let eventsScored = 0;
+    let eventsSelected = 0;
+    let totalReflectionScore = 0;
+    let totalEventScore = 0;
+    let topScore = 0;
+    let cutoffScore = null;
+    let selectedCount = 0;
+
+    // Find top score and cutoff score (lowest selected score)
+    for (const detail of scoringDetails) {
+        const { scores, type, selected } = detail;
+        if (scores.total > topScore) topScore = scores.total;
+        if (selected) {
+            selectedCount++;
+            if (cutoffScore === null || scores.total < cutoffScore) {
+                cutoffScore = scores.total;
+            }
+        }
+
+        if (type === 'reflection') {
+            reflectionsScored++;
+            totalReflectionScore += scores.total;
+            if (selected) reflectionsSelected++;
+        } else {
+            eventsScored++;
+            totalEventScore += scores.total;
+            if (selected) eventsSelected++;
+        }
+    }
+
+    // Top 10 rejected memories (highest-scoring non-selected)
+    const rejected = scoringDetails
+        .filter((d) => !d.selected)
+        .sort((a, b) => b.scores.total - a.scores.total)
+        .slice(0, 10)
+        .map((d) => ({
+            memoryId: d.memoryId,
+            type: d.type,
+            summary: d.summary,
+            score: d.scores.total,
+        }));
+
+    return {
+        totalScored,
+        selected: selectedCount,
+        reflectionsScored,
+        reflectionsSelected,
+        eventsScored,
+        eventsSelected,
+        avgReflectionScore: reflectionsScored > 0 ? Math.round((totalReflectionScore / reflectionsScored) * 100) / 100 : 0,
+        avgEventScore: eventsScored > 0 ? Math.round((totalEventScore / eventsScored) * 100) / 100 : 0,
+        topScore: Math.round(topScore * 100) / 100,
+        cutoffScore: cutoffScore !== null ? Math.round(cutoffScore * 100) / 100 : null,
+        rejected: rejected.length > 0 ? rejected : null,
+    };
+}
+
+/**
  * @param {Object} obj
  * @returns {Object} Clone without 'embedding' key
  */
@@ -160,11 +229,17 @@ export function buildExportPayload() {
         }
     }
 
+    // Get scoring details and stats
+    const scoringDetails = getCachedScoringDetails();
+    const scoringStats = buildScoringStats(scoringDetails);
+
     return {
         openvault_debug_export: true,
         exportedAt: new Date().toISOString(),
 
         lastRetrieval,
+
+        scoring: scoringStats ? { stats: scoringStats, details: scoringDetails } : null,
 
         state: {
             memories: buildMemoryStats(memories),
