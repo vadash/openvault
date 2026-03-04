@@ -234,6 +234,14 @@ describe('buildInsightExtractionPrompt', () => {
         expect(sys).toContain('<output_schema>');
         expect(sys).toContain('<examples>');
     });
+
+    it('insight extraction prompt limits insights to 1-3', () => {
+        const memories = [{ id: 'ev_1', summary: 'Alice did something' }];
+        const result = buildInsightExtractionPrompt('Alice', 'How is Alice?', memories);
+        const systemContent = result[0].content;
+        expect(systemContent).toContain('1 to 3');
+        expect(systemContent).not.toContain('1 to 5');
+    });
 });
 
 describe('buildCommunitySummaryPrompt', () => {

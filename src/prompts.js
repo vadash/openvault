@@ -375,7 +375,7 @@ export function buildInsightExtractionPrompt(characterName, question, relevantMe
 
     const systemPrompt = `<role>
 You are a narrative analyst synthesizing memories into high-level insights for a character in an ongoing story.
-Your task: given a question and relevant memories, extract 1-5 insights that answer the question.
+Your task: given a question and relevant memories, extract 1-3 insights that answer the question.
 </role>
 
 <output_schema>
@@ -394,7 +394,7 @@ The JSON object MUST have this EXACT structure:
 
 CRITICAL FORMAT RULES:
 1. The top level MUST be a JSON object { }, NEVER a bare array [ ].
-2. The "insights" array MUST contain 1 to 5 insight objects.
+2. The "insights" array MUST contain 1 to 3 insight objects.
 3. Each insight MUST have both "insight" (string) and "evidence_ids" (array of strings).
 4. Do NOT wrap output in markdown code blocks.
 5. Do NOT include ANY text outside the JSON object.
@@ -440,7 +440,7 @@ Correct output:
 ${memoryList}
 </memories>
 
-Based on these memories about ${characterName}, extract 1-5 insights that answer the question above.
+Based on these memories about ${characterName}, extract 1-3 insights that answer the question above.
 Cite specific memory IDs as evidence for each insight.
 Respond with a single JSON object. No other text.`;
 

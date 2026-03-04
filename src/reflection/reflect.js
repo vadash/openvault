@@ -117,7 +117,11 @@ export async function generateReflections(characterName, allMemories, characterS
 
         const insightPrompt = buildInsightExtractionPrompt(characterName, question, relevantMemories);
         const insightResponse = await callLLM(insightPrompt, LLM_CONFIGS.reflection_insights, { structured: true });
-        return parseInsightExtractionResponse(insightResponse);
+        const parsed = parseInsightExtractionResponse(insightResponse);
+        // Cap insights per question
+        const maxInsights = settings.maxInsightsPerReflection ?? 3;
+        parsed.insights = parsed.insights.slice(0, maxInsights);
+        return parsed;
     });
 
     const insightResults = await Promise.all(insightPromises);
