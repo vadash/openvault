@@ -9,6 +9,17 @@ import { getDocumentEmbedding } from '../embeddings.js';
 import { cosineSimilarity } from '../retrieval/math.js';
 
 /**
+ * Resolve a raw entity name to its final graph key, accounting for merge redirects.
+ * @param {Object} graphData - The graph object
+ * @param {string} rawName - The raw entity name
+ * @returns {string} The resolved key (may differ due to semantic merge)
+ */
+function _resolveKey(graphData, rawName) {
+    const key = normalizeKey(rawName);
+    return graphData._mergeRedirects?.[key] || key;
+}
+
+/**
  * Normalize an entity name to a consistent key.
  * - Lowercases the name
  * - Strips possessives (e.g., "Vova's" -> "Vova")
@@ -72,8 +83,8 @@ export function upsertEntity(graphData, name, type, description, cap = 3) {
  * @param {number} cap - Maximum number of description segments to retain (default: 5)
  */
 export function upsertRelationship(graphData, source, target, description, cap = 5) {
-    const srcKey = normalizeKey(source);
-    const tgtKey = normalizeKey(target);
+    const srcKey = _resolveKey(graphData, source);
+    const tgtKey = _resolveKey(graphData, target);
 
     if (!graphData.nodes[srcKey] || !graphData.nodes[tgtKey]) return;
 
@@ -174,6 +185,11 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
 
     if (bestMatch) {
         upsertEntity(graphData, graphData.nodes[bestMatch].name, type, description, cap);
+        // Record redirect so upsertRelationship can resolve
+        if (!graphData._mergeRedirects) graphData._mergeRedirects = {};
+        if (key !== bestMatch) {
+            graphData._mergeRedirects[key] = bestMatch;
+        }
         return bestMatch;
     }
 

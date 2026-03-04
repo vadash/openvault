@@ -344,6 +344,48 @@ describe('redirectEdges', () => {
     });
 });
 
+describe('edge creation with semantic merge', () => {
+    it('creates edges using resolved keys after mergeOrInsertEntity', async () => {
+        const { getDocumentEmbedding } = await import('../../src/embeddings.js');
+
+        // Setup: "vova apartment" already exists with embedding
+        const graphData = createEmptyGraph();
+        graphData.nodes['vova apartment'] = {
+            name: "Vova's Apartment",
+            type: 'PLACE',
+            description: 'An apartment',
+            mentions: 5,
+            embedding: [1, 0, 0],
+        };
+        graphData.nodes['suzy'] = {
+            name: 'Suzy',
+            type: 'PERSON',
+            description: 'A student',
+            mentions: 10,
+        };
+
+        // Mock: "Vova's Room" embeds to something very similar to "Vova's Apartment"
+        getDocumentEmbedding.mockResolvedValue([0.99, 0.1, 0]);
+
+        const settings = { entityMergeSimilarityThreshold: 0.8 };
+
+        // mergeOrInsertEntity should merge "Vova's Room" into "vova apartment"
+        const resolvedKey = await mergeOrInsertEntity(
+            graphData, "Vova's Room", 'PLACE', 'A room', 3, settings
+        );
+        expect(resolvedKey).toBe('vova apartment');
+
+        // Now create a relationship using the ORIGINAL name "Vova's Room"
+        // This should work because we use the resolved key
+        upsertRelationship(graphData, 'Suzy', "Vova's Room", 'Lives in', 5);
+
+        // Edge should exist (suzy -> vova apartment), NOT be silently dropped
+        const edgeKey = 'suzy__vova apartment';
+        expect(graphData.edges[edgeKey]).toBeDefined();
+        expect(graphData.edges[edgeKey].description).toBe('Lives in');
+    });
+});
+
 describe('consolidateGraph', () => {
     it('merges nodes with identical embeddings of the same type', async () => {
         const { getDocumentEmbedding } = await import('../../src/embeddings.js');
