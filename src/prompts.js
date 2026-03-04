@@ -66,8 +66,12 @@ You MUST respond with EXACTLY ONE JSON object. Nothing else — no markdown fenc
 
 The JSON object MUST have this EXACT structure with ALL ${extractionReasoning ? 'FOUR' : 'THREE'} top-level keys present:
 
-{${extractionReasoning ? `
-  "reasoning": "Your step-by-step analysis. ALWAYS write this FIRST before deciding events.",` : ''}
+{${
+        extractionReasoning
+            ? `
+  "reasoning": "Your step-by-step analysis. ALWAYS write this FIRST before deciding events.",`
+            : ''
+    }
   "events": [
     {
       "summary": "8-25 word description of what happened, past tense, in ENGLISH",
@@ -168,7 +172,9 @@ Also extract relationships between pairs of entities when the connection is stat
 
 IMPORTANT: Extract entities and relationships even when no events are extracted. Entity data builds world knowledge over time and is always valuable.
 </entity_rules>
-${extractionReasoning ? `
+${
+    extractionReasoning
+        ? `
 <thinking_process>
 Follow these steps IN ORDER. Write your work in the "reasoning" field:
 
@@ -180,7 +186,9 @@ Step 5: List all named entities and their types.
 Step 6: List relationships between entities.
 Step 7: Assemble the final JSON object with all ${extractionReasoning ? 'four' : 'three'} keys.
 </thinking_process>
-` : ''}
+`
+        : ''
+}
 <examples>
 The following examples show correct input-to-output patterns. Study the JSON structure carefully.
 
@@ -276,10 +284,14 @@ ${messages}
 </messages>
 
 Analyze the messages above. Extract events, entities, and relationships.
-Use exact character names from <context> if provided.${extractionReasoning ? `
+Use exact character names from <context> if provided.${
+        extractionReasoning
+            ? `
 Write your analysis in the "reasoning" field FIRST, then fill in events, entities, and relationships.
-Respond with a single JSON object containing all four keys. No other text.` : `
-Respond with a single JSON object containing all three keys ("events", "entities", "relationships"). No other text.`}`;
+Respond with a single JSON object containing all four keys. No other text.`
+            : `
+Respond with a single JSON object containing all three keys ("events", "entities", "relationships"). No other text.`
+    }`;
 
     return [
         { role: 'system', content: systemPrompt },

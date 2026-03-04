@@ -27,7 +27,7 @@ const MAX_BACKOFF_TOTAL_MS = 15 * 60 * 1000;
 import { getDeps } from '../deps.js';
 import { enrichEventsWithEmbeddings } from '../embeddings.js';
 import { buildCommunityGroups, detectCommunities, updateCommunitySummaries } from '../graph/communities.js';
-import { initGraphState, upsertEntity, upsertRelationship, mergeOrInsertEntity } from '../graph/graph.js';
+import { initGraphState, mergeOrInsertEntity, upsertEntity, upsertRelationship } from '../graph/graph.js';
 import { callLLMForExtraction } from '../llm.js';
 import { buildExtractionPrompt } from '../prompts.js';
 import { accumulateImportance, generateReflections, shouldReflect } from '../reflection/reflect.js';
@@ -360,7 +360,14 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
         const entityCap = settings.entityDescriptionCap ?? 3;
         if (validated.entities) {
             for (const entity of validated.entities) {
-                await mergeOrInsertEntity(data.graph, entity.name, entity.type, entity.description, entityCap, settings);
+                await mergeOrInsertEntity(
+                    data.graph,
+                    entity.name,
+                    entity.type,
+                    entity.description,
+                    entityCap,
+                    settings
+                );
             }
         }
         const edgeCap = settings.edgeDescriptionCap ?? 5;

@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createEmptyGraph, initGraphState, upsertEntity, upsertRelationship, mergeOrInsertEntity, redirectEdges, consolidateGraph } from '../../src/graph/graph.js';
+import {
+    consolidateGraph,
+    createEmptyGraph,
+    initGraphState,
+    mergeOrInsertEntity,
+    redirectEdges,
+    upsertEntity,
+    upsertRelationship,
+} from '../../src/graph/graph.js';
 
 // Mock embeddings module
 vi.mock('../../src/embeddings.js', () => ({
@@ -217,7 +225,7 @@ describe('initGraphState', () => {
 
 describe('mergeOrInsertEntity', () => {
     let graphData;
-    const mockSettings = { entityMergeSimilarityThreshold: 0.80 };
+    const mockSettings = { entityMergeSimilarityThreshold: 0.8 };
 
     beforeEach(() => {
         graphData = { nodes: {}, edges: {} };
@@ -349,7 +357,7 @@ describe('consolidateGraph', () => {
         graphData.nodes['vova house'].embedding = [1, 0, 0];
         graphData.nodes['vova apartment'].embedding = [1, 0, 0];
 
-        const settings = { entityMergeSimilarityThreshold: 0.80, entityDescriptionCap: 3 };
+        const settings = { entityMergeSimilarityThreshold: 0.8, entityDescriptionCap: 3 };
         const result = await consolidateGraph(graphData, settings);
 
         // One should be merged into the other
@@ -368,7 +376,7 @@ describe('consolidateGraph', () => {
         graphData.nodes.castle.embedding = [1, 0, 0];
         graphData.nodes['castle guard'].embedding = [1, 0, 0];
 
-        const settings = { entityMergeSimilarityThreshold: 0.80, entityDescriptionCap: 3 };
+        const settings = { entityMergeSimilarityThreshold: 0.8, entityDescriptionCap: 3 };
         await consolidateGraph(graphData, settings);
 
         expect(Object.keys(graphData.nodes)).toHaveLength(2);
@@ -389,7 +397,7 @@ describe('consolidateGraph', () => {
 
         upsertRelationship(graphData, 'Alice', 'House B', 'Visits');
 
-        const settings = { entityMergeSimilarityThreshold: 0.80, entityDescriptionCap: 3 };
+        const settings = { entityMergeSimilarityThreshold: 0.8, entityDescriptionCap: 3 };
         await consolidateGraph(graphData, settings);
 
         // House B merged into House A, edge redirected

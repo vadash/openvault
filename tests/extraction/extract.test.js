@@ -331,7 +331,7 @@ describe('updateCharacterStatesFromEvents', () => {
                 id: 'event_1',
                 emotional_impact: {
                     'King Aldric': 'triumphant',
-                    'don': 'angry', // Invalid - not in validCharNames or characters_involved
+                    don: 'angry', // Invalid - not in validCharNames or characters_involved
                 },
                 message_ids: [1, 2],
                 characters_involved: ['King Aldric'],
@@ -380,7 +380,7 @@ describe('updateCharacterStatesFromEvents', () => {
             {
                 id: 'event_1',
                 emotional_impact: {
-                    'Queen': 'worried',
+                    Queen: 'worried',
                 },
                 characters_involved: ['Queen'], // Queen is in characters_involved
             },
@@ -408,8 +408,8 @@ describe('cleanupCharacterStates', () => {
     it('removes character states not in validCharNames or memories', () => {
         mockData.character_states = {
             'King Aldric': { name: 'King Aldric', current_emotion: 'neutral' },
-            'User': { name: 'User', current_emotion: 'neutral' },
-            'Stranger': { name: 'Stranger', current_emotion: 'angry' }, // Not in validCharNames or memories
+            User: { name: 'User', current_emotion: 'neutral' },
+            Stranger: { name: 'Stranger', current_emotion: 'angry' }, // Not in validCharNames or memories
         };
 
         cleanupCharacterStates(mockData, ['King Aldric', 'User']);
@@ -422,12 +422,10 @@ describe('cleanupCharacterStates', () => {
     it('keeps character states found in memories characters_involved', () => {
         mockData.character_states = {
             'King Aldric': { name: 'King Aldric', current_emotion: 'neutral' },
-            'Queen': { name: 'Queen', current_emotion: 'worried' }, // Only in memories
-            'Stranger': { name: 'Stranger', current_emotion: 'angry' }, // Nowhere
+            Queen: { name: 'Queen', current_emotion: 'worried' }, // Only in memories
+            Stranger: { name: 'Stranger', current_emotion: 'angry' }, // Nowhere
         };
-        mockData.memories = [
-            { characters_involved: ['King Aldric', 'Queen'] },
-        ];
+        mockData.memories = [{ characters_involved: ['King Aldric', 'Queen'] }];
 
         cleanupCharacterStates(mockData, ['King Aldric', 'User']);
 
@@ -445,11 +443,9 @@ describe('cleanupCharacterStates', () => {
     it('handles missing validCharNames', () => {
         mockData.character_states = {
             'King Aldric': { name: 'King Aldric', current_emotion: 'neutral' },
-            'Queen': { name: 'Queen', current_emotion: 'worried' },
+            Queen: { name: 'Queen', current_emotion: 'worried' },
         };
-        mockData.memories = [
-            { characters_involved: ['King Aldric'] },
-        ];
+        mockData.memories = [{ characters_involved: ['King Aldric'] }];
 
         cleanupCharacterStates(mockData, []);
 

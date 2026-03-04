@@ -74,7 +74,8 @@ function buildScoringStats(scoringDetails) {
         reflectionsSelected,
         eventsScored,
         eventsSelected,
-        avgReflectionScore: reflectionsScored > 0 ? Math.round((totalReflectionScore / reflectionsScored) * 100) / 100 : 0,
+        avgReflectionScore:
+            reflectionsScored > 0 ? Math.round((totalReflectionScore / reflectionsScored) * 100) / 100 : 0,
         avgEventScore: eventsScored > 0 ? Math.round((totalEventScore / eventsScored) * 100) / 100 : 0,
         topScore: Math.round(topScore * 100) / 100,
         cutoffScore: cutoffScore !== null ? Math.round(cutoffScore * 100) / 100 : null,

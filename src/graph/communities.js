@@ -124,7 +124,14 @@ function sameMembers(a, b) {
  * @param {boolean} isSingleCommunity - Whether Louvain produced only one community
  * @returns {Promise<Object>} Updated communities object
  */
-export async function updateCommunitySummaries(_graphData, communityGroups, existingCommunities, currentMessageCount = 0, stalenessThreshold = 100, isSingleCommunity = false) {
+export async function updateCommunitySummaries(
+    _graphData,
+    communityGroups,
+    existingCommunities,
+    currentMessageCount = 0,
+    stalenessThreshold = 100,
+    isSingleCommunity = false
+) {
     const deps = getDeps();
     const updatedCommunities = {};
 

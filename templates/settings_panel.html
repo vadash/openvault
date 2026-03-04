@@ -281,6 +281,24 @@
 
                     <div style="height: 8px;"></div>
 
+                    <label for="openvault_max_insights">
+                        Max Insights per Reflection: <span id="openvault_max_insights_value">3</span>
+                        <small class="openvault-default-hint" data-default-key="maxInsightsPerReflection"></small>
+                    </label>
+                    <input type="range" id="openvault_max_insights" min="1" max="5" step="1" value="3" />
+                    <small class="openvault-hint">Maximum insights generated per reflection question.</small>
+
+                    <div style="height: 8px;"></div>
+
+                    <label for="openvault_reflection_dedup_threshold">
+                        Reflection Dedup Threshold: <span id="openvault_reflection_dedup_threshold_value">0.90</span>
+                        <small class="openvault-default-hint" data-default-key="reflectionDedupThreshold"></small>
+                    </label>
+                    <input type="range" id="openvault_reflection_dedup_threshold" min="0.5" max="1" step="0.05" value="0.90" />
+                    <small class="openvault-hint">Cosine similarity threshold to filter duplicate reflections.</small>
+
+                    <div style="height: 8px;"></div>
+
                     <label class="checkbox_label">
                         <input type="checkbox" id="openvault_extraction_reasoning" />
                         <span>Extraction Reasoning</span>
@@ -435,6 +453,24 @@
                                 </label>
                                 <input type="range" id="openvault_dedup_threshold" min="0.70" max="0.95" step="0.01" value="0.85" />
                                 <small class="openvault-hint">0.80 = aggressive (fewer dupes) · 0.85 = default · 0.90 = conservative (more memories)</small>
+
+                                <div style="height: 8px;"></div>
+
+                                <label for="openvault_entity_merge_threshold" style="margin-top: 10px;">
+                                    Entity Merge Threshold: <span id="openvault_entity_merge_threshold_value">0.80</span>
+                                    <small class="openvault-default-hint" data-default-key="entityMergeSimilarityThreshold"></small>
+                                </label>
+                                <input type="range" id="openvault_entity_merge_threshold" min="0.5" max="1" step="0.05" value="0.80" />
+                                <small class="openvault-hint">Semantic similarity to merge entities. Higher = fewer merges.</small>
+
+                                <div style="height: 8px;"></div>
+
+                                <label for="openvault_edge_description_cap" style="margin-top: 10px;">
+                                    Edge Description Cap: <span id="openvault_edge_description_cap_value">5</span>
+                                    <small class="openvault-default-hint" data-default-key="edgeDescriptionCap"></small>
+                                </label>
+                                <input type="range" id="openvault_edge_description_cap" min="1" max="20" step="1" value="5" />
+                                <small class="openvault-hint">Max description segments per edge (FIFO eviction).</small>
                             </div>
 
                             <hr style="margin: 15px 0; border: none; border-top: 1px solid var(--SmartThemeShadowColor);">

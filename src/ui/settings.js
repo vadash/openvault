@@ -339,6 +339,18 @@ function bindUIElements() {
         $('#openvault_dedup_threshold_value').text(value);
     });
 
+    $('#openvault_entity_merge_threshold').on('input', function () {
+        const value = parseFloat($(this).val());
+        saveSetting('entityMergeSimilarityThreshold', value);
+        $('#openvault_entity_merge_threshold_value').text(value);
+    });
+
+    $('#openvault_edge_description_cap').on('input', function () {
+        const value = parseInt($(this).val(), 10);
+        saveSetting('edgeDescriptionCap', value);
+        $('#openvault_edge_description_cap_value').text(value);
+    });
+
     // Query context enhancement settings
     $('#openvault_entity_window').on('input', function () {
         const value = parseInt($(this).val(), 10);
@@ -426,6 +438,18 @@ function bindUIElements() {
         const value = parseInt($(this).val(), 10);
         saveSetting('reflectionThreshold', value);
         $('#openvault_reflection_threshold_value').text(value);
+    });
+
+    $('#openvault_max_insights').on('input', function () {
+        const value = parseInt($(this).val(), 10);
+        saveSetting('maxInsightsPerReflection', value);
+        $('#openvault_max_insights_value').text(value);
+    });
+
+    $('#openvault_reflection_dedup_threshold').on('input', function () {
+        const value = parseFloat($(this).val());
+        saveSetting('reflectionDedupThreshold', value);
+        $('#openvault_reflection_dedup_threshold_value').text(value);
     });
 
     $('#openvault_world_context_budget').on('input', function () {
@@ -520,6 +544,12 @@ export function updateUI() {
     $('#openvault_dedup_threshold').val(settings.dedupSimilarityThreshold ?? 0.85);
     $('#openvault_dedup_threshold_value').text(settings.dedupSimilarityThreshold ?? 0.85);
 
+    $('#openvault_entity_merge_threshold').val(settings.entityMergeSimilarityThreshold ?? 0.8);
+    $('#openvault_entity_merge_threshold_value').text(settings.entityMergeSimilarityThreshold ?? 0.8);
+
+    $('#openvault_edge_description_cap').val(settings.edgeDescriptionCap ?? 5);
+    $('#openvault_edge_description_cap_value').text(settings.edgeDescriptionCap ?? 5);
+
     // Query context enhancement settings
     $('#openvault_entity_window').val(settings.entityWindowSize ?? 10);
     $('#openvault_entity_window_value').text(settings.entityWindowSize ?? 10);
@@ -551,6 +581,12 @@ export function updateUI() {
     // Feature settings
     $('#openvault_reflection_threshold').val(settings.reflectionThreshold ?? 30);
     $('#openvault_reflection_threshold_value').text(settings.reflectionThreshold ?? 30);
+
+    $('#openvault_max_insights').val(settings.maxInsightsPerReflection ?? 3);
+    $('#openvault_max_insights_value').text(settings.maxInsightsPerReflection ?? 3);
+
+    $('#openvault_reflection_dedup_threshold').val(settings.reflectionDedupThreshold ?? 0.9);
+    $('#openvault_reflection_dedup_threshold_value').text(settings.reflectionDedupThreshold ?? 0.9);
 
     $('#openvault_world_context_budget').val(settings.worldContextBudget ?? 2000);
     $('#openvault_world_context_budget_value').text(settings.worldContextBudget ?? 2000);

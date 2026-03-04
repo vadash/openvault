@@ -157,7 +157,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
         return key;
     }
 
-    const threshold = settings?.entityMergeSimilarityThreshold ?? 0.80;
+    const threshold = settings?.entityMergeSimilarityThreshold ?? 0.8;
     let bestMatch = null;
     let bestScore = 0;
 
@@ -201,8 +201,14 @@ export function redirectEdges(graphData, oldKey, newKey) {
         let tgt = edge.target;
         let changed = false;
 
-        if (src === oldKey) { src = newKey; changed = true; }
-        if (tgt === oldKey) { tgt = newKey; changed = true; }
+        if (src === oldKey) {
+            src = newKey;
+            changed = true;
+        }
+        if (tgt === oldKey) {
+            tgt = newKey;
+            changed = true;
+        }
 
         if (changed) {
             // Skip self-loops
@@ -245,7 +251,7 @@ export function redirectEdges(graphData, oldKey, newKey) {
  * @returns {Promise<{mergedCount: number, embeddedCount: number}>}
  */
 export async function consolidateGraph(graphData, settings) {
-    const threshold = settings?.entityMergeSimilarityThreshold ?? 0.80;
+    const threshold = settings?.entityMergeSimilarityThreshold ?? 0.8;
     let mergedCount = 0;
     let embeddedCount = 0;
 

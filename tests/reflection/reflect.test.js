@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultSettings, extensionName } from '../../src/constants.js';
 import { resetDeps, setDeps } from '../../src/deps.js';
-import { accumulateImportance, filterDuplicateReflections, generateReflections, shouldReflect } from '../../src/reflection/reflect.js';
+import {
+    accumulateImportance,
+    filterDuplicateReflections,
+    generateReflections,
+    shouldReflect,
+} from '../../src/reflection/reflect.js';
 
 // Mock embeddings
 vi.mock('../../src/embeddings.js', () => ({
@@ -216,9 +221,7 @@ describe('filterDuplicateReflections', () => {
     });
 
     it('keeps all reflections when none are similar', () => {
-        const existing = [
-            { type: 'reflection', character: 'Alice', embedding: [1, 0, 0], summary: 'Existing' },
-        ];
+        const existing = [{ type: 'reflection', character: 'Alice', embedding: [1, 0, 0], summary: 'Existing' }];
         const newReflections = [
             { type: 'reflection', character: 'Alice', embedding: [0, 1, 0], summary: 'New 1' },
             { type: 'reflection', character: 'Alice', embedding: [0, 0, 1], summary: 'New 2' },
@@ -228,12 +231,8 @@ describe('filterDuplicateReflections', () => {
     });
 
     it('passes through reflections without embeddings', () => {
-        const existing = [
-            { type: 'reflection', character: 'Alice', embedding: [1, 0, 0], summary: 'Existing' },
-        ];
-        const newReflections = [
-            { type: 'reflection', character: 'Alice', summary: 'No embedding' },
-        ];
+        const existing = [{ type: 'reflection', character: 'Alice', embedding: [1, 0, 0], summary: 'Existing' }];
+        const newReflections = [{ type: 'reflection', character: 'Alice', summary: 'No embedding' }];
         const filtered = filterDuplicateReflections(newReflections, existing, 0.9);
         expect(filtered).toHaveLength(1);
     });

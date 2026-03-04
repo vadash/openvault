@@ -58,14 +58,14 @@ export const defaultSettings = {
     // Reflection settings
     reflectionThreshold: 40,
     maxInsightsPerReflection: 3,
-    reflectionDedupThreshold: 0.90,
+    reflectionDedupThreshold: 0.9,
     // World context settings
     worldContextBudget: 2000,
     communityDetectionInterval: 50,
     // Entity settings
     entityDescriptionCap: 3,
     edgeDescriptionCap: 5,
-    entityMergeSimilarityThreshold: 0.80,
+    entityMergeSimilarityThreshold: 0.8,
     // Reflection decay settings
     reflectionDecayThreshold: 500,
     maxReflectionsPerCharacter: 50,
@@ -126,7 +126,12 @@ export const UI_DEFAULT_HINTS = {
     backfillRateLimit: defaultSettings.backfillMaxRPM,
     // Features
     reflectionThreshold: defaultSettings.reflectionThreshold,
+    maxInsightsPerReflection: defaultSettings.maxInsightsPerReflection,
+    reflectionDedupThreshold: defaultSettings.reflectionDedupThreshold,
     worldContextBudget: defaultSettings.worldContextBudget,
     communityDetectionInterval: defaultSettings.communityDetectionInterval,
     communityStalenessThreshold: defaultSettings.communityStalenessThreshold,
+    // Entity merge settings
+    entityMergeSimilarityThreshold: defaultSettings.entityMergeSimilarityThreshold,
+    edgeDescriptionCap: defaultSettings.edgeDescriptionCap,
 };

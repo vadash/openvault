@@ -57,7 +57,7 @@ export function accumulateImportance(reflectionState, newEvents) {
  * @param {number} threshold - Cosine similarity threshold (default: 0.90)
  * @returns {Array} Filtered reflections
  */
-export function filterDuplicateReflections(newReflections, existingMemories, threshold = 0.90) {
+export function filterDuplicateReflections(newReflections, existingMemories, threshold = 0.9) {
     const existingReflections = existingMemories.filter((m) => m.type === 'reflection' && m.embedding);
 
     return newReflections.filter((ref) => {
@@ -180,10 +180,12 @@ export async function generateReflections(characterName, allMemories, characterS
     await enrichEventsWithEmbeddings(reflections);
 
     // Dedup: filter reflections too similar to existing ones
-    const reflectionDedupThreshold = settings.reflectionDedupThreshold ?? 0.90;
+    const reflectionDedupThreshold = settings.reflectionDedupThreshold ?? 0.9;
     const dedupedReflections = filterDuplicateReflections(reflections, allMemories, reflectionDedupThreshold);
     if (dedupedReflections.length < reflections.length) {
-        log(`Reflection dedup: Filtered ${reflections.length - dedupedReflections.length} duplicate reflections for ${characterName}`);
+        log(
+            `Reflection dedup: Filtered ${reflections.length - dedupedReflections.length} duplicate reflections for ${characterName}`
+        );
     }
 
     log(`Reflection: Generated ${dedupedReflections.length} reflections for ${characterName}`);
