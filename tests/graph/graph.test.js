@@ -70,6 +70,29 @@ describe('upsertEntity', () => {
         expect(graphData.nodes.castle.description).toBe('Same desc | Different');
         expect(graphData.nodes.castle.mentions).toBe(3);
     });
+
+    it('strips possessives from entity keys', () => {
+        upsertEntity(graphData, "Vova's Apartment", 'PLACE', 'Home base');
+        upsertEntity(graphData, "Vova's apartment", 'PLACE', 'Updated description');
+
+        // Both should map to the same key (possessive stripped, lowercased)
+        expect(graphData.nodes['vova apartment']).toBeDefined();
+        expect(graphData.nodes['vova apartment'].name).toBe("Vova's Apartment");
+        expect(graphData.nodes['vova apartment'].mentions).toBe(2);
+    });
+
+    it('collapses whitespace in entity keys', () => {
+        upsertEntity(graphData, 'The   Great   Hall', 'PLACE', 'Throne room');
+        expect(graphData.nodes['the great hall']).toBeDefined();
+        expect(graphData.nodes['the great hall'].name).toBe('The   Great   Hall');
+    });
+
+    it('handles curly apostrophe in possessives', () => {
+        // Unicode right single quotation mark (U+2019)
+        const nameWithCurlyApostrophe = 'Vova\u2019s Place';
+        upsertEntity(graphData, nameWithCurlyApostrophe, 'PLACE', 'Home');
+        expect(graphData.nodes['vova place']).toBeDefined();
+    });
 });
 
 describe('upsertRelationship', () => {
@@ -119,6 +142,14 @@ describe('upsertRelationship', () => {
     it('normalizes source and target to lowercase trimmed', () => {
         upsertRelationship(graphData, '  King Aldric  ', '  Castle  ', 'Rules');
         expect(graphData.edges['king aldric__castle']).toBeDefined();
+    });
+
+    it('strips possessives from relationship source and target keys', () => {
+        upsertEntity(graphData, "King's Guard", 'ORGANIZATION', 'Royal protectors');
+        upsertRelationship(graphData, "King's Guard", 'Castle', 'Protects the castle');
+
+        // Edge key should have possessives stripped
+        expect(graphData.edges['king guard__castle']).toBeDefined();
     });
 });
 

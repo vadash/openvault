@@ -7,11 +7,18 @@
 
 /**
  * Normalize an entity name to a consistent key.
+ * - Lowercases the name
+ * - Strips possessives (e.g., "Vova's" -> "Vova")
+ * - Collapses whitespace
  * @param {string} name
  * @returns {string}
  */
 function normalizeKey(name) {
-    return name.toLowerCase().trim();
+    return name
+        .toLowerCase()
+        .replace(/[''\u2019]s\b/g, '') // Strip possessives: 's, 's, 's
+        .replace(/\s+/g, ' ') // Collapse whitespace
+        .trim();
 }
 
 /**
