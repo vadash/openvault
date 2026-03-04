@@ -9,7 +9,7 @@ import { extensionName } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { log, sliceToTokenBudget } from '../utils.js';
-import { cacheRetrievalDebug } from './debug-cache.js';
+import { cacheRetrievalDebug, cacheScoringDetails } from './debug-cache.js';
 import { scoreMemories } from './math.js';
 import { buildBM25Tokens, buildEmbeddingQuery, extractQueryContext, parseRecentMessages } from './query-context.js';
 
@@ -39,11 +39,16 @@ export function getScoringParams() {
  * @param {number} chatLength - Current chat length
  * @param {number} limit - Maximum results
  * @param {string|string[]} queryTokens - Query text or pre-tokenized array for BM25
+ * @returns {{memories: Object[], scoredResults: Array<{memory: Object, score: number, breakdown: Object}>}}
  */
 function scoreMemoriesDirect(memories, contextEmbedding, chatLength, limit, queryTokens) {
     const { constants, settings } = getScoringParams();
     const scored = scoreMemories(memories, contextEmbedding, chatLength, constants, settings, queryTokens);
-    return scored.slice(0, limit).map((r) => r.memory);
+    const topScored = scored.slice(0, limit);
+    return {
+        memories: topScored.map((r) => r.memory),
+        scoredResults: topScored,
+    };
 }
 
 /**
@@ -55,7 +60,7 @@ function scoreMemoriesDirect(memories, contextEmbedding, chatLength, limit, quer
  * @param {string[]} ctx.activeCharacters - List of active characters for entity extraction
  * @param {number} ctx.chatLength - Current chat length (for distance calculation)
  * @param {number} limit - Maximum memories to return
- * @returns {Promise<Object[]>} Selected memories
+ * @returns {Promise<{memories: Object[], scoredResults: Array<{memory: Object, score: number, breakdown: Object}>}>}
  */
 async function selectRelevantMemoriesSimple(memories, ctx, limit) {
     const { recentContext, userMessages, activeCharacters, chatLength } = ctx;
@@ -109,10 +114,15 @@ async function selectRelevantMemoriesSimple(memories, ctx, limit) {
 export async function selectRelevantMemories(memories, ctx) {
     if (!memories || memories.length === 0) return [];
     const { finalTokens } = ctx;
-    const scored = await selectRelevantMemoriesSimple(memories, ctx, 1000);
-    const finalResults = sliceToTokenBudget(scored, finalTokens);
+    const { memories: scoredMemories, scoredResults } = await selectRelevantMemoriesSimple(memories, ctx, 1000);
+    const finalResults = sliceToTokenBudget(scoredMemories, finalTokens);
+    const selectedIds = new Set(finalResults.map((m) => m.id));
+
+    // Cache scoring details for debug export
+    cacheScoringDetails(scoredResults, selectedIds);
+
     log(
-        `Retrieval: ${memories.length} memories -> ${scored.length} scored -> ${finalResults.length} after token filter (${finalTokens} budget)`
+        `Retrieval: ${memories.length} memories -> ${scoredMemories.length} scored -> ${finalResults.length} after token filter (${finalTokens} budget)`
     );
     return finalResults;
 }
