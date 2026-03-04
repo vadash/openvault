@@ -377,6 +377,8 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
             }
         }
         data.graph_message_count = (data.graph_message_count || 0) + messages.length;
+        // Clean up runtime-only merge redirects (don't persist to storage)
+        delete data.graph._mergeRedirects;
 
         // Stage 4.6: Reflection check (per character in new events)
         if (events.length > 0) {
