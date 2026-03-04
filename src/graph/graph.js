@@ -66,8 +66,9 @@ export function upsertEntity(graphData, name, type, description, cap = 3) {
  * @param {string} source - Source entity name (will be normalized)
  * @param {string} target - Target entity name (will be normalized)
  * @param {string} description - Relationship description
+ * @param {number} cap - Maximum number of description segments to retain (default: 5)
  */
-export function upsertRelationship(graphData, source, target, description) {
+export function upsertRelationship(graphData, source, target, description, cap = 5) {
     const srcKey = normalizeKey(source);
     const tgtKey = normalizeKey(target);
 
@@ -80,6 +81,12 @@ export function upsertRelationship(graphData, source, target, description) {
         existing.weight += 1;
         if (!existing.description.includes(description)) {
             existing.description = existing.description + ' | ' + description;
+        }
+
+        // Cap description segments (FIFO eviction)
+        const segments = existing.description.split(' | ');
+        if (cap > 0 && segments.length > cap) {
+            existing.description = segments.slice(-cap).join(' | ');
         }
     } else {
         graphData.edges[edgeKey] = {

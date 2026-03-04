@@ -362,9 +362,10 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
                 upsertEntity(data.graph, entity.name, entity.type, entity.description, entityCap);
             }
         }
+        const edgeCap = settings.edgeDescriptionCap ?? 5;
         if (validated.relationships) {
             for (const rel of validated.relationships) {
-                upsertRelationship(data.graph, rel.source, rel.target, rel.description);
+                upsertRelationship(data.graph, rel.source, rel.target, rel.description, edgeCap);
             }
         }
         data.graph_message_count = (data.graph_message_count || 0) + messages.length;

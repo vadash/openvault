@@ -151,6 +151,30 @@ describe('upsertRelationship', () => {
         // Edge key should have possessives stripped
         expect(graphData.edges['king guard__castle']).toBeDefined();
     });
+
+    it('caps edge description segments at configured limit', () => {
+        const cap = 3;
+        upsertRelationship(graphData, 'King Aldric', 'Castle', 'First desc', cap);
+        upsertRelationship(graphData, 'King Aldric', 'Castle', 'Second desc', cap);
+        upsertRelationship(graphData, 'King Aldric', 'Castle', 'Third desc', cap);
+        upsertRelationship(graphData, 'King Aldric', 'Castle', 'Fourth desc', cap);
+        upsertRelationship(graphData, 'King Aldric', 'Castle', 'Fifth desc', cap);
+
+        const edge = graphData.edges['king aldric__castle'];
+        expect(edge.description).toBe('Third desc | Fourth desc | Fifth desc');
+        expect(edge.weight).toBe(5);
+    });
+
+    it('uses default cap of 5 for edge descriptions when not specified', () => {
+        for (let i = 1; i <= 7; i++) {
+            upsertRelationship(graphData, 'King Aldric', 'Castle', `Desc ${i}`);
+        }
+        const edge = graphData.edges['king aldric__castle'];
+        const segments = edge.description.split(' | ');
+        expect(segments).toHaveLength(5);
+        expect(segments[0]).toBe('Desc 3');
+        expect(segments[4]).toBe('Desc 7');
+    });
 });
 
 describe('createEmptyGraph', () => {

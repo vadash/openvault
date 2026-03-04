@@ -62,6 +62,7 @@ export const defaultSettings = {
     communityDetectionInterval: 50,
     // Entity settings
     entityDescriptionCap: 3,
+    edgeDescriptionCap: 5,
     // Reflection decay settings
     reflectionDecayThreshold: 500,
     maxReflectionsPerCharacter: 50,
