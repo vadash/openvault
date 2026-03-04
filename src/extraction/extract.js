@@ -124,6 +124,38 @@ export function updateCharacterStatesFromEvents(events, data, validCharNames = [
 }
 
 /**
+ * Cleanup corrupted character state entries
+ * Removes entries where the character name is not in validCharNames AND not in any memory's characters_involved
+ * @param {Object} data - OpenVault data object
+ * @param {string[]} validCharNames - Known valid character names (e.g., [characterName, userName])
+ */
+export function cleanupCharacterStates(data, validCharNames = []) {
+    if (!data[CHARACTERS_KEY]) return;
+
+    // Build valid set from known names + all characters_involved from memories
+    const validSet = new Set(validCharNames.map((n) => n.toLowerCase()));
+    const memories = data[MEMORIES_KEY] || [];
+    for (const memory of memories) {
+        for (const char of memory.characters_involved || []) {
+            validSet.add(char.toLowerCase());
+        }
+    }
+
+    // Remove character state entries that are not in the valid set
+    const removedEntries = [];
+    for (const charName of Object.keys(data[CHARACTERS_KEY])) {
+        if (!validSet.has(charName.toLowerCase())) {
+            removedEntries.push(charName);
+            delete data[CHARACTERS_KEY][charName];
+        }
+    }
+
+    if (removedEntries.length > 0) {
+        log(`Cleaned up ${removedEntries.length} invalid character states: ${removedEntries.join(', ')}`);
+    }
+}
+
+/**
  * Select relevant memories for extraction context using hybrid recency/importance
  * @param {Object} data - OpenVault data object
  * @param {Object} settings - Extension settings

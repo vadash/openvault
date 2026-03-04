@@ -7,7 +7,7 @@
 import { extensionName, MEMORIES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
 import { getDeps } from './deps.js';
 import { clearEmbeddingCache } from './embeddings.js';
-import { extractAllMessages, extractMemories } from './extraction/extract.js';
+import { cleanupCharacterStates, extractAllMessages, extractMemories } from './extraction/extract.js';
 import { getBackfillStats, getExtractedMessageIds, getNextBatch } from './extraction/scheduler.js';
 import { clearRetrievalDebug } from './retrieval/debug-cache.js';
 import { updateInjection } from './retrieval/retrieve.js';
@@ -185,6 +185,14 @@ export function onChatChanged() {
     if (!isAutomaticMode()) return;
 
     log('Chat changed, clearing injection, cache and setting load cooldown');
+
+    // Cleanup corrupted character states
+    const data = getOpenVaultData();
+    const context = getDeps().getContext();
+    if (data && context) {
+        const validCharNames = [context.name1, context.name2].filter(Boolean);
+        cleanupCharacterStates(data, validCharNames);
+    }
 
     // Clear embedding cache to free memory when switching chats
     clearEmbeddingCache();

@@ -383,3 +383,68 @@ describe('updateCharacterStatesFromEvents', () => {
         expect(mockData.character_states['Queen'].current_emotion).toBe('worried');
     });
 });
+
+import { cleanupCharacterStates } from '../../src/extraction/extract.js';
+
+describe('cleanupCharacterStates', () => {
+    let mockData;
+
+    beforeEach(() => {
+        mockData = {
+            character_states: {},
+            memories: [],
+        };
+    });
+
+    it('removes character states not in validCharNames or memories', () => {
+        mockData.character_states = {
+            'King Aldric': { name: 'King Aldric', current_emotion: 'neutral' },
+            'User': { name: 'User', current_emotion: 'neutral' },
+            'Stranger': { name: 'Stranger', current_emotion: 'angry' }, // Not in validCharNames or memories
+        };
+
+        cleanupCharacterStates(mockData, ['King Aldric', 'User']);
+
+        expect(mockData.character_states['King Aldric']).toBeDefined();
+        expect(mockData.character_states['User']).toBeDefined();
+        expect(mockData.character_states['Stranger']).toBeUndefined();
+    });
+
+    it('keeps character states found in memories characters_involved', () => {
+        mockData.character_states = {
+            'King Aldric': { name: 'King Aldric', current_emotion: 'neutral' },
+            'Queen': { name: 'Queen', current_emotion: 'worried' }, // Only in memories
+            'Stranger': { name: 'Stranger', current_emotion: 'angry' }, // Nowhere
+        };
+        mockData.memories = [
+            { characters_involved: ['King Aldric', 'Queen'] },
+        ];
+
+        cleanupCharacterStates(mockData, ['King Aldric', 'User']);
+
+        expect(mockData.character_states['King Aldric']).toBeDefined();
+        expect(mockData.character_states['Queen']).toBeDefined();
+        expect(mockData.character_states['Stranger']).toBeUndefined();
+    });
+
+    it('handles empty character_states gracefully', () => {
+        mockData.character_states = {};
+
+        expect(() => cleanupCharacterStates(mockData, ['King Aldric', 'User'])).not.toThrow();
+    });
+
+    it('handles missing validCharNames', () => {
+        mockData.character_states = {
+            'King Aldric': { name: 'King Aldric', current_emotion: 'neutral' },
+            'Queen': { name: 'Queen', current_emotion: 'worried' },
+        };
+        mockData.memories = [
+            { characters_involved: ['King Aldric'] },
+        ];
+
+        cleanupCharacterStates(mockData, []);
+
+        expect(mockData.character_states['King Aldric']).toBeDefined();
+        expect(mockData.character_states['Queen']).toBeUndefined();
+    });
+});
