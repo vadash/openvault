@@ -303,6 +303,11 @@ function bindUIElements() {
         saveSetting('autoHideEnabled', $(this).is(':checked'));
     });
 
+    // Extraction reasoning
+    $('#openvault_extraction_reasoning').on('change', function () {
+        saveSetting('extractionReasoning', $(this).is(':checked'));
+    });
+
     $('#openvault_auto_hide_threshold').on('input', function () {
         const value = parseInt($(this).val(), 10);
         saveSetting('autoHideThreshold', value);
@@ -498,6 +503,9 @@ export function updateUI() {
     $('#openvault_auto_hide').prop('checked', settings.autoHideEnabled);
     $('#openvault_auto_hide_threshold').val(settings.autoHideThreshold);
     $('#openvault_auto_hide_threshold_value').text(settings.autoHideThreshold);
+
+    // Extraction reasoning
+    $('#openvault_extraction_reasoning').prop('checked', settings.extractionReasoning ?? false);
 
     // Scoring weights (alpha-blend)
     $('#openvault_alpha').val(settings.alpha ?? defaultSettings.alpha);

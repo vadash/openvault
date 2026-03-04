@@ -278,6 +278,14 @@
                     </label>
                     <input type="range" id="openvault_community_interval" min="10" max="200" step="10" value="50" />
                     <small class="openvault-hint">How often Louvain runs. Lower = fresher communities, more LLM calls.</small>
+
+                    <div style="height: 8px;"></div>
+
+                    <label class="checkbox_label">
+                        <input type="checkbox" id="openvault_extraction_reasoning" />
+                        <span>Extraction Reasoning</span>
+                    </label>
+                    <small class="openvault-hint">Include a "reasoning" field in extraction prompts. Uses more tokens but may improve quality on weaker models.</small>
                 </div>
 
                 <!-- Embedding Settings Group -->

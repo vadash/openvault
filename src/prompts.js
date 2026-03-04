@@ -51,6 +51,7 @@ export function buildExtractionPrompt({ messages, names, context = {} }) {
         memories: existingMemories = [],
         charDesc: characterDescription = '',
         personaDesc: personaDescription = '',
+        extractionReasoning = false,
     } = context;
 
     const systemPrompt = `<role>
@@ -63,10 +64,10 @@ You must be thorough, explicit, and precise in your descriptions. Never censor, 
 <output_schema>
 You MUST respond with EXACTLY ONE JSON object. Nothing else — no markdown fences, no commentary, no text before or after.
 
-The JSON object MUST have this EXACT structure with ALL FOUR top-level keys present:
+The JSON object MUST have this EXACT structure with ALL ${extractionReasoning ? 'FOUR' : 'THREE'} top-level keys present:
 
-{
-  "reasoning": "Your step-by-step analysis. ALWAYS write this FIRST before deciding events.",
+{${extractionReasoning ? `
+  "reasoning": "Your step-by-step analysis. ALWAYS write this FIRST before deciding events.",` : ''}
   "events": [
     {
       "summary": "8-25 word description of what happened, past tense, in ENGLISH",
@@ -97,7 +98,7 @@ The JSON object MUST have this EXACT structure with ALL FOUR top-level keys pres
 
 CRITICAL FORMAT RULES — violating ANY of these will cause a system error:
 1. The top level MUST be a JSON object { }, NEVER a bare array [ ].
-2. ALL FOUR keys ("reasoning", "events", "entities", "relationships") MUST always be present.
+2. ALL ${extractionReasoning ? 'FOUR keys ("reasoning", "events", "entities", "relationships")' : 'THREE keys ("events", "entities", "relationships")'} MUST always be present.
 3. If nothing was found, use empty arrays: "events": [], "entities": [], "relationships": [].
 4. Do NOT wrap output in markdown code blocks (no \`\`\`json).
 5. Do NOT include ANY text outside the JSON object.
@@ -167,7 +168,7 @@ Also extract relationships between pairs of entities when the connection is stat
 
 IMPORTANT: Extract entities and relationships even when no events are extracted. Entity data builds world knowledge over time and is always valuable.
 </entity_rules>
-
+${extractionReasoning ? `
 <thinking_process>
 Follow these steps IN ORDER. Write your work in the "reasoning" field:
 
@@ -177,9 +178,9 @@ Step 3: Apply dedup_rules. If this is a continuation with no escalation, plan to
 Step 4: For genuinely NEW events, assign importance (1-5) and write a specific factual summary in English.
 Step 5: List all named entities and their types.
 Step 6: List relationships between entities.
-Step 7: Assemble the final JSON object with all four keys.
+Step 7: Assemble the final JSON object with all ${extractionReasoning ? 'four' : 'three'} keys.
 </thinking_process>
-
+` : ''}
 <examples>
 The following examples show correct input-to-output patterns. Study the JSON structure carefully.
 
@@ -267,9 +268,10 @@ ${messages}
 </messages>
 
 Analyze the messages above. Extract events, entities, and relationships.
-Use exact character names from <context> if provided.
+Use exact character names from <context> if provided.${extractionReasoning ? `
 Write your analysis in the "reasoning" field FIRST, then fill in events, entities, and relationships.
-Respond with a single JSON object containing all four keys. No other text.`;
+Respond with a single JSON object containing all four keys. No other text.` : `
+Respond with a single JSON object containing all three keys ("events", "entities", "relationships"). No other text.`}`;
 
     return [
         { role: 'system', content: systemPrompt },

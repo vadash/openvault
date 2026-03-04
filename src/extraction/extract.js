@@ -304,6 +304,7 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
                 memories: existingMemories,
                 charDesc: characterDescription,
                 personaDesc: personaDescription,
+                extractionReasoning: settings.extractionReasoning ?? false,
             },
         });
 

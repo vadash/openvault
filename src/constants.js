@@ -53,6 +53,8 @@ export const defaultSettings = {
     // Forgetfulness curve settings (scoring)
     forgetfulnessBaseLambda: 0.05, // Base decay rate for exponential curve
     forgetfulnessImportance5Floor: 5, // Minimum score for importance-5 memories
+    // Extraction prompt settings
+    extractionReasoning: false,
     // Reflection settings
     reflectionThreshold: 30,
     // World context settings
