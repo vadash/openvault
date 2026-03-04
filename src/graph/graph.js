@@ -7,6 +7,7 @@
 
 import { getDocumentEmbedding } from '../embeddings.js';
 import { cosineSimilarity } from '../retrieval/math.js';
+import { log } from '../utils.js';
 
 /**
  * Resolve a raw entity name to its final graph key, accounting for merge redirects.
@@ -86,7 +87,10 @@ export function upsertRelationship(graphData, source, target, description, cap =
     const srcKey = _resolveKey(graphData, source);
     const tgtKey = _resolveKey(graphData, target);
 
-    if (!graphData.nodes[srcKey] || !graphData.nodes[tgtKey]) return;
+    if (!graphData.nodes[srcKey] || !graphData.nodes[tgtKey]) {
+        log(`[graph] Edge skipped: ${source} (${srcKey}) -> ${target} (${tgtKey}) — missing node`);
+        return;
+    }
 
     const edgeKey = `${srcKey}__${tgtKey}`;
     const existing = graphData.edges[edgeKey];
