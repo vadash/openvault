@@ -535,3 +535,34 @@ describe('two-stage extraction pipeline', () => {
         expect(callLLM.mock.calls[1][1]).toBe(LLM_CONFIGS.extraction_graph);
     });
 });
+
+describe('filterSimilarEvents - intra-batch Jaccard dedup', () => {
+    it('deduplicates semantically similar events within the same batch using Jaccard similarity', async () => {
+        // These have identical meaning but different phrasing — cosine on short embeddings may miss them
+        // Text chosen to have >60% token overlap after stopword filtering
+        const newEvents = [
+            { summary: 'Suzy proposed daily morning training sessions for Vova starting at seven', embedding: [0.9, 0.1] },
+            { summary: 'Suzy proposed daily morning training sessions with warmup drills for Vova', embedding: [0.1, 0.9] },
+            { summary: 'Vova went to the store to buy groceries', embedding: [0.5, 0.5] },
+        ];
+        const existingMemories = [];
+        // With orthogonal embeddings (cosine ~0), the cosine check won't catch them.
+        // But Jaccard on tokens should catch the overlap: suzy/proposed/daily/morning/training/sessions/vova = 7 shared tokens
+        const { filterSimilarEvents } = await import('../../src/extraction/extract.js');
+        const result = filterSimilarEvents(newEvents, existingMemories, 0.85, 0.6);
+        // Should keep first occurrence + the unrelated event, skip the near-duplicate
+        expect(result).toHaveLength(2);
+        expect(result[0].summary).toContain('starting at seven');
+        expect(result[1].summary).toContain('groceries');
+    });
+
+    it('does not Jaccard-dedup events with low token overlap', async () => {
+        const newEvents = [
+            { summary: 'Suzy proposed training sessions for morning warmup', embedding: [0.9, 0.1] },
+            { summary: 'Vova cooked dinner for the family at home', embedding: [0.1, 0.9] },
+        ];
+        const { filterSimilarEvents } = await import('../../src/extraction/extract.js');
+        const result = filterSimilarEvents(newEvents, [], 0.85, 0.6);
+        expect(result).toHaveLength(2);
+    });
+});

@@ -31,7 +31,7 @@ import { initGraphState, mergeOrInsertEntity, upsertRelationship } from '../grap
 import { callLLM, LLM_CONFIGS } from '../llm.js';
 import { buildEventExtractionPrompt, buildGraphExtractionPrompt } from '../prompts.js';
 import { accumulateImportance, generateReflections, shouldReflect } from '../reflection/reflect.js';
-import { cosineSimilarity } from '../retrieval/math.js';
+import { cosineSimilarity, tokenize } from '../retrieval/math.js';
 import { clearAllLocks } from '../state.js';
 import { refreshAllUI } from '../ui/render.js';
 import { setStatus } from '../ui/status.js';
@@ -207,25 +207,49 @@ function selectMemoriesForExtraction(data, settings) {
 }
 
 /**
- * Filter out events that are too similar to existing memories
+ * Filter out events that are too similar to existing memories OR to each other within the batch.
+ * @param {Object[]} newEvents - Events to filter
+ * @param {Object[]} existingMemories - Already-stored memories
+ * @param {number} cosineThreshold - Cosine similarity threshold for existing memory dedup
+ * @param {number} jaccardThreshold - Jaccard token similarity threshold for intra-batch dedup
  */
-function filterSimilarEvents(newEvents, existingMemories, threshold = 0.85) {
-    if (!existingMemories?.length) return newEvents;
+export function filterSimilarEvents(newEvents, existingMemories, cosineThreshold = 0.85, jaccardThreshold = 0.6) {
+    // Phase 1: Filter against existing memories (cosine, unchanged)
+    let filtered = newEvents;
+    if (existingMemories?.length) {
+        filtered = newEvents.filter((event) => {
+            if (!event.embedding) return true;
+            for (const memory of existingMemories) {
+                if (!memory.embedding) continue;
+                const similarity = cosineSimilarity(event.embedding, memory.embedding);
+                if (similarity >= cosineThreshold) {
+                    log(`Dedup: Skipping "${event.summary}..." (${(similarity * 100).toFixed(1)}% similar to existing)`);
+                    return false;
+                }
+            }
+            return true;
+        });
+    }
 
-    return newEvents.filter((event) => {
-        if (!event.embedding) return true;
-
-        for (const memory of existingMemories) {
-            if (!memory.embedding) continue;
-
-            const similarity = cosineSimilarity(event.embedding, memory.embedding);
-            if (similarity >= threshold) {
-                log(`Dedup: Skipping "${event.summary}..." (${(similarity * 100).toFixed(1)}% similar to existing)`);
-                return false;
+    // Phase 2: Intra-batch Jaccard dedup
+    const kept = [];
+    for (const event of filtered) {
+        const eventTokens = new Set(tokenize(event.summary || ''));
+        let isDuplicate = false;
+        for (const keptEvent of kept) {
+            const keptTokens = new Set(tokenize(keptEvent.summary || ''));
+            const intersection = [...eventTokens].filter(t => keptTokens.has(t)).length;
+            const union = new Set([...eventTokens, ...keptTokens]).size;
+            const jaccard = union > 0 ? intersection / union : 0;
+            if (jaccard >= jaccardThreshold) {
+                log(`Dedup: Skipping "${event.summary.slice(0, 60)}..." (Jaccard ${(jaccard * 100).toFixed(1)}% with "${keptEvent.summary.slice(0, 60)}...")`);
+                isDuplicate = true;
+                break;
             }
         }
-        return true;
-    });
+        if (!isDuplicate) kept.push(event);
+    }
+    return kept;
 }
 
 /**
@@ -371,8 +395,9 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
             await enrichEventsWithEmbeddings(events);
 
             const dedupThreshold = settings.dedupSimilarityThreshold ?? 0.85;
+            const jaccardThreshold = settings.dedupJaccardThreshold ?? 0.6;
             const existingMemoriesList = data.memories || [];
-            events = filterSimilarEvents(events, existingMemoriesList, dedupThreshold);
+            events = filterSimilarEvents(events, existingMemoriesList, dedupThreshold, jaccardThreshold);
 
             if (events.length < validated.events.length) {
                 log(`Dedup: Filtered ${validated.events.length - events.length} similar events`);
