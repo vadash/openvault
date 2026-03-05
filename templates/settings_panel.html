@@ -6,29 +6,26 @@
             <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
         <div class="inline-drawer-content">
-            <!-- Tab Navigation -->
+            <!-- Tab Navigation — 4 tabs, browsers-first layout -->
             <div class="openvault-tab-nav">
-                <button class="openvault-tab-btn active" data-tab="dashboard">
+                <button class="openvault-tab-btn active" data-tab="dashboard-connections">
                     <i class="fa-solid fa-gauge-high"></i> Dashboard
                 </button>
                 <button class="openvault-tab-btn" data-tab="memory-bank">
-                    <i class="fa-solid fa-brain"></i> Memory Bank
+                    <i class="fa-solid fa-brain"></i> Memories
                 </button>
                 <button class="openvault-tab-btn" data-tab="world">
                     <i class="fa-solid fa-globe"></i> World
                 </button>
-                <button class="openvault-tab-btn" data-tab="configuration">
-                    <i class="fa-solid fa-sliders"></i> Config
-                </button>
-                <button class="openvault-tab-btn" data-tab="system">
-                    <i class="fa-solid fa-gear"></i> System
+                <button class="openvault-tab-btn" data-tab="advanced">
+                    <i class="fa-solid fa-sliders"></i> Advanced
                 </button>
             </div>
 
             <!-- ================================================================
-                 TAB 1: DASHBOARD
+                 TAB 1: DASHBOARD & CONNECTIONS
                  ================================================================ -->
-            <div class="openvault-tab-content active" data-tab="dashboard">
+            <div class="openvault-tab-content active" data-tab="dashboard-connections">
                 <!-- Status Card -->
                 <div class="openvault-card openvault-status-card">
                     <div class="openvault-status-indicator ready" id="openvault_status_indicator">
@@ -115,6 +112,101 @@
                         </label>
                     </div>
                 </div>
+
+                <!-- Connection Settings (collapsed) -->
+                <details class="openvault-details">
+                    <summary><i class="fa-solid fa-plug"></i> Connection Settings</summary>
+                    <div class="openvault-settings-group">
+                        <!-- Extraction Profile -->
+                        <label for="openvault_extraction_profile">Extraction Profile</label>
+                        <select id="openvault_extraction_profile" class="text_pole">
+                            <option value="">Use current connection</option>
+                        </select>
+                        <small class="openvault-hint">LLM profile for memory extraction</small>
+
+                        <!-- Embedding Settings -->
+                        <div style="margin-top: 15px;">
+                            <div style="font-weight: bold; margin-bottom: 10px; color: var(--SmartThemeQuoteColor);">
+                                <i class="fa-solid fa-vector-square"></i> Embeddings
+                            </div>
+
+                            <label for="openvault_embedding_source">Embedding Model</label>
+                            <select id="openvault_embedding_source" class="text_pole">
+                                <optgroup label="Multilingual">
+                                    <option value="multilingual-e5-small">multilingual-e5-small - 384d · 118M · 100+ langs · MTEB: 55.8</option>
+                                    <option value="embeddinggemma-300m">embeddinggemma-300m - 768d · 300M · 100+ langs · MTEB: 61.2 (WebGPU)</option>
+                                </optgroup>
+                                <optgroup label="English Only">
+                                    <option value="bge-small-en-v1.5">bge-small-en-v1.5 - 384d · 133MB · MTEB: 62.17 · SOTA RAG</option>
+                                </optgroup>
+                                <optgroup label="External">
+                                    <option value="ollama">Ollama (Custom server)</option>
+                                </optgroup>
+                            </select>
+
+                            <!-- Embedding Prefixes -->
+                            <label for="openvault_embedding_query_prefix">Query Prefix</label>
+                            <input id="openvault_embedding_query_prefix" type="text" class="text_pole" placeholder="query: " />
+                            <small class="openvault-hint">Prepended to search queries. Auto-set when switching models.</small>
+
+                            <label for="openvault_embedding_doc_prefix">Document Prefix</label>
+                            <input id="openvault_embedding_doc_prefix" type="text" class="text_pole" placeholder="passage: " />
+                            <small class="openvault-hint">Prepended to documents before embedding. Auto-set when switching models.</small>
+
+                            <!-- Embedding Status -->
+                            <div id="openvault_embedding_status_container">
+                                <div id="openvault_embedding_status" class="openvault-embedding-status loading">
+                                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                                    <span>Not loaded</span>
+                                </div>
+                            </div>
+
+                            <!-- Ollama Settings (hidden by default) -->
+                            <div id="openvault_ollama_settings" style="display: none; margin-top: 10px;">
+                                <label for="openvault_ollama_url">
+                                    Ollama URL
+                                    <button id="openvault_test_ollama_btn" class="menu_button openvault-test-btn">
+                                        <i class="fa-solid fa-plug"></i> Test
+                                    </button>
+                                </label>
+                                <input type="text" id="openvault_ollama_url" class="text_pole" placeholder="http://localhost:11434" />
+                                <small class="openvault-hint"><strong>CORS required:</strong> Set <code>OLLAMA_ORIGINS=*</code></small>
+
+                                <label for="openvault_embedding_model">Model Name</label>
+                                <input type="text" id="openvault_embedding_model" class="text_pole" placeholder="nomic-embed-text" />
+                            </div>
+
+                            <!-- WebGPU Help -->
+                            <details class="openvault-details">
+                                <summary><i class="fa-solid fa-bolt"></i> Enable WebGPU (optional)</summary>
+                                <div class="openvault-help-content">
+                                    <p>WebGPU requires <strong>secure context</strong> (HTTPS or localhost). For HTTP:</p>
+                                    <ol>
+                                        <li>Go to <code>chrome://flags</code></li>
+                                        <li>Enable <code>#enable-unsafe-webgpu</code></li>
+                                        <li>Enable <code>#enable-webgpu-developer-features</code></li>
+                                        <li>In <code>#unsafely-treat-insecure-origin-as-secure</code> add your SillyTavern URL</li>
+                                        <li>Restart browser</li>
+                                    </ol>
+                                </div>
+                            </details>
+                        </div>
+
+                        <!-- Debug checkboxes -->
+                        <div style="margin-top: 15px;">
+                            <label class="checkbox_label">
+                                <input type="checkbox" id="openvault_debug" />
+                                <span>Debug Mode</span>
+                            </label>
+                            <small class="openvault-hint">Enable verbose logging to console</small>
+                            <label class="checkbox_label">
+                                <input type="checkbox" id="openvault_request_logging" />
+                                <span>Request Logging</span>
+                            </label>
+                            <small class="openvault-hint">Log full LLM request/response payloads to browser console (F12).</small>
+                        </div>
+                    </div>
+                </details>
             </div>
 
             <!-- ================================================================
@@ -180,10 +272,125 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Extraction & Graph Rules (collapsed) -->
+                <details class="openvault-details" style="margin-top: 15px;">
+                    <summary><i class="fa-solid fa-gears"></i> Extraction & Graph Rules</summary>
+                    <div class="openvault-settings-group">
+                        <label for="openvault_messages_per_extraction">
+                            Messages per Extraction: <span id="openvault_messages_per_extraction_value">10</span>
+                            <small class="openvault-default-hint" data-default-key="messagesPerExtraction"></small>
+                        </label>
+                        <input type="range" id="openvault_messages_per_extraction" min="10" max="50" step="5" value="10" />
+
+                        <div style="height: 8px;"></div>
+
+                        <label for="openvault_extraction_rearview">
+                            Context Window Size: <span id="openvault_extraction_rearview_value">12000</span> tokens
+                            <small class="openvault-default-hint" data-default-key="contextWindowSize"></small>
+                            <small class="openvault-words-hint">~<span id="openvault_extraction_rearview_words">9000</span> words</small>
+                        </label>
+                        <input type="range" id="openvault_extraction_rearview" min="1000" max="32000" step="1000" value="12000" />
+                        <small class="openvault-hint">How much past memories the LLM sees when writing new memories</small>
+
+                        <div style="height: 8px;"></div>
+
+                        <!-- Entity Description Cap (NEW) -->
+                        <label for="openvault_entity_description_cap">
+                            Entity Description Cap: <span id="openvault_entity_description_cap_value">3</span>
+                            <small class="openvault-default-hint" data-default-key="entityDescriptionCap"></small>
+                        </label>
+                        <input type="range" id="openvault_entity_description_cap" min="1" max="10" step="1" value="3" />
+                        <small class="openvault-hint">Max description segments per entity. Older segments are evicted (FIFO).</small>
+
+                        <div style="height: 8px;"></div>
+
+                        <label for="openvault_edge_description_cap">
+                            Edge Description Cap: <span id="openvault_edge_description_cap_value">5</span>
+                            <small class="openvault-default-hint" data-default-key="edgeDescriptionCap"></small>
+                        </label>
+                        <input type="range" id="openvault_edge_description_cap" min="1" max="20" step="1" value="5" />
+                        <small class="openvault-hint">Max description segments per edge (FIFO eviction).</small>
+
+                        <div style="height: 8px;"></div>
+
+                        <label for="openvault_reflection_threshold">
+                            Reflection Threshold: <span id="openvault_reflection_threshold_value">30</span>
+                            <small class="openvault-default-hint" data-default-key="reflectionThreshold"></small>
+                        </label>
+                        <input type="range" id="openvault_reflection_threshold" min="10" max="100" step="5" value="30" />
+                        <small class="openvault-hint">Importance sum to trigger character reflection. Lower = more frequent.</small>
+
+                        <div style="height: 8px;"></div>
+
+                        <label for="openvault_max_insights">
+                            Max Insights per Reflection: <span id="openvault_max_insights_value">3</span>
+                            <small class="openvault-default-hint" data-default-key="maxInsightsPerReflection"></small>
+                        </label>
+                        <input type="range" id="openvault_max_insights" min="1" max="5" step="1" value="3" />
+                        <small class="openvault-hint">Maximum insights generated per reflection question.</small>
+
+                        <div style="height: 8px;"></div>
+
+                        <label for="openvault_reflection_dedup_threshold">
+                            Reflection Dedup Threshold: <span id="openvault_reflection_dedup_threshold_value">0.90</span>
+                            <small class="openvault-default-hint" data-default-key="reflectionDedupThreshold"></small>
+                        </label>
+                        <input type="range" id="openvault_reflection_dedup_threshold" min="0.5" max="1" step="0.05" value="0.90" />
+                        <small class="openvault-hint">Cosine similarity threshold to filter duplicate reflections.</small>
+
+                        <div style="height: 8px;"></div>
+
+                        <!-- Max Reflections per Character (NEW) -->
+                        <label for="openvault_max_reflections">
+                            Max Reflections per Character: <span id="openvault_max_reflections_value">50</span>
+                            <small class="openvault-default-hint" data-default-key="maxReflectionsPerCharacter"></small>
+                        </label>
+                        <input type="range" id="openvault_max_reflections" min="10" max="200" step="10" value="50" />
+                        <small class="openvault-hint">Caps total reflection memories per character. Prevents bloat in long chats.</small>
+
+                        <div style="height: 8px;"></div>
+
+                        <!-- Reflection Decay Threshold (NEW) -->
+                        <label for="openvault_reflection_decay_threshold">
+                            Reflection Decay Threshold: <span id="openvault_reflection_decay_threshold_value">500</span>
+                            <small class="openvault-default-hint" data-default-key="reflectionDecayThreshold"></small>
+                        </label>
+                        <input type="range" id="openvault_reflection_decay_threshold" min="100" max="2000" step="50" value="500" />
+                        <small class="openvault-hint">Messages before reflections start losing priority.</small>
+
+                        <div style="height: 8px;"></div>
+
+                        <label for="openvault_community_interval">
+                            Community Detection Interval: <span id="openvault_community_interval_value">50</span> messages
+                            <small class="openvault-default-hint" data-default-key="communityDetectionInterval"></small>
+                        </label>
+                        <input type="range" id="openvault_community_interval" min="10" max="200" step="10" value="50" />
+                        <small class="openvault-hint">How often Louvain runs. Lower = fresher communities, more LLM calls.</small>
+
+                        <div style="height: 8px;"></div>
+
+                        <!-- Community Staleness Threshold (NEW) -->
+                        <label for="openvault_community_staleness">
+                            Community Staleness Threshold: <span id="openvault_community_staleness_value">100</span>
+                            <small class="openvault-default-hint" data-default-key="communityStalenessThreshold"></small>
+                        </label>
+                        <input type="range" id="openvault_community_staleness" min="20" max="500" step="10" value="100" />
+                        <small class="openvault-hint">Messages before community summaries are considered stale.</small>
+
+                        <div style="height: 8px;"></div>
+
+                        <label for="openvault_backfill_rpm">
+                            Backfill Rate Limit (RPM)
+                            <small class="openvault-default-hint" data-default-key="backfillRateLimit"></small>
+                        </label>
+                        <input type="number" id="openvault_backfill_rpm" class="text_pole" min="1" max="600" value="30" />
+                    </div>
+                </details>
             </div>
 
             <!-- ================================================================
-                 TAB: WORLD
+                 TAB 3: WORLD
                  ================================================================ -->
             <div class="openvault-tab-content" data-tab="world">
                 <!-- Community Summaries -->
@@ -226,361 +433,212 @@
                         <p class="openvault-placeholder">No entities extracted yet</p>
                     </div>
                 </div>
+
+                <!-- Retrieval & Injection (collapsed) -->
+                <details class="openvault-details" style="margin-top: 15px;">
+                    <summary><i class="fa-solid fa-magnifying-glass-chart"></i> Retrieval & Injection</summary>
+                    <div class="openvault-settings-group">
+                        <label for="openvault_final_budget">
+                            Final Context Budget: <span id="openvault_final_budget_value">12000</span> tokens
+                            <small class="openvault-default-hint" data-default-key="retrievalFinalTokens"></small>
+                            <small class="openvault-words-hint">~<span id="openvault_final_budget_words">9000</span> words</small>
+                        </label>
+                        <input type="range" id="openvault_final_budget" min="1000" max="32000" step="1000" value="12000" />
+                        <small class="openvault-hint">Memory budget injected into chat context</small>
+
+                        <div style="height: 8px;"></div>
+
+                        <label for="openvault_world_context_budget">
+                            World Context Budget: <span id="openvault_world_context_budget_value">2000</span> tokens
+                            <small class="openvault-default-hint" data-default-key="worldContextBudget"></small>
+                            <small class="openvault-words-hint">~<span id="openvault_world_context_budget_words">1500</span> words</small>
+                        </label>
+                        <input type="range" id="openvault_world_context_budget" min="500" max="5000" step="250" value="2000" />
+                        <small class="openvault-hint">Token budget for community summaries injected as world context.</small>
+
+                        <div style="height: 8px;"></div>
+
+                        <label for="openvault_auto_hide_threshold">
+                            Messages to keep visible: <span id="openvault_auto_hide_threshold_value">50</span>
+                            <small class="openvault-default-hint" data-default-key="autoHideThreshold"></small>
+                        </label>
+                        <input type="range" id="openvault_auto_hide_threshold" min="10" max="200" step="2" value="50" />
+
+                        <div style="height: 8px;"></div>
+
+                        <label for="openvault_entity_window">
+                            Entity Window: <span id="openvault_entity_window_value">10</span> messages
+                            <small class="openvault-default-hint" data-default-key="entityWindowSize"></small>
+                        </label>
+                        <input type="range" id="openvault_entity_window" min="3" max="20" step="1" value="10" />
+                        <small class="openvault-hint">Messages to scan for names/places</small>
+
+                        <div style="height: 8px;"></div>
+
+                        <label for="openvault_embedding_window">
+                            Embedding Window: <span id="openvault_embedding_window_value">5</span> messages
+                            <small class="openvault-default-hint" data-default-key="embeddingWindowSize"></small>
+                        </label>
+                        <input type="range" id="openvault_embedding_window" min="2" max="10" step="1" value="5" />
+                        <small class="openvault-hint">Messages to include in semantic query</small>
+
+                        <div style="height: 8px;"></div>
+
+                        <label for="openvault_top_entities">
+                            Top Entities: <span id="openvault_top_entities_value">5</span>
+                            <small class="openvault-default-hint" data-default-key="topEntitiesCount"></small>
+                        </label>
+                        <input type="range" id="openvault_top_entities" min="1" max="10" step="1" value="5" />
+                        <small class="openvault-hint">Max entities to inject into query</small>
+
+                        <div style="height: 8px;"></div>
+
+                        <label for="openvault_entity_boost">
+                            Entity Boost: <span id="openvault_entity_boost_value">5.0</span>x
+                            <small class="openvault-default-hint" data-default-key="entityBoostWeight"></small>
+                        </label>
+                        <input type="range" id="openvault_entity_boost" min="0.5" max="15" step="0.5" value="5.0" />
+                        <small class="openvault-hint">BM25 weight multiplier for entities</small>
+                    </div>
+                </details>
             </div>
 
             <!-- ================================================================
-                 TAB 3: CONFIGURATION
+                 TAB 4: ADVANCED
                  ================================================================ -->
-            <div class="openvault-tab-content" data-tab="configuration">
-                <!-- LLM Strategy Group -->
+            <div class="openvault-tab-content" data-tab="advanced">
+                <!-- Scoring & Weights -->
                 <div class="openvault-settings-group">
                     <div class="openvault-settings-group-header">
-                        <i class="fa-solid fa-brain"></i>
-                        <span>LLM Strategy</span>
+                        <i class="fa-solid fa-scale-balanced"></i>
+                        <span>Scoring & Weights</span>
                     </div>
 
-                    <label for="openvault_extraction_profile">Extraction Profile</label>
-                    <select id="openvault_extraction_profile" class="text_pole">
-                        <option value="">Use current connection</option>
-                    </select>
-                    <small class="openvault-hint">LLM profile for memory extraction</small>
+                    <label for="openvault_alpha">
+                        Vector vs Keyword Balance: <span id="openvault_alpha_value">0.7</span>
+                        <small class="openvault-default-hint" data-default-key="alpha"></small>
+                    </label>
+                    <input type="range" id="openvault_alpha" min="0" max="1" step="0.05" value="0.7" />
+                    <small class="openvault-hint">1.0 = semantic vibes only · 0.5 = balanced · 0.0 = keywords only</small>
+
+                    <div style="height: 8px;"></div>
+
+                    <label for="openvault_combined_weight">
+                        Retrieval Boost Strength: <span id="openvault_combined_weight_value">15</span>
+                        <small class="openvault-default-hint" data-default-key="combinedBoostWeight"></small>
+                    </label>
+                    <input type="range" id="openvault_combined_weight" min="1" max="30" step="1" value="15" />
+                    <small class="openvault-hint">Maximum boost points for semantic+keyword matching</small>
                 </div>
 
-                <!-- Features Group -->
+                <!-- Decay Math -->
                 <div class="openvault-settings-group">
                     <div class="openvault-settings-group-header">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i>
-                        <span>Features</span>
+                        <i class="fa-solid fa-chart-line"></i>
+                        <span>Decay Math</span>
                     </div>
 
-                    <label for="openvault_reflection_threshold">
-                        Reflection Threshold: <span id="openvault_reflection_threshold_value">30</span>
-                        <small class="openvault-default-hint" data-default-key="reflectionThreshold"></small>
+                    <!-- Forgetfulness Base Lambda (NEW) -->
+                    <label for="openvault_forgetfulness_lambda">
+                        Decay Rate (Lambda): <span id="openvault_forgetfulness_lambda_value">0.05</span>
+                        <small class="openvault-default-hint" data-default-key="forgetfulnessBaseLambda"></small>
                     </label>
-                    <input type="range" id="openvault_reflection_threshold" min="10" max="100" step="5" value="30" />
-                    <small class="openvault-hint">Importance sum to trigger character reflection. Lower = more frequent.</small>
+                    <input type="range" id="openvault_forgetfulness_lambda" min="0.01" max="0.20" step="0.01" value="0.05" />
+                    <small class="openvault-hint">How fast memories fade. Lower = memories last longer. 0.05 = moderate, 0.01 = near-permanent.</small>
 
                     <div style="height: 8px;"></div>
 
-                    <label for="openvault_world_context_budget">
-                        World Context Budget: <span id="openvault_world_context_budget_value">2000</span> tokens
-                        <small class="openvault-default-hint" data-default-key="worldContextBudget"></small>
-                        <small class="openvault-words-hint">~<span id="openvault_world_context_budget_words">1500</span> words</small>
+                    <!-- Importance-5 Floor (NEW) -->
+                    <label for="openvault_importance5_floor">
+                        Importance-5 Floor: <span id="openvault_importance5_floor_value">5</span>
+                        <small class="openvault-default-hint" data-default-key="forgetfulnessImportance5Floor"></small>
                     </label>
-                    <input type="range" id="openvault_world_context_budget" min="500" max="5000" step="250" value="2000" />
-                    <small class="openvault-hint">Token budget for community summaries injected as world context.</small>
+                    <input type="range" id="openvault_importance5_floor" min="1" max="20" step="1" value="5" />
+                    <small class="openvault-hint">Minimum score for max-importance memories. Higher = critical memories stay relevant.</small>
+                </div>
+
+                <!-- Similarity Thresholds -->
+                <div class="openvault-settings-group">
+                    <div class="openvault-settings-group-header">
+                        <i class="fa-solid fa-bullseye"></i>
+                        <span>Similarity Thresholds</span>
+                    </div>
+
+                    <label for="openvault_vector_threshold">
+                        Semantic Threshold: <span id="openvault_vector_threshold_value">0.5</span>
+                        <small class="openvault-default-hint" data-default-key="vectorSimilarityThreshold"></small>
+                    </label>
+                    <input type="range" id="openvault_vector_threshold" min="0" max="1" step="0.05" value="0.5" />
+                    <small class="openvault-hint">Noise filter. 0.7+ = strict (only close matches), 0.3- = loose</small>
 
                     <div style="height: 8px;"></div>
 
-                    <label for="openvault_community_interval">
-                        Community Detection Interval: <span id="openvault_community_interval_value">50</span> messages
-                        <small class="openvault-default-hint" data-default-key="communityDetectionInterval"></small>
+                    <label for="openvault_dedup_threshold">
+                        Cosine Dedup Threshold: <span id="openvault_dedup_threshold_value">0.85</span>
+                        <small class="openvault-default-hint" data-default-key="dedupSimilarityThreshold"></small>
                     </label>
-                    <input type="range" id="openvault_community_interval" min="10" max="200" step="10" value="50" />
-                    <small class="openvault-hint">How often Louvain runs. Lower = fresher communities, more LLM calls.</small>
+                    <input type="range" id="openvault_dedup_threshold" min="0.70" max="0.95" step="0.01" value="0.85" />
+                    <small class="openvault-hint">0.80 = aggressive (fewer dupes) · 0.85 = default · 0.90 = conservative</small>
 
                     <div style="height: 8px;"></div>
 
-                    <label for="openvault_max_insights">
-                        Max Insights per Reflection: <span id="openvault_max_insights_value">3</span>
-                        <small class="openvault-default-hint" data-default-key="maxInsightsPerReflection"></small>
+                    <!-- Jaccard Dedup Threshold (NEW) -->
+                    <label for="openvault_dedup_jaccard">
+                        Jaccard Dedup Threshold: <span id="openvault_dedup_jaccard_value">0.60</span>
+                        <small class="openvault-default-hint" data-default-key="dedupJaccardThreshold"></small>
                     </label>
-                    <input type="range" id="openvault_max_insights" min="1" max="5" step="1" value="3" />
-                    <small class="openvault-hint">Maximum insights generated per reflection question.</small>
+                    <input type="range" id="openvault_dedup_jaccard" min="0.30" max="0.90" step="0.05" value="0.60" />
+                    <small class="openvault-hint">Token-overlap filter for near-duplicates. Lower = more aggressive dedup.</small>
 
                     <div style="height: 8px;"></div>
 
-                    <label for="openvault_reflection_dedup_threshold">
-                        Reflection Dedup Threshold: <span id="openvault_reflection_dedup_threshold_value">0.90</span>
+                    <label for="openvault_reflection_dedup_threshold_adv">
+                        Reflection Dedup: <span id="openvault_reflection_dedup_threshold_adv_value">0.90</span>
                         <small class="openvault-default-hint" data-default-key="reflectionDedupThreshold"></small>
                     </label>
-                    <input type="range" id="openvault_reflection_dedup_threshold" min="0.5" max="1" step="0.05" value="0.90" />
-                    <small class="openvault-hint">Cosine similarity threshold to filter duplicate reflections.</small>
-
-                </div>
-
-                <!-- Embedding Settings Group -->
-                <div class="openvault-settings-group">
-                    <div class="openvault-settings-group-header">
-                        <i class="fa-solid fa-vector-square"></i>
-                        <span>Embeddings</span>
-                    </div>
-
-                    <label for="openvault_embedding_source">Embedding Model</label>
-                    <select id="openvault_embedding_source" class="text_pole">
-                        <optgroup label="Multilingual">
-                            <option value="multilingual-e5-small">multilingual-e5-small - 384d · 118M · 100+ langs · MTEB: 55.8</option>
-                            <option value="embeddinggemma-300m">embeddinggemma-300m - 768d · 300M · 100+ langs · MTEB: 61.2 (WebGPU)</option>
-                        </optgroup>
-                        <optgroup label="English Only">
-                            <option value="bge-small-en-v1.5">bge-small-en-v1.5 - 384d · 133MB · MTEB: 62.17 · SOTA RAG</option>
-                        </optgroup>
-                        <optgroup label="External">
-                            <option value="ollama">Ollama (Custom server)</option>
-                        </optgroup>
-                    </select>
-
-
-                    <!-- Embedding Prefixes -->
-                    <label for="openvault_embedding_query_prefix">Query Prefix</label>
-                    <input id="openvault_embedding_query_prefix" type="text" class="text_pole" placeholder="query: " />
-                    <small class="openvault-hint">Prepended to search queries. Auto-set when switching models.</small>
-
-                    <label for="openvault_embedding_doc_prefix">Document Prefix</label>
-                    <input id="openvault_embedding_doc_prefix" type="text" class="text_pole" placeholder="passage: " />
-                    <small class="openvault-hint">Prepended to documents before embedding. Auto-set when switching models.</small>
-
-                    <!-- Embedding Status -->
-                    <div id="openvault_embedding_status_container">
-                        <div id="openvault_embedding_status" class="openvault-embedding-status loading">
-                            <i class="fa-solid fa-circle-notch fa-spin"></i>
-                            <span>Not loaded</span>
-                        </div>
-                    </div>
-
-                    <!-- Ollama Settings (hidden by default) -->
-                    <div id="openvault_ollama_settings" style="display: none; margin-top: 10px;">
-                        <label for="openvault_ollama_url">
-                            Ollama URL
-                            <button id="openvault_test_ollama_btn" class="menu_button openvault-test-btn">
-                                <i class="fa-solid fa-plug"></i> Test
-                            </button>
-                        </label>
-                        <input type="text" id="openvault_ollama_url" class="text_pole" placeholder="http://localhost:11434" />
-                        <small class="openvault-hint"><strong>CORS required:</strong> Set <code>OLLAMA_ORIGINS=*</code></small>
-
-                        <label for="openvault_embedding_model">Model Name</label>
-                        <input type="text" id="openvault_embedding_model" class="text_pole" placeholder="nomic-embed-text" />
-                    </div>
-
-                    <!-- WebGPU Help -->
-                    <details class="openvault-details">
-                        <summary><i class="fa-solid fa-bolt"></i> Enable WebGPU (optional)</summary>
-                        <div class="openvault-help-content">
-                            <p>WebGPU requires <strong>secure context</strong> (HTTPS or localhost). For HTTP:</p>
-                            <ol>
-                                <li>Go to <code>chrome://flags</code></li>
-                                <li>Enable <code>#enable-unsafe-webgpu</code></li>
-                                <li>Enable <code>#enable-webgpu-developer-features</code></li>
-                                <li>In <code>#unsafely-treat-insecure-origin-as-secure</code> add your SillyTavern URL</li>
-                                <li>Restart browser</li>
-                            </ol>
-                        </div>
-                    </details>
-                </div>
-
-                <!-- Pipeline Tuning Group -->
-                <div class="openvault-settings-group">
-                    <div class="openvault-settings-group-header">
-                        <i class="fa-solid fa-gears"></i>
-                        <span>Pipeline Tuning</span>
-                    </div>
-
-                    <label for="openvault_messages_per_extraction">
-                        Messages per Extraction: <span id="openvault_messages_per_extraction_value">10</span>
-                        <small class="openvault-default-hint" data-default-key="messagesPerExtraction"></small>
-                    </label>
-                    <input type="range" id="openvault_messages_per_extraction" min="10" max="50" step="5" value="10" />
+                    <input type="range" id="openvault_reflection_dedup_threshold_adv" min="0.5" max="1" step="0.05" value="0.90" disabled />
+                    <small class="openvault-hint">Mirrors Memories tab setting. Edit there.</small>
 
                     <div style="height: 8px;"></div>
 
-                    <label for="openvault_final_budget">
-                        Final Context Budget: <span id="openvault_final_budget_value">12000</span> tokens
-                        <small class="openvault-default-hint" data-default-key="retrievalFinalTokens"></small>
-                        <small class="openvault-words-hint">~<span id="openvault_final_budget_words">9000</span> words</small>
+                    <label for="openvault_entity_merge_threshold">
+                        Entity Merge Threshold: <span id="openvault_entity_merge_threshold_value">0.80</span>
+                        <small class="openvault-default-hint" data-default-key="entityMergeSimilarityThreshold"></small>
                     </label>
-                    <input type="range" id="openvault_final_budget" min="1000" max="32000" step="1000" value="12000" />
-                    <small class="openvault-hint">Memory budget injected into chat context</small>
-
-                    <div style="height: 8px;"></div>
-
-                    <label for="openvault_auto_hide_threshold">
-                        Messages to keep visible: <span id="openvault_auto_hide_threshold_value">50</span>
-                        <small class="openvault-default-hint" data-default-key="autoHideThreshold"></small>
-                    </label>
-                    <input type="range" id="openvault_auto_hide_threshold" min="10" max="200" step="2" value="50" />
-
-                    <!-- Advanced Parameters (collapsed) -->
-                    <details class="openvault-advanced-toggle">
-                        <summary><i class="fa-solid fa-sliders"></i> Advanced Parameters</summary>
-                        <div class="openvault-advanced-content">
-                            <!-- Scoring & Weights -->
-                            <div style="margin-bottom: 15px;">
-                                <div style="font-weight: bold; margin-bottom: 10px; color: var(--SmartThemeQuoteColor);">
-                                    <i class="fa-solid fa-scale-balanced"></i> Scoring & Weights
-                                </div>
-                                <small style="display: block; margin-bottom: 10px; color: var(--SmartThemeQuoteColor);">
-                                    Balance how memories are ranked during retrieval. Higher values = more influence.
-                                </small>
-
-                                <label for="openvault_alpha">
-                                    Vector vs Keyword Balance: <span id="openvault_alpha_value">0.7</span>
-                                    <small class="openvault-default-hint" data-default-key="alpha"></small>
-                                </label>
-                                <input type="range" id="openvault_alpha" min="0" max="1" step="0.05" value="0.7" />
-                                <small class="openvault-hint">1.0 = semantic vibes only · 0.5 = balanced · 0.0 = keywords only</small>
-
-                                <div style="height: 8px;"></div>
-
-                                <label for="openvault_combined_weight" style="margin-top: 10px;">
-                                    Retrieval Boost Strength: <span id="openvault_combined_weight_value">15</span>
-                                    <small class="openvault-default-hint" data-default-key="combinedBoostWeight"></small>
-                                </label>
-                                <input type="range" id="openvault_combined_weight" min="1" max="30" step="1" value="15" />
-                                <small class="openvault-hint">Maximum boost points for semantic+keyword matching</small>
-
-                                <div style="height: 8px;"></div>
-
-                                <label for="openvault_vector_threshold" style="margin-top: 10px;">
-                                    Semantic Threshold: <span id="openvault_vector_threshold_value">0.5</span>
-                                    <small class="openvault-default-hint" data-default-key="vectorSimilarityThreshold"></small>
-                                </label>
-                                <input type="range" id="openvault_vector_threshold" min="0" max="1" step="0.05" value="0.5" />
-                                <small class="openvault-hint">Noise filter. 0.7+ = strict (only close matches), 0.3- = loose</small>
-
-                                <div style="height: 8px;"></div>
-
-                                <label for="openvault_dedup_threshold" style="margin-top: 10px;">
-                                    Dedup Similarity Threshold: <span id="openvault_dedup_threshold_value">0.85</span>
-                                    <small class="openvault-default-hint" data-default-key="dedupSimilarityThreshold"></small>
-                                </label>
-                                <input type="range" id="openvault_dedup_threshold" min="0.70" max="0.95" step="0.01" value="0.85" />
-                                <small class="openvault-hint">0.80 = aggressive (fewer dupes) · 0.85 = default · 0.90 = conservative (more memories)</small>
-
-                                <div style="height: 8px;"></div>
-
-                                <label for="openvault_entity_merge_threshold" style="margin-top: 10px;">
-                                    Entity Merge Threshold: <span id="openvault_entity_merge_threshold_value">0.80</span>
-                                    <small class="openvault-default-hint" data-default-key="entityMergeSimilarityThreshold"></small>
-                                </label>
-                                <input type="range" id="openvault_entity_merge_threshold" min="0.5" max="1" step="0.05" value="0.80" />
-                                <small class="openvault-hint">Semantic similarity to merge entities. Higher = fewer merges.</small>
-
-                                <div style="height: 8px;"></div>
-
-                                <label for="openvault_edge_description_cap" style="margin-top: 10px;">
-                                    Edge Description Cap: <span id="openvault_edge_description_cap_value">5</span>
-                                    <small class="openvault-default-hint" data-default-key="edgeDescriptionCap"></small>
-                                </label>
-                                <input type="range" id="openvault_edge_description_cap" min="1" max="20" step="1" value="5" />
-                                <small class="openvault-hint">Max description segments per edge (FIFO eviction).</small>
-                            </div>
-
-                            <hr style="margin: 15px 0; border: none; border-top: 1px solid var(--SmartThemeShadowColor);">
-
-                            <!-- Query Context Enhancement -->
-                            <div style="margin-bottom: 15px;">
-                                <div style="font-weight: bold; margin-bottom: 10px; color: var(--SmartThemeQuoteColor);">
-                                    <i class="fa-solid fa-magnifying-glass-chart"></i> Query Enhancement
-                                </div>
-                                <small style="display: block; margin-bottom: 10px; color: var(--SmartThemeQuoteColor);">
-                                    Extracts names and themes from recent chat to improve retrieval accuracy.
-                                </small>
-
-                                <label for="openvault_entity_window">
-                                    Entity Window: <span id="openvault_entity_window_value">10</span> messages
-                                    <small class="openvault-default-hint" data-default-key="entityWindowSize"></small>
-                                </label>
-                                <input type="range" id="openvault_entity_window" min="3" max="20" step="1" value="10" />
-                                <small class="openvault-hint">Messages to scan for names/places</small>
-
-                                <div style="height: 8px;"></div>
-
-                                <label for="openvault_embedding_window">
-                                    Embedding Window: <span id="openvault_embedding_window_value">5</span> messages
-                                    <small class="openvault-default-hint" data-default-key="embeddingWindowSize"></small>
-                                </label>
-                                <input type="range" id="openvault_embedding_window" min="2" max="10" step="1" value="5" />
-                                <small class="openvault-hint">Messages to include in semantic query</small>
-
-                                <div style="height: 8px;"></div>
-
-                                <label for="openvault_top_entities">
-                                    Top Entities: <span id="openvault_top_entities_value">5</span>
-                                    <small class="openvault-default-hint" data-default-key="topEntitiesCount"></small>
-                                </label>
-                                <input type="range" id="openvault_top_entities" min="1" max="10" step="1" value="5" />
-                                <small class="openvault-hint">Max entities to inject into query</small>
-
-                                <div style="height: 8px;"></div>
-
-                                <label for="openvault_entity_boost">
-                                    Entity Boost: <span id="openvault_entity_boost_value">5.0</span>x
-                                    <small class="openvault-default-hint" data-default-key="entityBoostWeight"></small>
-                                </label>
-                                <input type="range" id="openvault_entity_boost" min="0.5" max="15" step="0.5" value="5.0" />
-                                <small class="openvault-hint">BM25 weight multiplier for entities</small>
-                            </div>
-
-                            <hr style="margin: 15px 0; border: none; border-top: 1px solid var(--SmartThemeShadowColor);">
-                            <label for="openvault_extraction_rearview">
-                                Context Window Size: <span id="openvault_extraction_rearview_value">12000</span> tokens
-                                <small class="openvault-default-hint" data-default-key="contextWindowSize"></small>
-                                <small class="openvault-words-hint">~<span id="openvault_extraction_rearview_words">9000</span> words</small>
-                            </label>
-                            <input type="range" id="openvault_extraction_rearview" min="1000" max="32000" step="1000" value="12000" />
-                            <small class="openvault-hint">How much past memories the LLM sees when writing new memories</small>
-
-                            <div style="height: 8px;"></div>
-
-                            <label for="openvault_backfill_rpm" style="margin-top: 10px;">
-                                Backfill Rate Limit (RPM)
-                                <small class="openvault-default-hint" data-default-key="backfillRateLimit"></small>
-                            </label>
-                            <input type="number" id="openvault_backfill_rpm" class="text_pole" min="1" max="600" value="30" />
-                        </div>
-                    </details>
-                </div>
-            </div>
-
-            <!-- ================================================================
-                 TAB 4: SYSTEM
-                 ================================================================ -->
-            <div class="openvault-tab-content" data-tab="system">
-                <!-- Debug Settings -->
-                <div class="openvault-card">
-                    <div class="openvault-card-header">
-                        <span class="openvault-card-title"><i class="fa-solid fa-bug"></i> Debug</span>
-                    </div>
-                    <label class="checkbox_label">
-                        <input type="checkbox" id="openvault_debug" />
-                        <span>Debug Mode</span>
-                    </label>
-                    <small class="openvault-hint">Enable verbose logging to console</small>
-                    <label class="checkbox_label">
-                        <input type="checkbox" id="openvault_request_logging" />
-                        <span>Request Logging</span>
-                    </label>
-                    <small class="openvault-hint">Log full LLM request/response payloads to browser console (F12). Useful for diagnosing API errors.</small>
+                    <input type="range" id="openvault_entity_merge_threshold" min="0.5" max="1" step="0.05" value="0.80" />
+                    <small class="openvault-hint">Semantic similarity to merge entities. Higher = fewer merges.</small>
                 </div>
 
-                <!-- Export Debug -->
-                <div class="openvault-card">
-                    <div class="openvault-card-header">
-                        <span class="openvault-card-title"><i class="fa-solid fa-clipboard"></i> Export</span>
+                <!-- System -->
+                <div class="openvault-settings-group">
+                    <div class="openvault-settings-group-header">
+                        <i class="fa-solid fa-gear"></i>
+                        <span>System</span>
                     </div>
+
+                    <!-- Export Debug -->
                     <button id="openvault_export_debug_btn" class="menu_button wide">
                         <i class="fa-solid fa-copy"></i> Export Debug to Clipboard
                     </button>
                     <small class="openvault-hint">Copies full system state + last retrieval debug data as JSON</small>
-                </div>
 
-                <!-- Danger Zone -->
-                <div class="openvault-card openvault-danger">
-                    <div class="openvault-card-header">
-                        <span class="openvault-card-title" style="color: var(--error-color, #c44);">
-                            <i class="fa-solid fa-triangle-exclamation"></i> Danger Zone
-                        </span>
+                    <!-- Danger Zone -->
+                    <div class="openvault-card openvault-danger" style="margin-top: 15px;">
+                        <div class="openvault-card-header">
+                            <span class="openvault-card-title" style="color: var(--error-color, #c44);">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Danger Zone
+                            </span>
+                        </div>
+                        <p style="font-size: 0.85em; color: var(--SmartThemeEmColor, #888); margin-bottom: 10px;">
+                            These actions cannot be undone.
+                        </p>
+                        <button id="openvault_delete_chat_btn" class="menu_button danger wide">
+                            <i class="fa-solid fa-trash"></i> Delete Current Chat Memories
+                        </button>
+                        <button id="openvault_delete_embeddings_btn" class="menu_button danger wide" style="margin-top: 8px;">
+                            <i class="fa-solid fa-eraser"></i> Delete Current Chat Embeddings
+                        </button>
                     </div>
-                    <p style="font-size: 0.85em; color: var(--SmartThemeEmColor, #888); margin-bottom: 10px;">
-                        These actions cannot be undone.
-                    </p>
-                    <button id="openvault_delete_chat_btn" class="menu_button danger wide">
-                        <i class="fa-solid fa-trash"></i> Delete Current Chat Memories
-                    </button>
-                    <button id="openvault_delete_embeddings_btn" class="menu_button danger wide" style="margin-top: 8px;">
-                        <i class="fa-solid fa-eraser"></i> Delete Current Chat Embeddings
-                    </button>
                 </div>
 
                 <!-- Footer -->
