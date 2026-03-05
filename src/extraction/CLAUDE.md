@@ -14,7 +14,7 @@ Extracts events, entities, and relationships from chat. Converts raw messages in
 6. **Character States**: `updateCharacterStatesFromEvents()` validates names against known characters before creating state entries.
 7. **Reflection Check**: Per-character importance accumulation; triggers at threshold 40.
 8. **Community Detection**: Every 50 messages, runs Louvain via `src/graph/communities.js`.
-9. **Commit**: Two-phase dedup — Cosine >= 0.85 vs existing memories, then Jaccard >= 0.6 within batch. Save to `chatMetadata`.
+9. **Commit**: Two-phase dedup — Cosine >= 0.92 vs existing memories, then Jaccard >= 0.6 within batch. Save to `chatMetadata`.
 
 ## GOTCHAS & RULES
 - **Two-Stage Extraction**: Events extracted first (Stage A), then entities/relationships (Stage B) using events as context. Reduces LLM cognitive load and JSON failures.

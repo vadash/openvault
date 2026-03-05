@@ -353,11 +353,11 @@
 
                         <!-- Reflection Decay Threshold (NEW) -->
                         <label for="openvault_reflection_decay_threshold">
-                            Reflection Decay Threshold: <span id="openvault_reflection_decay_threshold_value">500</span>
+                            Reflection Decay Threshold: <span id="openvault_reflection_decay_threshold_value">750</span>
                             <small class="openvault-default-hint" data-default-key="reflectionDecayThreshold"></small>
                         </label>
-                        <input type="range" id="openvault_reflection_decay_threshold" min="100" max="2000" step="50" value="500" />
-                        <small class="openvault-hint">Messages before reflections start losing priority.</small>
+                        <input type="range" id="openvault_reflection_decay_threshold" min="100" max="2000" step="50" value="750" />
+                        <small class="openvault-hint">Messages before reflections start losing priority. Higher = reflections stay relevant longer.</small>
 
                         <div style="height: 8px;"></div>
 
@@ -574,11 +574,11 @@
                     <div style="height: 8px;"></div>
 
                     <label for="openvault_dedup_threshold">
-                        Cosine Dedup Threshold: <span id="openvault_dedup_threshold_value">0.85</span>
+                        Cosine Dedup Threshold: <span id="openvault_dedup_threshold_value">0.92</span>
                         <small class="openvault-default-hint" data-default-key="dedupSimilarityThreshold"></small>
                     </label>
-                    <input type="range" id="openvault_dedup_threshold" min="0.70" max="0.95" step="0.01" value="0.85" />
-                    <small class="openvault-hint">0.80 = aggressive (fewer dupes) · 0.85 = default · 0.90 = conservative</small>
+                    <input type="range" id="openvault_dedup_threshold" min="0.80" max="0.98" step="0.01" value="0.92" />
+                    <small class="openvault-hint">0.85 = permissive (keeps more) · 0.92 = default · 0.96 = strict (only exact paraphrases)</small>
 
                     <div style="height: 8px;"></div>
 

@@ -42,14 +42,17 @@ export const defaultSettings = {
     embeddingSource: 'multilingual-e5-small', // model name or 'ollama'
     ollamaUrl: '',
     embeddingModel: '',
-    embeddingQueryPrefix: 'query: ', // Asymmetric: query-side prefix
-    embeddingDocPrefix: 'passage: ', // Asymmetric: doc-side prefix
+    embeddingQueryPrefix: '', // Empty by default — e5-small works best without prefixes
+    embeddingDocPrefix: '', // Empty by default — e5-small works best without prefixes
     // Alpha-blend scoring
     alpha: 0.7, // Vector vs keyword blend: 1.0 = vector only, 0.0 = BM25 only
     combinedBoostWeight: 15, // Max boost points for retrieval (BM25 + vector)
     vectorSimilarityThreshold: 0.5,
     // Deduplication settings
-    dedupSimilarityThreshold: 0.85, // Cosine similarity threshold for filtering duplicates (0-1)
+    // Cosine similarity threshold for filtering duplicate events (0-1).
+    // With small embedding models (e5-small), same-domain content clusters tightly (0.85-0.93),
+    // so 0.92 filters true paraphrases while keeping narratively distinct events.
+    dedupSimilarityThreshold: 0.92,
     dedupJaccardThreshold: 0.6, // Token-overlap (Jaccard index) threshold for near-duplicate filtering
     // Forgetfulness curve settings (scoring)
     forgetfulnessBaseLambda: 0.05, // Base decay rate for exponential curve
@@ -66,7 +69,9 @@ export const defaultSettings = {
     edgeDescriptionCap: 5,
     entityMergeSimilarityThreshold: 0.94,
     // Reflection decay settings
-    reflectionDecayThreshold: 500,
+    // Reflections older than this many messages get a linear penalty (down to 0.25x).
+    // 750 gives medium-length chats (~700 msgs) breathing room before decay kicks in.
+    reflectionDecayThreshold: 750,
     maxReflectionsPerCharacter: 50,
     // Community staleness settings
     communityStalenessThreshold: 100,
@@ -76,7 +81,7 @@ export const defaultSettings = {
 // When user switches model, prefixes auto-populate from this table.
 // User can still override manually.
 export const embeddingModelPrefixes = {
-    'multilingual-e5-small': { queryPrefix: 'query: ', docPrefix: 'passage: ' },
+    'multilingual-e5-small': { queryPrefix: '', docPrefix: '' },
     'bge-small-en-v1.5': { queryPrefix: 'Represent this sentence for searching relevant passages: ', docPrefix: '' },
     'embeddinggemma-300m': { queryPrefix: 'search for similar scenes: ', docPrefix: '' },
     _default: { queryPrefix: 'query: ', docPrefix: 'passage: ' },

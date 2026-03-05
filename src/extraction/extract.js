@@ -213,7 +213,7 @@ function selectMemoriesForExtraction(data, settings) {
  * @param {number} cosineThreshold - Cosine similarity threshold for existing memory dedup
  * @param {number} jaccardThreshold - Jaccard token similarity threshold for intra-batch dedup
  */
-export function filterSimilarEvents(newEvents, existingMemories, cosineThreshold = 0.85, jaccardThreshold = 0.6) {
+export function filterSimilarEvents(newEvents, existingMemories, cosineThreshold = 0.92, jaccardThreshold = 0.6) {
     // Phase 1: Filter against existing memories (cosine, unchanged)
     let filtered = newEvents;
     if (existingMemories?.length) {
@@ -398,7 +398,7 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
         if (events.length > 0) {
             await enrichEventsWithEmbeddings(events);
 
-            const dedupThreshold = settings.dedupSimilarityThreshold ?? 0.85;
+            const dedupThreshold = settings.dedupSimilarityThreshold ?? 0.92;
             const jaccardThreshold = settings.dedupJaccardThreshold ?? 0.6;
             const existingMemoriesList = data.memories || [];
             events = filterSimilarEvents(events, existingMemoriesList, dedupThreshold, jaccardThreshold);

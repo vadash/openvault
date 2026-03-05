@@ -234,8 +234,8 @@ export function calculateScore(memory, contextEmbedding, chatLength, constants, 
 
     // === Reflection Decay ===
     // Reflections lose additional score with distance beyond threshold
-    if (memory.type === 'reflection' && distance > (constants.reflectionDecayThreshold ?? 500)) {
-        const threshold = constants.reflectionDecayThreshold ?? 500;
+    if (memory.type === 'reflection' && distance > (constants.reflectionDecayThreshold ?? 750)) {
+        const threshold = constants.reflectionDecayThreshold ?? 750;
         const decayFactor = Math.max(0.25, 1 - (distance - threshold) / (2 * threshold));
         total *= decayFactor;
     }

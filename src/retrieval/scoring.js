@@ -23,7 +23,7 @@ export function getScoringParams() {
         constants: {
             BASE_LAMBDA: settings.forgetfulnessBaseLambda ?? 0.05,
             IMPORTANCE_5_FLOOR: settings.forgetfulnessImportance5Floor ?? 5,
-            reflectionDecayThreshold: settings.reflectionDecayThreshold ?? 500,
+            reflectionDecayThreshold: settings.reflectionDecayThreshold ?? 750,
         },
         settings: {
             vectorSimilarityThreshold: settings.vectorSimilarityThreshold,

@@ -608,8 +608,8 @@ export function updateUI() {
     $('#openvault_vector_threshold').val(settings.vectorSimilarityThreshold ?? 0.5);
     $('#openvault_vector_threshold_value').text(settings.vectorSimilarityThreshold ?? 0.5);
 
-    $('#openvault_dedup_threshold').val(settings.dedupSimilarityThreshold ?? 0.85);
-    $('#openvault_dedup_threshold_value').text(settings.dedupSimilarityThreshold ?? 0.85);
+    $('#openvault_dedup_threshold').val(settings.dedupSimilarityThreshold ?? 0.92);
+    $('#openvault_dedup_threshold_value').text(settings.dedupSimilarityThreshold ?? 0.92);
 
     $('#openvault_entity_merge_threshold').val(settings.entityMergeSimilarityThreshold ?? 0.94);
     $('#openvault_entity_merge_threshold_value').text(settings.entityMergeSimilarityThreshold ?? 0.94);
@@ -677,8 +677,8 @@ export function updateUI() {
     $('#openvault_importance5_floor_value').text(settings.forgetfulnessImportance5Floor ?? 5);
 
     // Reflection decay threshold — messages before reflections start decaying
-    $('#openvault_reflection_decay_threshold').val(settings.reflectionDecayThreshold ?? 500);
-    $('#openvault_reflection_decay_threshold_value').text(settings.reflectionDecayThreshold ?? 500);
+    $('#openvault_reflection_decay_threshold').val(settings.reflectionDecayThreshold ?? 750);
+    $('#openvault_reflection_decay_threshold_value').text(settings.reflectionDecayThreshold ?? 750);
 
     // Entity description cap — max description segments per entity
     $('#openvault_entity_description_cap').val(settings.entityDescriptionCap ?? 3);

@@ -123,7 +123,7 @@ Memories decay based on narrative distance (current chat length minus memory mes
 * `Base = Importance * e^(-Lambda * Distance)`
 * `Lambda = BASE_LAMBDA / (Importance ^ 2)` *(Higher importance decays exponentially slower).*
 * **Importance 5 Soft Floor:** Critical events (level 5) have a soft floor of 1.0, allowing natural decay while maintaining baseline relevance.
-* **Reflection Decay:** Reflections older than 500 messages suffer an additional linear penalty (down to 0.25x) to ensure character insights evolve over time rather than remaining frozen.
+* **Reflection Decay:** Reflections older than 750 messages suffer an additional linear penalty (down to 0.25x) to ensure character insights evolve over time rather than remaining frozen.
 
 #### Component 2: Vector Similarity (`VectorBonus`)
 Cosine similarity between the Memory Embedding and the Query Embedding (last 3 user messages + extracted entities).
