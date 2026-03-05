@@ -460,6 +460,81 @@ function bindUIElements() {
         $('#openvault_community_interval_value').text(value);
     });
 
+    // =========================================================================
+    // NEW: Forgetfulness curve settings (decay math)
+    // Controls how fast memories lose relevance over time.
+    // =========================================================================
+
+    // Base decay rate — lower values make memories persist longer.
+    // Used by math.js exponential decay: score * e^(-lambda * age)
+    $('#openvault_forgetfulness_lambda').on('input', function () {
+        const value = parseFloat($(this).val());
+        saveSetting('forgetfulnessBaseLambda', value);
+        $('#openvault_forgetfulness_lambda_value').text(value);
+    });
+
+    // Minimum retrieval score for importance-5 (max importance) memories.
+    // Ensures critical memories never fully decay below this floor.
+    $('#openvault_importance5_floor').on('input', function () {
+        const value = parseInt($(this).val(), 10);
+        saveSetting('forgetfulnessImportance5Floor', value);
+        $('#openvault_importance5_floor_value').text(value);
+    });
+
+    // =========================================================================
+    // NEW: Reflection decay threshold
+    // After this many messages, reflections begin to lose retrieval priority.
+    // =========================================================================
+    $('#openvault_reflection_decay_threshold').on('input', function () {
+        const value = parseInt($(this).val(), 10);
+        saveSetting('reflectionDecayThreshold', value);
+        $('#openvault_reflection_decay_threshold_value').text(value);
+    });
+
+    // =========================================================================
+    // NEW: Entity description cap
+    // Limits how many description segments an entity accumulates (FIFO).
+    // Prevents entity descriptions from growing unbounded in long chats.
+    // =========================================================================
+    $('#openvault_entity_description_cap').on('input', function () {
+        const value = parseInt($(this).val(), 10);
+        saveSetting('entityDescriptionCap', value);
+        $('#openvault_entity_description_cap_value').text(value);
+    });
+
+    // =========================================================================
+    // NEW: Max reflections per character
+    // Caps total reflection memories per character to prevent bloat.
+    // Oldest reflections are pruned when this limit is exceeded.
+    // =========================================================================
+    $('#openvault_max_reflections').on('input', function () {
+        const value = parseInt($(this).val(), 10);
+        saveSetting('maxReflectionsPerCharacter', value);
+        $('#openvault_max_reflections_value').text(value);
+    });
+
+    // =========================================================================
+    // NEW: Community staleness threshold
+    // Messages since last community detection before summaries are considered
+    // stale. Stale communities are re-summarized on next detection cycle.
+    // =========================================================================
+    $('#openvault_community_staleness').on('input', function () {
+        const value = parseInt($(this).val(), 10);
+        saveSetting('communityStalenessThreshold', value);
+        $('#openvault_community_staleness_value').text(value);
+    });
+
+    // =========================================================================
+    // NEW: Jaccard dedup threshold
+    // Token-overlap (Jaccard index) filter for near-duplicate memories.
+    // Lower = more aggressive dedup. Used alongside cosine similarity dedup.
+    // =========================================================================
+    $('#openvault_dedup_jaccard').on('input', function () {
+        const value = parseFloat($(this).val());
+        saveSetting('dedupJaccardThreshold', value);
+        $('#openvault_dedup_jaccard_value').text(value);
+    });
+
     // Action buttons
     $('#openvault_backfill_embeddings_btn').on('click', backfillEmbeddings);
     $('#openvault_extract_all_btn').on('click', handleExtractAll);
@@ -586,6 +661,40 @@ export function updateUI() {
 
     $('#openvault_community_interval').val(settings.communityDetectionInterval ?? 50);
     $('#openvault_community_interval_value').text(settings.communityDetectionInterval ?? 50);
+
+    // =========================================================================
+    // NEW: Sync 7 previously-unbound settings to their HTML elements.
+    // Each block reads the current value (with fallback default) and sets
+    // both the <input> value and the adjacent <span> display text.
+    // =========================================================================
+
+    // Forgetfulness base lambda — exponential decay rate
+    $('#openvault_forgetfulness_lambda').val(settings.forgetfulnessBaseLambda ?? 0.05);
+    $('#openvault_forgetfulness_lambda_value').text(settings.forgetfulnessBaseLambda ?? 0.05);
+
+    // Importance-5 floor — minimum score for max-importance memories
+    $('#openvault_importance5_floor').val(settings.forgetfulnessImportance5Floor ?? 5);
+    $('#openvault_importance5_floor_value').text(settings.forgetfulnessImportance5Floor ?? 5);
+
+    // Reflection decay threshold — messages before reflections start decaying
+    $('#openvault_reflection_decay_threshold').val(settings.reflectionDecayThreshold ?? 500);
+    $('#openvault_reflection_decay_threshold_value').text(settings.reflectionDecayThreshold ?? 500);
+
+    // Entity description cap — max description segments per entity
+    $('#openvault_entity_description_cap').val(settings.entityDescriptionCap ?? 3);
+    $('#openvault_entity_description_cap_value').text(settings.entityDescriptionCap ?? 3);
+
+    // Max reflections per character — prevents reflection memory bloat
+    $('#openvault_max_reflections').val(settings.maxReflectionsPerCharacter ?? 50);
+    $('#openvault_max_reflections_value').text(settings.maxReflectionsPerCharacter ?? 50);
+
+    // Community staleness threshold — messages before re-summarization
+    $('#openvault_community_staleness').val(settings.communityStalenessThreshold ?? 100);
+    $('#openvault_community_staleness_value').text(settings.communityStalenessThreshold ?? 100);
+
+    // Jaccard dedup threshold — token-overlap filter for near-duplicates
+    $('#openvault_dedup_jaccard').val(settings.dedupJaccardThreshold ?? 0.6);
+    $('#openvault_dedup_jaccard_value').text(settings.dedupJaccardThreshold ?? 0.6);
 
     // Refresh all UI components
     refreshAllUI();
