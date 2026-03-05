@@ -64,25 +64,25 @@ describe('parseExtractionResponse', () => {
     it('parses valid JSON response', () => {
         const json = JSON.stringify({
             reasoning: null,
-            events: [{ summary: 'Test event', importance: 3, characters_involved: ['Alice'] }],
+            events: [{ summary: 'Alice and Bob had a conversation about the kingdom', importance: 3, characters_involved: ['Alice'] }],
         });
 
         const result = parseExtractionResponse(json);
         expect(result.events).toHaveLength(1);
-        expect(result.events[0].summary).toBe('Test event');
+        expect(result.events[0].summary).toBe('Alice and Bob had a conversation about the kingdom');
     });
 
     it('strips markdown code blocks', () => {
         const content =
-            '```json\n{"reasoning": null, "events": [{"summary": "Test", "importance": 3, "characters_involved": []}]}\n```';
+            '```json\n{"reasoning": null, "events": [{"summary": "Alice encountered a mysterious stranger in the forest", "importance": 3, "characters_involved": []}]}\n```';
         const result = parseExtractionResponse(content);
         expect(result.events).toHaveLength(1);
-        expect(result.events[0].summary).toBe('Test');
+        expect(result.events[0].summary).toBe('Alice encountered a mysterious stranger in the forest');
     });
 
     it('strips markdown without json language tag', () => {
         const content =
-            '```\n{"reasoning": null, "events": [{"summary": "Test", "importance": 3, "characters_involved": []}]}\n```';
+            '```\n{"reasoning": null, "events": [{"summary": "Bob discovered a hidden passage beneath the castle", "importance": 3, "characters_involved": []}]}\n```';
         const result = parseExtractionResponse(content);
         expect(result.events).toHaveLength(1);
     });
@@ -104,7 +104,7 @@ describe('parseExtractionResponse', () => {
     it('applies defaults from schema', () => {
         const minimal = JSON.stringify({
             reasoning: null,
-            events: [{ summary: 'Test' }],
+            events: [{ summary: 'Alice walked through the garden and admired the flowers' }],
         });
         const result = parseExtractionResponse(minimal);
         expect(result.events[0].importance).toBe(3);
@@ -114,26 +114,26 @@ describe('parseExtractionResponse', () => {
 
     it('strips <reasoning> tags before parsing', () => {
         const content =
-            '<reasoning>Let me analyze this conversation...</reasoning>\n{"reasoning": null, "events": [{"summary": "Test", "importance": 3, "characters_involved": []}]}';
+            '<reasoning>Let me analyze this conversation...</reasoning>\n{"reasoning": null, "events": [{"summary": "The King made an important announcement to the council", "importance": 3, "characters_involved": []}]}';
         const result = parseExtractionResponse(content);
         expect(result.events).toHaveLength(1);
-        expect(result.events[0].summary).toBe('Test');
+        expect(result.events[0].summary).toBe('The King made an important announcement to the council');
     });
 
     it('strips <thinking> tags before parsing', () => {
         const content =
-            '<thinking>Analysis here</thinking>\n{"reasoning": null, "events": [{"summary": "Event", "importance": 3, "characters_involved": []}]}';
+            '<thinking>Analysis here</thinking>\n{"reasoning": null, "events": [{"summary": "Alice and Bob discussed their plans for the journey ahead", "importance": 3, "characters_involved": []}]}';
         const result = parseExtractionResponse(content);
         expect(result.events).toHaveLength(1);
-        expect(result.events[0].summary).toBe('Event');
+        expect(result.events[0].summary).toBe('Alice and Bob discussed their plans for the journey ahead');
     });
 
     it('handles both reasoning tags and markdown', () => {
         const content =
-            '<reasoning>Thinking...</reasoning>\n```json\n{"reasoning": null, "events": [{"summary": "Test", "importance": 3, "characters_involved": []}]}\n```';
+            '<reasoning>Thinking...</reasoning>\n```json\n{"reasoning": null, "events": [{"summary": "The royal guard patrolled the castle walls throughout the night", "importance": 3, "characters_involved": []}]}\n```';
         const result = parseExtractionResponse(content);
         expect(result.events).toHaveLength(1);
-        expect(result.events[0].summary).toBe('Test');
+        expect(result.events[0].summary).toBe('The royal guard patrolled the castle walls throughout the night');
     });
 
     it('handles empty events array', () => {
@@ -151,36 +151,36 @@ describe('parseExtractionResponse', () => {
     it('parses events from response', () => {
         const json = JSON.stringify({
             reasoning: 'Test reasoning',
-            events: [{ summary: 'Alice attacked Bob', importance: 3, characters_involved: ['Alice'] }],
+            events: [{ summary: 'Alice confronted Bob about his secret meeting with the enemy', importance: 3, characters_involved: ['Alice'] }],
         });
         const result = parseExtractionResponse(json);
-        expect(result.events[0].summary).toBe('Alice attacked Bob');
+        expect(result.events[0].summary).toBe('Alice confronted Bob about his secret meeting with the enemy');
     });
 });
 
 describe('parseEvent', () => {
     it('parses single event without wrapper', () => {
         const json = JSON.stringify({
-            summary: 'Single event',
+            summary: 'Alice discovered a hidden door behind the bookshelf',
             importance: 4,
             characters_involved: ['Bob'],
         });
 
         const result = parseEvent(json);
-        expect(result.summary).toBe('Single event');
+        expect(result.summary).toBe('Alice discovered a hidden door behind the bookshelf');
     });
 
     it('strips markdown for single event', () => {
-        const content = '```json\n{"summary": "Event", "importance": 3, "characters_involved": []}\n```';
+        const content = '```json\n{"summary": "Bob found an ancient map in the dusty library", "importance": 3, "characters_involved": []}\n```';
         const result = parseEvent(content);
-        expect(result.summary).toBe('Event');
+        expect(result.summary).toBe('Bob found an ancient map in the dusty library');
     });
 
     it('strips reasoning tags for single event', () => {
         const content =
-            '<reasoning>Analyzing event...</reasoning>\n{"summary": "Event", "importance": 4, "characters_involved": ["Alice"]}';
+            '<reasoning>Analyzing event...</reasoning>\n{"summary": "Alice climbed the tower to watch the sunset over the kingdom", "importance": 4, "characters_involved": ["Alice"]}';
         const result = parseEvent(content);
-        expect(result.summary).toBe('Event');
+        expect(result.summary).toBe('Alice climbed the tower to watch the sunset over the kingdom');
         expect(result.importance).toBe(4);
     });
 });

@@ -74,8 +74,8 @@ export function accumulateImportance(reflectionState, newEvents) {
 export function filterDuplicateReflections(
     newReflections,
     existingMemories,
-    rejectThreshold = 0.90,
-    replaceThreshold = 0.80
+    rejectThreshold = 0.9,
+    replaceThreshold = 0.8
 ) {
     const existingReflections = existingMemories.filter((m) => m.type === 'reflection' && m.embedding);
     const toAdd = [];
@@ -101,13 +101,17 @@ export function filterDuplicateReflections(
 
         if (bestMatch && bestScore >= rejectThreshold) {
             // Tier 1: Reject - too similar
-            log(`Reflection rejected: "${ref.summary}" (${(bestScore * 100).toFixed(1)}% similar to existing "${bestMatch.summary}")`);
+            log(
+                `Reflection rejected: "${ref.summary}" (${(bestScore * 100).toFixed(1)}% similar to existing "${bestMatch.summary}")`
+            );
             continue;
         }
 
         if (bestMatch && bestScore >= replaceThreshold) {
             // Tier 2: Replace - same theme, newer wording
-            log(`Reflection replaced: OLD "${bestMatch.summary}" -> NEW "${ref.summary}" (${(bestScore * 100).toFixed(1)}% correlation)`);
+            log(
+                `Reflection replaced: OLD "${bestMatch.summary}" -> NEW "${ref.summary}" (${(bestScore * 100).toFixed(1)}% correlation)`
+            );
             toArchiveIds.add(bestMatch.id);
             toAdd.push(ref);
             continue;
@@ -209,7 +213,9 @@ export async function generateReflections(characterName, allMemories, characterS
     }
 
     // Get existing reflections for this character
-    const existingReflections = accessibleMemories.filter((m) => m.type === 'reflection' && m.character === characterName);
+    const existingReflections = accessibleMemories.filter(
+        (m) => m.type === 'reflection' && m.character === characterName
+    );
 
     // Pre-flight similarity gate: check if recent events align with existing insights
     const { shouldSkip, reason: skipReason } = shouldSkipReflectionGeneration(
@@ -291,7 +297,12 @@ export async function generateReflections(characterName, allMemories, characterS
     // Dedup: 3-tier filter (reject/replace/add) reflections based on similarity
     const reflectionDedupThreshold = settings.reflectionDedupThreshold ?? 0.9;
     const replaceThreshold = reflectionDedupThreshold - 0.1; // 0.80 when default is 0.90
-    const { toAdd, toArchiveIds } = filterDuplicateReflections(reflections, allMemories, reflectionDedupThreshold, replaceThreshold);
+    const { toAdd, toArchiveIds } = filterDuplicateReflections(
+        reflections,
+        allMemories,
+        reflectionDedupThreshold,
+        replaceThreshold
+    );
 
     // Archive replaced reflections
     if (toArchiveIds.length > 0) {
@@ -303,6 +314,8 @@ export async function generateReflections(characterName, allMemories, characterS
         log(`Reflection: Archived ${toArchiveIds.length} replaced reflections for ${characterName}`);
     }
 
-    log(`Reflection: Generated ${toAdd.length} reflections for ${characterName} (${reflections.length - toAdd.length} filtered)`);
+    log(
+        `Reflection: Generated ${toAdd.length} reflections for ${characterName} (${reflections.length - toAdd.length} filtered)`
+    );
     return toAdd;
 }

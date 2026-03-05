@@ -194,21 +194,43 @@ export function hasSufficientTokenOverlap(tokensA, tokensB, minOverlapRatio = 0.
     if (keyA && keyB && keyA.length > 3 && keyB.length > 3) {
         const commonLen = longestCommonSubstring(keyA, keyB);
         const minLen = Math.min(keyA.length, keyB.length);
-        if (commonLen / minLen >= 0.6) { // 60% of shorter string
+        if (commonLen / minLen >= 0.6) {
+            // 60% of shorter string
             return true;
         }
     }
 
     // Filter out common adjectives/stop words (basic list)
     const stopWords = new Set([
-        'the', 'a', 'an', 'this', 'that', 'these', 'those',
-        'red', 'blue', 'green', 'yellow', 'black', 'white',
-        'burgundy', 'dark', 'light', 'large', 'small', 'big',
-        'old', 'new', 'young', 'first', 'last', 'other'
+        'the',
+        'a',
+        'an',
+        'this',
+        'that',
+        'these',
+        'those',
+        'red',
+        'blue',
+        'green',
+        'yellow',
+        'black',
+        'white',
+        'burgundy',
+        'dark',
+        'light',
+        'large',
+        'small',
+        'big',
+        'old',
+        'new',
+        'young',
+        'first',
+        'last',
+        'other',
     ]);
 
-    const significantA = new Set([...tokensA].filter(t => !stopWords.has(t.toLowerCase())));
-    const significantB = new Set([...tokensB].filter(t => !stopWords.has(t.toLowerCase())));
+    const significantA = new Set([...tokensA].filter((t) => !stopWords.has(t.toLowerCase())));
+    const significantB = new Set([...tokensB].filter((t) => !stopWords.has(t.toLowerCase())));
 
     if (significantA.size === 0 || significantB.size === 0) {
         return false;
@@ -276,7 +298,9 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
     }
 
     if (bestMatch) {
-        log(`[graph] Entity merged: "${name}" (${key}) → "${graphData.nodes[bestMatch].name}" (${bestMatch}), similarity: ${bestScore.toFixed(3)}`);
+        log(
+            `[graph] Entity merged: "${name}" (${key}) → "${graphData.nodes[bestMatch].name}" (${bestMatch}), similarity: ${bestScore.toFixed(3)}`
+        );
         upsertEntity(graphData, graphData.nodes[bestMatch].name, type, description, cap);
         // Record redirect so upsertRelationship can resolve
         if (!graphData._mergeRedirects) graphData._mergeRedirects = {};
@@ -365,7 +389,7 @@ export async function consolidateGraph(graphData, settings) {
     let embeddedCount = 0;
 
     // Step 1: Embed all nodes that lack embeddings
-    for (const [key, node] of Object.entries(graphData.nodes)) {
+    for (const [_key, node] of Object.entries(graphData.nodes)) {
         if (!node.embedding) {
             try {
                 node.embedding = await getDocumentEmbedding(`${node.type}: ${node.name}`);

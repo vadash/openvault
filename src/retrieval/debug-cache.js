@@ -31,7 +31,7 @@ export function cacheRetrievalDebug(data) {
 export function cacheScoringDetails(scoredResults, selectedIds) {
     const selectedSet = selectedIds instanceof Set ? selectedIds : new Set(selectedIds);
 
-    cachedScoringDetails = scoredResults.map(({ memory, score, breakdown }) => {
+    cachedScoringDetails = scoredResults.map(({ memory, breakdown }) => {
         // Truncate summary to 80 chars
         const summary = memory.summary || '';
         const truncatedSummary = summary.length > 80 ? summary.slice(0, 77) + '...' : summary;

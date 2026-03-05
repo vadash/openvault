@@ -296,7 +296,7 @@ export function safeParseJSON(input) {
                 events: parsed,
                 entities: [],
                 relationships: [],
-                reasoning: null
+                reasoning: null,
             };
         }
 

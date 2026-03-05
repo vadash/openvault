@@ -436,9 +436,14 @@ describe('utils', () => {
             expect(result).toEqual({ key: 'value' });
         });
 
-        it('handles arrays', () => {
+        it('handles arrays with recovery wrapper', () => {
             const result = safeParseJSON('[1, 2, 3]');
-            expect(result).toEqual([1, 2, 3]);
+            expect(result).toEqual({
+                events: [1, 2, 3],
+                entities: [],
+                relationships: [],
+                reasoning: null
+            });
         });
 
         it('repairs malformed JSON with trailing comma', () => {
@@ -570,10 +575,15 @@ describe('utils', () => {
             expect(result).toEqual({ events: [] });
         });
 
-        it('parses JSON after stripping reasoning tags', () => {
+        it('parses JSON after stripping reasoning tags with array recovery', () => {
             const input = '<reasoning>The user wants X because Y</reasoning>[{"id": 1}]';
             const result = safeParseJSON(input);
-            expect(result).toEqual([{ id: 1 }]);
+            expect(result).toEqual({
+                events: [{ id: 1 }],
+                entities: [],
+                relationships: [],
+                reasoning: null
+            });
         });
 
         it('handles thinking tags with markdown code block', () => {
@@ -590,10 +600,15 @@ describe('utils', () => {
             expect(result).toEqual({ selected: [1, 2, 3] });
         });
 
-        it('extracts JSON array from conversational response', () => {
+        it('extracts JSON array from conversational response with recovery wrapper', () => {
             const input = 'Based on my analysis:\n\n[{"id": 1, "summary": "test"}]\n\nLet me know if you need more.';
             const result = safeParseJSON(input);
-            expect(result).toEqual([{ id: 1, summary: 'test' }]);
+            expect(result).toEqual({
+                events: [{ id: 1, summary: 'test' }],
+                entities: [],
+                relationships: [],
+                reasoning: null
+            });
         });
 
         it('handles thinking tags plus conversational filler', () => {
