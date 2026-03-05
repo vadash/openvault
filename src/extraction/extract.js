@@ -28,8 +28,8 @@ import { getDeps } from '../deps.js';
 import { enrichEventsWithEmbeddings } from '../embeddings.js';
 import { buildCommunityGroups, detectCommunities, updateCommunitySummaries } from '../graph/communities.js';
 import { initGraphState, mergeOrInsertEntity, upsertRelationship } from '../graph/graph.js';
-import { callLLMForExtraction } from '../llm.js';
-import { buildExtractionPrompt } from '../prompts.js';
+import { callLLM, LLM_CONFIGS } from '../llm.js';
+import { buildEventExtractionPrompt, buildGraphExtractionPrompt } from '../prompts.js';
 import { accumulateImportance, generateReflections, shouldReflect } from '../reflection/reflect.js';
 import { cosineSimilarity } from '../retrieval/math.js';
 import { clearAllLocks } from '../state.js';
@@ -48,7 +48,7 @@ import {
     sortMemoriesBySequence,
 } from '../utils.js';
 import { getBackfillMessageIds, getExtractedMessageIds } from './scheduler.js';
-import { parseExtractionResponse } from './structured.js';
+import { parseEventExtractionResponse, parseGraphExtractionResponse } from './structured.js';
 
 /**
  * Update character states based on extracted events
@@ -297,7 +297,7 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
         const characterDescription = context.characters?.[context.characterId]?.description || '';
         const personaDescription = context.powerUserSettings?.persona_description || '';
 
-        const prompt = buildExtractionPrompt({
+        const prompt = buildEventExtractionPrompt({
             messages: messagesText,
             names: { char: characterName, user: userName },
             context: {
@@ -308,10 +308,36 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
             },
         });
 
-        // Stage 3: LLM Execution
-        const extractedJson = await callLLMForExtraction(prompt, { structured: true });
-        const validated = parseExtractionResponse(extractedJson);
-        let events = validated.events;
+        // Stage 3A: Event Extraction (LLM Call 1)
+        const eventJson = await callLLM(prompt, LLM_CONFIGS.extraction_events, { structured: true });
+        const eventResult = parseEventExtractionResponse(eventJson);
+        let events = eventResult.events;
+
+        // Stage 3B: Graph Extraction (LLM Call 2) — skip if no events
+        let graphResult = { entities: [], relationships: [] };
+        if (events.length > 0) {
+            const formattedEvents = events.map((e, i) => `${i + 1}. [${e.importance}★] ${e.summary}`);
+            const graphPrompt = buildGraphExtractionPrompt({
+                messages: messagesText,
+                names: { char: characterName, user: userName },
+                extractedEvents: formattedEvents,
+                context: {
+                    charDesc: characterDescription,
+                    personaDesc: personaDescription,
+                },
+            });
+
+            const graphJson = await callLLM(graphPrompt, LLM_CONFIGS.extraction_graph, { structured: true });
+            graphResult = parseGraphExtractionResponse(graphJson);
+        }
+
+        // Merge into unified validated object for downstream stages
+        const validated = {
+            events,
+            entities: graphResult.entities,
+            relationships: graphResult.relationships,
+            reasoning: eventResult.reasoning,
+        };
 
         // Enrich with metadata
         const messageIdsArray = messages.map((m) => m.id);

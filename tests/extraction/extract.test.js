@@ -28,7 +28,31 @@ vi.mock('../../src/llm.js', () => ({
             relationships: [{ source: 'King Aldric', target: 'Castle', description: 'Rules from' }],
         })
     ),
-    LLM_CONFIGS: { extraction: { profileSettingKey: 'extractionProfile', maxTokens: 4000, timeoutMs: 120000 } },
+    callLLM: vi.fn(async (_prompt, config) => {
+        if (config?.errorContext === 'Event Extraction') {
+            return JSON.stringify({
+                reasoning: null,
+                events: [
+                    { summary: 'King Aldric entered the Castle', importance: 3, characters_involved: ['King Aldric'] },
+                ],
+            });
+        }
+        if (config?.errorContext === 'Graph Extraction') {
+            return JSON.stringify({
+                entities: [
+                    { name: 'King Aldric', type: 'PERSON', description: 'The aging ruler' },
+                    { name: 'Castle', type: 'PLACE', description: 'An ancient fortress' },
+                ],
+                relationships: [{ source: 'King Aldric', target: 'Castle', description: 'Rules from' }],
+            });
+        }
+        return JSON.stringify({});
+    }),
+    LLM_CONFIGS: {
+        extraction: { profileSettingKey: 'extractionProfile', maxTokens: 4000, timeoutMs: 120000 },
+        extraction_events: { profileSettingKey: 'extractionProfile', maxTokens: 4000, errorContext: 'Event Extraction', timeoutMs: 120000 },
+        extraction_graph: { profileSettingKey: 'extractionProfile', maxTokens: 2000, errorContext: 'Graph Extraction', timeoutMs: 90000 },
+    },
 }));
 
 // Mock UI
@@ -51,6 +75,7 @@ vi.mock('../../src/graph/communities.js', () => ({
     updateCommunitySummaries: vi.fn(async () => ({})),
 }));
 
+import { callLLM, LLM_CONFIGS } from '../../src/llm.js';
 import { extractMemories, updateCharacterStatesFromEvents } from '../../src/extraction/extract.js';
 import { buildCommunityGroups, detectCommunities, updateCommunitySummaries } from '../../src/graph/communities.js';
 
@@ -451,5 +476,66 @@ describe('cleanupCharacterStates', () => {
 
         expect(mockData.character_states['King Aldric']).toBeDefined();
         expect(mockData.character_states['Queen']).toBeUndefined();
+    });
+});
+
+describe('two-stage extraction pipeline', () => {
+    let mockContext;
+    let mockData;
+
+    beforeEach(() => {
+        mockData = {
+            memories: [],
+            character_states: {},
+            last_processed_message_id: -1,
+            processed_message_ids: [],
+        };
+
+        mockContext = {
+            chat: [
+                { mes: 'Hello', is_user: true, name: 'User' },
+                { mes: 'Welcome to the Castle', is_user: false, name: 'King Aldric' },
+            ],
+            name1: 'User',
+            name2: 'King Aldric',
+            characterId: 'char1',
+            characters: { char1: { description: '' } },
+            chatMetadata: { openvault: mockData },
+            chatId: 'test-chat',
+            powerUserSettings: {},
+        };
+
+        setDeps({
+            getContext: () => mockContext,
+            getExtensionSettings: () => ({
+                [extensionName]: { ...defaultSettings, enabled: true },
+            }),
+            saveChatConditional: vi.fn(async () => true),
+            console: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
+            Date: { now: () => 1000000 },
+        });
+
+        // callLLM mock is already set up at module level with config-based dispatch
+        callLLM.mockClear();
+    });
+
+    afterEach(() => {
+        resetDeps();
+        vi.clearAllMocks();
+    });
+
+    it('calls callLLM twice: once for events, once for graph', async () => {
+        await extractMemories([0, 1]);
+        expect(callLLM).toHaveBeenCalledTimes(2);
+    });
+
+    it('first call uses extraction_events config', async () => {
+        await extractMemories([0, 1]);
+        expect(callLLM.mock.calls[0][1]).toBe(LLM_CONFIGS.extraction_events);
+    });
+
+    it('second call uses extraction_graph config', async () => {
+        await extractMemories([0, 1]);
+        expect(callLLM.mock.calls[1][1]).toBe(LLM_CONFIGS.extraction_graph);
     });
 });
