@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
     buildCommunitySummaryPrompt,
     buildExtractionPrompt,
+    buildEventExtractionPrompt,
+    buildGraphExtractionPrompt,
     buildInsightExtractionPrompt,
     buildSalientQuestionsPrompt,
 } from '../src/prompts.js';
@@ -300,5 +302,66 @@ describe('buildCommunitySummaryPrompt', () => {
         expect(sys).toContain('<role>');
         expect(sys).toContain('<output_schema>');
         expect(sys).toContain('<examples>');
+    });
+});
+
+describe('buildEventExtractionPrompt', () => {
+    it('returns message array with system and user roles', () => {
+        const result = buildEventExtractionPrompt({
+            messages: '[Alice]: Hello world',
+            names: { char: 'Alice', user: 'Bob' },
+            context: {},
+        });
+        expect(result).toHaveLength(2);
+        expect(result[0].role).toBe('system');
+        expect(result[1].role).toBe('user');
+    });
+
+    it('does NOT mention entities or relationships in system prompt', () => {
+        const result = buildEventExtractionPrompt({
+            messages: '[Alice]: Hello',
+            names: { char: 'Alice', user: 'Bob' },
+            context: {},
+        });
+        const systemContent = result[0].content;
+        expect(systemContent).not.toContain('"entities"');
+        expect(systemContent).not.toContain('"relationships"');
+    });
+});
+
+describe('buildGraphExtractionPrompt', () => {
+    it('returns message array with system and user roles', () => {
+        const result = buildGraphExtractionPrompt({
+            messages: '[Alice]: Hello world',
+            names: { char: 'Alice', user: 'Bob' },
+            extractedEvents: ['Alice greeted Bob warmly'],
+            context: {},
+        });
+        expect(result).toHaveLength(2);
+        expect(result[0].role).toBe('system');
+        expect(result[1].role).toBe('user');
+    });
+
+    it('includes extracted events in user prompt', () => {
+        const result = buildGraphExtractionPrompt({
+            messages: '[Alice]: Hello',
+            names: { char: 'Alice', user: 'Bob' },
+            extractedEvents: ['Alice greeted Bob warmly'],
+            context: {},
+        });
+        const userContent = result[1].content;
+        expect(userContent).toContain('Alice greeted Bob warmly');
+    });
+
+    it('does NOT mention events schema in system prompt', () => {
+        const result = buildGraphExtractionPrompt({
+            messages: '[Alice]: Hello',
+            names: { char: 'Alice', user: 'Bob' },
+            extractedEvents: [],
+            context: {},
+        });
+        const systemContent = result[0].content;
+        expect(systemContent).not.toContain('"importance"');
+        expect(systemContent).not.toContain('"is_secret"');
     });
 });
