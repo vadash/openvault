@@ -7,7 +7,7 @@ Finds relevant memories (events + reflections) and community summaries. Formats 
 
 ## HOW: The Math (`math.js` & `scoring.js`)
 Hybrid **Alpha-Blend** scoring:
-1. **Forgetfulness Curve**: Exponential decay by message distance. Importance 5 = floor.
+1. **Forgetfulness Curve**: Exponential decay by message distance. Importance 5 = soft floor (1.0, not hard 5.0).
 2. **BM25**: IDF-aware term frequency via `query-context.js`.
    - **IDF-Aware Query Adjustment**: Query tokens weighted by inverse document frequency BEFORE scoring. Prevents common named entities (e.g., main character's name) from artificially inflating scores when repeated.
 3. **Vector**: Cosine similarity via WebGPU/Ollama.
@@ -28,5 +28,5 @@ Hybrid **Alpha-Blend** scoring:
 ## GOTCHAS & RULES
 - **Pure Functions**: `math.js` ONLY. No `deps.js`, no DOM. Worker-safe.
 - **Named Slots**: Use `safeSetExtensionPrompt(content, name)` — `openvault_memory` or `openvault_world`.
-- **Formatting Buckets**: `formatting.js` divides into `Old`, `Mid`, `Recent` buckets.
+- **Formatting Buckets**: `formatting.js` divides into `Old`, `Mid`, `Recent` buckets. Old bucket capped at 50% of memory budget to prevent creep.
 - **POV Filtering**: Filter through `src/pov.js` before scoring. Only inject witnessed/known memories.

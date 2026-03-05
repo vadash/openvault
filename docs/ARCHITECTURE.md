@@ -14,8 +14,9 @@ OpenVault operates on a trigger-based pipeline, mostly firing after `MESSAGE_REC
 [ Chat Messages ]
        │
        ▼
-1. EXTRACTION STAGE (Batching)
-   ├─ LLM Prompt: Extracts Events, Entities, Relationships
+1. EXTRACTION STAGE (Two-Stage Pipeline)
+   ├─ Stage A: Event Extraction (events + reasoning)
+   ├─ Stage B: Graph Extraction (entities + relationships, using events as context)
    ├─ Fallback: Recovers malformed JSON arrays
    └─ Validation: Zod schemas (Events strictly >30 chars)
        │
@@ -89,7 +90,7 @@ All OpenVault data is stored entirely within the SillyTavern chat file under `ch
 
 ### 3.1. Entity Graph & Semantic Merging (`src/graph/`)
 As the LLM extracts entities, they are added to a flat JSON graph. To prevent duplicate nodes (e.g., "The King" and "King Aldric"), the system uses a dual-guard merge logic:
-1. **Cosine Similarity:** Must be >= `entityMergeSimilarityThreshold` (default `0.94`).
+1. **Cosine Similarity:** Must be >= `entityMergeSimilarityThreshold` (default `0.94`). Embeddings include `type`, `name`, AND `description` to prevent false merges.
 2. **Token Overlap Guard:** Breaks down both keys into word tokens. It strips out common RP stopwords (e.g., "the", "red", "large", "burgundy") using the `stopword` JS library + custom dictionaries. It then requires >= 50% token overlap or a direct substring match. 
 *Why? To prevent "Burgundy panties" from semantically merging with "Burgundy candle" just because the vectors cluster around the adjective.*
 
@@ -120,7 +121,7 @@ Memory retrieval ranks candidate memories using a hybrid **Alpha-Blend** formula
 Memories decay based on narrative distance (current chat length minus memory message ID).
 * `Base = Importance * e^(-Lambda * Distance)`
 * `Lambda = BASE_LAMBDA / (Importance ^ 2)` *(Higher importance decays exponentially slower).*
-* **Importance 5 Floor:** Critical events (level 5) have a hard mathematical floor. They will *never* decay below a score of 5, ensuring they are never truly forgotten.
+* **Importance 5 Soft Floor:** Critical events (level 5) have a soft floor of 1.0, allowing natural decay while maintaining baseline relevance.
 * **Reflection Decay:** Reflections older than 500 messages suffer an additional linear penalty (down to 0.25x) to ensure character insights evolve over time rather than remaining frozen.
 
 #### Component 2: Vector Similarity (`VectorBonus`)
