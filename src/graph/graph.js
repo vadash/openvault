@@ -8,6 +8,7 @@
 import { getDocumentEmbedding } from '../embeddings.js';
 import { cosineSimilarity } from '../retrieval/math.js';
 import { log } from '../utils.js';
+import { ALL_STOPWORDS } from '../utils/stopwords.js';
 
 /**
  * Resolve a raw entity name to its final graph key, accounting for merge redirects.
@@ -200,37 +201,9 @@ export function hasSufficientTokenOverlap(tokensA, tokensB, minOverlapRatio = 0.
         }
     }
 
-    // Filter out common adjectives/stop words (basic list)
-    const stopWords = new Set([
-        'the',
-        'a',
-        'an',
-        'this',
-        'that',
-        'these',
-        'those',
-        'red',
-        'blue',
-        'green',
-        'yellow',
-        'black',
-        'white',
-        'burgundy',
-        'dark',
-        'light',
-        'large',
-        'small',
-        'big',
-        'old',
-        'new',
-        'young',
-        'first',
-        'last',
-        'other',
-    ]);
-
-    const significantA = new Set([...tokensA].filter((t) => !stopWords.has(t.toLowerCase())));
-    const significantB = new Set([...tokensB].filter((t) => !stopWords.has(t.toLowerCase())));
+    // Filter out common adjectives/stop words
+    const significantA = new Set([...tokensA].filter((t) => !ALL_STOPWORDS.has(t.toLowerCase())));
+    const significantB = new Set([...tokensB].filter((t) => !ALL_STOPWORDS.has(t.toLowerCase())));
 
     if (significantA.size === 0 || significantB.size === 0) {
         return false;
