@@ -113,6 +113,54 @@ export function filterDuplicateReflections(
 }
 
 /**
+ * Check if reflection generation should be skipped due to high alignment
+ * between recent events and existing reflections.
+ *
+ * @param {Array} recentMemories - Recent memories that triggered reflection threshold
+ * @param {Array} existingReflections - Existing reflections for the character
+ * @param {number} threshold - Similarity threshold for skipping (default: 0.85)
+ * @returns {{shouldSkip: boolean, reason: string|null}}
+ */
+export function shouldSkipReflectionGeneration(recentMemories, existingReflections, threshold = 0.85) {
+    if (!recentMemories.length || !existingReflections.length) {
+        return { shouldSkip: false, reason: null };
+    }
+
+    // Calculate average embedding of recent memories (or use top 3 most important)
+    const topRecent = recentMemories
+        .filter((m) => m.embedding)
+        .sort((a, b) => (b.importance || 3) - (a.importance || 3))
+        .slice(0, 3);
+
+    if (topRecent.length === 0) {
+        return { shouldSkip: false, reason: null };
+    }
+
+    // For each top recent memory, check if it aligns with existing reflections
+    let alignCount = 0;
+    for (const recent of topRecent) {
+        for (const reflection of existingReflections) {
+            if (!reflection.embedding) continue;
+            const sim = cosineSimilarity(recent.embedding, reflection.embedding);
+            if (sim >= threshold) {
+                alignCount++;
+                break;
+            }
+        }
+    }
+
+    // If majority of recent events align with existing insights, skip generation
+    if (alignCount >= Math.ceil(topRecent.length / 2)) {
+        return {
+            shouldSkip: true,
+            reason: `Reflection skipped: ${alignCount}/${topRecent.length} recent events align with existing insights (>${(threshold * 100).toFixed(0)}%)`,
+        };
+    }
+
+    return { shouldSkip: false, reason: null };
+}
+
+/**
  * Run the 3-step reflection pipeline for a single character.
  *
  * Step 1: Generate 3 salient questions from recent memories
@@ -149,6 +197,22 @@ export async function generateReflections(characterName, allMemories, characterS
 
     if (recentMemories.length < 3) {
         log(`Reflection: ${characterName} has too few accessible memories (${recentMemories.length}), skipping`);
+        return [];
+    }
+
+    // Get existing reflections for this character
+    const existingReflections = accessibleMemories.filter((m) => m.type === 'reflection' && m.character === characterName);
+
+    // Pre-flight similarity gate: check if recent events align with existing insights
+    const { shouldSkip, reason: skipReason } = shouldSkipReflectionGeneration(
+        recentMemories.slice(0, 10), // Check top 10 most recent
+        existingReflections,
+        0.85
+    );
+
+    if (shouldSkip) {
+        log(`Reflection: ${skipReason} for ${characterName}`);
+        // Note: Caller should reset importance_sum for this character
         return [];
     }
 
