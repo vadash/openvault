@@ -52,6 +52,65 @@ describe('detectCommunities', () => {
         expect(result).toBeNull();
     });
 
+    it('finds multiple communities when main character edges are pruned', () => {
+        // Build a graph where everything connects through "protagonist"
+        // but two distinct clusters exist among secondary entities
+        const graphData = {
+            nodes: {
+                protagonist: { name: 'Protagonist', type: 'PERSON', description: 'Main', mentions: 10 },
+                shopkeeper: { name: 'Shopkeeper', type: 'PERSON', description: 'Shop owner', mentions: 3 },
+                shop: { name: 'Shop', type: 'PLACE', description: 'A store', mentions: 3 },
+                item: { name: 'Magic Sword', type: 'OBJECT', description: 'A sword', mentions: 2 },
+                teacher: { name: 'Teacher', type: 'PERSON', description: 'A mentor', mentions: 3 },
+                school: { name: 'School', type: 'PLACE', description: 'Academy', mentions: 3 },
+                textbook: { name: 'Textbook', type: 'OBJECT', description: 'A book', mentions: 2 },
+            },
+            edges: {
+                // Protagonist has MASSIVE connections to everyone (extreme hairball)
+                p_shop: { source: 'protagonist', target: 'shopkeeper', description: 'visits', weight: 50 },
+                p_teach: { source: 'protagonist', target: 'teacher', description: 'studies with', weight: 50 },
+                p_school: { source: 'protagonist', target: 'school', description: 'attends', weight: 30 },
+                p_store: { source: 'protagonist', target: 'shop', description: 'goes to', weight: 30 },
+                p_item: { source: 'protagonist', target: 'item', description: 'wields', weight: 20 },
+                p_book: { source: 'protagonist', target: 'textbook', description: 'reads', weight: 20 },
+                // Natural clusters still exist but are weaker than protagonist connections
+                sk_shop: { source: 'shopkeeper', target: 'shop', description: 'owns', weight: 4 },
+                sk_item: { source: 'shopkeeper', target: 'item', description: 'sells', weight: 3 },
+                shop_item: { source: 'shop', target: 'item', description: 'contains', weight: 3 },
+                t_school: { source: 'teacher', target: 'school', description: 'works at', weight: 4 },
+                t_book: { source: 'teacher', target: 'textbook', description: 'uses', weight: 3 },
+                school_book: { source: 'school', target: 'textbook', description: 'has', weight: 3 },
+            },
+        };
+
+        // First, verify the current behavior without pruning (should be 1 community due to hairball)
+        const resultWithoutPruning = detectCommunities(graphData);
+        expect(resultWithoutPruning).not.toBeNull();
+        expect(resultWithoutPruning.count).toBe(1); // Extreme hairball produces 1 community
+
+        // With pruning, should find >= 2 communities (shop cluster + school cluster)
+        const mainCharacterKeys = ['protagonist'];
+        const result = detectCommunities(graphData, mainCharacterKeys);
+        expect(result).not.toBeNull();
+        expect(result.count).toBeGreaterThanOrEqual(2);
+    });
+
+    it('still works when mainCharacterKeys is empty', () => {
+        const graphData = {
+            nodes: {
+                a: { name: 'A', type: 'PERSON', description: 'A', mentions: 1 },
+                b: { name: 'B', type: 'PERSON', description: 'B', mentions: 1 },
+                c: { name: 'C', type: 'PERSON', description: 'C', mentions: 1 },
+            },
+            edges: {
+                ab: { source: 'a', target: 'b', description: 'knows', weight: 1 },
+                bc: { source: 'b', target: 'c', description: 'knows', weight: 1 },
+            },
+        };
+        const result = detectCommunities(graphData, []);
+        expect(result).not.toBeNull();
+    });
+
     it('detects communities in a connected graph', () => {
         // Create two clusters connected by a single weak edge
         const graphData = {

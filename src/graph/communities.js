@@ -45,19 +45,71 @@ export function toGraphology(graphData) {
 
 /**
  * Run Louvain community detection on the graph.
+ * Temporarily prunes edges involving main characters to avoid hairball effect.
  * @param {Object} graphData - Flat graph data
+ * @param {string[]} mainCharacterKeys - Node keys for main characters (User + Char) to prune
  * @returns {{ communities: Object<string, number>, count: number } | null}
  */
-export function detectCommunities(graphData) {
+export function detectCommunities(graphData, mainCharacterKeys = []) {
     if (Object.keys(graphData.nodes || {}).length < 3) return null;
 
     const directed = toGraphology(graphData);
     const undirected = toUndirected(directed);
 
+    // Temporarily remove edges involving main characters for better community structure
+    const mainSet = new Set(mainCharacterKeys);
+    if (mainSet.size > 0) {
+        const edgesToDrop = [];
+        undirected.forEachEdge((edge, _attrs, source, target) => {
+            if (mainSet.has(source) || mainSet.has(target)) {
+                edgesToDrop.push(edge);
+            }
+        });
+        for (const edge of edgesToDrop) {
+            undirected.dropEdge(edge);
+        }
+        // Also drop isolated nodes that lost all edges (main chars themselves)
+        undirected.forEachNode((node) => {
+            if (undirected.degree(node) === 0) {
+                undirected.dropNode(node);
+            }
+        });
+    }
+
+    // Need at least 3 nodes after pruning
+    if (undirected.order < 3) {
+        // Fallback: run without pruning
+        const fallbackDirected = toGraphology(graphData);
+        const fallbackUndirected = toUndirected(fallbackDirected);
+        const details = louvain.detailed(fallbackUndirected, {
+            getEdgeWeight: 'weight',
+            resolution: 1.0,
+        });
+        return { communities: details.communities, count: details.count };
+    }
+
     const details = louvain.detailed(undirected, {
         getEdgeWeight: 'weight',
         resolution: 1.0,
     });
+
+    // Re-assign main characters to the community of their strongest remaining neighbor
+    for (const mainKey of mainCharacterKeys) {
+        if (!graphData.nodes[mainKey]) continue;
+        // Find neighbor with highest edge weight
+        let bestCommunity = 0;
+        let bestWeight = -1;
+        for (const [_edgeKey, edge] of Object.entries(graphData.edges || {})) {
+            const neighborKey = edge.source === mainKey ? edge.target : edge.target === mainKey ? edge.source : null;
+            if (neighborKey && details.communities[neighborKey] !== undefined) {
+                if ((edge.weight || 1) > bestWeight) {
+                    bestWeight = edge.weight || 1;
+                    bestCommunity = details.communities[neighborKey];
+                }
+            }
+        }
+        details.communities[mainKey] = bestCommunity;
+    }
 
     return {
         communities: details.communities,

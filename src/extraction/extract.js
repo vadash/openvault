@@ -27,7 +27,7 @@ const MAX_BACKOFF_TOTAL_MS = 15 * 60 * 1000;
 import { getDeps } from '../deps.js';
 import { enrichEventsWithEmbeddings } from '../embeddings.js';
 import { buildCommunityGroups, detectCommunities, updateCommunitySummaries } from '../graph/communities.js';
-import { initGraphState, mergeOrInsertEntity, upsertRelationship } from '../graph/graph.js';
+import { initGraphState, mergeOrInsertEntity, normalizeKey, upsertRelationship } from '../graph/graph.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
 import { buildEventExtractionPrompt, buildGraphExtractionPrompt } from '../prompts.js';
 import { accumulateImportance, generateReflections, shouldReflect } from '../reflection/reflect.js';
@@ -470,7 +470,9 @@ export async function extractMemories(messageIds = null, targetChatId = null) {
         // Check if we crossed a message boundary for community detection
         if (Math.floor(currCount / communityInterval) > Math.floor(prevCount / communityInterval)) {
             try {
-                const communityResult = detectCommunities(data.graph);
+                // Derive node keys for main characters (user + char) to prune hairball edges
+                const mainCharacterKeys = [normalizeKey(characterName), normalizeKey(userName)];
+                const communityResult = detectCommunities(data.graph, mainCharacterKeys);
                 if (communityResult) {
                     const groups = buildCommunityGroups(data.graph, communityResult.communities);
                     const stalenessThreshold = settings.communityStalenessThreshold ?? 100;

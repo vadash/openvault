@@ -283,7 +283,7 @@ describe('extractMemories community detection', () => {
 
         await extractMemories([0, 1]);
 
-        expect(detectCommunities).toHaveBeenCalledWith(mockData.graph);
+        expect(detectCommunities).toHaveBeenCalledWith(mockData.graph, ['king aldric', 'user']);
         expect(buildCommunityGroups).toHaveBeenCalled();
         expect(updateCommunitySummaries).toHaveBeenCalled();
     });
