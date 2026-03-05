@@ -332,12 +332,24 @@
 
                         <div style="height: 8px;"></div>
 
-                        <label for="openvault_reflection_dedup_threshold">
-                            Reflection Dedup Threshold: <span id="openvault_reflection_dedup_threshold_value">0.90</span>
-                            <small class="openvault-default-hint" data-default-key="reflectionDedupThreshold"></small>
-                        </label>
-                        <input type="range" id="openvault_reflection_dedup_threshold" min="0.5" max="1" step="0.01" value="0.90" />
-                        <small class="openvault-hint">Cosine similarity threshold to filter duplicate reflections.</small>
+                        <!-- Reflection 3-Tier Dedup System -->
+                        <div style="background: rgba(0,0,0,0.15); padding: 10px; border-radius: 6px; margin-bottom: 8px;">
+                            <div style="font-size: 0.9em; font-weight: 600; margin-bottom: 8px; color: #var(--smart-theme-body-color);">
+                                <i class="fa-solid fa-layer-group"></i> Reflection Dedup (3-Tier)
+                            </div>
+
+                            <label for="openvault_reflection_dedup_threshold" style="font-size: 0.85em;">
+                                Reject Threshold: <span id="openvault_reflection_dedup_threshold_value">0.90</span>
+                                <small class="openvault-default-hint" data-default-key="reflectionDedupThreshold"></small>
+                            </label>
+                            <input type="range" id="openvault_reflection_dedup_threshold" min="0.5" max="1" step="0.01" value="0.90" style="margin-bottom: 4px;" />
+
+                            <div style="font-size: 0.75em; color: #888; line-height: 1.4;">
+                                <span style="color: #f44;">≥<span id="openvault_reflection_reject_display">0.90</span> → Reject</span> ·
+                                <span style="color: #fb4;"><span id="openvault_reflection_replace_low">0.80</span>-<span id="openvault_reflection_replace_high">0.89</span> → Replace</span> ·
+                                <span style="color: #4b4;">&lt;<span id="openvault_reflection_add_display">0.80</span> → Add</span>
+                            </div>
+                        </div>
 
                         <div style="height: 8px;"></div>
 
@@ -592,14 +604,6 @@
 
                     <div style="height: 8px;"></div>
 
-                    <label for="openvault_reflection_dedup_threshold_adv">
-                        Reflection Dedup: <span id="openvault_reflection_dedup_threshold_adv_value">0.90</span>
-                        <small class="openvault-default-hint" data-default-key="reflectionDedupThreshold"></small>
-                    </label>
-                    <input type="range" id="openvault_reflection_dedup_threshold_adv" min="0.5" max="1" step="0.01" value="0.90" disabled />
-                    <small class="openvault-hint">Mirrors Memories tab setting. Edit there.</small>
-
-                    <div style="height: 8px;"></div>
 
                     <label for="openvault_entity_merge_threshold">
                         Entity Merge Threshold: <span id="openvault_entity_merge_threshold_value">0.80</span>

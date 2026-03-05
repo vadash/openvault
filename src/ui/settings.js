@@ -84,6 +84,18 @@ function updateWordsDisplay(tokens, wordsElementId) {
     $(`#${wordsElementId}`).text(tokensToWords(tokens));
 }
 
+function updateReflectionDedupDisplay(rejectThreshold) {
+    const replaceThreshold = (rejectThreshold - 0.1).toFixed(2);
+    const rejectDisplay = rejectThreshold.toFixed(2);
+    const replaceHigh = (rejectThreshold - 0.01).toFixed(2);
+    const addDisplay = replaceThreshold;
+
+    $('#openvault_reflection_reject_display').text(rejectDisplay);
+    $('#openvault_reflection_replace_low').text(replaceThreshold);
+    $('#openvault_reflection_replace_high').text(replaceHigh);
+    $('#openvault_reflection_add_display').text(addDisplay);
+}
+
 function getSettings() {
     return getDeps().getExtensionSettings()[extensionName];
 }
@@ -150,13 +162,16 @@ async function handleResetSettings() {
     // Restore extraction profile
     extension_settings[extensionName].extractionProfile = preservedProfile;
 
+    // Force debug mode ON after reset
+    extension_settings[extensionName].debugMode = true;
+
     // Save
     getDeps().saveSettingsDebounced();
 
     // Update UI
     updateUI();
 
-    showToast('success', 'Settings reset to default values');
+    showToast('success', 'Settings reset to default values (Debug Mode enabled)');
 }
 
 async function backfillEmbeddings() {
@@ -471,8 +486,7 @@ function bindUIElements() {
         const value = parseFloat($(this).val());
         saveSetting('reflectionDedupThreshold', value);
         $('#openvault_reflection_dedup_threshold_value').text(value);
-        $('#openvault_reflection_dedup_threshold_adv_value').text(value.toFixed(2));
-        $('#openvault_reflection_dedup_threshold_adv').val(value);
+        updateReflectionDedupDisplay(value);
     });
 
     $('#openvault_world_context_budget').on('input', function () {
@@ -683,8 +697,7 @@ export function updateUI() {
 
     $('#openvault_reflection_dedup_threshold').val(settings.reflectionDedupThreshold ?? 0.9);
     $('#openvault_reflection_dedup_threshold_value').text(settings.reflectionDedupThreshold ?? 0.9);
-    $('#openvault_reflection_dedup_threshold_adv').val(settings.reflectionDedupThreshold ?? 0.9);
-    $('#openvault_reflection_dedup_threshold_adv_value').text((settings.reflectionDedupThreshold ?? 0.9).toFixed(2));
+    updateReflectionDedupDisplay(settings.reflectionDedupThreshold ?? 0.9);
 
     $('#openvault_world_context_budget').val(settings.worldContextBudget ?? 2000);
     $('#openvault_world_context_budget_value').text(settings.worldContextBudget ?? 2000);
