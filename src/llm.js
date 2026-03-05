@@ -10,7 +10,6 @@ import { getDeps } from './deps.js';
 import {
     getCommunitySummaryJsonSchema,
     getEventExtractionJsonSchema,
-    getExtractionJsonSchema,
     getGraphExtractionJsonSchema,
     getInsightExtractionJsonSchema,
     getSalientQuestionsJsonSchema,
@@ -21,13 +20,6 @@ import { log, logRequest, showToast, withTimeout } from './utils.js';
  * LLM configuration presets
  */
 export const LLM_CONFIGS = {
-    extraction: {
-        profileSettingKey: 'extractionProfile',
-        maxTokens: 4000,
-        errorContext: 'Extraction',
-        timeoutMs: 120000, // 2 minutes max for extraction
-        getJsonSchema: getExtractionJsonSchema,
-    },
     extraction_events: {
         profileSettingKey: 'extractionProfile',
         maxTokens: 4000,
@@ -150,14 +142,4 @@ export async function callLLM(messages, config, options = {}) {
         logRequest(errorContext, { messages, maxTokens, profileId, error });
         throw error;
     }
-}
-
-/**
- * Call LLM for memory extraction
- * @param {Array<{role: string, content: string}>} messages - Array of message objects
- * @param {Object} options - Optional parameters
- * @returns {Promise<string>} The LLM response content
- */
-export function callLLMForExtraction(messages, options = {}) {
-    return callLLM(messages, LLM_CONFIGS.extraction, options);
 }

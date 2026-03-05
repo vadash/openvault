@@ -6,9 +6,8 @@ describe('LLM_CONFIGS after smart retrieval removal', () => {
         expect(LLM_CONFIGS.retrieval).toBeUndefined();
     });
 
-    it('still has extraction config', () => {
-        expect(LLM_CONFIGS.extraction).toBeDefined();
-        expect(LLM_CONFIGS.extraction.profileSettingKey).toBe('extractionProfile');
+    it('does not have legacy extraction config', () => {
+        expect(LLM_CONFIGS.extraction).toBeUndefined();
     });
 });
 

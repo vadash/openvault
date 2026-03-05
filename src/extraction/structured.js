@@ -42,16 +42,6 @@ export const RelationshipSchema = z.object({
 });
 
 /**
- * Schema for the full extraction response from LLM (structured format)
- */
-export const ExtractionResponseSchema = z.object({
-    reasoning: z.string().nullable().default(null),
-    events: z.array(EventSchema),
-    entities: z.array(EntitySchema).default([]),
-    relationships: z.array(RelationshipSchema).default([]),
-});
-
-/**
  * Schema for Stage 1: Event extraction only
  */
 export const EventExtractionSchema = z.object({
@@ -122,14 +112,9 @@ function parseStructuredResponse(content, schema) {
     }
 
     // Array recovery - if LLM returned a bare array instead of expected object
+    // Note: callers expecting objects must handle this appropriately
     if (Array.isArray(parsed)) {
-        console.warn('[OpenVault] LLM returned array instead of object, applying recovery wrapper');
-        parsed = {
-            events: parsed,
-            entities: [],
-            relationships: [],
-            reasoning: null,
-        };
+        console.warn('[OpenVault] LLM returned array instead of object in parseStructuredResponse');
     }
 
     const result = schema.safeParse(parsed);
@@ -138,16 +123,6 @@ function parseStructuredResponse(content, schema) {
     }
 
     return result.data;
-}
-
-/**
- * Get jsonSchema for ConnectionManager sendRequest
- * For use in structured output mode
- *
- * @returns {Object} ConnectionManager jsonSchema object
- */
-export function getExtractionJsonSchema() {
-    return toJsonSchema(ExtractionResponseSchema, 'MemoryExtraction');
 }
 
 /**
@@ -164,46 +139,6 @@ export function getEventExtractionJsonSchema() {
  */
 export function getGraphExtractionJsonSchema() {
     return toJsonSchema(GraphExtractionSchema, 'GraphExtraction');
-}
-
-/**
- * Parse extraction response with tag sanitization and full validation
- *
- * @param {string} content - Raw LLM response
- * @returns {Object} Validated extraction response with {events, reasoning} format
- */
-export function parseExtractionResponse(content) {
-    // Strip thinking/reasoning tags first
-    const cleanedContent = stripThinkingTags(content);
-    const jsonContent = stripMarkdown(cleanedContent);
-
-    let parsed;
-    try {
-        // Use jsonrepair to handle common LLM JSON issues (unescaped control chars, etc)
-        const repaired = jsonrepair(jsonContent);
-        parsed = JSON.parse(repaired);
-    } catch (e) {
-        throw new Error(`JSON parse failed: ${e.message}`);
-    }
-
-    // Array recovery - if LLM returned a bare array of events instead of full object
-    if (Array.isArray(parsed)) {
-        console.warn('[OpenVault] LLM returned array instead of object, applying recovery wrapper');
-        parsed = {
-            events: parsed,
-            entities: [],
-            relationships: [],
-            reasoning: null,
-        };
-    }
-
-    // Validate against schema
-    const result = ExtractionResponseSchema.safeParse(parsed);
-    if (!result.success) {
-        throw new Error(`Schema validation failed: ${result.error.message}`);
-    }
-
-    return result.data;
 }
 
 /**

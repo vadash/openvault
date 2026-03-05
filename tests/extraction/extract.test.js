@@ -15,19 +15,6 @@ vi.mock('../../src/embeddings.js', () => ({
 
 // Mock LLM to return entities/relationships
 vi.mock('../../src/llm.js', () => ({
-    callLLMForExtraction: vi.fn(async () =>
-        JSON.stringify({
-            reasoning: null,
-            events: [
-                { summary: 'King Aldric entered the Castle', importance: 3, characters_involved: ['King Aldric'] },
-            ],
-            entities: [
-                { name: 'King Aldric', type: 'PERSON', description: 'The aging ruler' },
-                { name: 'Castle', type: 'PLACE', description: 'An ancient fortress' },
-            ],
-            relationships: [{ source: 'King Aldric', target: 'Castle', description: 'Rules from' }],
-        })
-    ),
     callLLM: vi.fn(async (_prompt, config) => {
         if (config?.errorContext === 'Event Extraction') {
             return JSON.stringify({
@@ -49,7 +36,6 @@ vi.mock('../../src/llm.js', () => ({
         return JSON.stringify({});
     }),
     LLM_CONFIGS: {
-        extraction: { profileSettingKey: 'extractionProfile', maxTokens: 4000, timeoutMs: 120000 },
         extraction_events: { profileSettingKey: 'extractionProfile', maxTokens: 4000, errorContext: 'Event Extraction', timeoutMs: 120000 },
         extraction_graph: { profileSettingKey: 'extractionProfile', maxTokens: 2000, errorContext: 'Graph Extraction', timeoutMs: 90000 },
     },
