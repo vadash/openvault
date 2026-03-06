@@ -5,26 +5,8 @@
  * Extracted for testability and reuse in both main thread and worker.
  */
 
-import snowball from 'https://esm.sh/snowball-stemmers';
 import { ALL_STOPWORDS } from '../utils/stopwords.js';
-
-// Stemmers — initialized once at module level
-const ruStemmer = snowball.newStemmer('russian');
-const enStemmer = snowball.newStemmer('english');
-
-// Script detection regex (compiled once)
-const CYRILLIC_RE = /\p{Script=Cyrillic}/u;
-const LATIN_RE = /\p{Script=Latin}/u;
-
-/**
- * Stem a word using the appropriate language stemmer based on script detection.
- * Cyrillic → Russian stemmer, Latin → English stemmer, other (CJK, etc.) → unchanged.
- */
-function stemWord(word) {
-    if (CYRILLIC_RE.test(word)) return ruStemmer.stem(word);
-    if (LATIN_RE.test(word)) return enStemmer.stem(word);
-    return word;
-}
+import { stemWord } from '../utils/stemmer.js';
 
 // BM25 parameters
 const BM25_K1 = 1.2;
