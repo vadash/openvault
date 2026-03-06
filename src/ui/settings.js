@@ -71,7 +71,8 @@ async function testOllamaConnection() {
 
 import { extractAllMessages } from '../extraction/extract.js';
 import { isWorkerRunning } from '../extraction/worker.js';
-import { deleteCurrentChatData, deleteCurrentChatEmbeddings, getOpenVaultData, showToast } from '../utils.js';
+import { deleteCurrentChatData, deleteCurrentChatEmbeddings, getOpenVaultData } from '../utils/data.js';
+import { showToast } from '../utils/dom.js';
 
 // =============================================================================
 // Helper Functions (inlined from bindings.js)

@@ -10,11 +10,10 @@ import { getDeps } from '../deps.js';
 import { getDocumentEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import {
     deleteMemory as deleteMemoryAction,
-    escapeHtml,
     getOpenVaultData,
-    showToast,
     updateMemory as updateMemoryAction,
-} from '../utils.js';
+} from '../utils/data.js';
+import { escapeHtml, showToast } from '../utils/dom.js';
 import {
     buildCharacterStateData,
     extractCharactersSet,
