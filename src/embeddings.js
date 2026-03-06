@@ -93,7 +93,7 @@ const TRANSFORMERS_MODELS = {
         dtypeWASM: 'q8',
         dimensions: 384,
         description: '384d · 118M params · 100+ langs · MTEB: 55.8',
-        optimalChunkSize: 500, // chars, conservative for 512 tokens
+        optimalChunkSize: 250, // Cyrillic-safe: 250 × ~1.5 tok/char ≈ 375 tokens (within 512 limit)
     },
     'bge-small-en-v1.5': {
         name: 'Xenova/bge-small-en-v1.5',
