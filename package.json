@@ -12,7 +12,7 @@
         "sync-version": "node scripts/sync-version.js",
         "repomix": "npm run repomix:source && npm run repomix:tests",
         "repomix:source": "npx repomix --style markdown --output repomix-source.md --include \"README.md,CLAUDE.md,index.js,style.css,manifest.json,package.json,biome.json,vitest.config.js,src/**,include/**,scripts/**,templates/**\"",
-        "repomix:tests": "npx repomix --style markdown --output repomix-tests.md --include \"tests/**/*.js\""
+        "repomix:tests": "npx repomix --style markdown --output repomix-tests.md --include \"tests/**\""
     },
     "devDependencies": {
         "@biomejs/biome": "2.4.4",
