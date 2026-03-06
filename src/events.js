@@ -7,8 +7,9 @@
 import { extensionName, MEMORIES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
 import { getDeps } from './deps.js';
 import { clearEmbeddingCache } from './embeddings.js';
-import { cleanupCharacterStates, extractAllMessages, extractMemories } from './extraction/extract.js';
-import { getBackfillStats, getExtractedMessageIds, getNextBatch } from './extraction/scheduler.js';
+import { cleanupCharacterStates } from './extraction/extract.js';
+import { getExtractedMessageIds } from './extraction/scheduler.js';
+import { wakeUpBackgroundWorker } from './extraction/worker.js';
 import { clearRetrievalDebug } from './retrieval/debug-cache.js';
 import { updateInjection } from './retrieval/retrieve.js';
 import {
@@ -22,7 +23,6 @@ import {
 import { refreshAllUI, resetMemoryBrowserPage } from './ui/render.js';
 import { setStatus } from './ui/status.js';
 import {
-    getCurrentChatId,
     getOpenVaultData,
     isAutomaticMode,
     log,
@@ -217,146 +217,28 @@ export function onChatChanged() {
 
 /**
  * Handle message received event (automatic mode)
- * Extracts memories AFTER AI responds, then checks for backfill
+ * Wakes the background worker to extract memories silently.
+ * Fire-and-forget — does not block SillyTavern.
  * @param {number} messageId - The message ID
  */
-export async function onMessageReceived(messageId) {
+export function onMessageReceived(messageId) {
     if (!isAutomaticMode()) return;
 
-    // Don't extract during chat load cooldown
     if (isChatLoadingCooldown()) {
         log(`Skipping extraction for message ${messageId} - chat load cooldown active`);
         return;
     }
 
-    // Don't extract if already extracting
-    if (operationState.extractionInProgress) {
-        log('Skipping extraction - extraction already in progress');
+    const context = getDeps().getContext();
+    const chat = context.chat || [];
+    const message = chat[messageId];
+
+    // Only wake worker on AI messages
+    if (!message || message.is_user || message.is_system) {
         return;
     }
 
-    // Set extraction flag IMMEDIATELY after check to prevent race conditions
-    operationState.extractionInProgress = true;
-
-    // Capture chat ID before any async operations to detect chat switch
-    const chatIdBeforeExtraction = getCurrentChatId();
-
-    try {
-        const deps = getDeps();
-        const context = deps.getContext();
-        const chat = context.chat || [];
-        const message = chat[messageId];
-
-        // Only extract after AI messages (not user messages)
-        if (!message || message.is_user || message.is_system) {
-            log(`Message ${messageId} is user/system message, skipping extraction`);
-            return;
-        }
-
-        const data = getOpenVaultData();
-        if (!data) {
-            log('Cannot get OpenVault data, skipping extraction');
-            return;
-        }
-
-        const settings = deps.getExtensionSettings()[extensionName];
-        const messageCount = settings.messagesPerExtraction || 10;
-        const bufferSize = settings.extractionBuffer || 5;
-
-        // Use scheduler to get next batch (excluding recent messages in buffer)
-        const batchToExtract = getNextBatch(chat, data, messageCount, bufferSize);
-
-        if (!batchToExtract) {
-            const extractedCount = getExtractedMessageIds(data).size;
-            log(`Auto-extract: ${extractedCount}/${chat.length} extracted, waiting for more messages`);
-            return;
-        }
-
-        log(
-            `Auto-extract: extracting batch of ${batchToExtract.length} messages (indices ${batchToExtract[0]}-${batchToExtract[batchToExtract.length - 1]})`
-        );
-
-        // Show extraction indicator
-        setStatus('extracting');
-        showToast(
-            'info',
-            `Extracting memories (messages ${batchToExtract[0] + 1}-${batchToExtract[batchToExtract.length - 1] + 1})...`,
-            'OpenVault',
-            {
-                timeOut: 0,
-                extendedTimeOut: 0,
-                tapToDismiss: false,
-                toastClass: 'toast openvault-extracting-toast',
-            }
-        );
-
-        // Pass chatId to extractMemories for integrity check during long LLM calls
-        const result = await extractMemories(batchToExtract, chatIdBeforeExtraction);
-
-        // Clear the persistent toast and show success
-        $('.openvault-extracting-toast').remove();
-        if (result && result.status === 'success' && result.events_created > 0) {
-            showToast(
-                'success',
-                `Extracted ${result.events_created} events from ${result.messages_processed} messages`,
-                'OpenVault'
-            );
-            refreshAllUI();
-        }
-    } catch (error) {
-        getDeps().console.error('[OpenVault] Automatic extraction error:', error);
-        // Clear the persistent toast and show error
-        $('.openvault-extracting-toast').remove();
-        showToast('error', `Extraction failed: ${error.message}`, 'OpenVault');
-    } finally {
-        operationState.extractionInProgress = false;
-        setStatus('ready');
-
-        // Check for backfill after each generation cycle
-        checkAndTriggerBackfill(updateEventListeners, chatIdBeforeExtraction);
-    }
-}
-
-// =============================================================================
-// Backfill Check (inlined from backfill.js)
-// =============================================================================
-
-/**
- * Check and trigger automatic backfill if there are enough unprocessed messages
- * Uses same logic as manual "Backfill Chat History" button
- * @param {function} updateEventListenersFn - Function to update event listeners after backfill
- * @param {string} targetChatId - Optional chat ID to verify we haven't switched chats
- */
-async function checkAndTriggerBackfill(updateEventListenersFn, targetChatId) {
-    if (!isAutomaticMode()) return;
-
-    // Don't backfill if chat has changed since this was queued
-    if (targetChatId && getCurrentChatId() !== targetChatId) return;
-
-    const deps = getDeps();
-    const settings = deps.getExtensionSettings()[extensionName];
-    const context = deps.getContext();
-    const chat = context.chat || [];
-    if (chat.length === 0) return;
-
-    const data = getOpenVaultData();
-    if (!data) return;
-
-    const messageCount = settings.messagesPerExtraction || 10;
-
-    // Use scheduler to check for backfill work
-    const stats = getBackfillStats(chat, data, messageCount);
-
-    if (stats.completeBatches >= 1) {
-        log(`Auto-backfill: ${stats.totalUnextracted} messages ready (${stats.completeBatches} batches)`);
-        showToast('info', `Auto-backfill: ${stats.completeBatches} batches...`, 'OpenVault');
-
-        try {
-            await extractAllMessages(updateEventListenersFn);
-        } catch (error) {
-            deps.console.error('[OpenVault] Auto-backfill error:', error);
-        }
-    }
+    wakeUpBackgroundWorker();
 }
 
 // =============================================================================
