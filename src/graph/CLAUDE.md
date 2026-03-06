@@ -25,6 +25,7 @@ Flat-JSON entity/relationship storage with semantic deduplication and Louvain co
 - **Library**: `graphology` via esm.sh. Test alias required in vitest.config.js.
 - **Detection**: Louvain algorithm on undirected graph. Skip if < 3 nodes.
 - **Main Character Pruning**: Temporarily removes edges involving `mainCharacterKeys` (User + Char) before running Louvain. Prevents "hairball" where all secondary entities only connect through protagonist. Re-assigns main chars to strongest neighbor's community after.
+- **Alias Expansion**: `expandMainCharacterKeys(baseKeys, graphNodes)` expands base User/Char keys with aliases from graph node data before pruning. Prevents alter-ego nodes from forming false secondary communities.
 - **Summarization**: LLM generates title/summary/findings per community. Only re-summarize if node membership changed.
 - **Island Guard**: Skip communities with < 2 nodes.
 - **Trigger**: Every 50 messages in extraction pipeline.
