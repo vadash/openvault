@@ -308,114 +308,52 @@ function initTabs() {
 // =============================================================================
 
 function bindUIElements() {
+    // Helper for standard settings handlers
+    function bindSetting(id, key, type = 'int', callback = null) {
+        const event = type === 'bool' ? 'change' : 'input';
+        $(`#openvault_${id}`).on(event, function () {
+            let val;
+            if (type === 'bool') val = $(this).is(':checked');
+            else if (type === 'float') val = parseFloat($(this).val());
+            else val = parseInt($(this).val(), 10);
+
+            saveSetting(key, val);
+            if (type !== 'bool') $(`#openvault_${id}_value`).text(val);
+            if (callback) callback(val);
+        });
+    }
+
     // Basic toggles
-    $('#openvault_enabled').on('change', function () {
-        saveSetting('enabled', $(this).is(':checked'));
-        updateEventListeners();
-    });
-
-    $('#openvault_debug').on('change', function () {
-        saveSetting('debugMode', $(this).is(':checked'));
-    });
-
-    $('#openvault_request_logging').on('change', function () {
-        saveSetting('requestLogging', $(this).is(':checked'));
-    });
+    bindSetting('enabled', 'enabled', 'bool', () => updateEventListeners());
+    bindSetting('debug', 'debugMode', 'bool');
+    bindSetting('request_logging', 'requestLogging', 'bool');
 
     // Extraction settings
-    $('#openvault_messages_per_extraction').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('messagesPerExtraction', value);
-        $('#openvault_messages_per_extraction_value').text(value);
-    });
-
-    $('#openvault_extraction_rearview').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('extractionRearviewTokens', value);
-        $('#openvault_extraction_rearview_value').text(value);
-        updateWordsDisplay(value, 'openvault_extraction_rearview_words');
-    });
+    bindSetting('messages_per_extraction', 'messagesPerExtraction');
+    bindSetting('extraction_rearview', 'extractionRearviewTokens', 'int', (v) =>
+        updateWordsDisplay(v, 'openvault_extraction_rearview_words'));
 
     // Retrieval pipeline settings
-    $('#openvault_final_budget').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('retrievalFinalTokens', value);
-        $('#openvault_final_budget_value').text(value);
-        updateWordsDisplay(value, 'openvault_final_budget_words');
-    });
+    bindSetting('final_budget', 'retrievalFinalTokens', 'int', (v) =>
+        updateWordsDisplay(v, 'openvault_final_budget_words'));
 
     // Auto-hide settings
-    $('#openvault_auto_hide').on('change', function () {
-        saveSetting('autoHideEnabled', $(this).is(':checked'));
-    });
-
-    $('#openvault_auto_hide_threshold').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('autoHideThreshold', value);
-        $('#openvault_auto_hide_threshold_value').text(value);
-    });
+    bindSetting('auto_hide', 'autoHideEnabled', 'bool');
+    bindSetting('auto_hide_threshold', 'autoHideThreshold');
 
     // Scoring weights (alpha-blend)
-    $('#openvault_alpha').on('input', function () {
-        const value = parseFloat($(this).val());
-        saveSetting('alpha', value);
-        $('#openvault_alpha_value').text(value);
-    });
-
-    $('#openvault_combined_weight').on('input', function () {
-        const value = parseFloat($(this).val());
-        saveSetting('combinedBoostWeight', value);
-        $('#openvault_combined_weight_value').text(value);
-    });
-
-    $('#openvault_vector_threshold').on('input', function () {
-        const value = parseFloat($(this).val());
-        saveSetting('vectorSimilarityThreshold', value);
-        $('#openvault_vector_threshold_value').text(value);
-    });
-
-    $('#openvault_dedup_threshold').on('input', function () {
-        const value = parseFloat($(this).val());
-        saveSetting('dedupSimilarityThreshold', value);
-        $('#openvault_dedup_threshold_value').text(value);
-    });
-
-    $('#openvault_entity_merge_threshold').on('input', function () {
-        const value = parseFloat($(this).val());
-        saveSetting('entityMergeSimilarityThreshold', value);
-        $('#openvault_entity_merge_threshold_value').text(value);
-    });
-
-    $('#openvault_edge_description_cap').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('edgeDescriptionCap', value);
-        $('#openvault_edge_description_cap_value').text(value);
-    });
+    bindSetting('alpha', 'alpha', 'float');
+    bindSetting('combined_weight', 'combinedBoostWeight', 'float');
+    bindSetting('vector_threshold', 'vectorSimilarityThreshold', 'float');
+    bindSetting('dedup_threshold', 'dedupSimilarityThreshold', 'float');
+    bindSetting('entity_merge_threshold', 'entityMergeSimilarityThreshold', 'float');
+    bindSetting('edge_description_cap', 'edgeDescriptionCap');
 
     // Query context enhancement settings
-    $('#openvault_entity_window').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('entityWindowSize', value);
-        $('#openvault_entity_window_value').text(value);
-    });
-
-    $('#openvault_embedding_window').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('embeddingWindowSize', value);
-        $('#openvault_embedding_window_value').text(value);
-    });
-
-    $('#openvault_top_entities').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('topEntitiesCount', value);
-        $('#openvault_top_entities_value').text(value);
-    });
-
-    $('#openvault_entity_boost').on('input', function () {
-        const value = parseFloat($(this).val());
-        saveSetting('entityBoostWeight', value);
-        $('#openvault_entity_boost_value').text(value);
-    });
+    bindSetting('entity_window', 'entityWindowSize');
+    bindSetting('embedding_window', 'embeddingWindowSize');
+    bindSetting('top_entities', 'topEntitiesCount');
+    bindSetting('entity_boost', 'entityBoostWeight', 'float');
 
     // Backfill settings
     $('#openvault_backfill_rpm').on('change', function () {
@@ -475,112 +413,32 @@ function bindUIElements() {
     });
 
     // Feature settings
-    $('#openvault_reflection_threshold').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('reflectionThreshold', value);
-        $('#openvault_reflection_threshold_value').text(value);
-    });
+    bindSetting('reflection_threshold', 'reflectionThreshold');
+    bindSetting('max_insights', 'maxInsightsPerReflection');
+    bindSetting('reflection_dedup_threshold', 'reflectionDedupThreshold', 'float', (v) =>
+        updateReflectionDedupDisplay(v));
+    bindSetting('world_context_budget', 'worldContextBudget', 'int', (v) =>
+        updateWordsDisplay(v, 'openvault_world_context_budget_words'));
+    bindSetting('community_interval', 'communityDetectionInterval');
 
-    $('#openvault_max_insights').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('maxInsightsPerReflection', value);
-        $('#openvault_max_insights_value').text(value);
-    });
+    // Forgetfulness curve settings
+    bindSetting('forgetfulness_lambda', 'forgetfulnessBaseLambda', 'float');
+    bindSetting('importance5_floor', 'forgetfulnessImportance5Floor');
 
-    $('#openvault_reflection_dedup_threshold').on('input', function () {
-        const value = parseFloat($(this).val());
-        saveSetting('reflectionDedupThreshold', value);
-        $('#openvault_reflection_dedup_threshold_value').text(value);
-        updateReflectionDedupDisplay(value);
-    });
+    // Reflection decay threshold
+    bindSetting('reflection_decay_threshold', 'reflectionDecayThreshold');
 
-    $('#openvault_world_context_budget').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('worldContextBudget', value);
-        $('#openvault_world_context_budget_value').text(value);
-        updateWordsDisplay(value, 'openvault_world_context_budget_words');
-    });
+    // Entity description cap
+    bindSetting('entity_description_cap', 'entityDescriptionCap');
 
-    $('#openvault_community_interval').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('communityDetectionInterval', value);
-        $('#openvault_community_interval_value').text(value);
-    });
+    // Max reflections per character
+    bindSetting('max_reflections', 'maxReflectionsPerCharacter');
 
-    // =========================================================================
-    // NEW: Forgetfulness curve settings (decay math)
-    // Controls how fast memories lose relevance over time.
-    // =========================================================================
+    // Community staleness threshold
+    bindSetting('community_staleness', 'communityStalenessThreshold');
 
-    // Base decay rate — lower values make memories persist longer.
-    // Used by math.js exponential decay: score * e^(-lambda * age)
-    $('#openvault_forgetfulness_lambda').on('input', function () {
-        const value = parseFloat($(this).val());
-        saveSetting('forgetfulnessBaseLambda', value);
-        $('#openvault_forgetfulness_lambda_value').text(value);
-    });
-
-    // Minimum retrieval score for importance-5 (max importance) memories.
-    // Ensures critical memories never fully decay below this floor.
-    $('#openvault_importance5_floor').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('forgetfulnessImportance5Floor', value);
-        $('#openvault_importance5_floor_value').text(value);
-    });
-
-    // =========================================================================
-    // NEW: Reflection decay threshold
-    // After this many messages, reflections begin to lose retrieval priority.
-    // =========================================================================
-    $('#openvault_reflection_decay_threshold').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('reflectionDecayThreshold', value);
-        $('#openvault_reflection_decay_threshold_value').text(value);
-    });
-
-    // =========================================================================
-    // NEW: Entity description cap
-    // Limits how many description segments an entity accumulates (FIFO).
-    // Prevents entity descriptions from growing unbounded in long chats.
-    // =========================================================================
-    $('#openvault_entity_description_cap').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('entityDescriptionCap', value);
-        $('#openvault_entity_description_cap_value').text(value);
-    });
-
-    // =========================================================================
-    // NEW: Max reflections per character
-    // Caps total reflection memories per character to prevent bloat.
-    // Oldest reflections are pruned when this limit is exceeded.
-    // =========================================================================
-    $('#openvault_max_reflections').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('maxReflectionsPerCharacter', value);
-        $('#openvault_max_reflections_value').text(value);
-    });
-
-    // =========================================================================
-    // NEW: Community staleness threshold
-    // Messages since last community detection before summaries are considered
-    // stale. Stale communities are re-summarized on next detection cycle.
-    // =========================================================================
-    $('#openvault_community_staleness').on('input', function () {
-        const value = parseInt($(this).val(), 10);
-        saveSetting('communityStalenessThreshold', value);
-        $('#openvault_community_staleness_value').text(value);
-    });
-
-    // =========================================================================
-    // NEW: Jaccard dedup threshold
-    // Token-overlap (Jaccard index) filter for near-duplicate memories.
-    // Lower = more aggressive dedup. Used alongside cosine similarity dedup.
-    // =========================================================================
-    $('#openvault_dedup_jaccard').on('input', function () {
-        const value = parseFloat($(this).val());
-        saveSetting('dedupJaccardThreshold', value);
-        $('#openvault_dedup_jaccard_value').text(value);
-    });
+    // Jaccard dedup threshold
+    bindSetting('dedup_jaccard', 'dedupJaccardThreshold', 'float');
 
     // Action buttons
     $('#openvault_backfill_embeddings_btn').on('click', backfillEmbeddings);
