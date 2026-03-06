@@ -2,8 +2,7 @@
  * Tests for src/retrieval/query-context.js
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultSettings, extensionName } from '../src/constants.js';
-import { resetDeps, setDeps } from '../src/deps.js';
+import { resetDeps } from '../src/deps.js';
 
 // Mock getOptimalChunkSize
 vi.mock('../src/embeddings/strategies.js', () => ({
@@ -20,11 +19,8 @@ import {
 
 describe('query-context', () => {
     beforeEach(() => {
-        setDeps({
-            getExtensionSettings: () => ({
-                [extensionName]: { ...defaultSettings },
-            }),
-            saveSettingsDebounced: vi.fn(),
+        setupTestContext({
+            deps: { saveSettingsDebounced: vi.fn() },
         });
     });
 

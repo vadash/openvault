@@ -100,14 +100,12 @@ describe('updateInjection world context', () => {
     beforeEach(() => {
         mockSetPrompt = vi.fn();
 
-        setDeps({
-            getContext: () => ({
+        setupTestContext({
+            context: {
                 chat: [
                     { mes: 'Hello', is_user: true, is_system: true },
                     { mes: 'Hi', is_user: false, is_system: false },
                 ],
-                name1: 'User',
-                name2: 'Alice',
                 chatMetadata: {
                     openvault: {
                         memories: [
@@ -134,13 +132,12 @@ describe('updateInjection world context', () => {
                     },
                 },
                 chatId: 'test',
-            }),
-            getExtensionSettings: () => ({
-                [extensionName]: { ...defaultSettings, enabled: true, automaticMode: true },
-            }),
-            setExtensionPrompt: mockSetPrompt,
-            extension_prompt_types: { IN_PROMPT: 0 },
-            console: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
+            },
+            settings: { automaticMode: true },
+            deps: {
+                setExtensionPrompt: mockSetPrompt,
+                extension_prompt_types: { IN_PROMPT: 0 },
+            },
         });
     });
 
