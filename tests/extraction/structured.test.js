@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    _testStripMarkdown,
     getEventExtractionJsonSchema,
     getGraphExtractionJsonSchema,
     parseCommunitySummaryResponse,
@@ -9,6 +10,38 @@ import {
     parseInsightExtractionResponse,
     parseSalientQuestionsResponse,
 } from '../../src/extraction/structured.js';
+
+describe('stripMarkdown edge cases', () => {
+    it('strips unclosed opening fence', () => {
+        const content = '```json\n{"events": []}';
+        const result = _testStripMarkdown(content);
+        expect(result).toBe('{"events": []}');
+    });
+
+    it('strips orphan closing fence', () => {
+        const content = '{"events": []}\n```';
+        const result = _testStripMarkdown(content);
+        expect(result).toBe('{"events": []}');
+    });
+
+    it('strips opening fence without json label', () => {
+        const content = '```\n{"events": []}';
+        const result = _testStripMarkdown(content);
+        expect(result).toBe('{"events": []}');
+    });
+
+    it('still strips complete fences', () => {
+        const content = '```json\n{"events": []}\n```';
+        const result = _testStripMarkdown(content);
+        expect(result).toBe('{"events": []}');
+    });
+
+    it('passes through content without fences', () => {
+        const content = '{"events": []}';
+        const result = _testStripMarkdown(content);
+        expect(result).toBe('{"events": []}');
+    });
+});
 
 describe('parseEvent', () => {
     it('parses single event without wrapper', () => {

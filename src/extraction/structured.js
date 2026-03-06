@@ -85,8 +85,14 @@ function toJsonSchema(zodSchema, schemaName) {
  */
 function stripMarkdown(content) {
     const trimmed = content.trim();
+    // Complete fences: ```json ... ```
     const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-    return fenceMatch ? fenceMatch[1].trim() : trimmed;
+    if (fenceMatch) return fenceMatch[1].trim();
+    // Unclosed opening fence: ```json\n{...}
+    let result = trimmed.replace(/^```(?:json)?\s*/i, '');
+    // Orphan closing fence: {...}\n```
+    result = result.replace(/\s*```\s*$/i, '');
+    return result.trim();
 }
 
 /**
