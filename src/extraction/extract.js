@@ -40,7 +40,13 @@ async function rpmDelay(settings, label = 'Rate limit') {
 import { getDeps } from '../deps.js';
 import { enrichEventsWithEmbeddings } from '../embeddings.js';
 import { buildCommunityGroups, detectCommunities, updateCommunitySummaries } from '../graph/communities.js';
-import { initGraphState, mergeOrInsertEntity, normalizeKey, upsertRelationship } from '../graph/graph.js';
+import {
+    expandMainCharacterKeys,
+    initGraphState,
+    mergeOrInsertEntity,
+    normalizeKey,
+    upsertRelationship,
+} from '../graph/graph.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
 import { buildEventExtractionPrompt, buildGraphExtractionPrompt } from '../prompts.js';
 import { accumulateImportance, generateReflections, shouldReflect } from '../reflection/reflect.js';
@@ -524,7 +530,8 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             if (Math.floor(currCount / communityInterval) > Math.floor(prevCount / communityInterval)) {
                 try {
                     // Derive node keys for main characters (user + char) to prune hairball edges
-                    const mainCharacterKeys = [normalizeKey(characterName), normalizeKey(userName)];
+                    const baseKeys = [normalizeKey(characterName), normalizeKey(userName)];
+                    const mainCharacterKeys = expandMainCharacterKeys(baseKeys, data.graph.nodes || {});
                     const communityResult = detectCommunities(data.graph, mainCharacterKeys);
                     if (communityResult) {
                         const groups = buildCommunityGroups(data.graph, communityResult.communities);

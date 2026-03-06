@@ -3,8 +3,10 @@ import { getDocumentEmbedding } from '../../src/embeddings.js';
 import {
     consolidateGraph,
     createEmptyGraph,
+    expandMainCharacterKeys,
     initGraphState,
     mergeOrInsertEntity,
+    normalizeKey,
     redirectEdges,
     upsertEntity,
     upsertRelationship,
@@ -551,5 +553,63 @@ describe('mergeOrInsertEntity - description in embedding', () => {
         await mergeOrInsertEntity(graphData, 'Cotton Rope', 'OBJECT', 'A rough hemp rope used for bondage', 3, {});
 
         expect(getDocumentEmbedding).toHaveBeenCalledWith('OBJECT: Cotton Rope - A rough hemp rope used for bondage');
+    });
+});
+
+describe('expandMainCharacterKeys', () => {
+    it('expands aliases from graph nodes', () => {
+        const graphNodes = {
+            'main user': {
+                name: 'Main User',
+                type: 'PERSON',
+                aliases: ['Alt Persona', 'Nickname'],
+            },
+            character: {
+                name: 'Character',
+                type: 'PERSON',
+                aliases: ['Char Alias'],
+            },
+        };
+        const baseKeys = [normalizeKey('Main User'), normalizeKey('Character')];
+        const expanded = expandMainCharacterKeys(baseKeys, graphNodes);
+
+        expect(expanded).toContain('main user');
+        expect(expanded).toContain('character');
+        expect(expanded).toContain('alt persona');
+        expect(expanded).toContain('nickname');
+        expect(expanded).toContain('char alias');
+        expect(expanded).toHaveLength(5);
+    });
+
+    it('handles nodes without aliases', () => {
+        const graphNodes = {
+            user: { name: 'User', type: 'PERSON' },
+        };
+        const baseKeys = [normalizeKey('User')];
+        const expanded = expandMainCharacterKeys(baseKeys, graphNodes);
+
+        expect(expanded).toEqual(['user']);
+    });
+
+    it('deduplicates alias keys', () => {
+        const graphNodes = {
+            user: {
+                name: 'User',
+                type: 'PERSON',
+                aliases: ['User'], // Alias same as name
+            },
+        };
+        const baseKeys = [normalizeKey('User')];
+        const expanded = expandMainCharacterKeys(baseKeys, graphNodes);
+
+        expect(expanded).toEqual(['user']);
+    });
+
+    it('handles missing nodes gracefully', () => {
+        const graphNodes = {};
+        const baseKeys = ['nonexistent'];
+        const expanded = expandMainCharacterKeys(baseKeys, graphNodes);
+
+        expect(expanded).toEqual(['nonexistent']);
     });
 });

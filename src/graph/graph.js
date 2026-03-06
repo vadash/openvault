@@ -38,6 +38,29 @@ export function normalizeKey(name) {
 }
 
 /**
+ * Expand main character keys with aliases discovered in the graph.
+ * Prevents alter-ego nodes from forming false secondary communities.
+ * @param {string[]} baseKeys - Normalized main character keys
+ * @param {Object} graphNodes - Graph nodes keyed by normalized name
+ * @returns {string[]} Expanded array including alias keys
+ */
+export function expandMainCharacterKeys(baseKeys, graphNodes) {
+    const expanded = [...baseKeys];
+    for (const baseKey of baseKeys) {
+        const node = graphNodes[baseKey];
+        if (node?.aliases) {
+            for (const alias of node.aliases) {
+                const aliasKey = normalizeKey(alias);
+                if (!expanded.includes(aliasKey)) {
+                    expanded.push(aliasKey);
+                }
+            }
+        }
+    }
+    return expanded;
+}
+
+/**
  * Upsert an entity node into the flat graph structure.
  * Merges descriptions and increments mentions on duplicates.
  * Descriptions are capped at a configurable number of segments.
