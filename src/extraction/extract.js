@@ -468,67 +468,67 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         // ===== PHASE 2: Enrichment (non-critical) =====
         try {
             // Stage 4.6: Reflection check (per character in new events)
-        if (events.length > 0) {
-            initGraphState(data); // Ensures reflection_state exists
-            accumulateImportance(data.reflection_state, events);
+            if (events.length > 0) {
+                initGraphState(data); // Ensures reflection_state exists
+                accumulateImportance(data.reflection_state, events);
 
-            // Collect unique characters from new events
-            const characters = new Set();
-            for (const event of events) {
-                for (const c of event.characters_involved || []) characters.add(c);
-                for (const w of event.witnesses || []) characters.add(w);
-            }
+                // Collect unique characters from new events
+                const characters = new Set();
+                for (const event of events) {
+                    for (const c of event.characters_involved || []) characters.add(c);
+                    for (const w of event.witnesses || []) characters.add(w);
+                }
 
-            // Check each character for reflection trigger
-            const reflectionThreshold = settings.reflectionThreshold ?? 30;
-            for (const characterName of characters) {
-                if (shouldReflect(data.reflection_state, characterName, reflectionThreshold)) {
-                    try {
-                        const reflections = await generateReflections(
-                            characterName,
-                            data[MEMORIES_KEY] || [],
-                            data[CHARACTERS_KEY] || {}
-                        );
-                        if (reflections.length > 0) {
-                            data[MEMORIES_KEY].push(...reflections);
+                // Check each character for reflection trigger
+                const reflectionThreshold = settings.reflectionThreshold ?? 30;
+                for (const characterName of characters) {
+                    if (shouldReflect(data.reflection_state, characterName, reflectionThreshold)) {
+                        try {
+                            const reflections = await generateReflections(
+                                characterName,
+                                data[MEMORIES_KEY] || [],
+                                data[CHARACTERS_KEY] || {}
+                            );
+                            if (reflections.length > 0) {
+                                data[MEMORIES_KEY].push(...reflections);
+                            }
+                            // Reset accumulator after reflection
+                            data.reflection_state[characterName].importance_sum = 0;
+                        } catch (error) {
+                            deps.console.error(`[OpenVault] Reflection error for ${characterName}:`, error);
                         }
-                        // Reset accumulator after reflection
-                        data.reflection_state[characterName].importance_sum = 0;
-                    } catch (error) {
-                        deps.console.error(`[OpenVault] Reflection error for ${characterName}:`, error);
                     }
                 }
             }
-        }
 
-        // Stage 4.7: Community detection
-        const communityInterval = settings.communityDetectionInterval ?? 50;
-        const prevCount = (data.graph_message_count || 0) - messages.length;
-        const currCount = data.graph_message_count || 0;
-        // Check if we crossed a message boundary for community detection
-        if (Math.floor(currCount / communityInterval) > Math.floor(prevCount / communityInterval)) {
-            try {
-                // Derive node keys for main characters (user + char) to prune hairball edges
-                const mainCharacterKeys = [normalizeKey(characterName), normalizeKey(userName)];
-                const communityResult = detectCommunities(data.graph, mainCharacterKeys);
-                if (communityResult) {
-                    const groups = buildCommunityGroups(data.graph, communityResult.communities);
-                    const stalenessThreshold = settings.communityStalenessThreshold ?? 100;
-                    const isSingleCommunity = communityResult.count === 1;
-                    data.communities = await updateCommunitySummaries(
-                        data.graph,
-                        groups,
-                        data.communities || {},
-                        currCount,
-                        stalenessThreshold,
-                        isSingleCommunity
-                    );
-                    log(`Community detection: ${communityResult.count} communities found`);
+            // Stage 4.7: Community detection
+            const communityInterval = settings.communityDetectionInterval ?? 50;
+            const prevCount = (data.graph_message_count || 0) - messages.length;
+            const currCount = data.graph_message_count || 0;
+            // Check if we crossed a message boundary for community detection
+            if (Math.floor(currCount / communityInterval) > Math.floor(prevCount / communityInterval)) {
+                try {
+                    // Derive node keys for main characters (user + char) to prune hairball edges
+                    const mainCharacterKeys = [normalizeKey(characterName), normalizeKey(userName)];
+                    const communityResult = detectCommunities(data.graph, mainCharacterKeys);
+                    if (communityResult) {
+                        const groups = buildCommunityGroups(data.graph, communityResult.communities);
+                        const stalenessThreshold = settings.communityStalenessThreshold ?? 100;
+                        const isSingleCommunity = communityResult.count === 1;
+                        data.communities = await updateCommunitySummaries(
+                            data.graph,
+                            groups,
+                            data.communities || {},
+                            currCount,
+                            stalenessThreshold,
+                            isSingleCommunity
+                        );
+                        log(`Community detection: ${communityResult.count} communities found`);
+                    }
+                } catch (error) {
+                    deps.console.error('[OpenVault] Community detection error:', error);
                 }
-            } catch (error) {
-                deps.console.error('[OpenVault] Community detection error:', error);
             }
-        }
 
             // Final save — Phase 2 enrichment persisted
             await saveOpenVaultData(targetChatId);

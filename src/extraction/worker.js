@@ -6,13 +6,13 @@
  * Uses a wakeGeneration counter to reset backoff when new messages arrive.
  */
 
-import { getDeps } from '../deps.js';
 import { extensionName } from '../constants.js';
-import { getCurrentChatId, getOpenVaultData, isExtensionEnabled, log } from '../utils.js';
-import { getNextBatch } from './scheduler.js';
-import { extractMemories } from './extract.js';
-import { setStatus } from '../ui/status.js';
+import { getDeps } from '../deps.js';
 import { operationState } from '../state.js';
+import { setStatus } from '../ui/status.js';
+import { getCurrentChatId, getOpenVaultData, isExtensionEnabled, log } from '../utils.js';
+import { extractMemories } from './extract.js';
+import { getNextBatch } from './scheduler.js';
 
 let isRunning = false;
 let wakeGeneration = 0;
@@ -149,7 +149,9 @@ async function runWorkerLoop() {
                     break;
                 }
 
-                log(`Worker: Batch failed (attempt ${retryCount}), retrying in ${BACKOFF_SCHEDULE_SECONDS[scheduleIndex]}s`);
+                log(
+                    `Worker: Batch failed (attempt ${retryCount}), retrying in ${BACKOFF_SCHEDULE_SECONDS[scheduleIndex]}s`
+                );
                 await interruptibleSleep(backoffMs, lastSeenGeneration);
                 continue; // Retry same batch
             }

@@ -22,14 +22,7 @@ import {
 } from './state.js';
 import { refreshAllUI, resetMemoryBrowserPage } from './ui/render.js';
 import { setStatus } from './ui/status.js';
-import {
-    getOpenVaultData,
-    isAutomaticMode,
-    log,
-    safeSetExtensionPrompt,
-    showToast,
-    withTimeout,
-} from './utils.js';
+import { getOpenVaultData, isAutomaticMode, log, safeSetExtensionPrompt, showToast, withTimeout } from './utils.js';
 
 // =============================================================================
 // Auto-Hide Old Messages (inlined from auto-hide.js)
