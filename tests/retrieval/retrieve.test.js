@@ -71,7 +71,7 @@ describe('reflection retrieval', () => {
         await updateInjection();
 
         // The memory injection slot should contain BOTH event and reflection text
-        const memoryCall = mockSetPrompt.mock.calls.find(c => c[0] === extensionName);
+        const memoryCall = mockSetPrompt.mock.calls.find((c) => c[0] === extensionName);
         expect(memoryCall).toBeDefined();
         const injectedText = memoryCall[1];
         expect(injectedText).toContain('ancient library');
@@ -145,7 +145,7 @@ describe('updateInjection world context', () => {
     it('injects world context when communities exist', async () => {
         await updateInjection();
 
-        const worldCall = mockSetPrompt.mock.calls.find(c => c[0] === 'openvault_world');
+        const worldCall = mockSetPrompt.mock.calls.find((c) => c[0] === 'openvault_world');
         expect(worldCall).toBeDefined();
         expect(worldCall[1]).toContain('world_context');
     });
@@ -153,7 +153,7 @@ describe('updateInjection world context', () => {
     it('includes community title in world context', async () => {
         await updateInjection();
 
-        const worldCall = mockSetPrompt.mock.calls.find(c => c[0] === 'openvault_world');
+        const worldCall = mockSetPrompt.mock.calls.find((c) => c[0] === 'openvault_world');
         expect(worldCall).toBeDefined();
         expect(worldCall[1]).toContain('Royal Court');
     });

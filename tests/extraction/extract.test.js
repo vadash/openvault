@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultSettings, extensionName } from '../../src/constants.js';
+import { defaultSettings } from '../../src/constants.js';
 import { resetDeps } from '../../src/deps.js';
-import { extractMemories, updateCharacterStatesFromEvents, cleanupCharacterStates, filterSimilarEvents } from '../../src/extraction/extract.js';
+import {
+    cleanupCharacterStates,
+    extractMemories,
+    filterSimilarEvents,
+    updateCharacterStatesFromEvents,
+} from '../../src/extraction/extract.js';
 
 /**
  * Standard LLM response data for extraction tests.
@@ -10,16 +15,18 @@ import { extractMemories, updateCharacterStatesFromEvents, cleanupCharacterState
 const EXTRACTION_RESPONSES = {
     events: JSON.stringify({
         reasoning: null,
-        events: [{
-            summary: 'King Aldric entered the Castle and surveyed the hall',
-            importance: 3,
-            characters_involved: ['King Aldric'],
-            witnesses: ['King Aldric'],
-            location: 'Castle',
-            is_secret: false,
-            emotional_impact: {},
-            relationship_impact: {},
-        }],
+        events: [
+            {
+                summary: 'King Aldric entered the Castle and surveyed the hall',
+                importance: 3,
+                characters_involved: ['King Aldric'],
+                witnesses: ['King Aldric'],
+                location: 'Castle',
+                is_secret: false,
+                emotional_impact: {},
+                relationship_impact: {},
+            },
+        ],
     }),
     graph: JSON.stringify({
         entities: [
@@ -35,7 +42,8 @@ const EXTRACTION_RESPONSES = {
  * @param  {...{content: string}} extraResponses - Additional responses after events+graph
  */
 function mockSendRequest(...extraResponses) {
-    const fn = vi.fn()
+    const fn = vi
+        .fn()
         .mockResolvedValueOnce({ content: EXTRACTION_RESPONSES.events })
         .mockResolvedValueOnce({ content: EXTRACTION_RESPONSES.graph });
     for (const resp of extraResponses) {
