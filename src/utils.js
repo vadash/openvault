@@ -473,3 +473,13 @@ export async function deleteCurrentChatEmbeddings() {
 
     return count;
 }
+
+/**
+ * Yield to the browser's main thread.
+ * Use inside heavy for-loops to prevent UI freezing.
+ * setTimeout(0) pushes continuation to end of macrotask queue.
+ * @returns {Promise<void>}
+ */
+export function yieldToMain() {
+    return new Promise((resolve) => setTimeout(resolve, 0));
+}

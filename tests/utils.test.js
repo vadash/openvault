@@ -20,6 +20,7 @@ import {
     sortMemoriesBySequence,
     stripThinkingTags,
     withTimeout,
+    yieldToMain,
 } from '../src/utils.js';
 
 describe('utils', () => {
@@ -627,6 +628,20 @@ describe('utils', () => {
             const input = 'The extracted memories are:\n\n{"selected": [1,2,3], "reasoning": "relevant to query"}';
             const result = safeParseJSON(input);
             expect(result).toEqual({ selected: [1, 2, 3], reasoning: 'relevant to query' });
+        });
+    });
+
+    describe('yieldToMain', () => {
+        it('returns a promise that resolves', async () => {
+            const before = performance.now();
+            await yieldToMain();
+            const after = performance.now();
+            // Should resolve (not hang), elapsed time is >= 0
+            expect(after - before).toBeGreaterThanOrEqual(0);
+        });
+
+        it('is a function', async () => {
+            expect(typeof yieldToMain).toBe('function');
         });
     });
 });
