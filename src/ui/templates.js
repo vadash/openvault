@@ -6,7 +6,7 @@
  */
 
 import { isEmbeddingsEnabled } from '../embeddings.js';
-import { escapeHtml } from '../utils.js';
+import { escapeHtml } from '../utils/dom.js';
 import { formatMemoryDate, formatMemoryImportance, formatWitnesses } from './helpers.js';
 
 // CSS class constants

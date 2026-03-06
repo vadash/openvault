@@ -7,7 +7,8 @@
 import { CHARACTERS_KEY, defaultSettings, extensionName, MEMORIES_KEY } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { getExtractedMessageIds } from '../extraction/scheduler.js';
-import { getOpenVaultData, log } from '../utils.js';
+import { getOpenVaultData } from '../utils/data.js';
+import { log } from '../utils/logging.js';
 import { calculateExtractionStats, getBatchProgressInfo, getStatusText } from './helpers.js';
 
 // Status icon mapping

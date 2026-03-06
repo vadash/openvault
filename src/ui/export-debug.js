@@ -8,7 +8,8 @@ import { CHARACTERS_KEY, extensionName, MEMORIES_KEY } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { isEmbeddingsEnabled } from '../embeddings.js';
 import { getCachedScoringDetails, getLastRetrievalDebug } from '../retrieval/debug-cache.js';
-import { getOpenVaultData, showToast } from '../utils.js';
+import { getOpenVaultData } from '../utils/data.js';
+import { showToast } from '../utils/dom.js';
 
 const _RECENT_CONTEXT_CAP = 2000;
 
