@@ -24,6 +24,19 @@ const BACKOFF_SCHEDULE_SECONDS = [1, 2, 3, 10, 20, 30, 30, 60, 60];
  */
 const MAX_BACKOFF_TOTAL_MS = 15 * 60 * 1000;
 
+/**
+ * Wait based on the configured RPM rate limit.
+ * Reusable between inter-call and inter-batch delays.
+ * @param {Object} settings - Extension settings containing backfillMaxRPM
+ * @param {string} [label='Rate limit'] - Log label
+ */
+async function rpmDelay(settings, label = 'Rate limit') {
+    const rpm = settings.backfillMaxRPM || 30;
+    const delayMs = Math.ceil(60000 / rpm);
+    log(`${label}: waiting ${delayMs}ms (${rpm} RPM)`);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
 import { getDeps } from '../deps.js';
 import { enrichEventsWithEmbeddings } from '../embeddings.js';
 import { buildCommunityGroups, detectCommunities, updateCommunitySummaries } from '../graph/communities.js';
@@ -357,6 +370,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         // Stage 3B: Graph Extraction (LLM Call 2) — skip if no events
         let graphResult = { entities: [], relationships: [] };
         if (events.length > 0) {
+            await rpmDelay(settings, 'Inter-call rate limit');
             const formattedEvents = events.map((e, i) => `${i + 1}. [${e.importance}★] ${e.summary}`);
             const graphPrompt = buildGraphExtractionPrompt({
                 messages: messagesText,
@@ -681,11 +695,7 @@ export async function extractAllMessages(updateEventListenersFn) {
             retryCount = 0;
             batchesProcessed++;
 
-            // Delay between batches based on rate limit setting
-            const rpm = settings.backfillMaxRPM || 30;
-            const delayMs = Math.ceil(60000 / rpm);
-            log(`Rate limiting: waiting ${delayMs}ms (${rpm} RPM)`);
-            await new Promise((resolve) => setTimeout(resolve, delayMs));
+            await rpmDelay(settings, 'Batch rate limit');
         } catch (error) {
             // If chat changed, stop backfill entirely
             if (error.message === 'Chat changed during extraction') {

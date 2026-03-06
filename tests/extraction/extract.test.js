@@ -62,6 +62,7 @@ function getExtractionSettings() {
         embeddingSource: 'ollama',
         ollamaUrl: 'http://test:11434',
         embeddingModel: 'test-model',
+        backfillMaxRPM: 99999, // Fast tests: ~0ms delay
     };
 }
 
@@ -573,5 +574,62 @@ describe('CPU yielding in filterSimilarEvents', () => {
         const result = await filterSimilarEvents(events, existing, 0.92, 0.6);
         // Third event should be deduped (cosine similarity with first > 0.92)
         expect(result.length).toBeLessThanOrEqual(2);
+    });
+});
+
+describe('RPM delay between LLM calls', () => {
+    afterEach(() => {
+        resetDeps();
+        vi.clearAllMocks();
+    });
+
+    it('applies RPM delay between event and graph LLM calls', async () => {
+        const callTimestamps = [];
+        const sendRequest = vi.fn().mockImplementation(async () => {
+            callTimestamps.push(Date.now());
+            if (callTimestamps.length === 1) {
+                return { content: EXTRACTION_RESPONSES.events };
+            }
+            return { content: EXTRACTION_RESPONSES.graph };
+        });
+
+        const mockData = {
+            memories: [],
+            character_states: {},
+            last_processed_message_id: -1,
+            processed_message_ids: [],
+        };
+
+        setupTestContext({
+            context: {
+                chat: [
+                    { mes: 'Hello', is_user: true, name: 'User' },
+                    { mes: 'Welcome to the Castle', is_user: false, name: 'King Aldric' },
+                ],
+                name1: 'User',
+                name2: 'King Aldric',
+                characterId: 'char1',
+                characters: { char1: { description: '' } },
+                chatMetadata: { openvault: mockData },
+                chatId: 'test-chat',
+                powerUserSettings: {},
+            },
+            settings: { ...getExtractionSettings(), backfillMaxRPM: 60 },
+            deps: {
+                connectionManager: getMockConnectionManager(sendRequest),
+                fetch: vi.fn(async () => ({
+                    ok: true,
+                    json: async () => ({ embedding: [0.1, 0.2] }),
+                })),
+                saveChatConditional: vi.fn(async () => true),
+            },
+        });
+
+        await extractMemories([0, 1]);
+
+        expect(sendRequest).toHaveBeenCalledTimes(2);
+        // With 60 RPM, delay is ceil(60000/60) = 1000ms
+        const gap = callTimestamps[1] - callTimestamps[0];
+        expect(gap).toBeGreaterThanOrEqual(900); // Allow small timing variance
     });
 });
