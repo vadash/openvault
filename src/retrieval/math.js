@@ -5,8 +5,8 @@
  * Extracted for testability and reuse in both main thread and worker.
  */
 
-import { ALL_STOPWORDS } from '../utils/stopwords.js';
 import { stemWord } from '../utils/stemmer.js';
+import { ALL_STOPWORDS } from '../utils/stopwords.js';
 
 // BM25 parameters
 const BM25_K1 = 1.2;

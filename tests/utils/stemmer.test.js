@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { stemWord, stemName } from '../../src/utils/stemmer.js';
+import { stemName, stemWord } from '../../src/utils/stemmer.js';
 
 describe('stemWord', () => {
     it('stems English words', () => {

@@ -68,9 +68,9 @@ export function extractQueryContext(messages, activeCharacters = [], graphNodes 
 
         // Stem message words (no stopword filter — entity names could be stopwords)
         const words = (text.toLowerCase().match(/[\p{L}0-9]+/gu) || [])
-            .filter(w => w.length > 2)
+            .filter((w) => w.length > 2)
             .map(stemWord)
-            .filter(w => w.length > 2);
+            .filter((w) => w.length > 2);
 
         const matchedInMsg = new Set();
         for (const word of words) {

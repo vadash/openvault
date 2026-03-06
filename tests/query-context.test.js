@@ -64,11 +64,7 @@ describe('query-context', () => {
             });
 
             it('matches Russian inflectional forms via stemming', () => {
-                const messages = [
-                    { mes: 'Подошла к Елену и сказала' },
-                    { mes: 'Потом ушла.' },
-                    { mes: 'Вернулась.' },
-                ];
+                const messages = [{ mes: 'Подошла к Елену и сказала' }, { mes: 'Потом ушла.' }, { mes: 'Вернулась.' }];
                 const graphNodes = {
                     елена: { name: 'Елена', type: 'PERSON' },
                 };

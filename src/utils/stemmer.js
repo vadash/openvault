@@ -38,5 +38,10 @@ export function stemWord(word) {
 export function stemName(name) {
     if (!name) return new Set();
     const words = name.toLowerCase().match(/[\p{L}0-9]+/gu) || [];
-    return new Set(words.filter(w => w.length > 2).map(stemWord).filter(w => w.length > 2));
+    return new Set(
+        words
+            .filter((w) => w.length > 2)
+            .map(stemWord)
+            .filter((w) => w.length > 2)
+    );
 }
