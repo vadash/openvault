@@ -152,10 +152,10 @@ describe('buildEventExtractionPrompt output conventions', () => {
         context: {},
     };
 
-    it('does not include <think> or <reasoning> tags', () => {
+    it('uses <think> tags instead of <reasoning>', () => {
         const result = buildEventExtractionPrompt(baseArgs);
         const sys = result[0].content;
-        expect(sys).not.toMatch(/<think>/);
+        expect(sys).toContain('<think>');
         expect(sys).not.toMatch(/<reasoning>/);
     });
 
