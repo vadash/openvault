@@ -139,6 +139,28 @@ Runs the Louvain algorithm to detect densely connected entity clusters (e.g., "T
 * Summaries are embedded and queried via pure Vector search.
 * Injected into the prompt as a dynamic lorebook, providing high-level world state.
 
+### 3.4. Testing Architecture
+
+The codebase separates into two testability tiers:
+
+**Tier 1: Pure Data Transformations (unit-tested)**
+Modules with no external I/O. Tests feed data in, assert data out.
+- `src/retrieval/math.js` — scoring curves, BM25, cosine similarity
+- `src/retrieval/formatting.js` — memory → prompt text
+- `src/ui/helpers.js` — UI data preparation
+- `src/extraction/extract.js` (pure functions: `filterSimilarEvents`, `updateCharacterStatesFromEvents`, `cleanupCharacterStates`)
+- `src/graph/` — graph operations, token overlap, community algorithms
+
+**Tier 2: Orchestrators (integration-tested via deps.js boundary)**
+Modules that coordinate I/O through `getDeps()`. Tests provide mock boundaries and assert on final data state.
+- `src/extraction/extract.js` (`extractMemories`) — tested with mock `connectionManager` + `fetch`
+- `src/retrieval/retrieve.js` — tested with mock `connectionManager` + `fetch` + `setExtensionPrompt`
+- `src/reflection/reflect.js` — runs real code in extract tests, hits mock LLM boundary
+
+**Intentionally Untested:**
+- `src/extraction/worker.js` — infinite async loop with interruptible sleep; mock complexity exceeds value
+- `src/main.js` (event wiring) — wiring ST events to handlers; testing implementation details
+
 ---
 
 ## 4. Retrieval & Scoring Mathematics (`src/retrieval/math.js`)
