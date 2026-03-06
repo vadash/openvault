@@ -13,17 +13,16 @@ We use standard jQuery (provided by SillyTavern), but enforce a strict separatio
 ## PATTERNS
 
 ### Slider/Range Input Binding
+Use the `bindSetting` helper for standard int/float/bool settings:
 ```javascript
-$('#openvault_setting_name').on('input', function () {
-    const value = parseInt($(this).val(), 10);
-    saveSetting('settingKey', value);
-    $('#openvault_setting_name_value').text(value);
-});
+bindSetting('setting_name', 'settingKey');           // int
+bindSetting('alpha', 'alpha', 'float');              // float
+bindSetting('enabled', 'enabled', 'bool');           // bool (uses 'change' event)
+bindSetting('budget', 'budget', 'int', (v) => ...)   // with callback
 ```
-- Use `input` event (not `change`) for real-time updates
-- Parse with `parseInt($(this).val(), 10)`
-- Display element has `_value` suffix
-- For token budgets, also call `updateWordsDisplay(value, 'element_id_words')`
+- Display element has `_value` suffix (auto-updated for int/float)
+- For token budgets, use `updateWordsDisplay(value, 'element_id_words')` callback
+- Keep manual handlers for string inputs, complex validation, or async operations
 
 ### List Renderer Pattern
 ```javascript
