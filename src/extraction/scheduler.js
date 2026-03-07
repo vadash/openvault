@@ -6,7 +6,7 @@
  */
 
 import { MEMORIES_KEY, PROCESSED_MESSAGES_KEY } from '../constants.js';
-import { estimateTokens } from '../utils/text.js';
+import { getMessageTokenCount, getTokenSum, snapToTurnBoundary } from '../utils/tokens.js';
 
 /**
  * Get set of message IDs that have been processed (extracted or attempted)
@@ -34,7 +34,7 @@ export function getExtractedMessageIds(data) {
  * Get array of message indices that have not been extracted yet
  * @param {Object[]} chat - Chat messages array
  * @param {Set<number>} extractedIds - Set of already extracted message IDs
- * @param {number} excludeLastN - Number of recent messages to exclude
+ * @param {number} excludeLastN - Number of recent messages to exclude (unused in token-based mode)
  * @returns {number[]} Array of unextracted message indices
  */
 export function getUnextractedMessageIds(chat, extractedIds, excludeLastN = 0) {
@@ -51,73 +51,80 @@ export function getUnextractedMessageIds(chat, extractedIds, excludeLastN = 0) {
  * Check if a complete batch of messages is ready for extraction
  * @param {Object[]} chat - Chat messages array
  * @param {Object} data - OpenVault data object
- * @param {number} batchSize - Number of messages per batch
+ * @param {number} tokenBudget - Token budget for extraction
  * @returns {boolean} True if at least one complete batch is ready
  */
-export function isBatchReady(chat, data, batchSize) {
+export function isBatchReady(chat, data, tokenBudget) {
     const extractedIds = getExtractedMessageIds(data);
     const unextractedIds = getUnextractedMessageIds(chat, extractedIds, 0);
-    return unextractedIds.length >= batchSize;
+    return getTokenSum(chat, unextractedIds, data) >= tokenBudget;
 }
 
 /**
  * Get the next batch of message IDs to extract
  * @param {Object[]} chat - Chat messages array
  * @param {Object} data - OpenVault data object
- * @param {number} batchSize - Number of messages per batch
- * @param {number} bufferSize - Number of recent messages to exclude (default 0)
- * @param {number} maxTokens - Maximum tokens per batch (default undefined = count-only)
+ * @param {number} tokenBudget - Token budget for extraction
  * @returns {number[]|null} Array of message IDs for next batch, or null if no complete batch ready
  */
-export function getNextBatch(chat, data, batchSize, bufferSize = 0, maxTokens) {
+export function getNextBatch(chat, data, tokenBudget) {
     const extractedIds = getExtractedMessageIds(data);
-    const unextractedIds = getUnextractedMessageIds(chat, extractedIds, bufferSize);
+    const unextractedIds = getUnextractedMessageIds(chat, extractedIds, 0);
 
-    if (unextractedIds.length < batchSize) {
+    const totalTokens = getTokenSum(chat, unextractedIds, data);
+    if (totalTokens < tokenBudget) {
         return null;
     }
 
-    // If no token limit, use count-based batching
-    if (!maxTokens) {
-        return unextractedIds.slice(0, batchSize);
-    }
-
-    // Token-aware batching: accumulate messages until token limit
-    const batch = [];
-    let currentTokens = 0;
+    // Accumulate oldest messages until token budget met
+    const accumulated = [];
+    let currentSum = 0;
 
     for (const id of unextractedIds) {
-        if (batch.length >= batchSize) break;
+        accumulated.push(id);
+        currentSum += getMessageTokenCount(chat, id, data);
 
-        const msgTokens = estimateTokens(chat[id]?.mes || '');
-        // Stop if adding this message would exceed token limit
-        // But always include at least one message if available
-        if (currentTokens + msgTokens > maxTokens && batch.length > 0) {
+        if (currentSum >= tokenBudget) {
             break;
         }
-
-        batch.push(id);
-        currentTokens += msgTokens;
     }
 
-    return batch.length > 0 ? batch : null;
+    // Snap to turn boundary
+    let snapped = snapToTurnBoundary(chat, accumulated);
+
+    // If snapping resulted in empty, we need to extend forward through the full turn
+    // then re-snap. This handles the edge case where a single huge user message
+    // exceeds the budget and can't snap back.
+    if (snapped.length === 0 && accumulated.length > 0) {
+        // Extend forward to include the full turn (all messages until next User or end)
+        const lastId = accumulated[accumulated.length - 1];
+        const extended = [...accumulated];
+
+        for (let i = lastId + 1; i < chat.length; i++) {
+            extended.push(i);
+            if (chat[i].is_user) break;
+        }
+
+        snapped = snapToTurnBoundary(chat, extended);
+    }
+
+    return snapped.length > 0 ? snapped : null;
 }
 
 /**
  * Get count of complete batches available for backfill
  * @param {Object[]} chat - Chat messages array
  * @param {Object} data - OpenVault data object
- * @param {number} batchSize - Number of messages per batch
- * @param {number} excludeLastN - Number of recent messages to exclude (default: batchSize)
+ * @param {number} tokenBudget - Token budget for extraction
  * @returns {{completeBatches: number, totalUnextracted: number, extractedCount: number}}
  */
-export function getBackfillStats(chat, data, batchSize, excludeLastN = null) {
+export function getBackfillStats(chat, data, tokenBudget) {
     const extractedIds = getExtractedMessageIds(data);
-    const excludeCount = excludeLastN !== null ? excludeLastN : batchSize;
-    const unextractedIds = getUnextractedMessageIds(chat, extractedIds, excludeCount);
+    const unextractedIds = getUnextractedMessageIds(chat, extractedIds, 0);
+    const totalTokens = getTokenSum(chat, unextractedIds, data);
 
     return {
-        completeBatches: Math.floor(unextractedIds.length / batchSize),
+        completeBatches: totalTokens >= tokenBudget ? Math.floor(totalTokens / tokenBudget) : 0,
         totalUnextracted: unextractedIds.length,
         extractedCount: extractedIds.size,
     };
@@ -127,21 +134,40 @@ export function getBackfillStats(chat, data, batchSize, excludeLastN = null) {
  * Get all message IDs for backfill extraction (complete batches only)
  * @param {Object[]} chat - Chat messages array
  * @param {Object} data - OpenVault data object
- * @param {number} batchSize - Number of messages per batch
+ * @param {number} tokenBudget - Token budget for extraction
  * @returns {{messageIds: number[], batchCount: number}}
  */
-export function getBackfillMessageIds(chat, data, batchSize) {
+export function getBackfillMessageIds(chat, data, tokenBudget) {
     const extractedIds = getExtractedMessageIds(data);
-
-    // Reuse getUnextractedMessageIds to find all unextracted messages (no exclusions)
     const allUnextracted = getUnextractedMessageIds(chat, extractedIds, 0);
+    const totalTokens = getTokenSum(chat, allUnextracted, data);
 
-    // Only return complete batches worth of messages
-    const completeBatches = Math.floor(allUnextracted.length / batchSize);
-    const completeMessageCount = completeBatches * batchSize;
+    if (totalTokens < tokenBudget) {
+        return { messageIds: [], batchCount: 0 };
+    }
 
-    return {
-        messageIds: allUnextracted.slice(0, completeMessageCount),
-        batchCount: completeBatches,
-    };
+    // Accumulate complete batches
+    const messageIds = [];
+    let currentSum = 0;
+    let batchCount = 0;
+
+    for (const id of allUnextracted) {
+        currentSum += getMessageTokenCount(chat, id, data);
+        messageIds.push(id);
+
+        if (currentSum >= tokenBudget) {
+            batchCount++;
+            currentSum = 0;
+        }
+    }
+
+    // Trim incomplete last batch
+    if (currentSum > 0 && currentSum < tokenBudget) {
+        while (messageIds.length > 0 && currentSum > 0) {
+            const removed = messageIds.pop();
+            currentSum -= getMessageTokenCount(chat, removed, data);
+        }
+    }
+
+    return { messageIds, batchCount };
 }

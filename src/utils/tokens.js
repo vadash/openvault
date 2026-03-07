@@ -42,7 +42,8 @@ export function getTokenSum(chat, indices, data) {
 
 /**
  * Snap a message index list to a valid turn boundary.
- * A split is valid when the last message is from Bot and the next message is from User, or at end-of-chat.
+ * A split is valid when the last message is from Bot and the next message is from User,
+ * or at end-of-chat. This prevents orphaning User messages from their Bot responses.
  * Trims backward until a valid boundary is found. Returns [] if none found.
  * @param {Object[]} chat - Full chat array
  * @param {number[]} messageIds - Ordered message indices to snap

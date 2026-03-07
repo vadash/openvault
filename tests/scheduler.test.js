@@ -1,134 +1,235 @@
-/**
- * Tests for src/extraction/scheduler.js
- */
 import { describe, expect, it } from 'vitest';
 import { PROCESSED_MESSAGES_KEY } from '../src/constants.js';
-import { getNextBatch } from '../src/extraction/scheduler.js';
-import { estimateTokens } from '../src/utils/text.js';
+import { getBackfillMessageIds, getBackfillStats, getNextBatch, isBatchReady } from '../src/extraction/scheduler.js';
 
-describe('scheduler token-aware batching', () => {
-    it('limits batch to maxTokens parameter', () => {
-        // Create chat with very long messages
-        const longMessage = 'x'.repeat(2000); // ~570 tokens
-        const chat = [
-            { mes: longMessage, is_user: true }, // ~570 tokens
-            { mes: longMessage, is_user: false }, // ~570 tokens
-            { mes: longMessage, is_user: true }, // ~570 tokens
-            { mes: longMessage, is_user: false }, // ~570 tokens
-            { mes: longMessage, is_user: true }, // ~570 tokens
-            { mes: longMessage, is_user: false }, // ~570 tokens
-            { mes: longMessage, is_user: true }, // ~570 tokens
-            { mes: longMessage, is_user: false }, // ~570 tokens
-            { mes: longMessage, is_user: true }, // ~570 tokens
-            { mes: longMessage, is_user: false }, // ~570 tokens
-            { mes: 'short', is_user: false }, // ~2 tokens
-        ];
+// Helper: build chat with known token sizes.
+// Each 'x'.repeat(N) ≈ N/3.5 tokens with estimateTokens, but with gpt-tokenizer
+// we need actual text. Use repeated words for predictable counts.
+// "word " is 1 token in o200k. We'll use a helper that creates N-token messages.
+function makeMessage(isUser, text) {
+    return { mes: text, is_user: isUser };
+}
 
-        const data = {};
+// o200k tokenizes "hello " as roughly 1 token per word.
+// For predictable tests, use pre-cached data instead.
+function makeChatWithCachedTokens(messages, tokenCounts) {
+    const chat = messages.map(([text, isUser]) => makeMessage(isUser, text));
+    const data = {
+        message_tokens: Object.fromEntries(tokenCounts.map((count, i) => [String(i), count])),
+    };
+    return { chat, data };
+}
 
-        // Request batch with 1200 token limit
-        const batch = getNextBatch(chat, data, 10, 0, 1200);
+describe('isBatchReady (token-based)', () => {
+    it('returns true when unextracted tokens >= budget', () => {
+        const { chat, data } = makeChatWithCachedTokens(
+            [
+                ['u0', true],
+                ['b1', false],
+                ['u2', true],
+                ['b3', false],
+            ],
+            [500, 500, 500, 500] // total: 2000
+        );
 
-        // Should only include first 2 messages (1140 tokens) then stop before 3rd (1710 > 1200)
-        expect(batch).not.toBeNull();
-        expect(batch.length).toBe(2);
-
-        // Verify tokens are within limit
-        const totalTokens = batch.reduce((sum, id) => sum + estimateTokens(chat[id].mes), 0);
-        expect(totalTokens).toBeLessThanOrEqual(1200);
+        expect(isBatchReady(chat, data, 2000)).toBe(true);
+        expect(isBatchReady(chat, data, 1999)).toBe(true);
     });
 
-    it('handles all short messages within token limit', () => {
-        const chat = [
-            { mes: 'hi', is_user: true },
-            { mes: 'hello', is_user: false },
-            { mes: 'hey', is_user: true },
-            { mes: 'hi there', is_user: false },
-            { mes: 'howdy', is_user: true },
-            { mes: 'greetings', is_user: false },
-            { mes: 'salutations', is_user: true },
-            { mes: 'yo', is_user: false },
-            { mes: 'sup', is_user: true },
-            { mes: 'bonjour', is_user: false },
-            { mes: 'hola', is_user: true },
-        ];
+    it('returns false when unextracted tokens < budget', () => {
+        const { chat, data } = makeChatWithCachedTokens(
+            [
+                ['u0', true],
+                ['b1', false],
+            ],
+            [500, 500] // total: 1000
+        );
 
-        const data = {};
-        const batch = getNextBatch(chat, data, 10, 0, 6000);
-
-        // All messages should be included
-        expect(batch).not.toBeNull();
-        expect(batch.length).toBe(10);
+        expect(isBatchReady(chat, data, 1001)).toBe(false);
     });
 
-    it('returns null if no complete batch available', () => {
-        const chat = [
-            { mes: 'message 1', is_user: true },
-            { mes: 'message 2', is_user: false },
-        ];
+    it('excludes already-extracted messages', () => {
+        const { chat, data } = makeChatWithCachedTokens(
+            [
+                ['u0', true],
+                ['b1', false],
+                ['u2', true],
+                ['b3', false],
+            ],
+            [500, 500, 500, 500]
+        );
+        data[PROCESSED_MESSAGES_KEY] = [0, 1]; // 1000 tokens extracted
 
-        const data = {};
-        const batch = getNextBatch(chat, data, 5, 0, 6000);
-
-        // Less than batchSize (5), should return null
-        expect(batch).toBeNull();
+        expect(isBatchReady(chat, data, 1000)).toBe(true); // 1000 unextracted
+        expect(isBatchReady(chat, data, 1001)).toBe(false);
     });
+});
 
-    it('excludes bufferSize messages from batch', () => {
-        const chat = [
-            { mes: 'msg1', is_user: true },
-            { mes: 'msg2', is_user: false },
-            { mes: 'msg3', is_user: true },
-            { mes: 'msg4', is_user: false },
-            { mes: 'msg5', is_user: true },
-        ];
+describe('getNextBatch (token-based)', () => {
+    it('accumulates messages until token budget met, then snaps to turn boundary', () => {
+        // U(0):500 B(1):500 U(2):500 B(3):500 U(4):500 B(5):500
+        const { chat, data } = makeChatWithCachedTokens(
+            [
+                ['u0', true],
+                ['b1', false],
+                ['u2', true],
+                ['b3', false],
+                ['u4', true],
+                ['b5', false],
+            ],
+            [500, 500, 500, 500, 500, 500]
+        );
 
-        const data = {};
-        const batch = getNextBatch(chat, data, 2, 2, 6000); // batchSize=2, bufferSize=2
-
-        // Should exclude last 2 messages (3 and 4), return first 2 (0 and 1)
-        expect(batch).not.toBeNull();
+        // Budget 1000: accumulate [0,1] (1000 tokens) → next is U(2) ✓
+        const batch = getNextBatch(chat, data, 1000);
         expect(batch).toEqual([0, 1]);
     });
 
-    it('respects extracted message tracking', () => {
-        const chat = [
-            { mes: 'msg1', is_user: true },
-            { mes: 'msg2', is_user: false },
-            { mes: 'msg3', is_user: true },
-            { mes: 'msg4', is_user: false },
-        ];
+    it('returns null when total unextracted < budget', () => {
+        const { chat, data } = makeChatWithCachedTokens(
+            [
+                ['u0', true],
+                ['b1', false],
+            ],
+            [400, 400] // total 800
+        );
 
-        const data = {
-            [PROCESSED_MESSAGES_KEY]: [0, 1], // Already extracted
-        };
+        expect(getNextBatch(chat, data, 1000)).toBeNull();
+    });
 
-        const batch = getNextBatch(chat, data, 2, 0, 6000);
+    it('always includes at least 1 message even if it exceeds budget', () => {
+        // Single huge message
+        const { chat, data } = makeChatWithCachedTokens(
+            [
+                ['huge', true],
+                ['reply', false],
+                ['next', true],
+            ],
+            [50000, 100, 100] // total > 1000
+        );
 
-        // Should only return unextracted messages
+        const batch = getNextBatch(chat, data, 1000);
+        // Should include at least message 0, then snap
+        // After 0: next is B(1) ✗ → but we can't snap further back → []
+        // Actually, accumulate: [0] = 50000 ≥ 1000 → snap [0]
+        // After index 0: next is B(1) ✗ → snap back → []
+        // Since batch would be empty, include the full turn: [0, 1]
+        // After index 1: next is U(2) ✓
         expect(batch).not.toBeNull();
+        expect(batch.length).toBeGreaterThan(0);
+    });
+
+    it('skips already-extracted messages', () => {
+        const { chat, data } = makeChatWithCachedTokens(
+            [
+                ['u0', true],
+                ['b1', false],
+                ['u2', true],
+                ['b3', false],
+                ['u4', true],
+                ['b5', false],
+            ],
+            [500, 500, 500, 500, 500, 500]
+        );
+        data[PROCESSED_MESSAGES_KEY] = [0, 1];
+
+        // Budget 1000: accumulate from unextracted [2,3] (1000) → next is U(4) ✓
+        const batch = getNextBatch(chat, data, 1000);
         expect(batch).toEqual([2, 3]);
     });
 
-    it('without maxTokens parameter, uses count-based batching', () => {
-        const chat = [
-            { mes: 'msg1', is_user: true },
-            { mes: 'msg2', is_user: false },
-            { mes: 'msg3', is_user: true },
-            { mes: 'msg4', is_user: false },
-            { mes: 'msg5', is_user: true },
-            { mes: 'msg6', is_user: false },
-            { mes: 'msg7', is_user: true },
-            { mes: 'msg8', is_user: false },
-            { mes: 'msg9', is_user: true },
-            { mes: 'msg10', is_user: false },
-        ];
+    it('snaps back when boundary lands mid-turn', () => {
+        // U(0):100 B(1):100 U(2):100 B(3):100 U(4):100 B(5):100 B(6):100
+        const { chat, data } = makeChatWithCachedTokens(
+            [
+                ['u0', true],
+                ['b1', false],
+                ['u2', true],
+                ['b3', false],
+                ['u4', true],
+                ['b5', false],
+                ['b6', false],
+            ],
+            [100, 100, 100, 100, 100, 100, 100]
+        );
 
-        const data = {};
-        const batch = getNextBatch(chat, data, 3, 0); // No maxTokens
+        // Budget 500: accumulate [0,1,2,3,4] (500 tokens)
+        // After index 4: next is B(5) ✗ → snap back to index 3 (next is U(4) ✓)
+        const batch = getNextBatch(chat, data, 500);
+        expect(batch).toEqual([0, 1, 2, 3]);
+    });
+});
 
-        // Should return exactly batchSize messages
-        expect(batch).not.toBeNull();
-        expect(batch).toEqual([0, 1, 2]);
+describe('getBackfillStats (token-based)', () => {
+    it('counts complete batches by token budget', () => {
+        // 6 messages × 500 tokens = 3000 total
+        const { chat, data } = makeChatWithCachedTokens(
+            [
+                ['u0', true],
+                ['b1', false],
+                ['u2', true],
+                ['b3', false],
+                ['u4', true],
+                ['b5', false],
+            ],
+            [500, 500, 500, 500, 500, 500]
+        );
+
+        const stats = getBackfillStats(chat, data, 1000);
+        expect(stats.totalUnextracted).toBe(6);
+        expect(stats.extractedCount).toBe(0);
+        // At least 1 complete batch of 1000 tokens
+        expect(stats.completeBatches).toBeGreaterThanOrEqual(1);
+    });
+
+    it('excludes already-extracted from count', () => {
+        const { chat, data } = makeChatWithCachedTokens(
+            [
+                ['u0', true],
+                ['b1', false],
+                ['u2', true],
+                ['b3', false],
+            ],
+            [500, 500, 500, 500]
+        );
+        data[PROCESSED_MESSAGES_KEY] = [0, 1];
+
+        const stats = getBackfillStats(chat, data, 1000);
+        expect(stats.extractedCount).toBe(2);
+        expect(stats.totalUnextracted).toBe(2);
+    });
+});
+
+describe('getBackfillMessageIds (token-based)', () => {
+    it('returns complete batches worth of message IDs', () => {
+        const { chat, data } = makeChatWithCachedTokens(
+            [
+                ['u0', true],
+                ['b1', false],
+                ['u2', true],
+                ['b3', false],
+                ['u4', true],
+                ['b5', false],
+            ],
+            [500, 500, 500, 500, 500, 500]
+        );
+
+        const result = getBackfillMessageIds(chat, data, 1000);
+        expect(result.batchCount).toBeGreaterThanOrEqual(1);
+        expect(result.messageIds.length).toBeGreaterThan(0);
+    });
+
+    it('returns empty for insufficient tokens', () => {
+        const { chat, data } = makeChatWithCachedTokens(
+            [
+                ['u0', true],
+                ['b1', false],
+            ],
+            [100, 100] // 200 total
+        );
+
+        const result = getBackfillMessageIds(chat, data, 1000);
+        expect(result.batchCount).toBe(0);
+        expect(result.messageIds).toEqual([]);
     });
 });
