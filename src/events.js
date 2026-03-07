@@ -232,8 +232,8 @@ export function onMessageReceived(messageId) {
     const chat = context.chat || [];
     const message = chat[messageId];
 
-    // Only wake worker on AI messages
-    if (!message || message.is_user || message.is_system) {
+    // Wake worker on any real message (user or bot)
+    if (!message || message.is_system) {
         return;
     }
 
