@@ -39,3 +39,30 @@ export function getTokenSum(chat, indices, data) {
     }
     return total;
 }
+
+/**
+ * Snap a message index list to a valid turn boundary.
+ * A split is valid when the last message is from Bot and the next message is from User, or at end-of-chat.
+ * Trims backward until a valid boundary is found. Returns [] if none found.
+ * @param {Object[]} chat - Full chat array
+ * @param {number[]} messageIds - Ordered message indices to snap
+ * @returns {number[]} Snapped message indices
+ */
+export function snapToTurnBoundary(chat, messageIds) {
+    if (messageIds.length === 0) return [];
+
+    // Walk backward from the end of the list
+    for (let i = messageIds.length - 1; i >= 0; i--) {
+        const lastId = messageIds[i];
+        const lastMsg = chat[lastId];
+        const nextInChat = chat[lastId + 1];
+
+        // Valid: last message is from bot AND (end of chat OR next message is from user)
+        // This ensures we split at B→U boundaries, not mid-turn (U→U or U→B)
+        if (lastMsg && !lastMsg.is_user && (!nextInChat || nextInChat.is_user)) {
+            return messageIds.slice(0, i + 1);
+        }
+    }
+
+    return [];
+}
