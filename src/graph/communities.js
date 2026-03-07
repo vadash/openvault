@@ -12,7 +12,7 @@ import { getDeps } from '../deps.js';
 import { getQueryEmbedding, maybeRoundEmbedding } from '../embeddings.js';
 import { parseCommunitySummaryResponse } from '../extraction/structured.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
-import { buildCommunitySummaryPrompt, resolveExtractionPreamble } from '../prompts.js';
+import { buildCommunitySummaryPrompt, resolveExtractionPreamble, resolveOutputLanguage } from '../prompts.js';
 import { log } from '../utils/logging.js';
 import { yieldToMain } from '../utils/st-helpers.js';
 
@@ -194,6 +194,7 @@ export async function updateCommunitySummaries(
     const deps = getDeps();
     const settings = deps.getExtensionSettings()?.[extensionName] || {};
     const preamble = resolveExtractionPreamble(settings);
+    const outputLanguage = resolveOutputLanguage(settings);
     const updatedCommunities = {};
 
     for (const [communityId, group] of Object.entries(communityGroups)) {
@@ -222,7 +223,7 @@ export async function updateCommunitySummaries(
 
         // Generate new summary
         try {
-            const prompt = buildCommunitySummaryPrompt(group.nodeLines, group.edgeLines, preamble);
+            const prompt = buildCommunitySummaryPrompt(group.nodeLines, group.edgeLines, preamble, outputLanguage);
             const response = await callLLM(prompt, LLM_CONFIGS.community, { structured: true });
             const parsed = parseCommunitySummaryResponse(response);
 

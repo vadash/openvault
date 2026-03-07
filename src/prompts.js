@@ -90,6 +90,16 @@ export function resolveExtractionPreamble(settings) {
 }
 
 /**
+ * Resolve the output language setting.
+ * @param {Object} settings - Extension settings
+ * @returns {'auto'|'en'|'ru'} Validated output language
+ */
+export function resolveOutputLanguage(settings) {
+    const lang = settings?.outputLanguage;
+    return lang === 'en' || lang === 'ru' ? lang : 'auto';
+}
+
+/**
  * Resolve the assistant prefill string based on user settings.
  * @param {Object} settings - Extension settings
  * @returns {string} The prefill string
@@ -140,6 +150,22 @@ function buildLanguageReminder(text) {
     return '';
 }
 
+/**
+ * Build a deterministic output language instruction for forced RU/EN mode.
+ * Returns empty string for 'auto' (caller should use buildLanguageReminder instead).
+ * @param {'auto'|'en'|'ru'} language
+ * @returns {string}
+ */
+function buildOutputLanguageInstruction(language) {
+    if (language === 'ru') {
+        return '\nIMPORTANT — LANGUAGE: Write ALL output string values (summaries, descriptions, emotions, relationship impacts) in Russian. JSON keys stay English. EXCEPTION: Character names MUST stay in their original script exactly as written — do NOT transliterate (e.g., Suzy stays Suzy, NOT Сузи).\n';
+    }
+    if (language === 'en') {
+        return '\nIMPORTANT — LANGUAGE: Write ALL output string values (summaries, descriptions, emotions, relationship impacts) in English. JSON keys stay English. EXCEPTION: Character names MUST stay in their original script exactly as written — do NOT transliterate.\n';
+    }
+    return '';
+}
+
 function formatEstablishedMemories(existingMemories) {
     if (!existingMemories?.length) return '';
     const memorySummaries = sortMemoriesBySequence(existingMemories, true)
@@ -173,7 +199,14 @@ function formatCharacters(characterName, userName, characterDescription, persona
  * Extracts events only, not entities or relationships.
  * @returns {Array<{role: string, content: string}>} Array of message objects
  */
-export function buildEventExtractionPrompt({ messages, names, context = {}, preamble, prefill }) {
+export function buildEventExtractionPrompt({
+    messages,
+    names,
+    context = {},
+    preamble,
+    prefill,
+    outputLanguage = 'auto',
+}) {
     const { char: characterName, user: userName } = names;
     const {
         memories: existingMemories = [],
@@ -276,7 +309,7 @@ Step 5: Output the final JSON object with the "events" key.
 </thinking_process>
 
 <examples>
-${formatExamples(EVENT_EXAMPLES)}
+${formatExamples(EVENT_EXAMPLES, outputLanguage)}
 </examples>`;
 
     const memoriesSection = formatEstablishedMemories(existingMemories);
@@ -284,11 +317,13 @@ ${formatExamples(EVENT_EXAMPLES)}
     const contextParts = [memoriesSection, charactersSection].filter(Boolean).join('\n');
     const contextSection = contextParts ? `<context>\n${contextParts}\n</context>\n` : '';
 
+    const languageInstruction =
+        outputLanguage === 'auto' ? buildLanguageReminder(messages) : buildOutputLanguageInstruction(outputLanguage);
     const userPrompt = `${contextSection}
 <messages>
 ${messages}
 </messages>
-${buildLanguageReminder(messages)}
+${languageInstruction}
 Analyze the messages above. Extract events only.
 Use EXACT character names: ${characterName}, ${userName}. Never transliterate these names into another script.
 Write your analysis inside <think> tags FIRST, then output the JSON object with "events" key. No other text.`;
@@ -301,7 +336,14 @@ Write your analysis inside <think> tags FIRST, then output the JSON object with 
  * Extracts entities and relationships based on extracted events.
  * @returns {Array<{role: string, content: string}>} Array of message objects
  */
-export function buildGraphExtractionPrompt({ messages, names, extractedEvents = [], context = {}, preamble }) {
+export function buildGraphExtractionPrompt({
+    messages,
+    names,
+    extractedEvents = [],
+    context = {},
+    preamble,
+    outputLanguage = 'auto',
+}) {
     const { char: characterName, user: userName } = names;
     const { charDesc: characterDescription = '', personaDesc: personaDescription = '' } = context;
 
@@ -356,7 +398,7 @@ IMPORTANT: Extract entities and relationships even when no events are extracted.
 </entity_rules>
 
 <examples>
-${formatExamples(GRAPH_EXAMPLES)}
+${formatExamples(GRAPH_EXAMPLES, outputLanguage)}
 </examples>`;
 
     const charactersSection = formatCharacters(characterName, userName, characterDescription, personaDescription);
@@ -364,12 +406,14 @@ ${formatExamples(GRAPH_EXAMPLES)}
     const eventsSection =
         extractedEvents.length > 0 ? `<extracted_events>\n${extractedEvents.join('\n')}\n</extracted_events>\n` : '';
 
+    const languageInstruction =
+        outputLanguage === 'auto' ? buildLanguageReminder(messages) : buildOutputLanguageInstruction(outputLanguage);
     const userPrompt = `${contextSection}
 <messages>
 ${messages}
 </messages>
 
-${eventsSection}${buildLanguageReminder(messages)}
+${eventsSection}${languageInstruction}
 Based on the messages${extractedEvents.length > 0 ? ' and extracted events above' : ''}, extract named entities and relationships.
 Use EXACT character names: ${characterName}, ${userName}. Never transliterate these names into another script.
 Respond with a single JSON object containing 'entities' and 'relationships' keys. No other text.`;
@@ -383,7 +427,7 @@ Respond with a single JSON object containing 'entities' and 'relationships' keys
  * @param {Object[]} recentMemories - Recent memories (both events and reflections)
  * @returns {Array<{role: string, content: string}>}
  */
-export function buildSalientQuestionsPrompt(characterName, recentMemories, preamble) {
+export function buildSalientQuestionsPrompt(characterName, recentMemories, preamble, outputLanguage = 'auto') {
     const memoryList = recentMemories.map((m, i) => `${i + 1}. [${m.importance || 3} Star] ${m.summary}`).join('\n');
 
     const systemPrompt = `<role>
@@ -415,15 +459,17 @@ CRITICAL FORMAT RULES:
 </rules>
 
 <examples>
-${formatExamples(QUESTION_EXAMPLES)}
+${formatExamples(QUESTION_EXAMPLES, outputLanguage)}
 </examples>`;
 
+    const languageInstruction =
+        outputLanguage === 'auto' ? buildLanguageReminder(memoryList) : buildOutputLanguageInstruction(outputLanguage);
     const userPrompt = `<character>${characterName}</character>
 
 <recent_memories>
 ${memoryList}
 </recent_memories>
-${buildLanguageReminder(memoryList)}
+${languageInstruction}
 Based on these memories, what are the 3 most important high-level questions about ${characterName}'s current psychological state, relationships, and goals?
 Respond with a single JSON object containing exactly 3 questions. No other text.`;
 
@@ -437,7 +483,13 @@ Respond with a single JSON object containing exactly 3 questions. No other text.
  * @param {Object[]} relevantMemories - Memories relevant to this question
  * @returns {Array<{role: string, content: string}>}
  */
-export function buildInsightExtractionPrompt(characterName, question, relevantMemories, preamble) {
+export function buildInsightExtractionPrompt(
+    characterName,
+    question,
+    relevantMemories,
+    preamble,
+    outputLanguage = 'auto'
+) {
     const memoryList = relevantMemories.map((m) => `${m.id}. ${m.summary}`).join('\n');
 
     const systemPrompt = `<role>
@@ -476,9 +528,11 @@ CRITICAL FORMAT RULES:
 </rules>
 
 <examples>
-${formatExamples(INSIGHT_EXAMPLES)}
+${formatExamples(INSIGHT_EXAMPLES, outputLanguage)}
 </examples>`;
 
+    const languageInstruction =
+        outputLanguage === 'auto' ? buildLanguageReminder(memoryList) : buildOutputLanguageInstruction(outputLanguage);
     const userPrompt = `<character>${characterName}</character>
 
 <question>${question}</question>
@@ -486,7 +540,7 @@ ${formatExamples(INSIGHT_EXAMPLES)}
 <memories>
 ${memoryList}
 </memories>
-${buildLanguageReminder(memoryList)}
+${languageInstruction}
 Based on these memories about ${characterName}, extract 1-3 insights that answer the question above.
 Cite specific memory IDs as evidence for each insight.
 Respond with a single JSON object. No other text.`;
@@ -500,7 +554,7 @@ Respond with a single JSON object. No other text.`;
  * @param {string[]} edgeLines - Formatted edge descriptions
  * @returns {Array<{role: string, content: string}>}
  */
-export function buildCommunitySummaryPrompt(nodeLines, edgeLines, preamble) {
+export function buildCommunitySummaryPrompt(nodeLines, edgeLines, preamble, outputLanguage = 'auto') {
     const systemPrompt = `<role>
 ${COMMUNITIES_ROLE}
 </role>
@@ -534,10 +588,12 @@ CRITICAL FORMAT RULES:
 </rules>
 
 <examples>
-${formatExamples(COMMUNITY_EXAMPLES)}
+${formatExamples(COMMUNITY_EXAMPLES, outputLanguage)}
 </examples>`;
 
     const entityText = nodeLines.join('\n');
+    const languageInstruction =
+        outputLanguage === 'auto' ? buildLanguageReminder(entityText) : buildOutputLanguageInstruction(outputLanguage);
     const userPrompt = `<community_entities>
 ${entityText}
 </community_entities>
@@ -545,7 +601,7 @@ ${entityText}
 <community_relationships>
 ${edgeLines.join('\n')}
 </community_relationships>
-${buildLanguageReminder(entityText)}
+${languageInstruction}
 Write a comprehensive report about this community of entities.
 Respond with a single JSON object containing title, summary, and 1-5 findings. No other text.`;
 

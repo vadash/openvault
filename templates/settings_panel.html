@@ -45,6 +45,15 @@
                         </select>
                         <small class="openvault-hint">Language of the anti-refusal system preamble. English reduces cognitive load for mid-tier models.</small>
 
+                        <!-- Output Language -->
+                        <label for="openvault_output_language">Output Language</label>
+                        <select id="openvault_output_language" class="text_pole">
+                            <option value="auto">Auto-detect (default)</option>
+                            <option value="ru">Russian</option>
+                            <option value="en">English</option>
+                        </select>
+                        <small class="openvault-hint">Language for extracted memories. Auto uses script detection. RU/EN forces language and loads matching examples only.</small>
+
                         <!-- Prefill Preset -->
                         <label for="openvault_extraction_prefill">Assistant Prefill</label>
                         <select id="openvault_extraction_prefill" class="text_pole">

@@ -62,6 +62,7 @@ import {
     buildGraphExtractionPrompt,
     resolveExtractionPreamble,
     resolveExtractionPrefill,
+    resolveOutputLanguage,
 } from '../prompts.js';
 import { accumulateImportance, generateReflections, shouldReflect } from '../reflection/reflect.js';
 import { cosineSimilarity, tokenize } from '../retrieval/math.js';
@@ -511,6 +512,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
 
         const preamble = resolveExtractionPreamble(settings);
         const prefill = resolveExtractionPrefill(settings);
+        const outputLanguage = resolveOutputLanguage(settings);
         const prompt = buildEventExtractionPrompt({
             messages: messagesText,
             names: { char: characterName, user: userName },
@@ -521,6 +523,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             },
             preamble,
             prefill,
+            outputLanguage,
         });
 
         // Stage 3A: Event Extraction (LLM Call 1)
@@ -549,6 +552,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
                     personaDesc: personaDescription,
                 },
                 preamble,
+                outputLanguage,
             });
 
             const graphJson = await callLLM(graphPrompt, LLM_CONFIGS.extraction_graph, { structured: true });

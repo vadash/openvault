@@ -1,11 +1,15 @@
 /**
  * Formats an array of few-shot examples into numbered XML blocks for prompt injection.
+ * When language is 'en' or 'ru', only examples whose label contains that language tag are included.
  *
- * @param {Array<{input: string, thinking?: string, output: string}>} examples
+ * @param {Array<{input: string, thinking?: string, output: string, label?: string}>} examples
+ * @param {'auto'|'en'|'ru'} [language='auto'] - Filter examples by language tag
  * @returns {string} Formatted XML string
  */
-export function formatExamples(examples) {
-    return examples
+export function formatExamples(examples, language = 'auto') {
+    const filtered =
+        language !== 'auto' ? examples.filter((ex) => ex.label?.includes(`(${language.toUpperCase()}/`)) : examples;
+    return filtered
         .map((ex, i) => {
             const parts = [`<example_${i + 1}>`];
             parts.push(`<input>\n${ex.input}\n</input>`);

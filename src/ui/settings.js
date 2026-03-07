@@ -471,6 +471,11 @@ function bindUIElements() {
         saveSetting('preambleLanguage', $(this).val());
     });
 
+    // Output language
+    $('#openvault_output_language').on('change', function () {
+        saveSetting('outputLanguage', $(this).val());
+    });
+
     // Prefill preset
     $('#openvault_extraction_prefill').on('change', function () {
         saveSetting('extractionPrefill', $(this).val());
@@ -622,6 +627,7 @@ export function updateUI() {
 
     // Preamble language and prefill preset
     $('#openvault_preamble_language').val(settings.preambleLanguage || 'cn');
+    $('#openvault_output_language').val(settings.outputLanguage || 'auto');
     $('#openvault_extraction_prefill').val(settings.extractionPrefill || 'think_tag');
 
     // Feature settings

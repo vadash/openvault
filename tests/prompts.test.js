@@ -9,6 +9,7 @@ import {
     PREFILL_PRESETS,
     resolveExtractionPreamble,
     resolveExtractionPrefill,
+    resolveOutputLanguage,
     SYSTEM_PREAMBLE_CN,
     SYSTEM_PREAMBLE_EN,
 } from '../src/prompts.js';
@@ -355,6 +356,10 @@ describe('defaultSettings preamble/prefill keys', () => {
     it('has extractionPrefill defaulting to think_tag', () => {
         expect(defaultSettings.extractionPrefill).toBe('think_tag');
     });
+
+    it('has outputLanguage defaulting to auto', () => {
+        expect(defaultSettings.outputLanguage).toBe('auto');
+    });
 });
 
 describe('buildMessages via buildEventExtractionPrompt', () => {
@@ -482,6 +487,108 @@ describe('resolveExtractionPrefill', () => {
 
     it('falls back to <think> for null settings', () => {
         expect(resolveExtractionPrefill(null)).toBe('<think>\n');
+    });
+});
+
+describe('resolveOutputLanguage', () => {
+    it('returns auto by default', () => {
+        expect(resolveOutputLanguage({})).toBe('auto');
+    });
+
+    it('returns ru when outputLanguage is ru', () => {
+        expect(resolveOutputLanguage({ outputLanguage: 'ru' })).toBe('ru');
+    });
+
+    it('returns en when outputLanguage is en', () => {
+        expect(resolveOutputLanguage({ outputLanguage: 'en' })).toBe('en');
+    });
+
+    it('returns auto for unknown language', () => {
+        expect(resolveOutputLanguage({ outputLanguage: 'fr' })).toBe('auto');
+    });
+
+    it('returns auto for null settings', () => {
+        expect(resolveOutputLanguage(null)).toBe('auto');
+    });
+
+    it('returns auto for undefined outputLanguage', () => {
+        expect(resolveOutputLanguage({ preambleLanguage: 'en' })).toBe('auto');
+    });
+});
+
+describe('output language in builders', () => {
+    it('event prompt uses forced Russian instruction when outputLanguage is ru', () => {
+        const result = buildEventExtractionPrompt({
+            messages: '[Alice]: Hello world',
+            names: { char: 'Alice', user: 'Bob' },
+            outputLanguage: 'ru',
+        });
+        const user = result[1].content;
+        expect(user).toContain('Write ALL output string values');
+        expect(user).toContain('Russian');
+    });
+
+    it('event prompt uses forced English instruction when outputLanguage is en', () => {
+        const result = buildEventExtractionPrompt({
+            messages: '[Алиса]: Привет мир всем здесь кто любит',
+            names: { char: 'Алиса', user: 'Боб' },
+            outputLanguage: 'en',
+        });
+        const user = result[1].content;
+        expect(user).toContain('Write ALL output string values');
+        expect(user).toContain('English');
+        // Should NOT contain the heuristic reminder
+        expect(user).not.toContain('is NOT in English');
+    });
+
+    it('event prompt uses heuristic reminder when outputLanguage is auto with non-Latin text', () => {
+        const russianText = '[Алиса]: Привет мир всем здесь кто любит разговоры';
+        const result = buildEventExtractionPrompt({
+            messages: russianText,
+            names: { char: 'Алиса', user: 'Боб' },
+            outputLanguage: 'auto',
+        });
+        const user = result[1].content;
+        expect(user).toContain('is NOT in English');
+    });
+
+    it('graph prompt passes outputLanguage through', () => {
+        const result = buildGraphExtractionPrompt({
+            messages: '[Alice]: Hello',
+            names: { char: 'Alice', user: 'Bob' },
+            outputLanguage: 'ru',
+        });
+        const user = result[1].content;
+        expect(user).toContain('Russian');
+    });
+
+    it('salient questions prompt passes outputLanguage through', () => {
+        const memories = [{ summary: 'Alice did something', importance: 3 }];
+        const result = buildSalientQuestionsPrompt('Alice', memories, undefined, 'en');
+        const user = result[1].content;
+        expect(user).toContain('English');
+    });
+
+    it('insight extraction prompt passes outputLanguage through', () => {
+        const memories = [{ id: 'ev_1', summary: 'Alice was brave' }];
+        const result = buildInsightExtractionPrompt('Alice', 'How?', memories, undefined, 'ru');
+        const user = result[1].content;
+        expect(user).toContain('Russian');
+    });
+
+    it('community summary prompt passes outputLanguage through', () => {
+        const result = buildCommunitySummaryPrompt(['- Node'], ['- Edge'], undefined, 'en');
+        const user = result[1].content;
+        expect(user).toContain('English');
+    });
+
+    it('all builders default to auto (preserving existing behavior)', () => {
+        const eventResult = buildEventExtractionPrompt({
+            messages: '[Alice]: Hello world',
+            names: { char: 'Alice', user: 'Bob' },
+        });
+        // English text with auto should NOT have forced instruction
+        expect(eventResult[1].content).not.toContain('Write ALL output string values');
     });
 });
 

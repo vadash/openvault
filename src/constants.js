@@ -84,6 +84,7 @@ export const defaultSettings = {
     // Preamble & prefill settings
     preambleLanguage: 'cn',
     extractionPrefill: 'think_tag',
+    outputLanguage: 'auto',
 };
 
 // Embedding prefix defaults per model

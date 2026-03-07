@@ -70,6 +70,7 @@ Worker (`src/extraction/worker.js`) is single-instance, interruptible (checks `w
 **Embeddings**: True LRU cache (max 500). WebGPU attempts first -> falls back to WASM. `device.lost` not monitored (implicitly retries pipeline on next call). Failures degrade gracefully to BM25.
 
 **Multilingual Prompt Architecture**:
+- *Output Language Setting*: User-configurable setting (`auto`/`ru`/`en`) controls language instruction and example filtering. `auto` preserves heuristic behavior (script detection via `buildLanguageReminder`). `ru`/`en` forces deterministic language instruction via `buildOutputLanguageInstruction` and filters few-shot examples to matching language only (halving token cost).
 - *Mirror Language Rule*: All prompts auto-detect input language and mirror it in output string values. JSON keys remain English.
 - *User-Message Reinforcement*: `buildLanguageReminder()` detects non-Latin script in input and injects an explicit "do NOT translate to English" reminder into the user message of all 5 prompts. Fires only for non-English content. Includes explicit exception for character names (must stay in original script).
 - *Character Name Enforcement*: Two layers: (1) Prompt instruction injects canonical names directly (`Use EXACT character names: X, Y`), (2) Post-extraction `detectCharNameSubstitutions()` detects transliterated names by elimination — unknown names that fill the slot of a missing known character get replaced. Applied to events, graph entities, and graph relationships. No transliteration tables — works across any script pair.
