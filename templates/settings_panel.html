@@ -485,9 +485,9 @@
                     </div>
                 </div>
 
-                <!-- Retrieval & Injection (collapsed) -->
+                <!-- Prompt Injection Budgets -->
                 <details class="openvault-details" style="margin-top: 15px;">
-                    <summary><i class="fa-solid fa-magnifying-glass-chart"></i> Retrieval & Injection</summary>
+                    <summary><i class="fa-solid fa-syringe"></i> Prompt Injection Budgets</summary>
                     <div class="openvault-settings-group">
                         <label for="openvault_final_budget">
                             Final Context Budget: <span id="openvault_final_budget_value">12000</span> tokens
@@ -523,9 +523,13 @@
                             </div>
                             <span class="openvault-budget-text" id="openvault_visible_budget_text">0 / 16k</span>
                         </div>
+                    </div>
+                </details>
 
-                        <div style="height: 8px;"></div>
-
+                <!-- Entity Detection Rules -->
+                <details class="openvault-details" style="margin-top: 10px;">
+                    <summary><i class="fa-solid fa-magnifying-glass-chart"></i> Entity Detection Rules</summary>
+                    <div class="openvault-settings-group">
                         <label for="openvault_entity_window">
                             Entity Window: <span id="openvault_entity_window_value">10</span> messages
                             <small class="openvault-default-hint" data-default-key="entityWindowSize"></small>
