@@ -7,10 +7,11 @@ Agentic memory extension for SillyTavern providing POV-aware memory, witness tra
 - **LLM Agnostic**: Optimized for structured output (Zod schemas) using `<think>` tags.
 
 ## CRITICAL RULES (HOW)
-- **ESM & No Bundler**: Runs directly in-browser. NO bare specifiers (`import { z } from 'zod'`). 
+- **ESM & No Bundler**: Runs directly in-browser. NO bare specifiers (`import { z } from 'zod'`).
 - **CDN Imports Only**: Use `https://esm.sh/...`. Never pin versions (`@version`). Do NOT add new dependencies without permission.
 - **Test Aliasing**: If adding a CDN dependency, you MUST `npm install` it and map the URL to `node_modules/` in `vitest.config.js`.
 - **SillyTavern Globals**: NEVER access ST globals (`getContext`, `eventSource`) directly. Always use `getDeps()` from `src/deps.js`.
+- **Settings Access**: NEVER use `settings.xxx ?? <hardcoded>` or `settings.xxx || <hardcoded>`. All defaults live in `defaultSettings` (src/constants.js). `loadSettings()` guarantees every key is populated.
 - **Pre-commit**: Biome lints/formats automatically. DO NOT format manually. `npm run test` uses Vitest + JSDOM.
 
 ## GOTCHAS & DEBUG SAUCE
