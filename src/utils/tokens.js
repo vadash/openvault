@@ -1,6 +1,15 @@
-import { countTokens } from 'https://esm.sh/gpt-tokenizer/encoding/o200k_base';
+import { countTokens as _countTokens } from 'https://esm.sh/gpt-tokenizer/encoding/o200k_base';
 
 const MESSAGE_TOKENS_KEY = 'message_tokens';
+
+/**
+ * Count tokens for any text string using gpt-tokenizer (o200k_base).
+ * @param {string} text - Text to count
+ * @returns {number} Token count
+ */
+export function countTokens(text) {
+    return (text || '').length === 0 ? 0 : _countTokens(text);
+}
 
 /**
  * Get token count for a single message. Uses cache, falls back to computation.
@@ -20,7 +29,7 @@ export function getMessageTokenCount(chat, index, data) {
     }
 
     const text = chat[index]?.mes || '';
-    const count = text.length === 0 ? 0 : countTokens(text);
+    const count = text.length === 0 ? 0 : _countTokens(text);
     data[MESSAGE_TOKENS_KEY][key] = count;
     return count;
 }

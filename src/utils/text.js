@@ -1,14 +1,6 @@
 import { jsonrepair } from 'https://esm.sh/jsonrepair';
 import { getDeps } from '../deps.js';
-
-/**
- * Estimate token count for a text string
- * @param {string} text - Text to estimate
- * @returns {number} Estimated token count
- */
-export function estimateTokens(text) {
-    return Math.ceil((text || '').length / 3.5);
-}
+import { countTokens } from './tokens.js';
 
 /**
  * Slice memories array to fit within a token budget
@@ -24,7 +16,7 @@ export function sliceToTokenBudget(memories, tokenBudget) {
     let totalTokens = 0;
 
     for (const memory of memories) {
-        const memoryTokens = estimateTokens(memory.summary);
+        const memoryTokens = countTokens(memory.summary);
         if (totalTokens + memoryTokens > tokenBudget) {
             break;
         }

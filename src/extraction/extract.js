@@ -67,8 +67,8 @@ import { getCurrentChatId, getOpenVaultData, saveOpenVaultData } from '../utils/
 import { showToast } from '../utils/dom.js';
 import { log } from '../utils/logging.js';
 import { isExtensionEnabled, safeSetExtensionPrompt, yieldToMain } from '../utils/st-helpers.js';
-import { estimateTokens, sliceToTokenBudget, sortMemoriesBySequence } from '../utils/text.js';
-import { getMessageTokenCount } from '../utils/tokens.js';
+import { sliceToTokenBudget, sortMemoriesBySequence } from '../utils/text.js';
+import { countTokens, getMessageTokenCount } from '../utils/tokens.js';
 import { getBackfillMessageIds, getExtractedMessageIds, getNextBatch } from './scheduler.js';
 import { parseEventExtractionResponse, parseGraphExtractionResponse } from './structured.js';
 
@@ -208,7 +208,7 @@ function selectMemoriesForExtraction(data, settings) {
     // Calculate remaining budget after importance selection
     let usedImportanceBudget = 0;
     for (const m of importanceMemories) {
-        usedImportanceBudget += estimateTokens(m.summary);
+        usedImportanceBudget += countTokens(m.summary);
         selectedIds.add(m.id);
     }
 

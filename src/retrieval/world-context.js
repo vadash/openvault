@@ -4,7 +4,7 @@
  * Retrieves relevant community summaries for injection into the prompt.
  */
 
-import { estimateTokens } from '../utils/text.js';
+import { countTokens } from '../utils/tokens.js';
 import { cosineSimilarity } from './math.js';
 
 /**
@@ -40,7 +40,7 @@ export function retrieveWorldContext(communities, queryEmbedding, tokenBudget = 
 
     for (const { id, community } of scored) {
         const entry = formatCommunityEntry(community);
-        const tokens = estimateTokens(entry);
+        const tokens = countTokens(entry);
         if (usedTokens + tokens > tokenBudget) break;
         selected.push({ id, entry });
         usedTokens += tokens;

@@ -3,15 +3,12 @@ import { PROCESSED_MESSAGES_KEY } from '../src/constants.js';
 import { getBackfillMessageIds, getBackfillStats, getNextBatch, isBatchReady } from '../src/extraction/scheduler.js';
 
 // Helper: build chat with known token sizes.
-// Each 'x'.repeat(N) ≈ N/3.5 tokens with estimateTokens, but with gpt-tokenizer
-// we need actual text. Use repeated words for predictable counts.
-// "word " is 1 token in o200k. We'll use a helper that creates N-token messages.
+// For predictable tests, use pre-cached data instead of computing tokens.
 function makeMessage(isUser, text) {
     return { mes: text, is_user: isUser };
 }
 
-// o200k tokenizes "hello " as roughly 1 token per word.
-// For predictable tests, use pre-cached data instead.
+// Helper: create chat with pre-cached token counts for deterministic tests
 function makeChatWithCachedTokens(messages, tokenCounts) {
     const chat = messages.map(([text, isUser]) => makeMessage(isUser, text));
     const data = {

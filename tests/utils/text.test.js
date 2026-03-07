@@ -1,36 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resetDeps } from '../../src/deps.js';
-import {
-    estimateTokens,
-    safeParseJSON,
-    sliceToTokenBudget,
-    sortMemoriesBySequence,
-    stripThinkingTags,
-} from '../../src/utils/text.js';
+import { safeParseJSON, sliceToTokenBudget, sortMemoriesBySequence, stripThinkingTags } from '../../src/utils/text.js';
 
 describe('text', () => {
     afterEach(() => resetDeps());
 
-    describe('estimateTokens', () => {
-        it('estimates ~1 token per 3.5 chars', () => {
-            // 7 chars → ceil(7/3.5) = 2
-            expect(estimateTokens('1234567')).toBe(2);
-        });
-
-        it('returns 0 for empty/null', () => {
-            expect(estimateTokens('')).toBe(0);
-            expect(estimateTokens(null)).toBe(0);
-        });
-    });
-
     describe('sliceToTokenBudget', () => {
         it('slices to budget', () => {
+            // Use the same string repeatedly for consistent token counting
+            // "summary" is 1 token in o200k
+            const text = 'summary';
             const memories = [
-                { summary: 'a'.repeat(35) }, // 10 tokens
-                { summary: 'b'.repeat(35) }, // 10 tokens
-                { summary: 'c'.repeat(35) }, // 10 tokens
+                { summary: text }, // 1 token
+                { summary: text }, // 1 token
+                { summary: text }, // 1 token
             ];
-            const result = sliceToTokenBudget(memories, 20);
+            const result = sliceToTokenBudget(memories, 2);
             expect(result).toHaveLength(2);
         });
 

@@ -4,7 +4,7 @@
  * Formats memories and character presence for injection into prompts.
  */
 
-import { estimateTokens } from '../utils/text.js';
+import { countTokens } from '../utils/tokens.js';
 
 // Narrative engine constants
 export const CURRENT_SCENE_SIZE = 100; // "Current Scene" = last 100 messages
@@ -166,13 +166,13 @@ export function formatContextForInjection(
     const hasRecentContent = buckets.recent.length > 0 || presentLine || emotionsLine;
 
     // Calculate overhead tokens
-    let overheadTokens = estimateTokens(lines.join('\n') + '</scene_memory>');
-    if (buckets.old.length > 0) overheadTokens += estimateTokens(bucketHeaders.old);
-    if (buckets.mid.length > 0) overheadTokens += estimateTokens(bucketHeaders.mid);
+    let overheadTokens = countTokens(lines.join('\n') + '</scene_memory>');
+    if (buckets.old.length > 0) overheadTokens += countTokens(bucketHeaders.old);
+    if (buckets.mid.length > 0) overheadTokens += countTokens(bucketHeaders.mid);
     if (hasRecentContent) {
-        overheadTokens += estimateTokens(bucketHeaders.recent);
-        if (presentLine) overheadTokens += estimateTokens(presentLine);
-        if (emotionsLine) overheadTokens += estimateTokens(emotionsLine);
+        overheadTokens += countTokens(bucketHeaders.recent);
+        if (presentLine) overheadTokens += countTokens(presentLine);
+        if (emotionsLine) overheadTokens += countTokens(emotionsLine);
     }
 
     const availableForMemories = tokenBudget - overheadTokens;
@@ -182,7 +182,7 @@ export function formatContextForInjection(
     const oldBudget = availableForMemories * 0.5;
     let oldTokens = 0;
     for (const memory of buckets.old) {
-        const memoryTokens = estimateTokens(memory.summary || '') + 5;
+        const memoryTokens = countTokens(memory.summary || '') + 5;
         if (oldTokens + memoryTokens <= oldBudget) {
             fittingMemoryIds.add(memory.id);
             oldTokens += memoryTokens;
@@ -195,7 +195,7 @@ export function formatContextForInjection(
     const remainingBudget = availableForMemories - oldTokens;
     let otherTokens = 0;
     for (const memory of [...buckets.mid, ...buckets.recent]) {
-        const memoryTokens = estimateTokens(memory.summary || '') + 5;
+        const memoryTokens = countTokens(memory.summary || '') + 5;
         if (otherTokens + memoryTokens <= remainingBudget) {
             fittingMemoryIds.add(memory.id);
             otherTokens += memoryTokens;
