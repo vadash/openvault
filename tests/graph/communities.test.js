@@ -180,6 +180,7 @@ vi.mock('../../src/prompts.js', () => ({
         { role: 'system', content: 'system' },
         { role: 'user', content: `nodes: ${nodes.join(', ')}; edges: ${edges.join(', ')}` },
     ]),
+    resolveExtractionPreamble: vi.fn(() => 'mock-preamble'),
 }));
 
 // Mock structured

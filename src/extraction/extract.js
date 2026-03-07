@@ -57,7 +57,12 @@ import {
     upsertRelationship,
 } from '../graph/graph.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
-import { buildEventExtractionPrompt, buildGraphExtractionPrompt } from '../prompts.js';
+import {
+    buildEventExtractionPrompt,
+    buildGraphExtractionPrompt,
+    resolveExtractionPreamble,
+    resolveExtractionPrefill,
+} from '../prompts.js';
 import { accumulateImportance, generateReflections, shouldReflect } from '../reflection/reflect.js';
 import { cosineSimilarity, tokenize } from '../retrieval/math.js';
 import { clearAllLocks } from '../state.js';
@@ -369,6 +374,8 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         const characterDescription = context.characters?.[context.characterId]?.description || '';
         const personaDescription = context.powerUserSettings?.persona_description || '';
 
+        const preamble = resolveExtractionPreamble(settings);
+        const prefill = resolveExtractionPrefill(settings);
         const prompt = buildEventExtractionPrompt({
             messages: messagesText,
             names: { char: characterName, user: userName },
@@ -377,6 +384,8 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
                 charDesc: characterDescription,
                 personaDesc: personaDescription,
             },
+            preamble,
+            prefill,
         });
 
         // Stage 3A: Event Extraction (LLM Call 1)
@@ -397,6 +406,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
                     charDesc: characterDescription,
                     personaDesc: personaDescription,
                 },
+                preamble,
             });
 
             const graphJson = await callLLM(graphPrompt, LLM_CONFIGS.extraction_graph, { structured: true });

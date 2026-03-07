@@ -7,11 +7,12 @@
 import Graph from 'https://esm.sh/graphology';
 import louvain from 'https://esm.sh/graphology-communities-louvain';
 import { toUndirected } from 'https://esm.sh/graphology-operators';
+import { extensionName } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { getQueryEmbedding, maybeRoundEmbedding } from '../embeddings.js';
 import { parseCommunitySummaryResponse } from '../extraction/structured.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
-import { buildCommunitySummaryPrompt } from '../prompts.js';
+import { buildCommunitySummaryPrompt, resolveExtractionPreamble } from '../prompts.js';
 import { log } from '../utils/logging.js';
 import { yieldToMain } from '../utils/st-helpers.js';
 
@@ -191,6 +192,8 @@ export async function updateCommunitySummaries(
     isSingleCommunity = false
 ) {
     const deps = getDeps();
+    const settings = deps.getExtensionSettings()?.[extensionName] || {};
+    const preamble = resolveExtractionPreamble(settings);
     const updatedCommunities = {};
 
     for (const [communityId, group] of Object.entries(communityGroups)) {
@@ -219,7 +222,7 @@ export async function updateCommunitySummaries(
 
         // Generate new summary
         try {
-            const prompt = buildCommunitySummaryPrompt(group.nodeLines, group.edgeLines);
+            const prompt = buildCommunitySummaryPrompt(group.nodeLines, group.edgeLines, preamble);
             const response = await callLLM(prompt, LLM_CONFIGS.community, { structured: true });
             const parsed = parseCommunitySummaryResponse(response);
 

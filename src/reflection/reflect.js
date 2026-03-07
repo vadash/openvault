@@ -19,7 +19,7 @@ import { enrichEventsWithEmbeddings, getQueryEmbedding, isEmbeddingsEnabled } fr
 import { parseInsightExtractionResponse, parseSalientQuestionsResponse } from '../extraction/structured.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
 import { filterMemoriesByPOV } from '../pov.js';
-import { buildInsightExtractionPrompt, buildSalientQuestionsPrompt } from '../prompts.js';
+import { buildInsightExtractionPrompt, buildSalientQuestionsPrompt, resolveExtractionPreamble } from '../prompts.js';
 import { cosineSimilarity, tokenize } from '../retrieval/math.js';
 import { generateId } from '../utils/data.js';
 import { log } from '../utils/logging.js';
@@ -189,6 +189,7 @@ export function shouldSkipReflectionGeneration(recentMemories, existingReflectio
 export async function generateReflections(characterName, allMemories, characterStates) {
     const deps = getDeps();
     const settings = deps.getExtensionSettings()?.[extensionName] || {};
+    const preamble = resolveExtractionPreamble(settings);
     const maxReflections = settings.maxReflectionsPerCharacter;
 
     // Archive old reflections if cap is reached
@@ -233,7 +234,7 @@ export async function generateReflections(characterName, allMemories, characterS
     }
 
     // Step 1: Generate salient questions
-    const questionsPrompt = buildSalientQuestionsPrompt(characterName, recentMemories);
+    const questionsPrompt = buildSalientQuestionsPrompt(characterName, recentMemories, preamble);
     const questionsResponse = await callLLM(questionsPrompt, LLM_CONFIGS.reflection_questions, { structured: true });
     const { questions } = parseSalientQuestionsResponse(questionsResponse);
 
@@ -257,7 +258,7 @@ export async function generateReflections(characterName, allMemories, characterS
             relevantMemories = recentMemories.slice(0, 20);
         }
 
-        const insightPrompt = buildInsightExtractionPrompt(characterName, question, relevantMemories);
+        const insightPrompt = buildInsightExtractionPrompt(characterName, question, relevantMemories, preamble);
         const insightResponse = await callLLM(insightPrompt, LLM_CONFIGS.reflection_insights, { structured: true });
         const parsed = parseInsightExtractionResponse(insightResponse);
         // Cap insights per question
