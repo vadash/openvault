@@ -63,7 +63,7 @@ export const defaultSettings = {
     reflectionDedupThreshold: 0.9,
     // World context settings
     worldContextBudget: 2000,
-    communityDetectionInterval: 50,
+    communityDetectionInterval: 100,
     // Entity settings
     entityDescriptionCap: 3,
     edgeDescriptionCap: 5,
