@@ -185,6 +185,45 @@ describe('parseEventExtractionResponse', () => {
         const result = parseEventExtractionResponse(json);
         expect(result.events).toHaveLength(1);
     });
+
+    it('accepts event summary with 20-29 characters (concise non-English)', () => {
+        const json = JSON.stringify({
+            events: [
+                {
+                    summary: 'Саша дала Вове пощечину', // 23 chars — valid concise Russian event
+                    importance: 3,
+                    characters_involved: ['Саша', 'Вова'],
+                    witnesses: [],
+                    location: null,
+                    is_secret: false,
+                    emotional_impact: {},
+                    relationship_impact: {},
+                },
+            ],
+        });
+        const result = parseEventExtractionResponse(json);
+        expect(result.events).toHaveLength(1);
+        expect(result.events[0].summary).toBe('Саша дала Вове пощечину');
+    });
+
+    it('rejects event summary under 20 characters', () => {
+        const json = JSON.stringify({
+            events: [
+                {
+                    summary: 'Too short event', // 15 chars — should fail
+                    importance: 3,
+                    characters_involved: [],
+                    witnesses: [],
+                    location: null,
+                    is_secret: false,
+                    emotional_impact: {},
+                    relationship_impact: {},
+                },
+            ],
+        });
+        const result = parseEventExtractionResponse(json);
+        expect(result.events).toHaveLength(0); // per-event salvage discards invalid
+    });
 });
 
 describe('parseGraphExtractionResponse', () => {

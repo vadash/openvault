@@ -13,7 +13,7 @@ export const RelationshipImpactSchema = z.record(z.string(), z.string());
  * Schema for a single memory event
  */
 export const EventSchema = z.object({
-    summary: z.string().min(30, 'Summary must be a complete descriptive sentence (min 30 characters)'),
+    summary: z.string().min(20, 'Summary must be a complete descriptive sentence (min 20 characters)'),
     importance: z.number().int().min(1).max(5).default(3),
     characters_involved: z.array(z.string()).default([]),
     witnesses: z.array(z.string()).default([]),
@@ -191,9 +191,8 @@ export function parseEventExtractionResponse(content) {
     }
 
     if (validEvents.length === 0) {
-        // Re-run full schema parse to get a descriptive Zod error
-        const fullResult = EventExtractionSchema.safeParse(parsed);
-        throw new Error(`Schema validation failed: ${fullResult.error?.message || 'all events invalid'}`);
+        // All events were invalid - return empty array (salvage behavior)
+        return { events: [] };
     }
 
     return { events: validEvents };
