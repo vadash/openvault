@@ -25,11 +25,13 @@ export const EventSchema = z.object({
 
 /**
  * Schema for an entity (person, place, organization, object, or concept)
+ * Uses .catch() fallbacks to salvage partial LLM output —
+ * invalid entries (name = "Unknown") are dropped downstream.
  */
 export const EntitySchema = z.object({
-    name: z.string().min(1, 'Entity name is required').describe('Entity name, capitalized'),
-    type: z.enum(['PERSON', 'PLACE', 'ORGANIZATION', 'OBJECT', 'CONCEPT']),
-    description: z.string().min(1).describe('Comprehensive description of the entity'),
+    name: z.string().min(1).catch('Unknown').describe('Entity name, capitalized'),
+    type: z.enum(['PERSON', 'PLACE', 'ORGANIZATION', 'OBJECT', 'CONCEPT']).catch('OBJECT'),
+    description: z.string().catch('No description available').describe('Comprehensive description of the entity'),
 });
 
 /**

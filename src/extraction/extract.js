@@ -485,6 +485,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         const entityCap = settings.entityDescriptionCap;
         if (validated.entities) {
             for (const entity of validated.entities) {
+                if (entity.name === 'Unknown') continue;
                 await mergeOrInsertEntity(
                     data.graph,
                     entity.name,
