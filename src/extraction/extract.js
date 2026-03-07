@@ -591,7 +591,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
 
 /**
  * Extract memories from all unextracted messages in current chat
- * Processes in batches determined by messagesPerExtraction setting
+ * Processes in batches determined by extractionTokenBudget setting
  * @param {function} updateEventListenersFn - Function to update event listeners after backfill
  */
 export async function extractAllMessages(updateEventListenersFn) {

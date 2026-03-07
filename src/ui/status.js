@@ -6,10 +6,11 @@
 
 import { CHARACTERS_KEY, defaultSettings, extensionName, MEMORIES_KEY } from '../constants.js';
 import { getDeps } from '../deps.js';
-import { getExtractedMessageIds } from '../extraction/scheduler.js';
+import { getExtractedMessageIds, getUnextractedMessageIds } from '../extraction/scheduler.js';
 import { getOpenVaultData } from '../utils/data.js';
 import { log } from '../utils/logging.js';
-import { calculateExtractionStats, getBatchProgressInfo, getStatusText } from './helpers.js';
+import { getTokenSum } from '../utils/tokens.js';
+import { getStatusText } from './helpers.js';
 
 // Status icon mapping
 const STATUS_ICONS = {
@@ -122,21 +123,28 @@ export function refreshStats() {
     $('#openvault_stat_entities').text(entityCount);
     $('#openvault_stat_communities').text(communityCount);
 
-    // Calculate batch progress
+    // Calculate batch progress (token-based)
     const settings = getDeps().getExtensionSettings()[extensionName];
-    const messageCount = settings?.messagesPerExtraction || defaultSettings.messagesPerExtraction;
-    const bufferSize = settings?.extractionBuffer ?? defaultSettings.extractionBuffer;
+    const tokenBudget = settings?.extractionTokenBudget || defaultSettings.extractionTokenBudget;
 
     const context = getDeps().getContext();
     const chat = context.chat || [];
-    const extractedMessageIds = getExtractedMessageIds(data);
+    const extractedIds = getExtractedMessageIds(data);
+    const unextractedIds = getUnextractedMessageIds(chat, extractedIds, 0);
+    const unextractedTokens = getTokenSum(chat, unextractedIds, data);
 
-    const stats = calculateExtractionStats(chat, extractedMessageIds, messageCount, bufferSize);
-    const progressInfo = getBatchProgressInfo(stats);
+    // Calculate progress percentage
+    const percentage = Math.min((unextractedTokens / tokenBudget) * 100, 100);
+    const tokensInBudget = unextractedTokens % tokenBudget;
+    const _tokensNeeded = tokensInBudget === 0 && unextractedTokens > 0 ? 0 : tokenBudget - tokensInBudget;
 
     // Update batch progress bar
-    $('#openvault_batch_progress_fill').css('width', `${progressInfo.percentage}%`);
-    $('#openvault_batch_progress_label').text(progressInfo.label);
+    $('#openvault_batch_progress_fill').css('width', `${percentage}%`);
+    const progressLabel =
+        unextractedTokens === 0
+            ? 'Up to date'
+            : `${Math.round(unextractedTokens / 1000)}k / ${Math.round(tokenBudget / 1000)}k tokens`;
+    $('#openvault_batch_progress_label').text(progressLabel);
 
     log(`Stats: ${eventCount} memories, ${embeddingCount} embeddings, ${charCount} characters`);
 }
