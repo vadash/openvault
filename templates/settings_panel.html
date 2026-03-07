@@ -26,93 +26,6 @@
                  TAB 1: DASHBOARD & CONNECTIONS
                  ================================================================ -->
             <div class="openvault-tab-content active" data-tab="dashboard-connections">
-                <!-- Status Card -->
-                <div class="openvault-card openvault-status-card">
-                    <div class="openvault-status-indicator ready" id="openvault_status_indicator">
-                        <i class="fa-solid fa-check"></i>
-                    </div>
-                    <div class="openvault-status-info">
-                        <div class="openvault-status-text" id="openvault_status_text">Ready</div>
-                        <div class="openvault-status-subtext" id="openvault_status_subtext">OpenVault is idle</div>
-                        <div id="openvault_dashboard_embedding_status" class="openvault-embedding-status loading">
-                            <i class="fa-solid fa-circle-notch fa-spin"></i>
-                            <span>Embeddings not loaded</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Stats Grid -->
-                <div class="openvault-stats-grid">
-                    <div class="openvault-stat-card">
-                        <div class="stat-icon"><i class="fa-solid fa-database"></i></div>
-                        <div class="stat-value" id="openvault_stat_events">0</div>
-                        <div class="stat-label">Memories</div>
-                    </div>
-                    <div class="openvault-stat-card">
-                        <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
-                        <div class="stat-value" id="openvault_stat_characters">0</div>
-                        <div class="stat-label">Characters</div>
-                    </div>
-                    <div class="openvault-stat-card">
-                        <div class="stat-icon"><i class="fa-solid fa-vector-square"></i></div>
-                        <div class="stat-value" id="openvault_stat_embeddings">0</div>
-                        <div class="stat-label">Embeddings</div>
-                    </div>
-                    <div class="openvault-stat-card">
-                        <div class="stat-icon"><i class="fa-solid fa-lightbulb"></i></div>
-                        <div class="stat-value" id="openvault_stat_reflections">0</div>
-                        <div class="stat-label">Reflections</div>
-                    </div>
-                    <div class="openvault-stat-card">
-                        <div class="stat-icon"><i class="fa-solid fa-diagram-project"></i></div>
-                        <div class="stat-value" id="openvault_stat_entities">0</div>
-                        <div class="stat-label">Entities</div>
-                    </div>
-                    <div class="openvault-stat-card">
-                        <div class="stat-icon"><i class="fa-solid fa-circle-nodes"></i></div>
-                        <div class="stat-value" id="openvault_stat_communities">0</div>
-                        <div class="stat-label">Communities</div>
-                    </div>
-                </div>
-
-                <!-- Batch Progress -->
-                <div class="openvault-card">
-                    <div class="openvault-card-header">
-                        <span class="openvault-card-title"><i class="fa-solid fa-bars-progress"></i> Extraction Progress</span>
-                    </div>
-                    <div class="openvault-batch-progress">
-                        <div class="openvault-batch-progress-bar">
-                            <div class="openvault-batch-progress-fill" id="openvault_batch_progress_fill"></div>
-                        </div>
-                        <span class="openvault-batch-progress-label" id="openvault_batch_progress_label">No chat</span>
-                    </div>
-                    <div class="openvault-button-row">
-                        <button id="openvault_extract_all_btn" class="menu_button">
-                            <i class="fa-solid fa-layer-group"></i> Backfill History
-                        </button>
-                        <button id="openvault_backfill_embeddings_btn" class="menu_button">
-                            <i class="fa-solid fa-vector-square"></i> Generate Embeddings
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Quick Toggles -->
-                <div class="openvault-card">
-                    <div class="openvault-card-header">
-                        <span class="openvault-card-title"><i class="fa-solid fa-toggle-on"></i> Quick Toggles</span>
-                    </div>
-                    <div class="openvault-quick-toggles">
-                        <label class="openvault-quick-toggle">
-                            <input type="checkbox" id="openvault_enabled" checked />
-                            <span>Enable OpenVault</span>
-                        </label>
-                        <label class="openvault-quick-toggle">
-                            <input type="checkbox" id="openvault_auto_hide" checked />
-                            <span>Auto-hide Messages</span>
-                        </label>
-                    </div>
-                </div>
-
                 <!-- Connection Settings (collapsed) -->
                 <details class="openvault-details">
                     <summary><i class="fa-solid fa-plug"></i> Connection Settings</summary>
@@ -213,74 +126,101 @@
                         </div>
                     </div>
                 </details>
+
+                <!-- Status Card -->
+                <div class="openvault-card openvault-status-card">
+                    <div class="openvault-status-indicator ready" id="openvault_status_indicator">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <div class="openvault-status-info">
+                        <div class="openvault-status-text" id="openvault_status_text">Ready</div>
+                        <div class="openvault-status-subtext" id="openvault_status_subtext">OpenVault is idle</div>
+                        <div id="openvault_dashboard_embedding_status" class="openvault-embedding-status loading">
+                            <i class="fa-solid fa-circle-notch fa-spin"></i>
+                            <span>Embeddings not loaded</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="openvault-stats-grid">
+                    <div class="openvault-stat-card">
+                        <div class="stat-icon"><i class="fa-solid fa-database"></i></div>
+                        <div class="stat-value" id="openvault_stat_events">0</div>
+                        <div class="stat-label">Memories</div>
+                    </div>
+                    <div class="openvault-stat-card">
+                        <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
+                        <div class="stat-value" id="openvault_stat_characters">0</div>
+                        <div class="stat-label">Characters</div>
+                    </div>
+                    <div class="openvault-stat-card">
+                        <div class="stat-icon"><i class="fa-solid fa-vector-square"></i></div>
+                        <div class="stat-value" id="openvault_stat_embeddings">0</div>
+                        <div class="stat-label">Embeddings</div>
+                    </div>
+                    <div class="openvault-stat-card">
+                        <div class="stat-icon"><i class="fa-solid fa-lightbulb"></i></div>
+                        <div class="stat-value" id="openvault_stat_reflections">0</div>
+                        <div class="stat-label">Reflections</div>
+                    </div>
+                    <div class="openvault-stat-card">
+                        <div class="stat-icon"><i class="fa-solid fa-diagram-project"></i></div>
+                        <div class="stat-value" id="openvault_stat_entities">0</div>
+                        <div class="stat-label">Entities</div>
+                    </div>
+                    <div class="openvault-stat-card">
+                        <div class="stat-icon"><i class="fa-solid fa-circle-nodes"></i></div>
+                        <div class="stat-value" id="openvault_stat_communities">0</div>
+                        <div class="stat-label">Communities</div>
+                    </div>
+                </div>
+
+                <!-- Batch Progress -->
+                <div class="openvault-card">
+                    <div class="openvault-card-header">
+                        <span class="openvault-card-title"><i class="fa-solid fa-bars-progress"></i> Extraction Progress</span>
+                    </div>
+                    <div class="openvault-batch-progress">
+                        <div class="openvault-batch-progress-bar">
+                            <div class="openvault-batch-progress-fill" id="openvault_batch_progress_fill"></div>
+                        </div>
+                        <span class="openvault-batch-progress-label" id="openvault_batch_progress_label">No chat</span>
+                    </div>
+                    <div class="openvault-button-row">
+                        <button id="openvault_extract_all_btn" class="menu_button">
+                            <i class="fa-solid fa-layer-group"></i> Backfill History
+                        </button>
+                        <button id="openvault_backfill_embeddings_btn" class="menu_button">
+                            <i class="fa-solid fa-vector-square"></i> Generate Embeddings
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quick Toggles -->
+                <div class="openvault-card">
+                    <div class="openvault-card-header">
+                        <span class="openvault-card-title"><i class="fa-solid fa-toggle-on"></i> Quick Toggles</span>
+                    </div>
+                    <div class="openvault-quick-toggles">
+                        <label class="openvault-quick-toggle">
+                            <input type="checkbox" id="openvault_enabled" checked />
+                            <span>Enable OpenVault</span>
+                        </label>
+                        <label class="openvault-quick-toggle">
+                            <input type="checkbox" id="openvault_auto_hide" checked />
+                            <span>Auto-hide Messages</span>
+                        </label>
+                    </div>
+                </div>
             </div>
 
             <!-- ================================================================
                  TAB 2: MEMORY BANK
                  ================================================================ -->
             <div class="openvault-tab-content" data-tab="memory-bank">
-                <!-- Search -->
-                <div class="openvault-search-container">
-                    <i class="fa-solid fa-search"></i>
-                    <input type="text" id="openvault_memory_search" class="openvault-search-input" placeholder="Search memories..." />
-                </div>
-
-                <!-- Filters -->
-                <div class="openvault-filters">
-                    <select id="openvault_filter_type" class="text_pole">
-                        <option value="">All Memories</option>
-                        <option value="event">Events</option>
-                        <option value="reflection">Reflections</option>
-                    </select>
-                    <select id="openvault_filter_character" class="text_pole">
-                        <option value="">All Characters</option>
-                    </select>
-                </div>
-
-                <!-- Memory List -->
-                <div id="openvault_memory_list" class="openvault-memory-list">
-                    <p class="openvault-placeholder">No memories yet</p>
-                </div>
-
-                <!-- Pagination -->
-                <div class="openvault-pagination">
-                    <button id="openvault_prev_page" class="menu_button" disabled>
-                        <i class="fa-solid fa-chevron-left"></i>
-                    </button>
-                    <span id="openvault_page_info">Page 1</span>
-                    <button id="openvault_next_page" class="menu_button" disabled>
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </button>
-                </div>
-
-                <!-- Character States (collapsed) -->
-                <div class="inline-drawer" style="margin-top: 15px;">
-                    <div class="inline-drawer-toggle inline-drawer-header">
-                        <span>Character States</span>
-                        <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
-                    </div>
-                    <div class="inline-drawer-content">
-                        <div id="openvault_character_states" class="openvault-character-list">
-                            <p class="openvault-placeholder">No character data yet</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Reflection Progress (collapsed) -->
-                <div class="inline-drawer" style="margin-top: 15px;">
-                    <div class="inline-drawer-toggle inline-drawer-header">
-                        <span>Reflection Progress</span>
-                        <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
-                    </div>
-                    <div class="inline-drawer-content">
-                        <div id="openvault_reflection_progress" class="openvault-reflection-progress">
-                            <p class="openvault-placeholder">No reflection data yet</p>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Background LLM Payload -->
-                <details class="openvault-details" style="margin-top: 15px;">
+                <details class="openvault-details">
                     <summary><i class="fa-solid fa-microchip"></i> Background LLM Payload</summary>
                     <div class="openvault-settings-group">
                         <label for="openvault_extraction_token_budget">
@@ -438,55 +378,74 @@
                         <input type="number" id="openvault_backfill_rpm" class="text_pole" min="1" max="600" />
                     </div>
                 </details>
+
+                <!-- Character States (collapsed) -->
+                <div class="inline-drawer" style="margin-top: 15px;">
+                    <div class="inline-drawer-toggle inline-drawer-header">
+                        <span>Character States</span>
+                        <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+                    </div>
+                    <div class="inline-drawer-content">
+                        <div id="openvault_character_states" class="openvault-character-list">
+                            <p class="openvault-placeholder">No character data yet</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reflection Progress (collapsed) -->
+                <div class="inline-drawer" style="margin-top: 15px;">
+                    <div class="inline-drawer-toggle inline-drawer-header">
+                        <span>Reflection Progress</span>
+                        <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+                    </div>
+                    <div class="inline-drawer-content">
+                        <div id="openvault_reflection_progress" class="openvault-reflection-progress">
+                            <p class="openvault-placeholder">No reflection data yet</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search -->
+                <div class="openvault-search-container">
+                    <i class="fa-solid fa-search"></i>
+                    <input type="text" id="openvault_memory_search" class="openvault-search-input" placeholder="Search memories..." />
+                </div>
+
+                <!-- Filters -->
+                <div class="openvault-filters">
+                    <select id="openvault_filter_type" class="text_pole">
+                        <option value="">All Memories</option>
+                        <option value="event">Events</option>
+                        <option value="reflection">Reflections</option>
+                    </select>
+                    <select id="openvault_filter_character" class="text_pole">
+                        <option value="">All Characters</option>
+                    </select>
+                </div>
+
+                <!-- Memory List -->
+                <div id="openvault_memory_list" class="openvault-memory-list">
+                    <p class="openvault-placeholder">No memories yet</p>
+                </div>
+
+                <!-- Pagination -->
+                <div class="openvault-pagination">
+                    <button id="openvault_prev_page" class="menu_button" disabled>
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <span id="openvault_page_info">Page 1</span>
+                    <button id="openvault_next_page" class="menu_button" disabled>
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- ================================================================
                  TAB 3: WORLD
                  ================================================================ -->
             <div class="openvault-tab-content" data-tab="world">
-                <!-- Community Summaries -->
-                <div class="openvault-card">
-                    <div class="openvault-card-header">
-                        <span class="openvault-card-title">
-                            <i class="fa-solid fa-circle-nodes"></i> Communities
-                        </span>
-                        <span class="openvault-card-badge" id="openvault_community_count">0</span>
-                    </div>
-                    <div id="openvault_community_list" class="openvault-community-list">
-                        <p class="openvault-placeholder">No communities detected yet</p>
-                    </div>
-                </div>
-
-                <!-- Entity Browser -->
-                <div class="openvault-card" style="margin-top: 15px;">
-                    <div class="openvault-card-header">
-                        <span class="openvault-card-title">
-                            <i class="fa-solid fa-diagram-project"></i> Entities
-                        </span>
-                        <span class="openvault-card-badge" id="openvault_entity_count">0</span>
-                    </div>
-                    <div class="openvault-filters">
-                        <div class="openvault-search-container" style="flex: 1;">
-                            <i class="fa-solid fa-search"></i>
-                            <input type="text" id="openvault_entity_search" class="openvault-search-input"
-                                   placeholder="Search entities..." />
-                        </div>
-                        <select id="openvault_entity_type_filter" class="text_pole">
-                            <option value="">All Types</option>
-                            <option value="PERSON">Person</option>
-                            <option value="PLACE">Place</option>
-                            <option value="ORGANIZATION">Organization</option>
-                            <option value="OBJECT">Object</option>
-                            <option value="CONCEPT">Concept</option>
-                        </select>
-                    </div>
-                    <div id="openvault_entity_list" class="openvault-entity-list">
-                        <p class="openvault-placeholder">No entities extracted yet</p>
-                    </div>
-                </div>
-
                 <!-- Prompt Injection Budgets -->
-                <details class="openvault-details" style="margin-top: 15px;">
+                <details class="openvault-details">
                     <summary><i class="fa-solid fa-syringe"></i> Prompt Injection Budgets</summary>
                     <div class="openvault-settings-group">
                         <label for="openvault_final_budget">
@@ -565,47 +524,53 @@
                         <small class="openvault-hint">BM25 weight multiplier for entities</small>
                     </div>
                 </details>
+
+                <!-- Community Summaries -->
+                <div class="openvault-card">
+                    <div class="openvault-card-header">
+                        <span class="openvault-card-title">
+                            <i class="fa-solid fa-circle-nodes"></i> Communities
+                        </span>
+                        <span class="openvault-card-badge" id="openvault_community_count">0</span>
+                    </div>
+                    <div id="openvault_community_list" class="openvault-community-list">
+                        <p class="openvault-placeholder">No communities detected yet</p>
+                    </div>
+                </div>
+
+                <!-- Entity Browser -->
+                <div class="openvault-card" style="margin-top: 15px;">
+                    <div class="openvault-card-header">
+                        <span class="openvault-card-title">
+                            <i class="fa-solid fa-diagram-project"></i> Entities
+                        </span>
+                        <span class="openvault-card-badge" id="openvault_entity_count">0</span>
+                    </div>
+                    <div class="openvault-filters">
+                        <div class="openvault-search-container" style="flex: 1;">
+                            <i class="fa-solid fa-search"></i>
+                            <input type="text" id="openvault_entity_search" class="openvault-search-input"
+                                   placeholder="Search entities..." />
+                        </div>
+                        <select id="openvault_entity_type_filter" class="text_pole">
+                            <option value="">All Types</option>
+                            <option value="PERSON">Person</option>
+                            <option value="PLACE">Place</option>
+                            <option value="ORGANIZATION">Organization</option>
+                            <option value="OBJECT">Object</option>
+                            <option value="CONCEPT">Concept</option>
+                        </select>
+                    </div>
+                    <div id="openvault_entity_list" class="openvault-entity-list">
+                        <p class="openvault-placeholder">No entities extracted yet</p>
+                    </div>
+                </div>
             </div>
 
             <!-- ================================================================
                  TAB 4: ADVANCED
                  ================================================================ -->
             <div class="openvault-tab-content" data-tab="advanced">
-                <!-- System -->
-                <div class="openvault-settings-group">
-                    <div class="openvault-settings-group-header">
-                        <i class="fa-solid fa-gear"></i>
-                        <span>System</span>
-                    </div>
-
-                    <!-- Export Debug -->
-                    <button id="openvault_export_debug_btn" class="menu_button wide">
-                        <i class="fa-solid fa-copy"></i> Export Debug to Clipboard
-                    </button>
-                    <small class="openvault-hint">Copies full system state + last retrieval debug data as JSON</small>
-
-                    <!-- Danger Zone -->
-                    <div class="openvault-card openvault-danger" style="margin-top: 15px;">
-                        <div class="openvault-card-header">
-                            <span class="openvault-card-title" style="color: var(--error-color, #c44);">
-                                <i class="fa-solid fa-triangle-exclamation"></i> Danger Zone
-                            </span>
-                        </div>
-                        <p style="font-size: 0.85em; color: var(--SmartThemeEmColor, #888); margin-bottom: 10px;">
-                            These actions cannot be undone.
-                        </p>
-                        <button id="openvault_reset_settings_btn" class="menu_button danger wide">
-                            <i class="fa-solid fa-rotate-left"></i> Reset Settings to Default
-                        </button>
-                        <button id="openvault_delete_chat_btn" class="menu_button danger wide" style="margin-top: 8px;">
-                            <i class="fa-solid fa-trash"></i> Delete Current Chat Memories
-                        </button>
-                        <button id="openvault_delete_embeddings_btn" class="menu_button danger wide" style="margin-top: 8px;">
-                            <i class="fa-solid fa-eraser"></i> Delete Current Chat Embeddings
-                        </button>
-                    </div>
-                </div>
-
                 <!-- Scoring & Weights -->
                 <details class="openvault-details">
                     <summary><i class="fa-solid fa-scale-balanced"></i> Scoring & Weights</summary>
@@ -689,6 +654,41 @@
                         <small class="openvault-hint">Semantic similarity to merge entities. Higher = fewer merges.</small>
                     </div>
                 </details>
+
+                <!-- System -->
+                <div class="openvault-settings-group">
+                    <div class="openvault-settings-group-header">
+                        <i class="fa-solid fa-gear"></i>
+                        <span>System</span>
+                    </div>
+
+                    <!-- Export Debug -->
+                    <button id="openvault_export_debug_btn" class="menu_button wide">
+                        <i class="fa-solid fa-copy"></i> Export Debug to Clipboard
+                    </button>
+                    <small class="openvault-hint">Copies full system state + last retrieval debug data as JSON</small>
+
+                    <!-- Danger Zone -->
+                    <div class="openvault-card openvault-danger" style="margin-top: 15px;">
+                        <div class="openvault-card-header">
+                            <span class="openvault-card-title" style="color: var(--error-color, #c44);">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Danger Zone
+                            </span>
+                        </div>
+                        <p style="font-size: 0.85em; color: var(--SmartThemeEmColor, #888); margin-bottom: 10px;">
+                            These actions cannot be undone.
+                        </p>
+                        <button id="openvault_reset_settings_btn" class="menu_button danger wide">
+                            <i class="fa-solid fa-rotate-left"></i> Reset Settings to Default
+                        </button>
+                        <button id="openvault_delete_chat_btn" class="menu_button danger wide" style="margin-top: 8px;">
+                            <i class="fa-solid fa-trash"></i> Delete Current Chat Memories
+                        </button>
+                        <button id="openvault_delete_embeddings_btn" class="menu_button danger wide" style="margin-top: 8px;">
+                            <i class="fa-solid fa-eraser"></i> Delete Current Chat Embeddings
+                        </button>
+                    </div>
+                </div>
 
                 <!-- Footer -->
                 <div class="openvault-footer">

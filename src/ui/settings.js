@@ -339,6 +339,13 @@ function initTabs() {
         $('.openvault-tab-content').removeClass('active');
         $(`.openvault-tab-content[data-tab="${tabId}"]`).addClass('active');
 
+        // Collapse all <details> elements in the new tab
+        $(`.openvault-tab-content[data-tab="${tabId}"] details`).removeAttr('open');
+
+        // Collapse all inline-drawers in the new tab
+        $(`.openvault-tab-content[data-tab="${tabId}"] .inline-drawer-content`).slideUp(200);
+        $(`.openvault-tab-content[data-tab="${tabId}"] .inline-drawer-icon`).removeClass('up').addClass('down');
+
         // Refresh stats when switching tabs
         refreshAllUI();
     });
