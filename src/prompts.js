@@ -131,9 +131,10 @@ function buildMessages(systemPrompt, userPrompt, assistantPrefill = '{', preambl
 function buildLanguageReminder(text) {
     if (!text) return '';
     const sample = text.slice(0, 2000);
-    const nonAsciiLetters = (sample.match(/[^\x00-\x7F\s\d.,!?;:'"()\-—–…[\]{}<>/@#$%^&*+=|\\~`]/g) || []).length;
-    const latinLetters = (sample.match(/[a-zA-Z]/g) || []).length;
-    if (nonAsciiLetters > latinLetters * 0.5) {
+    const allLetters = sample.match(/\p{L}/gu) || [];
+    const latinLetters = allLetters.filter((c) => /[a-zA-Z]/.test(c)).length;
+    const nonLatinLetters = allLetters.length - latinLetters;
+    if (nonLatinLetters > latinLetters * 0.5) {
         return '\nIMPORTANT — LANGUAGE: The text above is NOT in English. Per Language Rules, ALL output string values (summaries, descriptions, emotions, relationship impacts) MUST be in the SAME language as the narrative text. Do NOT translate to English. JSON keys stay English.\n';
     }
     return '';
