@@ -81,6 +81,9 @@ export const defaultSettings = {
     maxReflectionsPerCharacter: 50,
     // Community staleness settings
     communityStalenessThreshold: 100,
+    // Preamble & prefill settings
+    preambleLanguage: 'cn',
+    extractionPrefill: 'think_tag',
 };
 
 // Embedding prefix defaults per model

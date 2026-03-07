@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import { defaultSettings } from '../src/constants.js';
 import {
     buildCommunitySummaryPrompt,
     buildEventExtractionPrompt,
     buildGraphExtractionPrompt,
     buildInsightExtractionPrompt,
     buildSalientQuestionsPrompt,
+    PREFILL_PRESETS,
+    SYSTEM_PREAMBLE_CN,
+    SYSTEM_PREAMBLE_EN,
 } from '../src/prompts.js';
 
 describe('buildSalientQuestionsPrompt', () => {
@@ -291,5 +295,59 @@ describe('CN preamble and assistant prefill', () => {
             expect(result[2].role).toBe('assistant');
             expect(result[2].content).toBe('{');
         }
+    });
+});
+
+describe('preamble and prefill exports', () => {
+    it('exports SYSTEM_PREAMBLE_CN as a non-empty string', () => {
+        expect(typeof SYSTEM_PREAMBLE_CN).toBe('string');
+        expect(SYSTEM_PREAMBLE_CN.length).toBeGreaterThan(0);
+        expect(SYSTEM_PREAMBLE_CN).toContain('<system_config>');
+    });
+
+    it('exports SYSTEM_PREAMBLE_EN as a non-empty string', () => {
+        expect(typeof SYSTEM_PREAMBLE_EN).toBe('string');
+        expect(SYSTEM_PREAMBLE_EN.length).toBeGreaterThan(0);
+        expect(SYSTEM_PREAMBLE_EN).toContain('<system_config>');
+        expect(SYSTEM_PREAMBLE_EN).toContain('EXTRACT');
+    });
+
+    it('exports PREFILL_PRESETS with all 7 keys', () => {
+        const keys = Object.keys(PREFILL_PRESETS);
+        expect(keys).toContain('think_tag');
+        expect(keys).toContain('pipeline');
+        expect(keys).toContain('compliance');
+        expect(keys).toContain('cold_start');
+        expect(keys).toContain('standard');
+        expect(keys).toContain('json_opener');
+        expect(keys).toContain('none');
+        expect(keys).toHaveLength(7);
+    });
+
+    it('each preset has label and value', () => {
+        for (const [_key, preset] of Object.entries(PREFILL_PRESETS)) {
+            expect(preset).toHaveProperty('label');
+            expect(preset).toHaveProperty('value');
+            expect(typeof preset.label).toBe('string');
+            expect(typeof preset.value).toBe('string');
+        }
+    });
+
+    it('think_tag preset has <think> value', () => {
+        expect(PREFILL_PRESETS.think_tag.value).toBe('<think>\n');
+    });
+
+    it('none preset has empty string value', () => {
+        expect(PREFILL_PRESETS.none.value).toBe('');
+    });
+});
+
+describe('defaultSettings preamble/prefill keys', () => {
+    it('has preambleLanguage defaulting to cn', () => {
+        expect(defaultSettings.preambleLanguage).toBe('cn');
+    });
+
+    it('has extractionPrefill defaulting to think_tag', () => {
+        expect(defaultSettings.extractionPrefill).toBe('think_tag');
     });
 });
