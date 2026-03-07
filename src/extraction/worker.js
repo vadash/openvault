@@ -119,11 +119,10 @@ async function runWorkerLoop() {
 
             if (!data || !settings?.enabled) break;
 
-            const batchSize = settings.messagesPerExtraction || 5;
-            const bufferSize = settings.extractionBuffer || 5;
+            const tokenBudget = settings.extractionTokenBudget || 16000;
 
             // Get next batch
-            const batch = getNextBatch(chat, data, batchSize, bufferSize);
+            const batch = getNextBatch(chat, data, tokenBudget);
             if (!batch) break; // No complete batches, go to sleep
 
             // Process
