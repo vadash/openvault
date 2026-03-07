@@ -27,6 +27,7 @@
         "vitest": "^4.0.16"
     },
     "dependencies": {
+        "gpt-tokenizer": "^3.4.0",
         "stopword": "^3.1.5",
         "zod": "^4.3.6"
     }

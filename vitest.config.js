@@ -35,6 +35,11 @@ export default defineConfig({
                 'node_modules/graphology-communities-louvain'
             ),
             'https://esm.sh/graphology-operators': path.resolve(__dirname, 'node_modules/graphology-operators'),
+            // Map https://esm.sh/gpt-tokenizer/encoding/o200k_base to local package for tests
+            'https://esm.sh/gpt-tokenizer/encoding/o200k_base': path.resolve(
+                __dirname,
+                'node_modules/gpt-tokenizer/esm/encoding/o200k_base.js'
+            ),
         },
     },
 });
