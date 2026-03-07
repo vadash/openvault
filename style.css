@@ -1123,3 +1123,52 @@
     border-radius: 3px;
     font-size: 0.9em;
 }
+
+/* Budget Indicators */
+.openvault-budget-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0 12px 0;
+    font-size: 0.85em;
+}
+
+.openvault-budget-label {
+    white-space: nowrap;
+    color: var(--SmartThemeEmColor, #888);
+    min-width: 70px;
+}
+
+.openvault-budget-bar {
+    flex: 1;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.openvault-budget-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+    width: 0%;
+}
+
+.openvault-budget-fill.budget-low {
+    background-color: var(--SmartThemeEmColor, #888);
+}
+
+.openvault-budget-fill.budget-mid {
+    background-color: #f0ad4e;
+}
+
+.openvault-budget-fill.budget-high {
+    background-color: #5cb85c;
+}
+
+.openvault-budget-text {
+    white-space: nowrap;
+    color: var(--SmartThemeEmColor, #888);
+    min-width: 80px;
+    text-align: right;
+}
