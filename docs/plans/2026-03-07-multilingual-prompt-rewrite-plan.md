@@ -1207,3 +1207,37 @@ git add -A && git commit -m "docs: update ARCHITECTURE.md with multilingual prom
 **New files:** 16 (8 source + 8 test)
 **Modified files:** 6
 **Deleted files:** 0
+
+---
+
+## Review 1
+
+### 1. The `s.length > 2` Trap in Task 2 (Stem-Based Overlap)
+In your implementation for Task 2, you wrote:
+`const stemmedA = new Set([...significantA].map(t => stemWord(t)).filter(s => s.length > 2));`
+
+**The Warning:**
+`s.length > 2` means the stem must be at least 3 characters long. Russian has many incredibly short, high-impact root words. 
+*   "Яд" (Poison) → Stem: "яд" (2 chars)
+*   "Ум" (Mind) → Stem: "ум" (2 chars)
+*   "Лес" (Forest) → Stem: "лес" (3 chars, but if the stemmer strips the consonant for some reason, it could be 2).
+*   "Юг" (South) → Stem: "юг" (2 chars)
+
+**The Fix:**
+Change `.filter(s => s.length > 2)` to `.filter(s => s.length >= 2)`. Two-character stems in Russian are valid and common enough that you don't want to accidentally drop them from the overlap check.
+
+### 2. Zod `min(20)` vs `min(15)` in Task 1
+You lowered the threshold to 20. This is a massive improvement over 30. However, consider this perfectly valid, highly-extractable BDSM event:
+
+*   "Он ударил её плетью" (He struck her with a whip) = **19 characters.**
+*   "Саша связала Вову" (Sasha tied Vova) = **17 characters.**
+
+**The Fix:**
+I still highly recommend dropping it to `min(15)`. It still prevents lazy one-word responses, but `15` is the sweet spot for Subject-Verb-Object sentences in morphologically dense languages where pronouns/prepositions are often baked into the word endings.
+
+### 3. Ensure the Optimized `SYSTEM_PREAMBLE_EN` is Used (Task 11)
+In Task 11, you mention updating `SYSTEM_PREAMBLE_EN` by changing the `OUTPUT TYPE` line. 
+Just make sure you are using the full, clinical, anti-refusal English preamble we designed in the previous step (the one that explicitly mentions "mature/extreme" and "forensic data extraction"), rather than just translating the Chinese one verbatim. The clinical framing is what will keep the mid-tier models obedient when processing the Kink/Explicit examples.
+
+### 4. Git Commit Granularity (Praise)
+Your commit strategy is excellent. Keeping the rules, roles, formatters, and examples in separate atomic commits before the final orchestrator rewrite (Task 11) will make this PR incredibly easy to revert or bisect if a specific prompt starts acting up later.
