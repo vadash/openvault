@@ -173,8 +173,13 @@ export function parseEventExtractionResponse(content) {
 
     // Per-event validation: salvage valid events instead of rejecting the entire batch
     const rawEvents = parsed?.events;
-    if (!Array.isArray(rawEvents) || rawEvents.length === 0) {
-        throw new Error('Schema validation failed: events array is missing or empty');
+    if (!Array.isArray(rawEvents)) {
+        throw new Error('Schema validation failed: events array is missing');
+    }
+
+    // Allow empty arrays as a valid successful extraction (no events found)
+    if (rawEvents.length === 0) {
+        return { events: [] };
     }
 
     const validEvents = [];

@@ -315,7 +315,7 @@ Extract ALL named entities mentioned or clearly implied in the messages:
 - PERSON: Named characters, NPCs, people mentioned by name
 - PLACE: Named locations, buildings, rooms, cities, regions
 - ORGANIZATION: Named groups, factions, guilds, companies
-- OBJECT: Important named items, weapons, artifacts, vehicles
+- OBJECT: Highly significant unique items, weapons, or plot devices. Do NOT extract mundane furniture, clothing, or food unless they are critical to the scene's dynamic
 - CONCEPT: Named abilities, spells, diseases, prophecies
 
 Also extract relationships between pairs of entities when the connection is stated or clearly implied.
