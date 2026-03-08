@@ -25,15 +25,16 @@ describe('autoHideOldMessages (token-based)', () => {
         mockData = {
             memories: [],
             processed_message_ids: [0, 1, 2, 3, 4, 5, 6, 7], // All extracted
+            // Cache key format: `${index}_${textLength}`
             message_tokens: {
-                0: 500,
-                1: 500,
-                2: 500,
-                3: 500,
-                4: 500,
-                5: 500,
-                6: 500,
-                7: 500,
+                '0_2': 500,
+                '1_2': 500,
+                '2_2': 500,
+                '3_2': 500,
+                '4_2': 500,
+                '5_2': 500,
+                '6_2': 500,
+                '7_2': 500,
             },
         };
 

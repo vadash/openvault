@@ -7,7 +7,7 @@ import { stripThinkingTags } from '../utils/text.js';
 /**
  * Schema for relationship impact between characters
  */
-export const RelationshipImpactSchema = z.record(z.string(), z.string());
+export const RelationshipImpactSchema = z.record(z.string(), z.any());
 
 /**
  * Schema for a single memory event
@@ -19,7 +19,7 @@ export const EventSchema = z.object({
     witnesses: z.array(z.string()).default([]),
     location: z.string().nullable().default(null),
     is_secret: z.boolean().default(false),
-    emotional_impact: z.record(z.string(), z.string()).optional().default({}),
+    emotional_impact: z.record(z.string(), z.any()).optional().default({}),
     relationship_impact: RelationshipImpactSchema.optional().default({}),
 });
 
@@ -218,11 +218,20 @@ export function parseGraphExtractionResponse(content) {
         throw new Error(`JSON parse failed: ${e.message}`);
     }
 
-    const result = GraphExtractionSchema.safeParse(parsed);
-    if (!result.success) {
-        throw new Error(`Schema validation failed: ${result.error.message}`);
+    // Per-item validation: salvage valid entities/relationships instead of rejecting the entire batch
+    const validEntities = [];
+    for (const raw of parsed?.entities || []) {
+        const res = EntitySchema.safeParse(raw);
+        if (res.success) validEntities.push(res.data);
     }
-    return result.data;
+
+    const validRelationships = [];
+    for (const raw of parsed?.relationships || []) {
+        const res = RelationshipSchema.safeParse(raw);
+        if (res.success) validRelationships.push(res.data);
+    }
+
+    return { entities: validEntities, relationships: validRelationships };
 }
 
 /**

@@ -9,10 +9,13 @@ function makeMessage(isUser, text) {
 }
 
 // Helper: create chat with pre-cached token counts for deterministic tests
+// Cache key format: `${index}_${textLength}` to match token cache invalidation logic
 function makeChatWithCachedTokens(messages, tokenCounts) {
     const chat = messages.map(([text, isUser]) => makeMessage(isUser, text));
     const data = {
-        message_tokens: Object.fromEntries(tokenCounts.map((count, i) => [String(i), count])),
+        message_tokens: Object.fromEntries(
+            tokenCounts.map((count, i) => [`${i}_${(messages[i][0] || '').length}`, count])
+        ),
     };
     return { chat, data };
 }

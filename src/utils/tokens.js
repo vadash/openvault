@@ -23,12 +23,12 @@ export function getMessageTokenCount(chat, index, data) {
         data[MESSAGE_TOKENS_KEY] = {};
     }
 
-    const key = String(index);
+    const text = chat[index]?.mes || '';
+    const key = `${index}_${text.length}`;
     if (data[MESSAGE_TOKENS_KEY][key] !== undefined) {
         return data[MESSAGE_TOKENS_KEY][key];
     }
 
-    const text = chat[index]?.mes || '';
     const count = text.length === 0 ? 0 : _countTokens(text);
     data[MESSAGE_TOKENS_KEY][key] = count;
     return count;

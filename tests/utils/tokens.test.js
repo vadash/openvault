@@ -18,16 +18,18 @@ describe('getMessageTokenCount', () => {
         expect(count).toBeGreaterThan(0);
         expect(Number.isInteger(count)).toBe(true);
 
-        // Should cache the result
+        // Should cache the result (key includes text length for invalidation)
         expect(data[MESSAGE_TOKENS_KEY]).toBeDefined();
-        expect(data[MESSAGE_TOKENS_KEY]['0']).toBe(count);
+        const text = chat[0].mes;
+        expect(data[MESSAGE_TOKENS_KEY][`0_${text.length}`]).toBe(count);
     });
 
     it('returns cached count on second call without recomputing', async () => {
         const { getMessageTokenCount } = await import('../../src/utils/tokens.js');
 
         const chat = [{ mes: 'Test message', is_user: true }];
-        const data = { [MESSAGE_TOKENS_KEY]: { 0: 999 } };
+        // Cache key includes text length: index_textLength
+        const data = { [MESSAGE_TOKENS_KEY]: { '0_12': 999 } };
 
         const count = getMessageTokenCount(chat, 0, data);
 
