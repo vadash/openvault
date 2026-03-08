@@ -435,6 +435,7 @@ CRITICAL FORMAT RULES:
 1. Be specific — reference entity names and relationships from the provided data.
 2. Capture the narrative significance of the group.
 3. Describe power dynamics, alliances, conflicts, and dependencies.
+4. Use EXACT entity names from the input data — do NOT transliterate, abbreviate, or translate entity names. If the input shows "Vova", use "Vova" — not "Во", "Вова", or any other variant.
 </rules>
 
 <examples>
