@@ -5,6 +5,7 @@
  * Extracted for testability and reuse in both main thread and worker.
  */
 
+import { yieldToMain } from '../utils/st-helpers.js';
 import { stemWord } from '../utils/stemmer.js';
 import { ALL_STOPWORDS } from '../utils/stopwords.js';
 
@@ -245,9 +246,9 @@ export function calculateScore(memory, contextEmbedding, chatLength, constants, 
  * @param {Object} settings - Scoring settings
  * @param {string|string[]} [queryTokens] - Query text or pre-tokenized array for BM25 scoring
  * @param {string[]} [characterNames] - Main character names to filter from query tokens (dynamic stopwords)
- * @returns {Array<{memory: Object, score: number, breakdown: Object}>} Scored and sorted memories
+ * @returns {Promise<Array<{memory: Object, score: number, breakdown: Object}>>} Scored and sorted memories
  */
-export function scoreMemories(
+export async function scoreMemories(
     memories,
     contextEmbedding,
     chatLength,
@@ -300,17 +301,20 @@ export function scoreMemories(
     const maxBM25 = Math.max(...rawBM25Scores, 1e-9);
     const normalizedBM25Scores = rawBM25Scores.map((s) => s / maxBM25);
 
-    const scored = memories.map((memory, index) => {
+    const scored = [];
+    for (let i = 0; i < memories.length; i++) {
+        if (i % 250 === 0 && i > 0) await yieldToMain();
+        const memory = memories[i];
         const breakdown = calculateScore(
             memory,
             contextEmbedding,
             chatLength,
             constants,
             settings,
-            normalizedBM25Scores[index]
+            normalizedBM25Scores[i]
         );
-        return { memory, score: breakdown.total, breakdown };
-    });
+        scored.push({ memory, score: breakdown.total, breakdown });
+    }
 
     scored.sort((a, b) => b.score - a.score);
 

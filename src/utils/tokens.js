@@ -50,6 +50,31 @@ export function getTokenSum(chat, indices, data) {
 }
 
 /**
+ * Remove stale token cache entries whose message index is out of bounds
+ * or whose text length no longer matches the current message.
+ * @param {Object} data - OpenVault data (mutated in place)
+ * @param {Object[]} chat - Current chat array
+ * @returns {number} Number of pruned entries
+ */
+export function pruneTokenCache(data, chat) {
+    const cache = data[MESSAGE_TOKENS_KEY];
+    if (!cache) return 0;
+
+    let pruned = 0;
+    for (const key of Object.keys(cache)) {
+        const sep = key.indexOf('_');
+        const msgIndex = parseInt(key.slice(0, sep), 10);
+        const textLength = parseInt(key.slice(sep + 1), 10);
+
+        if (msgIndex >= chat.length || (chat[msgIndex]?.mes || '').length !== textLength) {
+            delete cache[key];
+            pruned++;
+        }
+    }
+    return pruned;
+}
+
+/**
  * Snap a message index list to a valid turn boundary.
  * A split is valid when the last message is from Bot and the next message is from User,
  * or at end-of-chat. This prevents orphaning User messages from their Bot responses.

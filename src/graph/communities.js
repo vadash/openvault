@@ -29,9 +29,10 @@ export function toGraphology(graphData) {
     }
 
     for (const [key, attrs] of Object.entries(graphData.edges || {})) {
-        // Skip self-loops (defensive - should be prevented at insertion time)
+        // Delete self-loops from backing store (defensive - should be prevented at insertion time)
         if (attrs.source === attrs.target) {
-            log(`[communities] Skipping self-loop edge ${key}: ${attrs.source} -> ${attrs.target}`);
+            log(`[communities] Removing self-loop edge ${key}: ${attrs.source} -> ${attrs.target}`);
+            delete graphData.edges[key];
             continue;
         }
         if (graph.hasNode(attrs.source) && graph.hasNode(attrs.target)) {

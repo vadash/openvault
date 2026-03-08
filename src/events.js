@@ -184,6 +184,7 @@ export async function onChatChanged() {
     const { clearEmbeddingCache } = await import('./embeddings.js');
     const { cleanupCharacterStates } = await import('./extraction/extract.js');
     const { clearRetrievalDebug } = await import('./retrieval/debug-cache.js');
+    const { pruneTokenCache } = await import('./utils/tokens.js');
 
     log('Chat changed, clearing injection, cache and setting load cooldown');
 
@@ -193,6 +194,11 @@ export async function onChatChanged() {
     if (data && context) {
         const validCharNames = [context.name1, context.name2].filter(Boolean);
         cleanupCharacterStates(data, validCharNames);
+
+        // Prune stale token cache entries
+        const chat = context.chat || [];
+        const pruned = pruneTokenCache(data, chat);
+        if (pruned > 0) log(`Pruned ${pruned} stale token cache entries`);
     }
 
     // Clear embedding cache to free memory when switching chats

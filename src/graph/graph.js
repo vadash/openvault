@@ -8,6 +8,7 @@
 import { getDocumentEmbedding, maybeRoundEmbedding } from '../embeddings.js';
 import { cosineSimilarity } from '../retrieval/math.js';
 import { log } from '../utils/logging.js';
+import { yieldToMain } from '../utils/st-helpers.js';
 import { stemWord } from '../utils/stemmer.js';
 import { ALL_STOPWORDS } from '../utils/stopwords.js';
 
@@ -429,6 +430,8 @@ export async function consolidateGraph(graphData, settings) {
     for (const keys of Object.values(byType)) {
         for (let i = 0; i < keys.length; i++) {
             if (mergeMap.has(keys[i])) continue; // Already merged
+
+            if (i % 50 === 0 && i > 0) await yieldToMain();
 
             const tokensI = new Set(keys[i].split(/\s+/));
 

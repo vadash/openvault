@@ -35,18 +35,18 @@ export function getScoringParams() {
 }
 
 /**
- * Score memories synchronously (main-thread).
+ * Score memories (main-thread, async to allow yielding).
  * @param {Object[]} memories - Memories to score
  * @param {number[]|null} contextEmbedding - Context embedding
  * @param {number} chatLength - Current chat length
  * @param {number} limit - Maximum results
  * @param {string|string[]} queryTokens - Query text or pre-tokenized array for BM25
  * @param {string[]} [characterNames] - Main character names to filter from query tokens
- * @returns {{memories: Object[], scoredResults: Array<{memory: Object, score: number, breakdown: Object}>}}
+ * @returns {Promise<{memories: Object[], scoredResults: Array<{memory: Object, score: number, breakdown: Object}>}>}
  */
-function scoreMemoriesDirect(memories, contextEmbedding, chatLength, limit, queryTokens, characterNames = []) {
+async function scoreMemoriesDirect(memories, contextEmbedding, chatLength, limit, queryTokens, characterNames = []) {
     const { constants, settings } = getScoringParams();
-    const scored = scoreMemories(
+    const scored = await scoreMemories(
         memories,
         contextEmbedding,
         chatLength,

@@ -39,7 +39,7 @@ describe('math.js - alpha-blend scoring', () => {
         expect(result.vectorBonus).toBeCloseTo(10.5, 1);
     });
 
-    it('scoreMemories normalizes BM25 scores across batch', () => {
+    it('scoreMemories normalizes BM25 scores across batch', async () => {
         const memories = [
             { summary: 'dragon attacked village', importance: 3, message_ids: [90] },
             { summary: 'dragon fled to mountain', importance: 3, message_ids: [80] },
@@ -51,7 +51,7 @@ describe('math.js - alpha-blend scoring', () => {
             alpha: 0.7,
             combinedBoostWeight: 15,
         };
-        const results = scoreMemories(memories, null, 100, constants, settings, ['dragon']);
+        const results = await scoreMemories(memories, null, 100, constants, settings, ['dragon']);
         // The memory with highest BM25 gets normalizedBM25 = 1.0
         // But its bonus is capped at (1 - 0.7) * 15 = 4.5
         for (const r of results) {
@@ -59,7 +59,7 @@ describe('math.js - alpha-blend scoring', () => {
         }
     });
 
-    it('gracefully handles all-zero BM25 scores', () => {
+    it('gracefully handles all-zero BM25 scores', async () => {
         const memories = [{ summary: 'no match here', importance: 3, message_ids: [90] }];
         const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 };
         const settings = {
@@ -67,7 +67,7 @@ describe('math.js - alpha-blend scoring', () => {
             alpha: 0.7,
             combinedBoostWeight: 15,
         };
-        const results = scoreMemories(memories, null, 100, constants, settings, ['zzzzz']);
+        const results = await scoreMemories(memories, null, 100, constants, settings, ['zzzzz']);
         expect(results[0].breakdown.bm25Bonus).toBe(0);
     });
 
@@ -109,7 +109,7 @@ describe('math.js - alpha-blend scoring', () => {
 });
 
 describe('math.js - IDF-aware entity boost', () => {
-    it('reduces relative boost for corpus-common vs corpus-rare entities', () => {
+    it('reduces relative boost for corpus-common vs corpus-rare entities', async () => {
         // Create 20 memories: 10 with "suzi" (common), 10 with "dragon" (rare, only in 1)
         const memories = [
             // "suzi" appears in 10 memories (common)
@@ -137,7 +137,7 @@ describe('math.js - IDF-aware entity boost', () => {
 
         // Query with "suzi" repeated 15 times AND "dragon" repeated 15 times
         const queryTokens = [...Array(15).fill('suzi'), ...Array(15).fill('dragon')];
-        const results = scoreMemories(memories, null, 100, constants, settings, queryTokens);
+        const results = await scoreMemories(memories, null, 100, constants, settings, queryTokens);
 
         // Find the dragon memory and a suzy memory
         const dragonMemory = results.find((r) => r.memory.summary.includes('dragon'));
@@ -155,7 +155,7 @@ describe('math.js - IDF-aware entity boost', () => {
         expect(dragonIndex).toBeLessThan(suzyIndex);
     });
 
-    it('preserves strong boost for corpus-rare entity tokens', () => {
+    it('preserves strong boost for corpus-rare entity tokens', async () => {
         // 10 memories, only 1 containing "dragon"
         const memories = [
             { summary: 'dragon attacked village', importance: 3, message_ids: [90] },
@@ -173,14 +173,14 @@ describe('math.js - IDF-aware entity boost', () => {
         };
         // Query with "dragon" repeated 15 times
         const queryTokens = Array(15).fill('dragon');
-        const results = scoreMemories(memories, null, 100, constants, settings, queryTokens);
+        const results = await scoreMemories(memories, null, 100, constants, settings, queryTokens);
 
         // "dragon" is rare (1/10 docs), IDF is high → BM25 bonus should be significant
         const dragonMemory = results.find((r) => r.memory.summary.includes('dragon'));
         expect(dragonMemory.breakdown.bm25Bonus).toBeGreaterThan(3.0);
     });
 
-    it('handles empty query tokens gracefully', () => {
+    it('handles empty query tokens gracefully', async () => {
         const memories = [{ summary: 'test memory', importance: 3, message_ids: [10] }];
         const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 };
         const settings = {
@@ -188,12 +188,12 @@ describe('math.js - IDF-aware entity boost', () => {
             alpha: 0.7,
             combinedBoostWeight: 15,
         };
-        const results = scoreMemories(memories, null, 100, constants, settings, []);
+        const results = await scoreMemories(memories, null, 100, constants, settings, []);
         expect(results[0].breakdown.bm25Bonus).toBe(0);
         expect(results[0].breakdown.bm25Score).toBe(0);
     });
 
-    it('handles null/undefined query tokens', () => {
+    it('handles null/undefined query tokens', async () => {
         const memories = [{ summary: 'test memory', importance: 3, message_ids: [10] }];
         const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 };
         const settings = {
@@ -201,10 +201,10 @@ describe('math.js - IDF-aware entity boost', () => {
             alpha: 0.7,
             combinedBoostWeight: 15,
         };
-        const results1 = scoreMemories(memories, null, 100, constants, settings, null);
+        const results1 = await scoreMemories(memories, null, 100, constants, settings, null);
         expect(results1[0].breakdown.bm25Bonus).toBe(0);
 
-        const results2 = scoreMemories(memories, null, 100, constants, settings, undefined);
+        const results2 = await scoreMemories(memories, null, 100, constants, settings, undefined);
         expect(results2[0].breakdown.bm25Bonus).toBe(0);
     });
 });
@@ -313,7 +313,7 @@ describe('math.js - tokenization', () => {
 });
 
 describe('scoreMemories - dynamic character stopwords', () => {
-    it('filters character names from BM25 tokens when characterNames provided', () => {
+    it('filters character names from BM25 tokens when characterNames provided', async () => {
         // Create memories where "suzy" appears in every one but content differs
         const memories = [
             { importance: 3, message_ids: [10], embedding: null, summary: 'Suzy walked to the park with her dog' },
@@ -326,8 +326,8 @@ describe('scoreMemories - dynamic character stopwords', () => {
 
         // Query: "suzy park dog" — "suzy" is in every memory so has zero discriminative value
         // With character stopwords, BM25 should focus on "park" and "dog"
-        const resultWith = scoreMemories(memories, null, 50, constants, settings, 'suzy park dog', ['suzy']);
-        const resultWithout = scoreMemories(memories, null, 50, constants, settings, 'suzy park dog', []);
+        const resultWith = await scoreMemories(memories, null, 50, constants, settings, 'suzy park dog', ['suzy']);
+        const resultWithout = await scoreMemories(memories, null, 50, constants, settings, 'suzy park dog', []);
 
         // With filtering, the park/dog memory should score higher relative to others
         // because "suzy" no longer inflates all scores equally
