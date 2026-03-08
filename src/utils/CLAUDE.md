@@ -27,6 +27,4 @@
 - Language detection: Cyrillic -> Russian, Latin -> English.
 - **Cyrillic Over-Stem Guard**: Snowball often over-strips Russian (e.g., `елена` -> `ел`). Guard limits stripping to max 3 chars, falling back to 1 char.
 - **Entity Stemming**: `stemName()` intentionally DOES NOT filter stopwords (e.g., "The Castle" retains the "the" stem, because entity names are exact).
-
-### `russian-imperatives.js`
-- Prevents capitalized Russian verbs (e.g., "Запомни") at sentence starts from being mistakenly extracted as PERSON entities. Checks O(1) set + suffix heuristics.
+- **Stopwords**: Base EN+RU lists from `stopword` package only. No custom lists.

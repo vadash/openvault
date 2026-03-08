@@ -12,8 +12,7 @@ Flat-JSON entity and relationship storage with rigorous semantic deduplication a
 Prevents duplicate nodes (e.g., "The King" vs "King Aldric").
 1. **Fast Path**: Exact key match -> basic upsert.
 2. **Slow Path**: Embeds `Type: Name - Description`. If Cosine Sim >= `0.94`, proceeds to Guard.
-3. **Token Overlap Guard**: Extracts tokens, strips RP stopwords (via `stopword` lib + custom lists like "burgundy", "red", "large"). Requires >= 50% overlap OR direct substring match.
-   - *Why?*: Prevents "Burgundy panties" merging with "Burgundy candle".
+3. **Token Overlap Guard**: Extracts tokens, strips base EN+RU stopwords (via `stopword` lib). Requires >= 50% overlap OR direct substring match.
 4. **Aliases**: If merged, the absorbed name is pushed to the surviving node's `aliases` array for future retrieval matching.
 5. **Redirects**: Transient `_mergeRedirects` map ensures edges pointing to the old node route to the merged one.
 

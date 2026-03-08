@@ -49,7 +49,7 @@ Worker (`src/extraction/worker.js`) is single-instance, interruptible (checks `w
 
 **Entity Semantic Merging**: Prevents duplicates ("The King" vs "King Aldric").
 - *Guard 1*: Embeddings (type + name + description) cosine sim >= `0.94`.
-- *Guard 2*: Token Overlap >= 50% (prevents "Burgundy panties" merging with "Burgundy candle"). Old names saved to `aliases`. Does NOT bridge script boundaries (Latin↔Cyrillic) — prompt rules enforce name preservation instead.
+- *Guard 2*: Token Overlap >= 50% filtering base EN+RU stopwords. Old names saved to `aliases`. Does NOT bridge script boundaries (Latin↔Cyrillic) — prompt rules enforce name preservation instead.
 - *Guard 3 (LCS)*: Longest Common Substring ratio >= 60% for keys longer than 2 chars (lowered from 3 to catch short names like "Кай"/"Каю").
 - *Guard 4 (Stems)*: `stemWord()`-based token overlap catches Russian morphological variants (e.g., "ошейник"/"ошейником").
 
