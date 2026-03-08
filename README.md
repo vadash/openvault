@@ -16,6 +16,12 @@ During a conversation, OpenVault silently works in the background:
 
 Characters only remember what they witnessed or were told about. No meta-gaming.
 
+## Images
+
+<img width="629" height="815" alt="Screenshot 2026-03-08 160107" src="https://github.com/user-attachments/assets/ae81565e-8745-4d86-b6d1-5b73d65d355a" />
+<img width="645" height="651" alt="Screenshot 2026-03-08 160132" src="https://github.com/user-attachments/assets/34427dcf-1e5b-4342-a2c2-269faec722e8" />
+<img width="641" height="846" alt="Screenshot 2026-03-08 160145" src="https://github.com/user-attachments/assets/792826e8-2855-44c5-853c-de9c614fb38f" />
+
 ## Research Foundations
 
 OpenVault implements ideas from two papers:
