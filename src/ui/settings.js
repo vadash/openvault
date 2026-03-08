@@ -547,11 +547,13 @@ function bindUIElements() {
             }
         }
 
+        // Persist the model selection
+        saveSetting('embeddingSource', value);
+
         // Auto-populate prefix fields from model defaults
         const prefixes = embeddingModelPrefixes[value] || embeddingModelPrefixes._default;
-        const settings = getSettings();
-        settings.embeddingQueryPrefix = prefixes.queryPrefix;
-        settings.embeddingDocPrefix = prefixes.docPrefix;
+        saveSetting('embeddingQueryPrefix', prefixes.queryPrefix);
+        saveSetting('embeddingDocPrefix', prefixes.docPrefix);
         $('#openvault_embedding_query_prefix').val(prefixes.queryPrefix);
         $('#openvault_embedding_doc_prefix').val(prefixes.docPrefix);
 
