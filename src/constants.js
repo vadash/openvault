@@ -28,8 +28,8 @@ export const defaultSettings = {
     debugMode: false,
     requestLogging: false,
     // Extraction settings
-    extractionTokenBudget: 12000, // Token threshold for extraction batches
-    extractionRearviewTokens: 8000, // Token budget for extraction memory context
+    extractionTokenBudget: 8000, // Token threshold for extraction batches
+    extractionRearviewTokens: 6000, // Token budget for extraction memory context
     // Retrieval pipeline settings (token-based)
     retrievalFinalTokens: 10000, // Final context budget
     // Auto-hide settings
