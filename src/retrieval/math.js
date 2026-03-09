@@ -174,7 +174,7 @@ export function cosineSimilarity(vecA, vecB) {
 /**
  * Calculate memory score based on forgetfulness curve, vector similarity, and BM25
  * @param {Object} memory - Memory object with message_ids, importance, embedding
- * @param {number[]|null} contextEmbedding - Context embedding for similarity
+ * @param {Float32Array|null} contextEmbedding - Context embedding for similarity
  * @param {number} chatLength - Current chat length
  * @param {Object} constants - Scoring constants (BASE_LAMBDA, IMPORTANCE_5_FLOOR)
  * @param {Object} settings - Scoring settings (vectorSimilarityThreshold, alpha, combinedBoostWeight)
@@ -260,7 +260,7 @@ export function calculateScore(memory, contextEmbedding, chatLength, constants, 
 /**
  * Score and sort memories using forgetfulness curve + vector similarity + BM25
  * @param {Object[]} memories - Memories to score
- * @param {number[]|null} contextEmbedding - Context embedding
+ * @param {Float32Array|null} contextEmbedding - Context embedding
  * @param {number} chatLength - Current chat length
  * @param {Object} constants - Scoring constants
  * @param {Object} settings - Scoring settings

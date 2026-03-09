@@ -11,7 +11,7 @@ import { cosineSimilarity } from './math.js';
 /**
  * Retrieve the most relevant community summaries for the current context.
  * @param {Object} communities - Community data from state
- * @param {number[]} queryEmbedding - Embedding of current context
+ * @param {Float32Array} queryEmbedding - Embedding of current context
  * @param {number} tokenBudget - Max tokens for world context (default: 2000)
  * @returns {{ text: string, communityIds: string[] }}
  */

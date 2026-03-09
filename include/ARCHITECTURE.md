@@ -67,7 +67,7 @@ Worker (`src/extraction/worker.js`) is single-instance, interruptible (checks `w
 - *Pruning*: Edges involving User/Char temporarily removed before Louvain to prevent "hairball" clusters. Re-assigned after.
 - *Injection*: Pure vector search injected into `openvault_world` slot.
 
-**Embeddings**: Stored as Base64 Float32Array. Legacy JSON arrays read transparently (lazy migration). True LRU cache (max 500). WebGPU attempts first -> falls back to WASM. `device.lost` not monitored (implicitly retries pipeline on next call). Failures degrade gracefully to BM25.
+**Embeddings**: Stored as Base64 Float32Array, decoded to `Float32Array` at runtime (not `number[]`). Legacy JSON arrays wrapped in `Float32Array` on read (lazy migration). True LRU cache (max 500). All cosine similarity uses 4x loop-unrolled dot product on typed arrays. WebGPU attempts first -> falls back to WASM. `device.lost` not monitored (implicitly retries pipeline on next call). Failures degrade gracefully to BM25.
 
 **Abort/Cancellation**: Session-scoped `AbortController` in `state.js`. `resetSessionController()` fires on `CHAT_CHANGED`, aborting all in-flight LLM and embedding operations. Leaf I/O functions (`callLLM`, `getQueryEmbedding`, `getDocumentEmbedding`) read `getSessionSignal()` as default — mid-level orchestrators need no signature changes. `callLLM` uses `Promise.race` (logical cancel — HTTP continues server-side). Transformers.js pipeline and Ollama fetch use native `signal` (true cancel). AbortError re-thrown from Phase 2 catch, handled cleanly by worker and backfill loops.
 
