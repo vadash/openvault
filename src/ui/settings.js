@@ -561,6 +561,18 @@ function bindUIElements() {
         $('#openvault_embedding_query_prefix').val(prefixes.queryPrefix);
         $('#openvault_embedding_doc_prefix').val(prefixes.docPrefix);
 
+        // Invalidate stale embeddings if model changed
+        const data = getOpenVaultData();
+        if (data) {
+            const { invalidateStaleEmbeddings, saveOpenVaultData } = await import('../utils/data.js');
+            const wiped = invalidateStaleEmbeddings(data, value);
+            if (wiped > 0) {
+                await saveOpenVaultData();
+                showToast('info', `Embedding model changed. Re-embedding ${wiped} vectors in background.`);
+                refreshAllUI();
+            }
+        }
+
         $('#openvault_ollama_settings').toggle(value === 'ollama');
         updateEmbeddingStatusDisplay(getEmbeddingStatus());
     });
