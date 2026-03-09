@@ -13,7 +13,7 @@ import { getQueryEmbedding } from '../embeddings.js';
 import { parseCommunitySummaryResponse } from '../extraction/structured.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
 import { buildCommunitySummaryPrompt, resolveExtractionPreamble, resolveOutputLanguage } from '../prompts/index.js';
-import { setEmbedding } from '../utils/embedding-codec.js';
+import { hasEmbedding, setEmbedding } from '../utils/embedding-codec.js';
 import { log } from '../utils/logging.js';
 import { yieldToMain } from '../utils/st-helpers.js';
 
@@ -214,11 +214,14 @@ export async function updateCommunitySummaries(
         const messageDelta = currentMessageCount - (existing?.lastUpdatedMessageCount || 0);
         const isStale = messageDelta >= stalenessThreshold;
 
+        // Check if embedding is missing (need to regenerate if so)
+        const missingEmbedding = existing && !hasEmbedding(existing);
+
         // Special case: if only one community, always re-summarize at staleness interval
         const singleCommunityForceRefresh = isSingleCommunity && isStale;
 
-        // Skip if membership hasn't changed AND not stale (unless single community forcing refresh)
-        if (!membershipChanged && !isStale && !singleCommunityForceRefresh) {
+        // Skip if membership hasn't changed AND not stale AND not missing embedding (unless single community forcing refresh)
+        if (!membershipChanged && !isStale && !missingEmbedding && !singleCommunityForceRefresh) {
             updatedCommunities[key] = existing;
             continue;
         }
