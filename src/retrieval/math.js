@@ -5,6 +5,7 @@
  * Extracted for testability and reuse in both main thread and worker.
  */
 
+import { record } from '../perf/store.js';
 import { getEmbedding, hasEmbedding } from '../utils/embedding-codec.js';
 import { yieldToMain } from '../utils/st-helpers.js';
 import { stemWord } from '../utils/stemmer.js';
@@ -339,7 +340,7 @@ export async function scoreMemories(
     scored.sort((a, b) => b.score - a.score);
 
     const duration = performance.now() - start;
-    console.log(`[OpenVault] Scoring ${memories.length} memories took ${duration.toFixed(2)}ms`);
+    record('memory_scoring', duration, `${memories.length} memories`);
 
     return scored;
 }

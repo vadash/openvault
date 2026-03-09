@@ -33,3 +33,25 @@ describe('perf instrumentation - events.js', () => {
         expect(all.auto_hide.ms).toBeGreaterThanOrEqual(0);
     });
 });
+
+describe('perf instrumentation - math.js', () => {
+    it('scoreMemories records memory_scoring metric with memory count', async () => {
+        _resetForTest();
+        setupTestContext({ settings: { debugMode: true } });
+
+        const { scoreMemories } = await import('../../src/retrieval/math.js');
+        const memories = [
+            { summary: 'test event', importance: 3, sequence: 100, tokens: ['test'], archived: false },
+            { summary: 'another event', importance: 5, sequence: 200, tokens: ['another'], archived: false },
+        ];
+
+        // Minimal constants for scoring
+        const constants = { lambda: 0.05, imp5Floor: 5, combinedWeight: 15, alpha: 0.7, vectorThreshold: 0.5 };
+        await scoreMemories(memories, null, 300, constants, {}, ['test', 'query']);
+
+        const all = getAll();
+        expect(all.memory_scoring).toBeDefined();
+        expect(all.memory_scoring.ms).toBeGreaterThanOrEqual(0);
+        expect(all.memory_scoring.size).toContain('2');
+    });
+});
