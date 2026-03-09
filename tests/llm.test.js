@@ -143,3 +143,86 @@ describe('callLLM backup profile failover', () => {
         expect(sendRequest).toHaveBeenCalledTimes(2);
     });
 });
+
+describe('callLLM abort signal', () => {
+    const testConfig = {
+        profileSettingKey: 'extractionProfile',
+        maxTokens: 100,
+        errorContext: 'Test',
+        timeoutMs: 5000,
+        getJsonSchema: undefined,
+    };
+    const testMessages = [{ role: 'user', content: 'hello' }];
+
+    afterEach(() => {
+        resetDeps();
+    });
+
+    it('throws AbortError immediately with pre-aborted signal', async () => {
+        const sendRequest = vi.fn().mockResolvedValue({ content: 'ok' });
+        setupTestContext({
+            settings: { extractionProfile: 'main-id' },
+            deps: { connectionManager: { sendRequest } },
+        });
+
+        const ctrl = new AbortController();
+        ctrl.abort();
+
+        await expect(callLLM(testMessages, testConfig, { signal: ctrl.signal })).rejects.toThrow(
+            expect.objectContaining({ name: 'AbortError' })
+        );
+        expect(sendRequest).not.toHaveBeenCalled();
+    });
+
+    it('throws AbortError when signal aborts mid-request', async () => {
+        const ctrl = new AbortController();
+        const sendRequest = vi.fn().mockImplementation(() => {
+            return new Promise((resolve) => {
+                // Simulate slow request — abort fires before it resolves
+                setTimeout(() => resolve({ content: 'too late' }), 5000);
+            });
+        });
+        setupTestContext({
+            settings: { extractionProfile: 'main-id' },
+            deps: { connectionManager: { sendRequest } },
+        });
+
+        const promise = callLLM(testMessages, testConfig, { signal: ctrl.signal });
+        // Abort after a tick
+        setTimeout(() => ctrl.abort(), 10);
+
+        await expect(promise).rejects.toThrow(expect.objectContaining({ name: 'AbortError' }));
+    });
+
+    it('does not abort when signal is not triggered', async () => {
+        const sendRequest = vi.fn().mockResolvedValue({ content: 'ok' });
+        setupTestContext({
+            settings: { extractionProfile: 'main-id' },
+            deps: { connectionManager: { sendRequest } },
+        });
+
+        const ctrl = new AbortController();
+        const result = await callLLM(testMessages, testConfig, { signal: ctrl.signal });
+        expect(result).toBe('ok');
+    });
+
+    it('skips backup profile attempt on AbortError', async () => {
+        const ctrl = new AbortController();
+        const sendRequest = vi.fn().mockImplementation(() => {
+            return new Promise((resolve) => {
+                setTimeout(() => resolve({ content: 'too late' }), 5000);
+            });
+        });
+        setupTestContext({
+            settings: { extractionProfile: 'main-id', backupProfile: 'backup-id' },
+            deps: { connectionManager: { sendRequest } },
+        });
+
+        const promise = callLLM(testMessages, testConfig, { signal: ctrl.signal });
+        setTimeout(() => ctrl.abort(), 10);
+
+        await expect(promise).rejects.toThrow(expect.objectContaining({ name: 'AbortError' }));
+        // Only main profile was attempted — backup is skipped for abort
+        expect(sendRequest).toHaveBeenCalledTimes(1);
+    });
+});

@@ -14,9 +14,38 @@ import {
     getInsightExtractionJsonSchema,
     getSalientQuestionsJsonSchema,
 } from './extraction/structured.js';
+import { getSessionSignal } from './state.js';
 import { showToast } from './utils/dom.js';
 import { log, logRequest } from './utils/logging.js';
 import { withTimeout } from './utils/st-helpers.js';
+
+/**
+ * Race a promise against an AbortSignal.
+ * @param {Promise} promise - The promise to race
+ * @param {AbortSignal} signal - The signal to watch
+ * @returns {Promise} Resolves/rejects with the first to settle
+ */
+function raceAbort(promise, signal) {
+    if (!signal) return promise;
+    return new Promise((resolve, reject) => {
+        if (signal.aborted) {
+            reject(new DOMException('Aborted', 'AbortError'));
+            return;
+        }
+        const onAbort = () => reject(new DOMException('Aborted', 'AbortError'));
+        signal.addEventListener('abort', onAbort, { once: true });
+        promise.then(
+            (val) => {
+                signal.removeEventListener('abort', onAbort);
+                resolve(val);
+            },
+            (err) => {
+                signal.removeEventListener('abort', onAbort);
+                reject(err);
+            }
+        );
+    });
+}
 
 /**
  * LLM configuration presets
@@ -70,6 +99,8 @@ export const LLM_CONFIGS = {
  */
 export async function callLLM(messages, config, options = {}) {
     const { profileSettingKey, maxTokens, errorContext, timeoutMs, getJsonSchema } = config;
+    const signal = options.signal ?? getSessionSignal();
+    if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
     const deps = getDeps();
     const extension_settings = deps.getExtensionSettings();
     const settings = extension_settings[extensionName];
@@ -106,7 +137,7 @@ export async function callLLM(messages, config, options = {}) {
             jsonSchema ? { jsonSchema } : {}
         );
 
-        const result = await withTimeout(requestPromise, timeoutMs || 120000, `${errorContext} API`);
+        const result = await raceAbort(withTimeout(requestPromise, timeoutMs || 120000, `${errorContext} API`), signal);
         // Extract content from result object, preserving empty strings as valid (not falsy)
         const content = result && typeof result === 'object' && 'content' in result ? result.content : result || '';
 
@@ -137,6 +168,8 @@ export async function callLLM(messages, config, options = {}) {
         log(`Using ConnectionManagerRequestService with profile: ${profileId}`);
         return await executeRequest(profileId);
     } catch (mainError) {
+        if (mainError.name === 'AbortError') throw mainError;
+
         // Attempt backup profile if configured and different from main
         const backupProfileId = settings.backupProfile;
         if (backupProfileId && backupProfileId !== profileId) {
