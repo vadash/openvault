@@ -30,6 +30,7 @@ global.$ = (selector) => ({
     show: () => {},
     hide: () => {},
     toggle: () => {},
+    toggleClass: () => global.$(selector),
     each: () => {},
     find: () => global.$(selector),
     parent: () => global.$(selector),

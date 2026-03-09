@@ -8,7 +8,7 @@
 
 import { extensionName } from '../constants.js';
 import { getDeps } from '../deps.js';
-import { operationState } from '../state.js';
+import { getSessionSignal, operationState } from '../state.js';
 import { setStatus } from '../ui/status.js';
 import { getCurrentChatId, getOpenVaultData } from '../utils/data.js';
 import { log } from '../utils/logging.js';
@@ -85,9 +85,9 @@ async function runWorkerLoop() {
 
     try {
         while (true) {
-            // Guard: Chat switched?
-            if (getCurrentChatId() !== targetChatId) {
-                log('Worker: Chat switched, stopping.');
+            // Guard: Chat switched or session aborted?
+            if (getSessionSignal().aborted || getCurrentChatId() !== targetChatId) {
+                log('Worker: Session aborted or chat switched, stopping.');
                 break;
             }
 
@@ -134,9 +134,9 @@ async function runWorkerLoop() {
                 retryCount = 0;
                 cumulativeBackoffMs = 0;
             } catch (err) {
-                // Fast-fail on chat switch — don't retry, just stop
-                if (err.message === 'Chat changed during extraction') {
-                    log('Worker: Chat changed during extraction. Halting immediately.');
+                // Fast-fail on abort or chat switch — don't retry, just stop
+                if (err.name === 'AbortError' || err.message === 'Chat changed during extraction') {
+                    log('Worker: Aborted or chat changed during extraction. Halting immediately.');
                     break;
                 }
 
@@ -161,7 +161,11 @@ async function runWorkerLoop() {
             await new Promise((r) => setTimeout(r, 2000));
         }
     } catch (err) {
-        getDeps().console.error('[OpenVault] Background worker error:', err);
+        if (err.name === 'AbortError') {
+            log('Worker: Aborted (chat switch). Clean exit.');
+        } else {
+            getDeps().console.error('[OpenVault] Background worker error:', err);
+        }
     } finally {
         setStatus('ready');
     }
