@@ -92,14 +92,10 @@ export async function callLLM(messages, config, options = {}) {
         );
     }
 
-    try {
-        log(`Using ConnectionManagerRequestService with profile: ${profileId}`);
-
-        const jsonSchema = options.structured && getJsonSchema ? getJsonSchema() : undefined;
-
-        // Separate the promise so we can wrap it
+    // --- Helper: execute a single LLM request against a given profile ---
+    async function executeRequest(targetProfileId) {
         const requestPromise = deps.connectionManager.sendRequest(
-            profileId,
+            targetProfileId,
             messages,
             maxTokens,
             {
@@ -107,17 +103,16 @@ export async function callLLM(messages, config, options = {}) {
                 includeInstruct: true,
                 stream: false,
             },
-            jsonSchema ? { jsonSchema } : {} // 5th parameter
+            jsonSchema ? { jsonSchema } : {}
         );
 
-        // Wrap the network request in our timeout utility
         const result = await withTimeout(requestPromise, timeoutMs || 120000, `${errorContext} API`);
+        // Extract content from result object, preserving empty strings as valid (not falsy)
+        const content = result && typeof result === 'object' && 'content' in result ? result.content : result || '';
 
-        const content = result?.content || result || '';
-
-        // Debug: log LLM response
         log(`LLM response received (${content.length} chars)`);
-        logRequest(errorContext, { messages, maxTokens, profileId, response: content });
+        logRequest(errorContext, { messages, maxTokens, profileId: targetProfileId, response: content });
+
         if (content.length === 0) {
             log(`ERROR: Empty LLM response! Full result: ${JSON.stringify(result).substring(0, 200)}`);
         }
@@ -126,7 +121,6 @@ export async function callLLM(messages, config, options = {}) {
             throw new Error('Empty response from LLM');
         }
 
-        // Parse reasoning if present (some models return thinking tags)
         const context = deps.getContext();
         if (context.parseReasoningFromString) {
             const parsed = context.parseReasoningFromString(content);
@@ -134,14 +128,38 @@ export async function callLLM(messages, config, options = {}) {
         }
 
         return content;
-    } catch (error) {
-        const errorMessage = error.message || 'Unknown error';
+    }
+
+    const jsonSchema = options.structured && getJsonSchema ? getJsonSchema() : undefined;
+
+    // --- Main request with backup failover ---
+    try {
+        log(`Using ConnectionManagerRequestService with profile: ${profileId}`);
+        return await executeRequest(profileId);
+    } catch (mainError) {
+        // Attempt backup profile if configured and different from main
+        const backupProfileId = settings.backupProfile;
+        if (backupProfileId && backupProfileId !== profileId) {
+            const profiles = extension_settings?.connectionManager?.profiles || [];
+            const backupName = profiles.find((p) => p.id === backupProfileId)?.name || backupProfileId;
+            log(`${errorContext} failed on main profile, trying backup: ${backupName}`);
+            try {
+                const backupResult = await executeRequest(backupProfileId);
+                // Backup succeeded - return the result
+                return backupResult;
+            } catch (backupError) {
+                // Backup failed (including empty response) - fall through to main error handling
+                log(`${errorContext} backup also failed: ${backupError.message}`);
+            }
+        }
+
+        // Original error handling — toast + re-throw main error
+        const errorMessage = mainError.message || 'Unknown error';
         log(`${errorContext} LLM call error: ${errorMessage}`);
-        // Only show toast if it's NOT a timeout to prevent toast spam during retries
         if (!errorMessage.includes('timed out')) {
             showToast('error', `${errorContext} failed: ${errorMessage}`);
         }
-        logRequest(errorContext, { messages, maxTokens, profileId, error });
-        throw error;
+        logRequest(errorContext, { messages, maxTokens, profileId, error: mainError });
+        throw mainError;
     }
 }

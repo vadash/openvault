@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { LLM_CONFIGS } from '../src/llm.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { resetDeps } from '../src/deps.js';
+import { callLLM, LLM_CONFIGS } from '../src/llm.js';
 
 describe('LLM_CONFIGS after smart retrieval removal', () => {
     it('does not have a retrieval config', () => {
@@ -45,5 +46,100 @@ describe('LLM_CONFIGS split extraction', () => {
     it('has extraction_graph config', () => {
         expect(LLM_CONFIGS.extraction_graph).toBeDefined();
         expect(LLM_CONFIGS.extraction_graph.maxTokens).toBe(8000);
+    });
+});
+
+describe('callLLM backup profile failover', () => {
+    const testConfig = {
+        profileSettingKey: 'extractionProfile',
+        maxTokens: 100,
+        errorContext: 'Test',
+        timeoutMs: 5000,
+        getJsonSchema: undefined,
+    };
+    const testMessages = [{ role: 'user', content: 'hello' }];
+
+    afterEach(() => {
+        resetDeps();
+    });
+
+    it('succeeds on main profile without touching backup', async () => {
+        const sendRequest = vi.fn().mockResolvedValue({ content: 'main-ok' });
+        setupTestContext({
+            settings: { extractionProfile: 'main-id', backupProfile: 'backup-id' },
+            deps: { connectionManager: { sendRequest } },
+        });
+
+        const result = await callLLM(testMessages, testConfig);
+        expect(result).toBe('main-ok');
+        expect(sendRequest).toHaveBeenCalledTimes(1);
+        expect(sendRequest.mock.calls[0][0]).toBe('main-id');
+    });
+
+    it('falls back to backup when main fails', async () => {
+        const sendRequest = vi
+            .fn()
+            .mockRejectedValueOnce(new Error('main down'))
+            .mockResolvedValueOnce({ content: 'backup-ok' });
+        setupTestContext({
+            settings: { extractionProfile: 'main-id', backupProfile: 'backup-id' },
+            deps: { connectionManager: { sendRequest } },
+        });
+
+        const result = await callLLM(testMessages, testConfig);
+        expect(result).toBe('backup-ok');
+        expect(sendRequest).toHaveBeenCalledTimes(2);
+        expect(sendRequest.mock.calls[0][0]).toBe('main-id');
+        expect(sendRequest.mock.calls[1][0]).toBe('backup-id');
+    });
+
+    it('throws main error when both profiles fail', async () => {
+        const sendRequest = vi
+            .fn()
+            .mockRejectedValueOnce(new Error('main down'))
+            .mockRejectedValueOnce(new Error('backup down'));
+        setupTestContext({
+            settings: { extractionProfile: 'main-id', backupProfile: 'backup-id' },
+            deps: { connectionManager: { sendRequest } },
+        });
+
+        await expect(callLLM(testMessages, testConfig)).rejects.toThrow('main down');
+        expect(sendRequest).toHaveBeenCalledTimes(2);
+    });
+
+    it('skips backup when backupProfile is empty', async () => {
+        const sendRequest = vi.fn().mockRejectedValueOnce(new Error('main down'));
+        setupTestContext({
+            settings: { extractionProfile: 'main-id', backupProfile: '' },
+            deps: { connectionManager: { sendRequest } },
+        });
+
+        await expect(callLLM(testMessages, testConfig)).rejects.toThrow('main down');
+        expect(sendRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it('skips backup when backup equals main profile', async () => {
+        const sendRequest = vi.fn().mockRejectedValueOnce(new Error('main down'));
+        setupTestContext({
+            settings: { extractionProfile: 'same-id', backupProfile: 'same-id' },
+            deps: { connectionManager: { sendRequest } },
+        });
+
+        await expect(callLLM(testMessages, testConfig)).rejects.toThrow('main down');
+        expect(sendRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws when backup returns empty response', async () => {
+        const sendRequest = vi
+            .fn()
+            .mockRejectedValueOnce(new Error('main down'))
+            .mockResolvedValueOnce({ content: '' });
+        setupTestContext({
+            settings: { extractionProfile: 'main-id', backupProfile: 'backup-id' },
+            deps: { connectionManager: { sendRequest } },
+        });
+
+        await expect(callLLM(testMessages, testConfig)).rejects.toThrow('main down');
+        expect(sendRequest).toHaveBeenCalledTimes(2);
     });
 });
