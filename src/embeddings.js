@@ -53,7 +53,7 @@ class EmbeddingStrategy {
      * @param {string} text - Text to embed
      * @param {Object} options - Options
      * @param {AbortSignal} options.signal - AbortSignal
-     * @returns {Promise<number[]|null>} Embedding vector or null if unavailable
+     * @returns {Promise<Float32Array|null>} Embedding vector or null if unavailable
      */
     async getEmbedding(_text, _options = {}) {
         throw new Error('getEmbedding() must be implemented by subclass');
@@ -64,7 +64,7 @@ class EmbeddingStrategy {
      * @param {string} text - Query text
      * @param {Object} options - Options
      * @param {AbortSignal} options.signal - AbortSignal
-     * @returns {Promise<number[]|null>} Embedding vector or null
+     * @returns {Promise<Float32Array|null>} Embedding vector or null
      */
     async getQueryEmbedding(_text, _options = {}) {
         throw new Error('getQueryEmbedding() must be implemented by subclass');
@@ -75,7 +75,7 @@ class EmbeddingStrategy {
      * @param {string} text - Document text
      * @param {Object} options - Options
      * @param {AbortSignal} options.signal - AbortSignal
-     * @returns {Promise<number[]|null>} Embedding vector or null
+     * @returns {Promise<Float32Array|null>} Embedding vector or null
      */
     async getDocumentEmbedding(_text, _options = {}) {
         throw new Error('getDocumentEmbedding() must be implemented by subclass');
@@ -288,7 +288,7 @@ class TransformersStrategy extends EmbeddingStrategy {
             const pipe = await this.#loadPipeline(this.#currentModelKey);
             const input = prefix ? `${prefix}${text.trim()}` : text.trim();
             const output = await pipe(input, { pooling: 'mean', normalize: true, signal });
-            return Array.from(output.data);
+            return output.data instanceof Float32Array ? output.data : new Float32Array(output.data);
         } catch (error) {
             if (error.name === 'AbortError') throw error;
             log(`Transformers embedding error: ${error?.message || error || 'unknown'}`);
@@ -377,7 +377,7 @@ class OllamaStrategy extends EmbeddingStrategy {
             }
 
             const data = await response.json();
-            return data.embedding || null;
+            return data.embedding ? new Float32Array(data.embedding) : null;
         } catch (error) {
             if (error.name === 'AbortError') throw error;
             log(`Ollama embedding error: ${error.message}`);
@@ -512,7 +512,7 @@ export function clearEmbeddingCache() {
  * @param {string} text - Query text
  * @param {Object} options - Options
  * @param {AbortSignal} options.signal - AbortSignal
- * @returns {Promise<number[]|null>} Embedding vector
+ * @returns {Promise<Float32Array|null>} Embedding vector
  */
 export async function getQueryEmbedding(text, { signal } = {}) {
     signal ??= getSessionSignal();
@@ -546,7 +546,7 @@ export async function getQueryEmbedding(text, { signal } = {}) {
  * @param {string} summary - Memory summary text
  * @param {Object} options - Options
  * @param {AbortSignal} options.signal - AbortSignal
- * @returns {Promise<number[]|null>} Embedding vector
+ * @returns {Promise<Float32Array|null>} Embedding vector
  */
 export async function getDocumentEmbedding(summary, { signal } = {}) {
     signal ??= getSessionSignal();
