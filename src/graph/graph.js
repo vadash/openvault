@@ -5,8 +5,9 @@
  * All data stored in chatMetadata.openvault.graph as { nodes, edges }.
  */
 
-import { getDocumentEmbedding, maybeRoundEmbedding } from '../embeddings.js';
+import { getDocumentEmbedding } from '../embeddings.js';
 import { cosineSimilarity } from '../retrieval/math.js';
+import { getEmbedding, hasEmbedding, setEmbedding } from '../utils/embedding-codec.js';
 import { log } from '../utils/logging.js';
 import { yieldToMain } from '../utils/st-helpers.js';
 import { stemWord } from '../utils/stemmer.js';
@@ -292,7 +293,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
 
     for (const [existingKey, node] of Object.entries(graphData.nodes)) {
         if (node.type !== type) continue;
-        if (!node.embedding) continue;
+        if (!hasEmbedding(node)) continue;
 
         const existingTokens = new Set(existingKey.split(/\s+/));
 
@@ -301,7 +302,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
             continue;
         }
 
-        const sim = cosineSimilarity(newEmbedding, node.embedding);
+        const sim = cosineSimilarity(newEmbedding, getEmbedding(node));
         if (sim >= threshold && sim > bestScore) {
             bestMatch = existingKey;
             bestScore = sim;
@@ -326,7 +327,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
 
     // No match: create new node with embedding
     upsertEntity(graphData, name, type, description, cap);
-    graphData.nodes[key].embedding = maybeRoundEmbedding(newEmbedding);
+    setEmbedding(graphData.nodes[key], newEmbedding);
     return key;
 }
 
@@ -404,12 +405,11 @@ export async function consolidateGraph(graphData, settings) {
 
     // Step 1: Embed all nodes that lack embeddings
     for (const [_key, node] of Object.entries(graphData.nodes)) {
-        if (!node.embedding) {
+        if (!hasEmbedding(node)) {
             try {
-                node.embedding = maybeRoundEmbedding(
-                    await getDocumentEmbedding(`${node.type}: ${node.name} - ${node.description}`)
-                );
-                if (node.embedding) embeddedCount++;
+                const embedding = await getDocumentEmbedding(`${node.type}: ${node.name} - ${node.description}`);
+                setEmbedding(node, embedding);
+                if (hasEmbedding(node)) embeddedCount++;
             } catch {
                 // Skip nodes that can't be embedded
             }
@@ -419,7 +419,7 @@ export async function consolidateGraph(graphData, settings) {
     // Step 2: Group nodes by type
     const byType = {};
     for (const [key, node] of Object.entries(graphData.nodes)) {
-        if (!node.embedding) continue;
+        if (!hasEmbedding(node)) continue;
         if (!byType[node.type]) byType[node.type] = [];
         byType[node.type].push(key);
     }
@@ -447,7 +447,7 @@ export async function consolidateGraph(graphData, settings) {
 
                 const nodeA = graphData.nodes[keys[i]];
                 const nodeB = graphData.nodes[keys[j]];
-                const sim = cosineSimilarity(nodeA.embedding, nodeB.embedding);
+                const sim = cosineSimilarity(getEmbedding(nodeA), getEmbedding(nodeB));
 
                 if (sim >= threshold) {
                     // Merge B into A (A has lower index = likely older/more established)

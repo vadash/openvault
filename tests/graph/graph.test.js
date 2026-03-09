@@ -15,7 +15,22 @@ import {
 // Mock embeddings module
 vi.mock('../../src/embeddings.js', () => ({
     getDocumentEmbedding: vi.fn(),
-    maybeRoundEmbedding: vi.fn((emb) => emb),
+}));
+
+// Mock embedding-codec module
+vi.mock('../../src/utils/embedding-codec.js', () => ({
+    getEmbedding: vi.fn((obj) => (obj?.embedding_b64 ? [0.1] : obj?.embedding || null)),
+    setEmbedding: vi.fn((obj, _vec) => {
+        obj.embedding_b64 = 'mock_b64';
+        delete obj.embedding;
+    }),
+    hasEmbedding: vi.fn((obj) => !!(obj?.embedding_b64 || (obj?.embedding && obj.embedding.length > 0))),
+    deleteEmbedding: vi.fn((obj) => {
+        if (obj) {
+            delete obj.embedding;
+            delete obj.embedding_b64;
+        }
+    }),
 }));
 
 describe('upsertEntity', () => {
