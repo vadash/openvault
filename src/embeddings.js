@@ -7,6 +7,7 @@
 
 import { extensionName } from './constants.js';
 import { getDeps } from './deps.js';
+import { record } from './perf/store.js';
 import { getSessionSignal } from './state.js';
 import { hasEmbedding, setEmbedding } from './utils/embedding-codec.js';
 import { log } from './utils/logging.js';
@@ -660,6 +661,7 @@ export async function enrichEventsWithEmbeddings(events, { signal } = {}) {
 
     log(`Generating embeddings for ${validEvents.length} events`);
 
+    const t0 = performance.now();
     const settings = getDeps().getExtensionSettings()[extensionName];
     const source = settings.embeddingSource;
     const strategy = getStrategy(source);
@@ -679,6 +681,7 @@ export async function enrichEventsWithEmbeddings(events, { signal } = {}) {
         }
     }
 
+    record('embedding_generation', performance.now() - t0, `${validEvents.length} embeddings via ${source}`);
     return count;
 }
 
