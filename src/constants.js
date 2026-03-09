@@ -181,3 +181,35 @@ export const UI_DEFAULT_HINTS = {
     // Dedup
     dedupJaccardThreshold: defaultSettings.dedupJaccardThreshold,
 };
+
+// Performance monitoring thresholds (ms) — values above threshold show red
+export const PERF_THRESHOLDS = {
+    retrieval_injection: 2000,
+    auto_hide: 500,
+    memory_scoring: 200,
+    event_dedup: 500,
+    llm_events: 30000,
+    llm_graph: 30000,
+    llm_reflection: 45000,
+    llm_communities: 30000,
+    embedding_generation: 10000,
+    louvain_detection: 1000,
+    entity_merge: 1000,
+    chat_save: 1000,
+};
+
+// Performance metric display metadata
+export const PERF_METRICS = {
+    retrieval_injection: { label: 'Pre-gen injection', icon: 'fa-bolt', sync: true },
+    auto_hide: { label: 'Auto-hide messages', icon: 'fa-eye-slash', sync: true },
+    memory_scoring: { label: 'Memory scoring', icon: 'fa-calculator', sync: false },
+    event_dedup: { label: 'Event dedup', icon: 'fa-clone', sync: false },
+    llm_events: { label: 'LLM: Events', icon: 'fa-cloud', sync: false },
+    llm_graph: { label: 'LLM: Graph', icon: 'fa-cloud', sync: false },
+    llm_reflection: { label: 'LLM: Reflection', icon: 'fa-cloud', sync: false },
+    llm_communities: { label: 'LLM: Communities', icon: 'fa-cloud', sync: false },
+    embedding_generation: { label: 'Embeddings', icon: 'fa-vector-square', sync: false },
+    louvain_detection: { label: 'Louvain', icon: 'fa-circle-nodes', sync: false },
+    entity_merge: { label: 'Entity merge', icon: 'fa-code-merge', sync: false },
+    chat_save: { label: 'Chat save', icon: 'fa-floppy-disk', sync: false },
+};
