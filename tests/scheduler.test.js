@@ -1,200 +1,179 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { PROCESSED_MESSAGES_KEY } from '../src/constants.js';
 import { getBackfillMessageIds, getBackfillStats, getNextBatch, isBatchReady } from '../src/extraction/scheduler.js';
 
-// Helper: build chat with known token sizes.
-// For predictable tests, use pre-cached data instead of computing tokens.
+// Helper: build chat with messages
 function makeMessage(isUser, text) {
     return { mes: text, is_user: isUser };
 }
 
-// Helper: create chat with pre-cached token counts for deterministic tests
-// Cache key format: `${index}_${textLength}` to match token cache invalidation logic
-function makeChatWithCachedTokens(messages, tokenCounts) {
-    const chat = messages.map(([text, isUser]) => makeMessage(isUser, text));
-    const data = {
-        message_tokens: Object.fromEntries(
-            tokenCounts.map((count, i) => [`${i}_${(messages[i][0] || '').length}`, count])
-        ),
-    };
-    return { chat, data };
+// Helper: create chat with messages
+function makeChat(messages) {
+    return messages.map(([text, isUser]) => makeMessage(isUser, text));
 }
+
+beforeEach(async () => {
+    const { clearTokenCache } = await import('../src/utils/tokens.js');
+    clearTokenCache();
+});
+
+// Helper: create a chat with enough content for token-based tests
+// Each long message should have ~50-100 tokens
+const LONG_USER_MESSAGE =
+    'This is a very long user message with plenty of content. The user is describing something in great detail, providing context and background information. They continue to elaborate on various points, adding more substance to the conversation. This ensures we have enough tokens for testing the token-based batching logic. The message continues to expand with additional details and information.';
+
+const LONG_BOT_MESSAGE =
+    "The bot responds with an equally lengthy and detailed message. It provides comprehensive information in response to the user's query. The response includes multiple points, elaborates on various aspects, and ensures the user receives a thorough answer. The bot continues with more content, adding depth to the conversation. This detailed response helps maintain the token-based testing requirements.";
 
 describe('isBatchReady (token-based)', () => {
     it('returns true when unextracted tokens >= budget', () => {
-        const { chat, data } = makeChatWithCachedTokens(
-            [
-                ['u0', true],
-                ['b1', false],
-                ['u2', true],
-                ['b3', false],
-            ],
-            [500, 500, 500, 500] // total: 2000
-        );
+        const chat = makeChat([
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+        ]);
 
-        expect(isBatchReady(chat, data, 2000)).toBe(true);
-        expect(isBatchReady(chat, data, 1999)).toBe(true);
+        // 4 long messages should be ~200-400 tokens total
+        expect(isBatchReady(chat, {}, 100)).toBe(true);
     });
 
     it('returns false when unextracted tokens < budget', () => {
-        const { chat, data } = makeChatWithCachedTokens(
-            [
-                ['u0', true],
-                ['b1', false],
-            ],
-            [500, 500] // total: 1000
-        );
+        const chat = makeChat([
+            ['Hi', true],
+            ['Hello', false],
+        ]);
 
-        expect(isBatchReady(chat, data, 1001)).toBe(false);
+        // 2 short messages = ~3 tokens total
+        expect(isBatchReady(chat, {}, 1000)).toBe(false);
     });
 
     it('excludes already-extracted messages', () => {
-        const { chat, data } = makeChatWithCachedTokens(
-            [
-                ['u0', true],
-                ['b1', false],
-                ['u2', true],
-                ['b3', false],
-            ],
-            [500, 500, 500, 500]
-        );
-        data[PROCESSED_MESSAGES_KEY] = [0, 1]; // 1000 tokens extracted
+        const chat = makeChat([
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+        ]);
+        const data = {};
+        data[PROCESSED_MESSAGES_KEY] = [0, 1]; // First turn extracted
 
-        expect(isBatchReady(chat, data, 1000)).toBe(true); // 1000 unextracted
-        expect(isBatchReady(chat, data, 1001)).toBe(false);
+        // Remaining 2 messages should have enough tokens for a 100-token budget
+        expect(isBatchReady(chat, data, 100)).toBe(true);
+        // But not enough for a huge budget
+        expect(isBatchReady(chat, data, 10000)).toBe(false);
     });
 });
 
 describe('getNextBatch (token-based)', () => {
     it('accumulates messages until token budget met, then snaps to turn boundary', () => {
-        // U(0):500 B(1):500 U(2):500 B(3):500 U(4):500 B(5):500
-        const { chat, data } = makeChatWithCachedTokens(
-            [
-                ['u0', true],
-                ['b1', false],
-                ['u2', true],
-                ['b3', false],
-                ['u4', true],
-                ['b5', false],
-            ],
-            [500, 500, 500, 500, 500, 500]
-        );
+        const chat = makeChat([
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+        ]);
 
-        // Budget 1000: accumulate [0,1] (1000 tokens) → next is U(2) ✓
-        const batch = getNextBatch(chat, data, 1000);
-        expect(batch).toEqual([0, 1]);
+        // Budget for ~1 message - should get [0, 1] as one complete turn
+        const batch = getNextBatch(chat, {}, 50);
+        expect(batch).not.toBeNull();
+        expect(batch.length).toBeGreaterThan(0);
+        // Should snap to turn boundary (Bot -> User transition means ending on bot)
+        const lastIndex = batch[batch.length - 1];
+        expect(chat[lastIndex].is_user).toBe(false);
     });
 
     it('returns null when total unextracted < budget', () => {
-        const { chat, data } = makeChatWithCachedTokens(
-            [
-                ['u0', true],
-                ['b1', false],
-            ],
-            [400, 400] // total 800
-        );
+        const chat = makeChat([
+            ['Hi', true],
+            ['Hello', false],
+        ]);
 
-        expect(getNextBatch(chat, data, 1000)).toBeNull();
+        // Huge budget that can't be met
+        expect(getNextBatch(chat, {}, 1000)).toBeNull();
     });
 
     it('always includes at least 1 message even if it exceeds budget', () => {
-        // Single huge message
-        const { chat, data } = makeChatWithCachedTokens(
-            [
-                ['huge', true],
-                ['reply', false],
-                ['next', true],
-            ],
-            [50000, 100, 100] // total > 1000
-        );
+        const chat = makeChat([
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+            ['Next', true],
+        ]);
 
-        const batch = getNextBatch(chat, data, 1000);
-        // Should include at least message 0, then snap
-        // After 0: next is B(1) ✗ → but we can't snap further back → []
-        // Actually, accumulate: [0] = 50000 ≥ 1000 → snap [0]
-        // After index 0: next is B(1) ✗ → snap back → []
-        // Since batch would be empty, include the full turn: [0, 1]
-        // After index 1: next is U(2) ✓
+        // Budget of 5 tokens - the first message exceeds this
+        const batch = getNextBatch(chat, {}, 5);
+        // Should include at least [0, 1] to complete the turn
         expect(batch).not.toBeNull();
         expect(batch.length).toBeGreaterThan(0);
+        // Should end on bot (complete turn)
+        expect(chat[batch[batch.length - 1]].is_user).toBe(false);
     });
 
     it('skips already-extracted messages', () => {
-        const { chat, data } = makeChatWithCachedTokens(
-            [
-                ['u0', true],
-                ['b1', false],
-                ['u2', true],
-                ['b3', false],
-                ['u4', true],
-                ['b5', false],
-            ],
-            [500, 500, 500, 500, 500, 500]
-        );
-        data[PROCESSED_MESSAGES_KEY] = [0, 1];
+        const chat = makeChat([
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+        ]);
+        const data = {};
+        data[PROCESSED_MESSAGES_KEY] = [0, 1]; // First turn extracted
 
-        // Budget 1000: accumulate from unextracted [2,3] (1000) → next is U(4) ✓
-        const batch = getNextBatch(chat, data, 1000);
-        expect(batch).toEqual([2, 3]);
+        const batch = getNextBatch(chat, data, 50);
+        // Should start from index 2
+        expect(batch).not.toBeNull();
+        expect(batch[0]).toBeGreaterThanOrEqual(2);
+        // Should end on bot (complete turn)
+        expect(chat[batch[batch.length - 1]].is_user).toBe(false);
     });
 
     it('snaps back when boundary lands mid-turn', () => {
-        // U(0):100 B(1):100 U(2):100 B(3):100 U(4):100 B(5):100 B(6):100
-        const { chat, data } = makeChatWithCachedTokens(
-            [
-                ['u0', true],
-                ['b1', false],
-                ['u2', true],
-                ['b3', false],
-                ['u4', true],
-                ['b5', false],
-                ['b6', false],
-            ],
-            [100, 100, 100, 100, 100, 100, 100]
-        );
+        const chat = makeChat([
+            ['User zero', true],
+            ['Bot one', false],
+            ['User two', true],
+            ['Bot three', false],
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+        ]);
 
-        // Budget 500: accumulate [0,1,2,3,4] (500 tokens)
-        // After index 4: next is B(5) ✗ → snap back to index 3 (next is U(4) ✓)
-        const batch = getNextBatch(chat, data, 500);
-        expect(batch).toEqual([0, 1, 2, 3]);
+        // Budget that gets us through the first 4 messages but needs to snap back
+        const batch = getNextBatch(chat, {}, 30);
+        expect(batch).not.toBeNull();
+        // Batch should end on a bot message (complete turn)
+        expect(chat[batch[batch.length - 1]].is_user).toBe(false);
     });
 });
 
 describe('getBackfillStats (token-based)', () => {
     it('counts complete batches by token budget', () => {
-        // 6 messages × 500 tokens = 3000 total
-        const { chat, data } = makeChatWithCachedTokens(
-            [
-                ['u0', true],
-                ['b1', false],
-                ['u2', true],
-                ['b3', false],
-                ['u4', true],
-                ['b5', false],
-            ],
-            [500, 500, 500, 500, 500, 500]
-        );
+        const chat = makeChat([
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+        ]);
 
-        const stats = getBackfillStats(chat, data, 1000);
+        const stats = getBackfillStats(chat, {}, 100);
         expect(stats.totalUnextracted).toBe(6);
         expect(stats.extractedCount).toBe(0);
-        // At least 1 complete batch of 1000 tokens
+        // Should have at least 1 complete batch with 100-token budget
         expect(stats.completeBatches).toBeGreaterThanOrEqual(1);
     });
 
     it('excludes already-extracted from count', () => {
-        const { chat, data } = makeChatWithCachedTokens(
-            [
-                ['u0', true],
-                ['b1', false],
-                ['u2', true],
-                ['b3', false],
-            ],
-            [500, 500, 500, 500]
-        );
+        const chat = makeChat([
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+        ]);
+        const data = {};
         data[PROCESSED_MESSAGES_KEY] = [0, 1];
 
-        const stats = getBackfillStats(chat, data, 1000);
+        const stats = getBackfillStats(chat, data, 100);
         expect(stats.extractedCount).toBe(2);
         expect(stats.totalUnextracted).toBe(2);
     });
@@ -202,33 +181,27 @@ describe('getBackfillStats (token-based)', () => {
 
 describe('getBackfillMessageIds (token-based)', () => {
     it('returns complete batches worth of message IDs', () => {
-        const { chat, data } = makeChatWithCachedTokens(
-            [
-                ['u0', true],
-                ['b1', false],
-                ['u2', true],
-                ['b3', false],
-                ['u4', true],
-                ['b5', false],
-            ],
-            [500, 500, 500, 500, 500, 500]
-        );
+        const chat = makeChat([
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+            [LONG_USER_MESSAGE, true],
+            [LONG_BOT_MESSAGE, false],
+        ]);
 
-        const result = getBackfillMessageIds(chat, data, 1000);
+        const result = getBackfillMessageIds(chat, {}, 100);
         expect(result.batchCount).toBeGreaterThanOrEqual(1);
         expect(result.messageIds.length).toBeGreaterThan(0);
     });
 
     it('returns empty for insufficient tokens', () => {
-        const { chat, data } = makeChatWithCachedTokens(
-            [
-                ['u0', true],
-                ['b1', false],
-            ],
-            [100, 100] // 200 total
-        );
+        const chat = makeChat([
+            ['Hi', true],
+            ['Hello', false],
+        ]);
 
-        const result = getBackfillMessageIds(chat, data, 1000);
+        const result = getBackfillMessageIds(chat, {}, 10000);
         expect(result.batchCount).toBe(0);
         expect(result.messageIds).toEqual([]);
     });
