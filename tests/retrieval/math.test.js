@@ -1,5 +1,58 @@
 import { describe, expect, it } from 'vitest';
 
+describe('Access-Reinforced Decay (hitDamping)', () => {
+    it('should return hitDamping=1.0 when retrieval_hits is 0', async () => {
+        const { calculateScore } = await import('../../src/retrieval/math.js');
+        const memory = { message_ids: [10], importance: 3, retrieval_hits: 0 };
+        const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 1.0, reflectionDecayThreshold: 750 };
+        const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
+        const result = calculateScore(memory, null, 100, constants, settings);
+        expect(result.hitDamping).toBeCloseTo(1.0);
+    });
+
+    it('should return hitDamping=1.0 when retrieval_hits is missing', async () => {
+        const { calculateScore } = await import('../../src/retrieval/math.js');
+        const memory = { message_ids: [10], importance: 3 };
+        const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 1.0, reflectionDecayThreshold: 750 };
+        const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
+        const result = calculateScore(memory, null, 100, constants, settings);
+        expect(result.hitDamping).toBeCloseTo(1.0);
+    });
+
+    it('should dampen decay for 5 retrieval_hits (hitDamping ≈ 0.67)', async () => {
+        const { calculateScore } = await import('../../src/retrieval/math.js');
+        const memory = { message_ids: [10], importance: 3, retrieval_hits: 5 };
+        const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 1.0, reflectionDecayThreshold: 750 };
+        const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
+        const result = calculateScore(memory, null, 100, constants, settings);
+        // 1 / (1 + 5 * 0.1) = 1/1.5 ≈ 0.667
+        expect(result.hitDamping).toBeCloseTo(1 / 1.5, 2);
+    });
+
+    it('should cap hitDamping at 0.5 for very high retrieval_hits', async () => {
+        const { calculateScore } = await import('../../src/retrieval/math.js');
+        const memory = { message_ids: [10], importance: 3, retrieval_hits: 100 };
+        const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 1.0, reflectionDecayThreshold: 750 };
+        const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
+        const result = calculateScore(memory, null, 100, constants, settings);
+        expect(result.hitDamping).toBeCloseTo(0.5);
+    });
+
+    it('should produce higher base score with hits than without at same distance', async () => {
+        const { calculateScore } = await import('../../src/retrieval/math.js');
+        const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 1.0, reflectionDecayThreshold: 750 };
+        const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
+
+        const noHits = calculateScore(
+            { message_ids: [10], importance: 3, retrieval_hits: 0 }, null, 200, constants, settings
+        );
+        const withHits = calculateScore(
+            { message_ids: [10], importance: 3, retrieval_hits: 10 }, null, 200, constants, settings
+        );
+        expect(withHits.base).toBeGreaterThan(noHits.base);
+    });
+});
+
 describe('calculateIDF with expanded corpus', () => {
     it('should calculate lower IDF for common terms when hidden memories included', async () => {
         const { tokenize, calculateIDF } = await import('../../src/retrieval/math.js');

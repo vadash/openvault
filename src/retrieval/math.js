@@ -195,7 +195,11 @@ export function calculateScore(memory, contextEmbedding, chatLength, constants, 
     // Calculate lambda: higher importance = slower decay
     // importance 5 -> lambda = 0.05 / 25 = 0.002 (very slow decay)
     // importance 1 -> lambda = 0.05 / 1  = 0.05  (fast decay)
-    const lambda = constants.BASE_LAMBDA / (importance * importance);
+
+    // Access-reinforced decay: dampen lambda by retrieval history
+    const hits = memory.retrieval_hits || 0;
+    const hitDamping = Math.max(0.5, 1 / (1 + hits * 0.1));
+    const lambda = (constants.BASE_LAMBDA / (importance * importance)) * hitDamping;
 
     // Core forgetfulness formula: Score = Importance × e^(-λ × Distance)
     const base = importance * Math.exp(-lambda * distance);
@@ -255,6 +259,7 @@ export function calculateScore(memory, contextEmbedding, chatLength, constants, 
         bm25Score,
         distance,
         importance,
+        hitDamping,
     };
 }
 
