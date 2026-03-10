@@ -291,10 +291,16 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
     // Token-overlap guard: extract word tokens from the new entity's key
     const newTokens = new Set(key.split(/\s+/));
 
+    // Pre-decode embeddings of same-type nodes to avoid repeated Base64 decoding in loop
+    const existingEmbeddings = new Map();
     for (const [existingKey, node] of Object.entries(graphData.nodes)) {
-        if (node.type !== type) continue;
-        if (!hasEmbedding(node)) continue;
+        if (node.type === type && hasEmbedding(node)) {
+            existingEmbeddings.set(existingKey, getEmbedding(node));
+        }
+    }
 
+    for (const [existingKey, existingEmbedding] of existingEmbeddings) {
+        const node = graphData.nodes[existingKey];
         const existingTokens = new Set(existingKey.split(/\s+/));
 
         // Use improved token overlap guard
@@ -302,7 +308,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
             continue;
         }
 
-        const sim = cosineSimilarity(newEmbedding, getEmbedding(node));
+        const sim = cosineSimilarity(newEmbedding, existingEmbedding);
         if (sim >= threshold && sim > bestScore) {
             bestMatch = existingKey;
             bestScore = sim;
