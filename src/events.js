@@ -20,7 +20,7 @@ import { refreshAllUI, resetMemoryBrowserPage } from './ui/render.js';
 import { setStatus } from './ui/status.js';
 import { getOpenVaultData } from './utils/data.js';
 import { showToast } from './utils/dom.js';
-import { logDebug } from './utils/logging.js';
+import { logDebug, logError } from './utils/logging.js';
 import { isExtensionEnabled, safeSetExtensionPrompt, withTimeout } from './utils/st-helpers.js';
 
 // =============================================================================
@@ -173,7 +173,7 @@ export async function onBeforeGeneration(type, _options, dryRun = false) {
             logDebug('Retrieval aborted (chat switch)');
             // Don't set error status — chat switch is not an error
         } else {
-            getDeps().console.error('OpenVault: Error during pre-generation retrieval:', error);
+            logError('Error during pre-generation retrieval', error);
             setStatus('error');
         }
         // Don't block generation on retrieval failure

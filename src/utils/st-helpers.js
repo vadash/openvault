@@ -1,5 +1,6 @@
 import { extensionName } from '../constants.js';
 import { getDeps } from '../deps.js';
+import { logError } from './logging.js';
 
 /**
  * Wrap a promise with a timeout
@@ -27,7 +28,7 @@ export function safeSetExtensionPrompt(content, name = extensionName) {
         deps.setExtensionPrompt(name, content, deps.extension_prompt_types.IN_PROMPT, 0);
         return true;
     } catch (error) {
-        getDeps().console.error('[OpenVault] Failed to set extension prompt:', error);
+        logError('Failed to set extension prompt', error);
         return false;
     }
 }

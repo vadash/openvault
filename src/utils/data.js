@@ -3,7 +3,7 @@ import { getDeps } from '../deps.js';
 import { record } from '../perf/store.js';
 import { showToast } from './dom.js';
 import { deleteEmbedding, hasEmbedding } from './embedding-codec.js';
-import { logDebug } from './logging.js';
+import { logDebug, logError, logWarn } from './logging.js';
 
 /**
  * Get OpenVault data from chat metadata
@@ -12,7 +12,7 @@ import { logDebug } from './logging.js';
 export function getOpenVaultData() {
     const context = getDeps().getContext();
     if (!context) {
-        getDeps().console.warn('[OpenVault] getContext() returned null/undefined');
+        logWarn('getContext() returned null/undefined');
         return null;
     }
     if (!context.chatMetadata) {
@@ -49,8 +49,8 @@ export async function saveOpenVaultData(expectedChatId = null) {
     if (expectedChatId !== null) {
         const currentId = getCurrentChatId();
         if (currentId !== expectedChatId) {
-            getDeps().console.warn(
-                `[OpenVault] Chat changed during operation (expected: ${expectedChatId}, current: ${currentId}), aborting save`
+            logWarn(
+                `Chat changed during operation (expected: ${expectedChatId}, current: ${currentId}), aborting save`
             );
             return false;
         }
@@ -63,7 +63,7 @@ export async function saveOpenVaultData(expectedChatId = null) {
         return true;
     } catch (error) {
         record('chat_save', performance.now() - t0);
-        getDeps().console.error('[OpenVault] Failed to save data:', error);
+        logError('Failed to save data', error);
         showToast('error', `Failed to save data: ${error.message}`);
         return false;
     }

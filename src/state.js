@@ -6,6 +6,7 @@
 
 import { GENERATION_LOCK_TIMEOUT_MS } from './constants.js';
 import { getDeps } from './deps.js';
+import { logWarn } from './utils/logging.js';
 
 // Session-scoped AbortController — one per active chat session.
 // On CHAT_CHANGED, the old controller is aborted and a new one is created.
@@ -58,7 +59,7 @@ export function setGenerationLock() {
     // Set safety timeout - if GENERATION_ENDED doesn't fire, clear the lock anyway
     generationLockTimeout = getDeps().setTimeout(() => {
         if (operationState.generationInProgress) {
-            getDeps().console.warn('OpenVault: Generation lock timeout - clearing stale lock');
+            logWarn('Generation lock timeout - clearing stale lock');
             operationState.generationInProgress = false;
         }
     }, GENERATION_LOCK_TIMEOUT_MS);
