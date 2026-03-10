@@ -22,6 +22,9 @@ Selects optimal memories (events + reflections) and community summaries, then fo
   - *IDF-Aware*: Query tokens weighted by Inverse Document Frequency.
   - *Expanded Corpus*: IDF calculated from **candidates + hidden memories** (not just candidates). Prevents common terms from getting artificially high IDF scores.
   - *Dynamic Stopwords*: Main character names are stripped from BM25 queries since they have near-zero IDF and waste scoring weight.
+  - *Corpus-Grounded Tokens* (Layer 2): User-message tokens filtered through **corpus vocabulary** (`buildCorpusVocab`). Only stems that exist in memories/graph are used. Zero-impact noise tokens excluded.
+  - *Half-Boost*: Grounded tokens get `ceil(entityBoostWeight / 2)` boost. Entities get full boost.
+  - *Event Gate*: BM25 skipped entirely when no events in candidate pool (returns empty token array).
 - **Vector Similarity**: Cosine similarity against last 3 user messages + top entities.
 
 ## WORLD CONTEXT (`world-context.js`)
@@ -32,4 +35,7 @@ Selects optimal memories (events + reflections) and community summaries, then fo
 ## GOTCHAS & RULES
 - **Pure Math**: `math.js` contains ZERO DOM/deps imports. Fully worker-safe.
 - **Bucket Limits**: The *Old* bucket ("The Story So Far") is hard-capped at 50% of the memory budget to prevent ancient history from drowning out recent context.
-- **Function Signatures**: `scoreMemories(memories, ..., hiddenMemories = [])` - hidden memories optional, defaults to empty array (backward compatible).
+- **Function Signatures**:
+  - `buildCorpusVocab(memories, hiddenMemories, graphNodes, graphEdges)` — Returns `Set<string>` of all stems in corpus.
+  - `buildBM25Tokens(userMessage, extractedEntities, corpusVocab = null)` — Third param optional. Null → backward compat (all tokens).
+  - `RetrievalContext` includes `graphEdges` for edge description tokenization.

@@ -13,6 +13,7 @@ Agentic memory extension for SillyTavern providing POV-aware memory, witness tra
 - **SillyTavern Globals**: NEVER access ST globals (`getContext`, `eventSource`) directly. Always use `getDeps()` from `src/deps.js`.
 - **Settings Access**: NEVER use `settings.xxx ?? <hardcoded>` or `settings.xxx || <hardcoded>`. All defaults live in `defaultSettings` (src/constants.js). `loadSettings()` guarantees every key is populated.
 - **Pre-commit**: Biome lints/formats automatically. DO NOT format manually. `npm run test` uses Vitest + JSDOM.
+- **Plans Archive**: `docs/plans/` contains execution plans. Move to `docs/designs/` after completion.
 
 ## GOTCHAS & DEBUG SAUCE
 - **`<think>` Tags**: LLMs often return reasoning before JSON. ALWAYS pass output through `stripThinkingTags()` (`src/utils/text.js`) before parsing. Handles both paired tags and orphaned closing tags (from prefill continuations).
