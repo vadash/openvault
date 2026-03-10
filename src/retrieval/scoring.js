@@ -144,7 +144,17 @@ export async function selectRelevantMemories(memories, ctx) {
     // Skip archived reflections in retrieval
     const activeMemories = memories.filter((m) => !m.archived);
     const { finalTokens } = ctx;
-    const { memories: scoredMemories, scoredResults } = await selectRelevantMemoriesSimple(activeMemories, ctx, 1000);
+
+    // Build hidden memories set (all memories - candidates)
+    const candidateIds = new Set(activeMemories.map((m) => m.id));
+    const hiddenMemories = (ctx.allAvailableMemories || []).filter((m) => !m.archived && !candidateIds.has(m.id));
+
+    const { memories: scoredMemories, scoredResults } = await selectRelevantMemoriesSimple(
+        activeMemories,
+        ctx,
+        1000,
+        hiddenMemories
+    );
     const finalResults = sliceToTokenBudget(scoredMemories, finalTokens);
     const selectedIds = new Set(finalResults.map((m) => m.id));
 
