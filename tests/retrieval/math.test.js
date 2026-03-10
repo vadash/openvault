@@ -99,3 +99,58 @@ describe('calculateIDF with expanded corpus', () => {
         expect(idfMap.size).toBeGreaterThan(0);
     });
 });
+
+describe('Frequency Factor (mentions boost)', () => {
+    it('should return frequencyFactor=1.0 when mentions is 1 (default)', async () => {
+        const { calculateScore } = await import('../../src/retrieval/math.js');
+        const memory = { message_ids: [10], importance: 3, mentions: 1 };
+        const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 1.0, reflectionDecayThreshold: 750 };
+        const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
+        const result = calculateScore(memory, null, 100, constants, settings);
+        expect(result.frequencyFactor).toBeCloseTo(1.0);
+    });
+
+    it('should return frequencyFactor=1.0 when mentions is missing', async () => {
+        const { calculateScore } = await import('../../src/retrieval/math.js');
+        const memory = { message_ids: [10], importance: 3 };
+        const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 1.0, reflectionDecayThreshold: 750 };
+        const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
+        const result = calculateScore(memory, null, 100, constants, settings);
+        expect(result.frequencyFactor).toBeCloseTo(1.0);
+    });
+
+    it('should boost score for mentions=10 (frequencyFactor ≈ 1.115)', async () => {
+        const { calculateScore } = await import('../../src/retrieval/math.js');
+        const memory = { message_ids: [10], importance: 3, mentions: 10 };
+        const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 1.0, reflectionDecayThreshold: 750 };
+        const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
+        const result = calculateScore(memory, null, 100, constants, settings);
+        // 1 + Math.log(10) * 0.05 ≈ 1.115
+        expect(result.frequencyFactor).toBeCloseTo(1 + Math.log(10) * 0.05, 2);
+    });
+
+    it('should boost score for mentions=50 (frequencyFactor ≈ 1.196)', async () => {
+        const { calculateScore } = await import('../../src/retrieval/math.js');
+        const memory = { message_ids: [10], importance: 3, mentions: 50 };
+        const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 1.0, reflectionDecayThreshold: 750 };
+        const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
+        const result = calculateScore(memory, null, 100, constants, settings);
+        expect(result.frequencyFactor).toBeCloseTo(1 + Math.log(50) * 0.05, 2);
+    });
+
+    it('should multiply total by frequencyFactor', async () => {
+        const { calculateScore } = await import('../../src/retrieval/math.js');
+        const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 1.0, reflectionDecayThreshold: 750 };
+        const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
+
+        const noMentions = calculateScore(
+            { message_ids: [10], importance: 3 }, null, 100, constants, settings
+        );
+        const withMentions = calculateScore(
+            { message_ids: [10], importance: 3, mentions: 10 }, null, 100, constants, settings
+        );
+        // Total should be proportionally higher by frequencyFactor
+        const expectedRatio = withMentions.frequencyFactor / noMentions.frequencyFactor;
+        expect(withMentions.total / noMentions.total).toBeCloseTo(expectedRatio, 2);
+    });
+});

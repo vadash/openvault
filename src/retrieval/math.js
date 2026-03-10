@@ -240,6 +240,11 @@ export function calculateScore(memory, contextEmbedding, chatLength, constants, 
 
     let total = baseAfterFloor + vectorBonus + bm25Bonus;
 
+    // === Frequency Boost (mentions) ===
+    const mentions = memory.mentions || 1;
+    const frequencyFactor = 1 + Math.log(mentions) * 0.05;
+    total *= frequencyFactor;
+
     // === Reflection Decay ===
     // Reflections lose additional score with distance beyond threshold
     if (memory.type === 'reflection' && distance > constants.reflectionDecayThreshold) {
@@ -260,6 +265,7 @@ export function calculateScore(memory, contextEmbedding, chatLength, constants, 
         distance,
         importance,
         hitDamping,
+        frequencyFactor,
     };
 }
 
