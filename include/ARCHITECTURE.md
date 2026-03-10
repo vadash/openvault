@@ -31,7 +31,7 @@ Worker (`src/extraction/worker.js`) is single-instance, interruptible (checks `w
   memories: [{ // Both events and reflections
     id: string, type: "event"|"reflection", summary: string, importance: 1-5,
     tokens: string[], message_ids?: number[], source_ids?: string[], // source_ids for reflections
-    characters_involved: string[], embedding_b64: string, archived: boolean
+    characters_involved: string[], embedding_b64: string, archived: boolean, mentions?: number
   }],
   graph: {
     nodes: { [normKey]: { name, type, description, mentions, embedding_b64: string, aliases? } },
@@ -49,8 +49,9 @@ Worker (`src/extraction/worker.js`) is single-instance, interruptible (checks `w
 
 ## 3. CORE SYSTEMS SAUCE
 
-**Retrieval Math (Alpha-Blend)**: `Score = Base + (Alpha * VectorBonus) + ((1 - Alpha) * BM25Bonus)`
-- *Base (Forgetfulness)*: `Importance * e^(-Lambda * Distance)`. Imp 5 has soft floor of 1.0. Reflections > 750 msgs decay linearly to 0.25x.
+**Retrieval Math (Alpha-Blend)**: `Score = (Base + (Alpha * VectorBonus) + ((1 - Alpha) * BM25Bonus)) × FrequencyFactor`
+- *Base (Forgetfulness)*: `Importance * e^(-Lambda * Distance)`. Lambda dampened by `hitDamping = max(0.5, 1/(1 + retrieval_hits × 0.1))` — frequently retrieved memories decay up to 50% slower. Imp 5 has soft floor of 1.0. Reflections > 750 msgs decay linearly to 0.25x.
+- *Frequency Factor*: `1 + ln(mentions) × 0.05`. Sublinear boost from event repetitions (dedup increments `mentions`). 10 mentions ≈ +11.5%, 50 mentions ≈ +20%.
 - *BM25*: IDF-aware using **expanded corpus** (candidates + hidden memories) to prevent common terms from getting artificially high scores. Dynamic Character Stopwords (names filtered out to prevent score inflation). **Three-Token-Tier System** (Layers 1-3): Entity stems at 5x, corpus-grounded stems at 3x, non-grounded stems at 2x. **Event Gate**: BM25 skipped when no events in candidates (returns empty token array).
 
 **BM25 Token Construction** (`buildBM25Tokens` + `buildCorpusVocab`):
@@ -102,6 +103,7 @@ Worker (`src/extraction/worker.js`) is single-instance, interruptible (checks `w
 **Event Dedup**: Two-phase filtering in `filterSimilarEvents()`:
 - *Phase 1 (Cross-batch)*: Cosine similarity >= threshold AND Jaccard token overlap >= half the Jaccard threshold. Dual-gate prevents false positives where semantically similar but lexically different events share structure (e.g., same actors, different acts).
 - *Phase 2 (Intra-batch)*: Jaccard token overlap >= threshold between events in the same extraction batch.
+Both phases increment `mentions` on the surviving memory/event when a duplicate is caught, enabling the Frequency Factor scoring boost.
 
 **Testing Tiers**:
 - *Tier 1*: Pure transforms (`math.js`, `helpers.js`). Unit tested.
