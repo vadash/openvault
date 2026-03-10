@@ -73,7 +73,7 @@ import { setStatus } from '../ui/status.js';
 import { getCurrentChatId, getOpenVaultData, saveOpenVaultData } from '../utils/data.js';
 import { showToast } from '../utils/dom.js';
 import { getEmbedding, hasEmbedding } from '../utils/embedding-codec.js';
-import { logDebug, logError } from '../utils/logging.js';
+import { logDebug, logError, logInfo } from '../utils/logging.js';
 import { isExtensionEnabled, safeSetExtensionPrompt, yieldToMain } from '../utils/st-helpers.js';
 import { sliceToTokenBudget, sortMemoriesBySequence } from '../utils/text.js';
 import { countTokens, getMessageTokenCount } from '../utils/tokens.js';
@@ -629,7 +629,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         }
 
         if (events.length > 0) {
-            logDebug(`Extracted ${events.length} events`);
+            logInfo(`Extracted ${events.length} events`);
         } else {
             logDebug('No significant events found in messages');
         }

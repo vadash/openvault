@@ -10,7 +10,7 @@ import { getDeps } from './deps.js';
 import { record } from './perf/store.js';
 import { getSessionSignal } from './state.js';
 import { hasEmbedding, setEmbedding } from './utils/embedding-codec.js';
-import { logDebug, logError } from './utils/logging.js';
+import { logDebug, logError, logInfo } from './utils/logging.js';
 
 // =============================================================================
 // Strategy Classes (from src/embeddings/strategies.js)
@@ -775,7 +775,7 @@ export async function backfillAllEmbeddings({ signal, silent = false } = {}) {
         const total = memoryCount + nodeCount + communityCount;
         if (total > 0) {
             await saveOpenVaultData();
-            logDebug(`Backfill complete: ${memoryCount} memories, ${nodeCount} nodes, ${communityCount} communities`);
+            logInfo(`Backfill complete: ${memoryCount} memories, ${nodeCount} nodes, ${communityCount} communities`);
         }
 
         return { memories: memoryCount, nodes: nodeCount, communities: communityCount, total, skipped: false };
