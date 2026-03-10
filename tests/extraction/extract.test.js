@@ -577,6 +577,96 @@ describe('CPU yielding in filterSimilarEvents', () => {
     });
 });
 
+describe('filterSimilarEvents — mentions increment on dedup', () => {
+    it('increments mentions on existing memory during cross-batch dedup', async () => {
+        const existingMemories = [
+            {
+                summary: 'Suzy proposed daily morning training sessions for Vova starting at seven',
+                embedding: [0.9, 0.1],
+                mentions: 1,
+            },
+        ];
+        const newEvents = [
+            {
+                summary: 'Suzy proposed daily morning training sessions for Vova starting at seven',
+                embedding: [0.91, 0.11],
+            },
+        ];
+        await filterSimilarEvents(newEvents, existingMemories, 0.85, 0.6);
+        expect(existingMemories[0].mentions).toBe(2);
+    });
+
+    it('increments mentions from undefined (defaults to 1, then becomes 2)', async () => {
+        const existingMemories = [
+            {
+                summary: 'Suzy proposed daily morning training sessions for Vova starting at seven',
+                embedding: [0.9, 0.1],
+                // mentions intentionally omitted
+            },
+        ];
+        const newEvents = [
+            {
+                summary: 'Suzy proposed daily morning training sessions for Vova starting at seven',
+                embedding: [0.91, 0.11],
+            },
+        ];
+        await filterSimilarEvents(newEvents, existingMemories, 0.85, 0.6);
+        expect(existingMemories[0].mentions).toBe(2);
+    });
+
+    it('increments mentions on kept event during intra-batch dedup', async () => {
+        const newEvents = [
+            {
+                summary: 'Suzy proposed daily morning training sessions for Vova starting at seven',
+                embedding: [0.9, 0.1],
+            },
+            {
+                summary: 'Suzy proposed daily morning training sessions with warmup drills for Vova',
+                embedding: [0.1, 0.9],
+            },
+        ];
+        const result = await filterSimilarEvents(newEvents, [], 0.85, 0.6);
+        expect(result).toHaveLength(1);
+        expect(result[0].mentions).toBe(2);
+    });
+
+    it('accumulates mentions across multiple cross-batch dedup matches', async () => {
+        const existingMemories = [
+            {
+                summary: 'Suzy proposed daily morning training sessions for Vova starting at seven',
+                embedding: [0.9, 0.1],
+                mentions: 3,
+            },
+        ];
+        const newEvents = [
+            {
+                summary: 'Suzy proposed daily morning training sessions for Vova starting at seven',
+                embedding: [0.91, 0.11],
+            },
+        ];
+        await filterSimilarEvents(newEvents, existingMemories, 0.85, 0.6);
+        expect(existingMemories[0].mentions).toBe(4);
+    });
+
+    it('does not change mentions when no duplicates found', async () => {
+        const existingMemories = [
+            {
+                summary: 'Vova went shopping for food at the market',
+                embedding: [0.1, 0.9],
+                mentions: 1,
+            },
+        ];
+        const newEvents = [
+            {
+                summary: 'Suzy proposed daily morning training sessions for Vova starting at seven',
+                embedding: [0.9, 0.1],
+            },
+        ];
+        await filterSimilarEvents(newEvents, existingMemories, 0.85, 0.6);
+        expect(existingMemories[0].mentions).toBe(1);
+    });
+});
+
 describe('RPM delay between LLM calls', () => {
     afterEach(() => {
         resetDeps();

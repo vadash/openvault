@@ -281,6 +281,7 @@ export async function filterSimilarEvents(newEvents, existingMemories, cosineThr
                         `Dedup: Skipping new event:\n  "${event.summary}"\n  (${(similarity * 100).toFixed(1)}% similar to existing memory:\n  "${memory.summary}")`
                     );
                     isDuplicate = true;
+                    memory.mentions = (memory.mentions || 1) + 1;
                     break;
                 }
             }
@@ -306,6 +307,7 @@ export async function filterSimilarEvents(newEvents, existingMemories, cosineThr
                     `Dedup: Skipping new event:\n  "${event.summary}"\n  (Jaccard ${(jaccard * 100).toFixed(1)}% with kept event:\n  "${keptEvent.summary}")`
                 );
                 isDuplicate = true;
+                keptEvent.mentions = (keptEvent.mentions || 1) + 1;
                 break;
             }
         }
