@@ -20,6 +20,7 @@ import { getDeps } from '../deps.js';
 import { getEmbeddingStatus, getStrategy, isEmbeddingsEnabled, setEmbeddingStatusCallback } from '../embeddings.js';
 import { updateEventListeners } from '../events.js';
 import { formatForClipboard, getAll as getPerfData } from '../perf/store.js';
+import { logError, logInfo, logWarn } from '../utils/logging.js';
 import { exportToClipboard } from './export-debug.js';
 import { validateRPM } from './helpers.js';
 import { initBrowser, nextPage, prevPage, refreshAllUI, resetAndRender } from './render.js';
@@ -56,7 +57,7 @@ async function testOllamaConnection() {
     } catch (err) {
         $btn.removeClass('success').addClass('error');
         $btn.html('<i class="fa-solid fa-xmark"></i> Failed');
-        console.error('[OpenVault] Ollama test failed:', err);
+        logError('Ollama test failed', err);
     }
 
     // Reset button after 3 seconds
@@ -335,7 +336,7 @@ function populateDefaultHints() {
         if (value !== undefined) {
             $(this).text(` (default: ${value})`);
         } else {
-            console.warn(`[OpenVault] Unknown default hint key: ${key}`);
+            logWarn(`Unknown default hint key: ${key}`);
         }
     });
 }
@@ -384,7 +385,7 @@ export async function loadSettings() {
     // Update UI to match current settings
     updateUI();
 
-    console.log('[OpenVault] Settings loaded');
+    logInfo('Settings loaded');
 }
 
 // =============================================================================
@@ -512,7 +513,7 @@ function bindUIElements() {
                 }
             }
         } catch (err) {
-            console.warn('[OpenVault] Failed to reset old embedding strategy:', err);
+            logWarn('Failed to reset old embedding strategy: ' + err.message);
         }
 
         // Persist the model selection
