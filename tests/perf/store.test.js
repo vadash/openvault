@@ -9,6 +9,7 @@ describe('PERF constants', () => {
         'auto_hide',
         'memory_scoring',
         'event_dedup',
+        'idf_calculation', // BM25 global IDF calculation
         'llm_events',
         'llm_graph',
         'llm_reflection',
@@ -19,11 +20,11 @@ describe('PERF constants', () => {
         'chat_save',
     ];
 
-    it('PERF_THRESHOLDS has all 12 metric IDs with positive numbers', () => {
+    it('PERF_THRESHOLDS has all 13 metric IDs with positive numbers', () => {
         for (const id of EXPECTED_METRIC_IDS) {
             expect(PERF_THRESHOLDS[id], `missing threshold for ${id}`).toBeGreaterThan(0);
         }
-        expect(Object.keys(PERF_THRESHOLDS)).toHaveLength(12);
+        expect(Object.keys(PERF_THRESHOLDS)).toHaveLength(13);
     });
 
     it('PERF_METRICS has label, icon, and sync flag for every metric', () => {
@@ -34,7 +35,7 @@ describe('PERF constants', () => {
             expect(meta.icon).toBeTypeOf('string');
             expect(meta.sync).toBeTypeOf('boolean');
         }
-        expect(Object.keys(PERF_METRICS)).toHaveLength(12);
+        expect(Object.keys(PERF_METRICS)).toHaveLength(13);
     });
 
     it('sync metrics are only retrieval_injection and auto_hide', () => {

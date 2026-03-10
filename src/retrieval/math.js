@@ -305,9 +305,11 @@ export async function scoreMemories(
             // Tokenize ALL memories in corpus (candidates + hidden)
             const corpusMemoryTokens = idfCorpus.map((m) => m.tokens || tokenize(m.summary || ''));
 
-            // Calculate IDF from expanded corpus
+            // Calculate IDF from expanded corpus (timed)
             const tokenizedMap = new Map(corpusMemoryTokens.map((t, i) => [i, t]));
+            const idfStart = performance.now();
             const idfData = calculateIDF(idfCorpus, tokenizedMap);
+            record('idf_calculation', performance.now() - idfStart, `${idfCorpus.length} docs`);
             idfMap = idfData.idfMap;
             avgDL = idfData.avgDL;
 

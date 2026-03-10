@@ -188,6 +188,7 @@ export const PERF_THRESHOLDS = {
     auto_hide: 500,
     memory_scoring: 200,
     event_dedup: 500,
+    idf_calculation: 50, // BM25 IDF calculation (expected to be very fast)
     llm_events: 30000,
     llm_graph: 30000,
     llm_reflection: 45000,
@@ -204,6 +205,7 @@ export const PERF_METRICS = {
     auto_hide: { label: 'Auto-hide messages', icon: 'fa-eye-slash', sync: true },
     memory_scoring: { label: 'Memory scoring', icon: 'fa-calculator', sync: false },
     event_dedup: { label: 'Event dedup', icon: 'fa-clone', sync: false },
+    idf_calculation: { label: 'BM25 IDF calc', icon: 'fa-function', sync: false },
     llm_events: { label: 'LLM: Events', icon: 'fa-cloud', sync: false },
     llm_graph: { label: 'LLM: Graph', icon: 'fa-cloud', sync: false },
     llm_reflection: { label: 'LLM: Reflection', icon: 'fa-cloud', sync: false },
