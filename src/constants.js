@@ -188,7 +188,7 @@ export const PERF_THRESHOLDS = {
     auto_hide: 500,
     memory_scoring: 200,
     event_dedup: 500,
-    idf_calculation: 50, // BM25 IDF calculation (expected to be very fast)
+    idf_calculation: 100, // Full IDF setup: tokenization + calculation (larger corpus)
     llm_events: 30000,
     llm_graph: 30000,
     llm_reflection: 45000,
