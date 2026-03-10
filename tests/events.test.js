@@ -162,6 +162,108 @@ describe('autoHideOldMessages (token-based)', () => {
     });
 });
 
+describe('onBeforeGeneration pending message source', () => {
+    let originalDollar;
+
+    beforeEach(async () => {
+        originalDollar = global.$;
+        // Reset operation state to prevent leaks between tests
+        const { operationState } = await import('../src/state.js');
+        operationState.generationInProgress = false;
+        operationState.retrievalInProgress = false;
+        operationState.extractionInProgress = false;
+    });
+
+    afterEach(() => {
+        global.$ = originalDollar;
+        resetDeps();
+        vi.clearAllMocks();
+    });
+
+    it('reads pending message from textarea for new sends (type=normal)', async () => {
+        const pendingText = 'Я вижу как она покраснела';
+        // Override global $ to return textarea text
+        global.$ = (selector) => {
+            if (selector === '#send_textarea') {
+                return { val: () => pendingText };
+            }
+            return originalDollar(selector);
+        };
+
+        const previousUserMsg = 'Мы сидели в тихом углу';
+        const logCalls = [];
+        setupTestContext({
+            context: {
+                chat: [
+                    { mes: previousUserMsg, is_user: true, is_system: false },
+                    { mes: 'Bot reply', is_user: false, is_system: false },
+                ],
+                chatMetadata: {
+                    openvault: {
+                        memories: [{ id: 'm1', summary: 'test memory' }],
+                    },
+                },
+                chatId: 'test-chat',
+            },
+            settings: { enabled: true, debugMode: true },
+            deps: {
+                console: { log: (...args) => logCalls.push(args.join(' ')), warn: vi.fn(), error: vi.fn() },
+            },
+        });
+
+        const { onBeforeGeneration } = await import('../src/events.js');
+
+        await onBeforeGeneration('normal', {});
+
+        // The log should contain the textarea text, not the previous chat message
+        const retrievalLog = logCalls.find((l) => l.includes('Pre-generation retrieval starting'));
+        expect(retrievalLog).toBeDefined();
+        expect(retrievalLog).toContain(pendingText.substring(0, 50));
+        expect(retrievalLog).not.toContain(previousUserMsg.substring(0, 20));
+    });
+
+    it('reads pending message from chat for regenerate (ignores textarea)', async () => {
+        // Simulate user having typed something in textarea during regenerate
+        global.$ = (selector) => {
+            if (selector === '#send_textarea') {
+                return { val: () => 'unrelated textarea text' };
+            }
+            return originalDollar(selector);
+        };
+
+        const lastUserMsg = 'Мы сидели в тихом углу';
+        const logCalls = [];
+        setupTestContext({
+            context: {
+                chat: [
+                    { mes: lastUserMsg, is_user: true, is_system: false },
+                    { mes: 'Bot reply', is_user: false, is_system: false },
+                ],
+                chatMetadata: {
+                    openvault: {
+                        memories: [{ id: 'm1', summary: 'test memory' }],
+                    },
+                },
+                chatId: 'test-chat',
+            },
+            settings: { enabled: true, debugMode: true },
+            deps: {
+                console: { log: (...args) => logCalls.push(args.join(' ')), warn: vi.fn(), error: vi.fn() },
+            },
+        });
+
+        const { onBeforeGeneration } = await import('../src/events.js');
+
+        await onBeforeGeneration('regenerate', {});
+
+        // Should use the chat message, not textarea
+        const retrievalLog = logCalls.find((l) => l.includes('Pre-generation retrieval starting'));
+        expect(retrievalLog).toBeDefined();
+        expect(retrievalLog).toContain(lastUserMsg.substring(0, 50));
+        expect(retrievalLog).not.toContain('unrelated textarea text');
+    });
+});
+
 describe('onChatChanged resets session controller', () => {
     beforeEach(() => {
         setupTestContext({

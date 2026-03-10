@@ -8,6 +8,8 @@ Decoupled two-path architecture operating entirely within SillyTavern's `chatMet
 1. `autoHideOldMessages()`: Marks extracted messages as `is_system=true` if visible tokens > budget. Turn-boundary snapped.
 2. `retrieveAndInjectContext()`: Scores memories -> Injects via `safeSetExtensionPrompt` (`openvault_memory` & `openvault_world`).
 
+**Pending Message Source**: ST fires this event BEFORE `chat.push()` and BEFORE textarea clear. For new sends (`type=normal`), the user message is read from `$('#send_textarea').val()`. For regenerate/swipe, it falls back to the last `is_user` message in `context.chat`.
+
 ### Background Path (Async worker, on `MESSAGE_RECEIVED`)
 Worker (`src/extraction/worker.js`) is single-instance, interruptible (checks `wakeGeneration` every 500ms), fast-fails on chat switch, and uses exponential backoff.
 

@@ -152,8 +152,19 @@ export async function onBeforeGeneration(type, _options, dryRun = false) {
         // Get context for retrieval - use the last user message if available
         const context = getDeps().getContext();
         const chat = context.chat || [];
-        const lastUserMessage = [...chat].reverse().find((m) => m.is_user && !m.is_system);
-        const pendingUserMessage = lastUserMessage?.mes || '';
+
+        // For new messages: GENERATION_AFTER_COMMANDS fires BEFORE chat.push()
+        // and BEFORE textarea is cleared, so the textarea still has the user's text.
+        // For regenerate/swipe/continue: the last user message is already in chat.
+        const isNewSend = type === 'normal' || !type;
+        let pendingUserMessage = '';
+        if (isNewSend) {
+            pendingUserMessage = String($('#send_textarea').val() || '').trim();
+        }
+        if (!pendingUserMessage) {
+            const lastUserMessage = [...chat].reverse().find((m) => m.is_user && !m.is_system);
+            pendingUserMessage = lastUserMessage?.mes || '';
+        }
 
         // Show toast notification during retrieval
         showToast('info', 'Retrieving memories...', 'OpenVault', { timeOut: 2000 });
