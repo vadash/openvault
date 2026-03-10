@@ -1,12 +1,36 @@
 /**
  * CDN Import with Retry + Mirror Fallback
  *
- * Tries esm.sh first, then esm.run (jsdelivr's ESM CDN).
- * Retries the full mirror cycle up to MAX_ROUNDS times.
+ * Tries multiple ESM CDNs in sequence: esm.sh → skypack → esm.run → unpkg.
+ * Retries the full mirror cycle up to MAX_ROUNDS times before giving up.
  * Uses an application-level cache so the same package spec is never fetched twice.
+ *
+ * This handles transient network failures (ERR_CONNECTION_RESET) by automatically
+ * falling back to alternative CDNs. If all public CDNs fail, consider adding a
+ * self-hosted vendor copy as the final fallback.
  */
 
-const MIRRORS = [(pkg) => `https://esm.sh/${pkg}`, (pkg) => `https://esm.run/${pkg}`];
+/**
+ * Mirror list for CDN fallback.
+ * Ordered by preference: fastest/most reliable first.
+ *
+ * - esm.sh: Primary, fast, supports pinning via @version syntax
+ * - skypack: ESM-first CDN, reliable fallback
+ * - esm.run: jsDelivr's ESM wrapper, good global coverage
+ * - unpkg: Raw files as final public fallback
+ *
+ * To add a self-hosted fallback (e.g., for critical packages):
+ * 1. Create a /public/vendor/ directory
+ * 2. Download the module: cp node_modules/package/dist/index.mjs public/vendor/package.mjs
+ * 3. Add mirror: (pkg) => pkg === 'package-name' ? '/vendor/package.mjs' : null
+ * 4. Filter out nulls in the import loop
+ */
+const MIRRORS = [
+    (pkg) => `https://esm.sh/${pkg}`,
+    (pkg) => `https://cdn.skypack.dev/${pkg}`,
+    (pkg) => `https://esm.run/${pkg}`,
+    (pkg) => `https://unpkg.com/${pkg}?module`, // ?module forces ESM mode
+];
 
 /** Full mirror cycle repeated this many times before giving up. */
 const MAX_ROUNDS = 2;
