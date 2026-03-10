@@ -12,7 +12,7 @@ import { logDebug } from '../utils/logging.js';
 import { sliceToTokenBudget } from '../utils/text.js';
 import { cacheRetrievalDebug, cacheScoringDetails } from './debug-cache.js';
 import { scoreMemories } from './math.js';
-import { buildBM25Tokens, buildEmbeddingQuery, extractQueryContext, parseRecentMessages } from './query-context.js';
+import { buildBM25Tokens, buildCorpusVocab, buildEmbeddingQuery, extractQueryContext, parseRecentMessages } from './query-context.js';
 
 /**
  * Build scoring parameters from extension settings
@@ -93,7 +93,20 @@ async function selectRelevantMemoriesSimple(memories, ctx, limit, allHiddenMemor
     // Use user messages only for embedding (intent matching)
     const userMessagesForEmbedding = parseRecentMessages(userMessages, 3);
     const embeddingQuery = buildEmbeddingQuery(userMessagesForEmbedding, queryContext);
-    const bm25Tokens = buildBM25Tokens(userMessages, queryContext);
+
+    // Event gate: skip BM25 pipeline when no events in candidates
+    const hasEvents = memories.some(m => m.type === 'event');
+
+    let bm25Tokens = [];
+    if (hasEvents) {
+        const corpusVocab = buildCorpusVocab(
+            memories,
+            allHiddenMemories,
+            ctx.graphNodes || {},
+            ctx.graphEdges || {}
+        );
+        bm25Tokens = buildBM25Tokens(userMessages, queryContext, corpusVocab);
+    }
 
     // Cache query context for debug export
     cacheRetrievalDebug({

@@ -170,3 +170,13 @@ describe('buildBM25Tokens with corpusVocab', () => {
         expect(tokens.some(t => t !== 'sword')).toBe(true); // entity stems present
     });
 });
+
+describe('Event gate behavior', () => {
+    it('buildBM25Tokens returns empty array when called with empty string and no entities', async () => {
+        const { buildBM25Tokens } = await import('../../src/retrieval/query-context.js');
+
+        // Simulates skipped BM25 (no events → no buildBM25Tokens call → empty array)
+        const tokens = buildBM25Tokens('', { entities: [], weights: {} }, new Set());
+        expect(tokens).toEqual([]);
+    });
+});
