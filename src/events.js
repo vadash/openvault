@@ -20,7 +20,7 @@ import { refreshAllUI, resetMemoryBrowserPage } from './ui/render.js';
 import { setStatus } from './ui/status.js';
 import { getOpenVaultData } from './utils/data.js';
 import { showToast } from './utils/dom.js';
-import { log } from './utils/logging.js';
+import { logDebug } from './utils/logging.js';
 import { isExtensionEnabled, safeSetExtensionPrompt, withTimeout } from './utils/st-helpers.js';
 
 // =============================================================================
@@ -88,7 +88,7 @@ export async function autoHideOldMessages() {
         }
 
         await getDeps().saveChatConditional();
-        log(
+        logDebug(
             `Auto-hid ${snapped.length} messages (token-based) — budget: ${visibleChatBudget}, was: ${totalVisibleTokens}`
         );
         showToast('info', `Auto-hid ${snapped.length} old messages`);
@@ -115,13 +115,13 @@ export async function onBeforeGeneration(type, _options, dryRun = false) {
 
     // Skip if already generating (prevent re-entry)
     if (operationState.generationInProgress) {
-        log('Skipping retrieval - generation already in progress');
+        logDebug('Skipping retrieval - generation already in progress');
         return;
     }
 
     // Skip if retrieval already in progress
     if (operationState.retrievalInProgress) {
-        log('Skipping retrieval - retrieval already in progress');
+        logDebug('Skipping retrieval - retrieval already in progress');
         return;
     }
 
@@ -137,12 +137,12 @@ export async function onBeforeGeneration(type, _options, dryRun = false) {
         // Skip retrieval if no memories exist yet
         const data = getOpenVaultData();
         if (!data) {
-            log('>>> Skipping retrieval - no context available');
+            logDebug('>>> Skipping retrieval - no context available');
             return;
         }
         const memories = data[MEMORIES_KEY] || [];
         if (memories.length === 0) {
-            log('>>> Skipping retrieval - no memories yet');
+            logDebug('>>> Skipping retrieval - no memories yet');
             return;
         }
 
@@ -159,18 +159,18 @@ export async function onBeforeGeneration(type, _options, dryRun = false) {
         showToast('info', 'Retrieving memories...', 'OpenVault', { timeOut: 2000 });
 
         // Do memory retrieval before generation
-        log(
+        logDebug(
             `>>> Pre-generation retrieval starting (type: ${type}, message: "${pendingUserMessage.substring(0, 50)}...")`
         );
         const t0Retrieval = performance.now();
         await withTimeout(updateInjection(pendingUserMessage), RETRIEVAL_TIMEOUT_MS, 'Memory retrieval');
         record('retrieval_injection', performance.now() - t0Retrieval);
-        log('>>> Pre-generation retrieval complete');
+        logDebug('>>> Pre-generation retrieval complete');
 
         setStatus('ready');
     } catch (error) {
         if (error.name === 'AbortError') {
-            log('Retrieval aborted (chat switch)');
+            logDebug('Retrieval aborted (chat switch)');
             // Don't set error status — chat switch is not an error
         } else {
             getDeps().console.error('OpenVault: Error during pre-generation retrieval:', error);
@@ -188,7 +188,7 @@ export async function onBeforeGeneration(type, _options, dryRun = false) {
  */
 export function onGenerationEnded() {
     clearGenerationLock();
-    log('Generation ended, clearing lock');
+    logDebug('Generation ended, clearing lock');
 }
 
 /**
@@ -205,7 +205,7 @@ export async function onChatChanged() {
     const { clearRetrievalDebug } = await import('./retrieval/debug-cache.js');
     const { clearTokenCache } = await import('./utils/tokens.js');
 
-    log('Chat changed, clearing injection, cache and setting load cooldown');
+    logDebug('Chat changed, clearing injection, cache and setting load cooldown');
 
     // Cleanup corrupted character states
     const data = getOpenVaultData();
@@ -240,7 +240,7 @@ export async function onChatChanged() {
     resetMemoryBrowserPage();
 
     // Set cooldown to prevent MESSAGE_RECEIVED from triggering extraction during chat load
-    setChatLoadingCooldown(2000, log);
+    setChatLoadingCooldown(2000, logDebug);
 
     // Clear operation states on chat change to prevent stale locks
     resetOperationStatesIfSafe();
@@ -266,7 +266,7 @@ export async function onMessageReceived(messageId) {
     const { wakeUpBackgroundWorker } = await import('./extraction/worker.js');
 
     if (isChatLoadingCooldown()) {
-        log(`Skipping extraction for message ${messageId} - chat load cooldown active`);
+        logDebug(`Skipping extraction for message ${messageId} - chat load cooldown active`);
         return;
     }
 
@@ -318,10 +318,10 @@ export function updateEventListeners(_skipInitialization = false) {
     });
 
     if (isExtensionEnabled()) {
-        log('Extension enabled - event listeners registered');
+        logDebug('Extension enabled - event listeners registered');
     } else {
         // Clear injection when disabled/manual
         safeSetExtensionPrompt('');
-        log('Manual mode - injection cleared');
+        logDebug('Manual mode - injection cleared');
     }
 }

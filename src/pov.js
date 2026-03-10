@@ -7,7 +7,7 @@
 import { CHARACTERS_KEY, MEMORIES_KEY } from './constants.js';
 import { getDeps } from './deps.js';
 import { getOpenVaultData } from './utils/data.js';
-import { log } from './utils/logging.js';
+import { logDebug } from './utils/logging.js';
 
 /**
  * Filter memories by POV accessibility
@@ -154,7 +154,7 @@ export function detectPresentCharactersFromMessages(messageCount = 2) {
         }
     }
 
-    log(`Detected present characters: ${result.join(', ')}`);
+    logDebug(`Detected present characters: ${result.join(', ')}`);
     return result;
 }
 
@@ -170,7 +170,7 @@ export function getPOVContext() {
 
     if (isGroupChat) {
         // Group chat: Use the specific responding character
-        log(`Group chat mode: POV character = ${context.name2}`);
+        logDebug(`Group chat mode: POV character = ${context.name2}`);
         return {
             povCharacters: [context.name2],
             isGroupChat: true,
@@ -185,7 +185,7 @@ export function getPOVContext() {
             if (context.name1) presentCharacters.push(context.name1);
         }
 
-        log(`Narrator mode: POV characters = ${presentCharacters.join(', ')}`);
+        logDebug(`Narrator mode: POV characters = ${presentCharacters.join(', ')}`);
         return {
             povCharacters: presentCharacters,
             isGroupChat: false,

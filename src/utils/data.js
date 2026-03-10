@@ -3,7 +3,7 @@ import { getDeps } from '../deps.js';
 import { record } from '../perf/store.js';
 import { showToast } from './dom.js';
 import { deleteEmbedding, hasEmbedding } from './embedding-codec.js';
-import { log } from './logging.js';
+import { logDebug } from './logging.js';
 
 /**
  * Get OpenVault data from chat metadata
@@ -59,7 +59,7 @@ export async function saveOpenVaultData(expectedChatId = null) {
     try {
         await getDeps().saveChatConditional();
         record('chat_save', performance.now() - t0);
-        log('Data saved to chat metadata');
+        logDebug('Data saved to chat metadata');
         return true;
     } catch (error) {
         record('chat_save', performance.now() - t0);
@@ -92,7 +92,7 @@ export async function updateMemory(id, updates) {
 
     const memory = data[MEMORIES_KEY]?.find((m) => m.id === id);
     if (!memory) {
-        log(`Memory ${id} not found`);
+        logDebug(`Memory ${id} not found`);
         return false;
     }
 
@@ -113,7 +113,7 @@ export async function updateMemory(id, updates) {
     }
 
     await getDeps().saveChatConditional();
-    log(`Updated memory ${id}${summaryChanged ? ' (embedding invalidated)' : ''}`);
+    logDebug(`Updated memory ${id}${summaryChanged ? ' (embedding invalidated)' : ''}`);
     return true;
 }
 
@@ -131,13 +131,13 @@ export async function deleteMemory(id) {
 
     const idx = data[MEMORIES_KEY]?.findIndex((m) => m.id === id);
     if (idx === -1) {
-        log(`Memory ${id} not found`);
+        logDebug(`Memory ${id} not found`);
         return false;
     }
 
     data[MEMORIES_KEY].splice(idx, 1);
     await getDeps().saveChatConditional();
-    log(`Deleted memory ${id}`);
+    logDebug(`Deleted memory ${id}`);
     return true;
 }
 
@@ -149,13 +149,13 @@ export async function deleteCurrentChatData() {
     const context = getDeps().getContext();
 
     if (!context.chatMetadata) {
-        log('No chat metadata found');
+        logDebug('No chat metadata found');
         return false;
     }
 
     delete context.chatMetadata[METADATA_KEY];
     await getDeps().saveChatConditional();
-    log('Deleted all chat data');
+    logDebug('Deleted all chat data');
     return true;
 }
 
@@ -213,7 +213,7 @@ export function invalidateStaleEmbeddings(data, currentModelId) {
     }
 
     data.embedding_model_id = currentModelId;
-    log(`Embedding model changed (${oldModel} → ${currentModelId}). Wiped ${count} embeddings.`);
+    logDebug(`Embedding model changed (${oldModel} → ${currentModelId}). Wiped ${count} embeddings.`);
     return count;
 }
 
@@ -256,7 +256,7 @@ export async function deleteCurrentChatEmbeddings() {
 
     if (count > 0) {
         await getDeps().saveChatConditional();
-        log(`Deleted ${count} embeddings`);
+        logDebug(`Deleted ${count} embeddings`);
     }
 
     return count;

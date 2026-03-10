@@ -8,7 +8,7 @@ import { CHARACTERS_KEY, defaultSettings, extensionName, MEMORIES_KEY } from '..
 import { getDeps } from '../deps.js';
 import { getOpenVaultData } from '../utils/data.js';
 import { hasEmbedding } from '../utils/embedding-codec.js';
-import { log } from '../utils/logging.js';
+import { logDebug } from '../utils/logging.js';
 import { getStatusText } from './helpers.js';
 
 // Status icon mapping
@@ -148,5 +148,5 @@ export async function refreshStats() {
             : `${Math.round(unextractedTokens / 1000)}k / ${Math.round(tokenBudget / 1000)}k tokens`;
     $('#openvault_batch_progress_label').text(progressLabel);
 
-    log(`Stats: ${eventCount} memories, ${embeddingCount} embeddings, ${charCount} characters`);
+    logDebug(`Stats: ${eventCount} memories, ${embeddingCount} embeddings, ${charCount} characters`);
 }

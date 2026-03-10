@@ -8,7 +8,7 @@
 import { getDocumentEmbedding } from '../embeddings.js';
 import { cosineSimilarity } from '../retrieval/math.js';
 import { getEmbedding, hasEmbedding, setEmbedding } from '../utils/embedding-codec.js';
-import { log } from '../utils/logging.js';
+import { logDebug } from '../utils/logging.js';
 import { yieldToMain } from '../utils/st-helpers.js';
 import { stemWord } from '../utils/stemmer.js';
 import { ALL_STOPWORDS } from '../utils/stopwords.js';
@@ -116,12 +116,12 @@ export function upsertRelationship(graphData, source, target, description, cap =
 
     // Prevent self-loops
     if (srcKey === tgtKey) {
-        log(`[graph] Edge skipped: ${source} -> ${target} — self-loops not allowed`);
+        logDebug(`[graph] Edge skipped: ${source} -> ${target} — self-loops not allowed`);
         return;
     }
 
     if (!graphData.nodes[srcKey] || !graphData.nodes[tgtKey]) {
-        log(`[graph] Edge skipped: ${source} (${srcKey}) -> ${target} (${tgtKey}) — missing node`);
+        logDebug(`[graph] Edge skipped: ${source} (${srcKey}) -> ${target} (${tgtKey}) — missing node`);
         return;
     }
 
@@ -310,7 +310,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
     }
 
     if (bestMatch) {
-        log(
+        logDebug(
             `[graph] Entity merged: "${name}" (${key}) → "${graphData.nodes[bestMatch].name}" (${bestMatch}), similarity: ${bestScore.toFixed(3)}`
         );
         upsertEntity(graphData, graphData.nodes[bestMatch].name, type, description, cap);

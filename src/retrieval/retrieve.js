@@ -24,7 +24,7 @@ import { getDeps } from '../deps.js';
 import { getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { filterMemoriesByPOV, getActiveCharacters, getPOVContext } from '../pov.js';
 import { getOpenVaultData } from '../utils/data.js';
-import { log } from '../utils/logging.js';
+import { logDebug } from '../utils/logging.js';
 import { isExtensionEnabled, safeSetExtensionPrompt } from '../utils/st-helpers.js';
 import { cacheRetrievalDebug } from './debug-cache.js';
 import { formatContextForInjection } from './formatting.js';
@@ -128,9 +128,9 @@ export function injectContext(contextText) {
     }
 
     if (safeSetExtensionPrompt(contextText)) {
-        log('Context injected into prompt');
+        logDebug('Context injected into prompt');
     } else {
-        log('Failed to inject context');
+        logDebug('Failed to inject context');
     }
 }
 
@@ -212,7 +212,7 @@ async function selectFormatAndInject(memoriesToUse, data, ctx) {
  */
 export async function retrieveAndInjectContext() {
     if (!isExtensionEnabled()) {
-        log('OpenVault disabled, skipping retrieval');
+        logDebug('OpenVault disabled, skipping retrieval');
         safeSetExtensionPrompt('', 'openvault_world');
         return null;
     }
@@ -222,21 +222,21 @@ export async function retrieveAndInjectContext() {
     const chat = context.chat;
 
     if (!chat || chat.length === 0) {
-        log('No chat to retrieve context for');
+        logDebug('No chat to retrieve context for');
         safeSetExtensionPrompt('', 'openvault_world');
         return null;
     }
 
     const data = getOpenVaultData();
     if (!data) {
-        log('No chat context available');
+        logDebug('No chat context available');
         safeSetExtensionPrompt('', 'openvault_world');
         return null;
     }
     const memories = data[MEMORIES_KEY] || [];
 
     if (memories.length === 0) {
-        log('No memories stored yet');
+        logDebug('No memories stored yet');
         safeSetExtensionPrompt('', 'openvault_world');
         return null;
     }
@@ -252,7 +252,7 @@ export async function retrieveAndInjectContext() {
 
         // Filter memories by POV
         const accessibleMemories = filterMemoriesByPOV(candidateMemories, povCharacters, data);
-        log(
+        logDebug(
             `Retrieval filter: total=${memories.length}, hidden=${hiddenMemories.length}, reflections=${reflections.length}, pov=${accessibleMemories.length} (mode=${isGroupChat ? 'group' : 'narrator'}, chars=[${povCharacters.join(', ')}])`
         );
 
@@ -269,12 +269,12 @@ export async function retrieveAndInjectContext() {
         // Fallback to hidden memories if POV filter is too strict
         let memoriesToUse = accessibleMemories;
         if (accessibleMemories.length === 0 && hiddenMemories.length > 0) {
-            log('POV filter returned 0 results, using all hidden memories as fallback');
+            logDebug('POV filter returned 0 results, using all hidden memories as fallback');
             memoriesToUse = hiddenMemories;
         }
 
         if (memoriesToUse.length === 0) {
-            log('No memories available');
+            logDebug('No memories available');
             safeSetExtensionPrompt('', 'openvault_world');
             return null;
         }
@@ -296,12 +296,12 @@ export async function retrieveAndInjectContext() {
         const result = await selectFormatAndInject(memoriesToUse, data, ctx);
 
         if (!result) {
-            log('No relevant memories found');
+            logDebug('No relevant memories found');
             safeSetExtensionPrompt('', 'openvault_world');
             return null;
         }
 
-        log(`Injected ${result.memories.length} memories into context`);
+        logDebug(`Injected ${result.memories.length} memories into context`);
         return result;
     } catch (error) {
         getDeps().console.error('[OpenVault] Retrieval error:', error);
@@ -354,14 +354,14 @@ export async function updateInjection(pendingUserMessage = '') {
 
     // Filter memories by POV
     const accessibleMemories = filterMemoriesByPOV(candidateMemories, povCharacters, data);
-    log(
+    logDebug(
         `POV filter: ${memories.length} total -> ${hiddenMemories.length} hidden + ${reflections.length} reflections -> ${accessibleMemories.length} accessible`
     );
 
     // Fallback to candidate memories if POV filter is too strict
     let memoriesToUse = accessibleMemories;
     if (accessibleMemories.length === 0 && candidateMemories.length > 0) {
-        log('Injection: POV filter returned 0, using all candidate memories as fallback');
+        logDebug('Injection: POV filter returned 0, using all candidate memories as fallback');
         memoriesToUse = candidateMemories;
     }
 
@@ -372,7 +372,7 @@ export async function updateInjection(pendingUserMessage = '') {
     }
 
     if (pendingUserMessage) {
-        log(`Including pending user message in retrieval context`);
+        logDebug(`Including pending user message in retrieval context`);
     }
 
     const ctx = buildRetrievalContext({ pendingUserMessage });
@@ -385,5 +385,5 @@ export async function updateInjection(pendingUserMessage = '') {
         return;
     }
 
-    log(`Injection updated: ${result.memories.length} memories`);
+    logDebug(`Injection updated: ${result.memories.length} memories`);
 }

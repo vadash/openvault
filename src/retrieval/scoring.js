@@ -8,7 +8,7 @@
 import { extensionName } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
-import { log } from '../utils/logging.js';
+import { logDebug } from '../utils/logging.js';
 import { sliceToTokenBudget } from '../utils/text.js';
 import { cacheRetrievalDebug, cacheScoringDetails } from './debug-cache.js';
 import { scoreMemories } from './math.js';
@@ -97,7 +97,7 @@ async function selectRelevantMemoriesSimple(memories, ctx, limit) {
 
     // Log extracted entities for debugging
     if (queryContext.entities.length > 0 || embeddingQuery) {
-        log(
+        logDebug(
             `Query context: entities=[${queryContext.entities.join(', ')}], embeddingQuery="${embeddingQuery?.slice(0, 100)}${embeddingQuery?.length > 100 ? '...' : ''}"`
         );
     }
@@ -140,7 +140,7 @@ export async function selectRelevantMemories(memories, ctx) {
         memory.retrieval_hits = (memory.retrieval_hits || 0) + 1;
     }
 
-    log(
+    logDebug(
         `Retrieval: ${activeMemories.length} active memories -> ${scoredMemories.length} scored -> ${finalResults.length} after token filter (${finalTokens} budget)`
     );
     return finalResults;

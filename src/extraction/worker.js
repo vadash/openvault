@@ -11,7 +11,7 @@ import { getDeps } from '../deps.js';
 import { getSessionSignal, operationState } from '../state.js';
 import { setStatus } from '../ui/status.js';
 import { getCurrentChatId, getOpenVaultData } from '../utils/data.js';
-import { log } from '../utils/logging.js';
+import { logDebug } from '../utils/logging.js';
 import { isExtensionEnabled } from '../utils/st-helpers.js';
 import { extractMemories } from './extract.js';
 import { getNextBatch } from './scheduler.js';
@@ -87,19 +87,19 @@ async function runWorkerLoop() {
         while (true) {
             // Guard: Chat switched or session aborted?
             if (getSessionSignal().aborted || getCurrentChatId() !== targetChatId) {
-                log('Worker: Session aborted or chat switched, stopping.');
+                logDebug('Worker: Session aborted or chat switched, stopping.');
                 break;
             }
 
             // Guard: Extension disabled?
             if (!isExtensionEnabled()) {
-                log('Worker: Extension disabled, stopping.');
+                logDebug('Worker: Extension disabled, stopping.');
                 break;
             }
 
             // Guard: Manual backfill took over?
             if (operationState.extractionInProgress) {
-                log('Worker: Manual backfill took over, yielding.');
+                logDebug('Worker: Manual backfill took over, yielding.');
                 break;
             }
 
@@ -127,7 +127,7 @@ async function runWorkerLoop() {
 
             // Process
             setStatus('extracting');
-            log(`Worker: Processing batch [${batch[0]}..${batch[batch.length - 1]}]`);
+            logDebug(`Worker: Processing batch [${batch[0]}..${batch[batch.length - 1]}]`);
 
             try {
                 await extractMemories(batch, targetChatId, { silent: true });
@@ -136,7 +136,7 @@ async function runWorkerLoop() {
             } catch (err) {
                 // Fast-fail on abort or chat switch — don't retry, just stop
                 if (err.name === 'AbortError' || err.message === 'Chat changed during extraction') {
-                    log('Worker: Aborted or chat changed during extraction. Halting immediately.');
+                    logDebug('Worker: Aborted or chat changed during extraction. Halting immediately.');
                     break;
                 }
 
@@ -146,11 +146,11 @@ async function runWorkerLoop() {
                 cumulativeBackoffMs += backoffMs;
 
                 if (cumulativeBackoffMs >= MAX_BACKOFF_TOTAL_MS) {
-                    log(`Worker: Backoff limit exceeded (${Math.round(cumulativeBackoffMs / 1000)}s), stopping.`);
+                    logDebug(`Worker: Backoff limit exceeded (${Math.round(cumulativeBackoffMs / 1000)}s), stopping.`);
                     break;
                 }
 
-                log(
+                logDebug(
                     `Worker: Batch failed (attempt ${retryCount}), retrying in ${BACKOFF_SCHEDULE_SECONDS[scheduleIndex]}s`
                 );
                 await interruptibleSleep(backoffMs, lastSeenGeneration);
@@ -162,7 +162,7 @@ async function runWorkerLoop() {
         }
     } catch (err) {
         if (err.name === 'AbortError') {
-            log('Worker: Aborted (chat switch). Clean exit.');
+            logDebug('Worker: Aborted (chat switch). Clean exit.');
         } else {
             getDeps().console.error('[OpenVault] Background worker error:', err);
         }

@@ -40,7 +40,7 @@ async function rpmDelay(settings, label = 'Rate limit') {
 
     if (timeSinceLastCall < delayMs) {
         const sleepTime = delayMs - timeSinceLastCall;
-        log(`${label}: waiting ${sleepTime}ms (${rpm} RPM)`);
+        logDebug(`${label}: waiting ${sleepTime}ms (${rpm} RPM)`);
         await new Promise((r) => setTimeout(r, sleepTime));
     }
     lastApiCallTime = Date.now();
@@ -73,7 +73,7 @@ import { setStatus } from '../ui/status.js';
 import { getCurrentChatId, getOpenVaultData, saveOpenVaultData } from '../utils/data.js';
 import { showToast } from '../utils/dom.js';
 import { getEmbedding, hasEmbedding } from '../utils/embedding-codec.js';
-import { log } from '../utils/logging.js';
+import { logDebug } from '../utils/logging.js';
 import { isExtensionEnabled, safeSetExtensionPrompt, yieldToMain } from '../utils/st-helpers.js';
 import { sliceToTokenBudget, sortMemoriesBySequence } from '../utils/text.js';
 import { countTokens, getMessageTokenCount } from '../utils/tokens.js';
@@ -108,7 +108,7 @@ export function updateCharacterStatesFromEvents(events, data, validCharNames = [
             for (const [charName, emotion] of Object.entries(event.emotional_impact)) {
                 // Validate character name before creating state entry
                 if (!validSet.has(charName.toLowerCase())) {
-                    log(`Skipping invalid character name "${charName}" in emotional_impact`);
+                    logDebug(`Skipping invalid character name "${charName}" in emotional_impact`);
                     continue;
                 }
 
@@ -134,7 +134,7 @@ export function updateCharacterStatesFromEvents(events, data, validCharNames = [
         for (const witness of event.witnesses || []) {
             // Validate character name before creating state entry
             if (!validSet.has(witness.toLowerCase())) {
-                log(`Skipping invalid character name "${witness}" in witnesses`);
+                logDebug(`Skipping invalid character name "${witness}" in witnesses`);
                 continue;
             }
 
@@ -181,7 +181,7 @@ export function cleanupCharacterStates(data, validCharNames = []) {
     }
 
     if (removedEntries.length > 0) {
-        log(`Cleaned up ${removedEntries.length} invalid character states: ${removedEntries.join(', ')}`);
+        logDebug(`Cleaned up ${removedEntries.length} invalid character states: ${removedEntries.join(', ')}`);
     }
 }
 
@@ -271,13 +271,13 @@ export async function filterSimilarEvents(newEvents, existingMemories, cosineThr
                     const jaccard = union > 0 ? intersection / union : 0;
 
                     if (jaccard < jaccardThreshold * 0.5) {
-                        log(
+                        logDebug(
                             `Dedup: Cosine ${(similarity * 100).toFixed(1)}% but Jaccard ${(jaccard * 100).toFixed(1)}% too low — keeping:\n  "${event.summary}"\n  vs existing: "${memory.summary}"`
                         );
                         continue;
                     }
 
-                    log(
+                    logDebug(
                         `Dedup: Skipping new event:\n  "${event.summary}"\n  (${(similarity * 100).toFixed(1)}% similar to existing memory:\n  "${memory.summary}")`
                     );
                     isDuplicate = true;
@@ -302,7 +302,7 @@ export async function filterSimilarEvents(newEvents, existingMemories, cosineThr
             const union = new Set([...eventTokens, ...keptTokens]).size;
             const jaccard = union > 0 ? intersection / union : 0;
             if (jaccard >= jaccardThreshold) {
-                log(
+                logDebug(
                     `Dedup: Skipping new event:\n  "${event.summary}"\n  (Jaccard ${(jaccard * 100).toFixed(1)}% with kept event:\n  "${keptEvent.summary}")`
                 );
                 isDuplicate = true;
@@ -376,7 +376,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
     const batchId = `batch_${deps.Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const _silent = options.silent || false;
 
-    log(`Extracting ${messages.length} messages`);
+    logDebug(`Extracting ${messages.length} messages`);
 
     try {
         // Stage 2: Prompt Building
@@ -469,7 +469,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             relationship_impact: event.relationship_impact || {},
         }));
 
-        log(`LLM returned ${events.length} events from ${messages.length} messages`);
+        logDebug(`LLM returned ${events.length} events from ${messages.length} messages`);
 
         // Track processed message IDs (will be committed in Phase 1)
         const processedIds = messages.map((m) => m.id);
@@ -490,7 +490,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             events = await filterSimilarEvents(events, existingMemoriesList, dedupThreshold, jaccardThreshold);
 
             if (events.length < validated.events.length) {
-                log(`Dedup: Filtered ${validated.events.length - events.length} similar events`);
+                logDebug(`Dedup: Filtered ${validated.events.length - events.length} similar events`);
             }
         }
 
@@ -541,7 +541,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         data[PROCESSED_MESSAGES_KEY] = data[PROCESSED_MESSAGES_KEY] || [];
         data[PROCESSED_MESSAGES_KEY].push(...processedIds);
         data[LAST_PROCESSED_KEY] = Math.max(data[LAST_PROCESSED_KEY] || -1, maxId);
-        log(`Phase 1 complete: ${events.length} events, ${processedIds.length} messages processed`);
+        logDebug(`Phase 1 complete: ${events.length} events, ${processedIds.length} messages processed`);
 
         // Intermediate save — Phase 1 data is now persisted
         const phase1Saved = await saveOpenVaultData(targetChatId);
@@ -610,7 +610,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
                             stalenessThreshold,
                             isSingleCommunity
                         );
-                        log(`Community detection: ${communityResult.count} communities found`);
+                        logDebug(`Community detection: ${communityResult.count} communities found`);
                     }
                 } catch (error) {
                     deps.console.error('[OpenVault] Community detection error:', error);
@@ -624,14 +624,14 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             if (phase2Error.name === 'AbortError') throw phase2Error;
 
             deps.console.error('[OpenVault] Phase 2 (reflection/community) error:', phase2Error);
-            log(`Phase 2 failed but Phase 1 data is safe: ${phase2Error.message}`);
+            logDebug(`Phase 2 failed but Phase 1 data is safe: ${phase2Error.message}`);
             // Do NOT re-throw. Phase 1 data is already saved.
         }
 
         if (events.length > 0) {
-            log(`Extracted ${events.length} events`);
+            logDebug(`Extracted ${events.length} events`);
         } else {
-            log('No significant events found in messages');
+            logDebug('No significant events found in messages');
         }
 
         return {
@@ -676,7 +676,7 @@ export async function extractAllMessages(updateEventListenersFn) {
     const alreadyExtractedIds = getExtractedMessageIds(data);
 
     if (alreadyExtractedIds.size > 0) {
-        log(`Backfill: Skipping ${alreadyExtractedIds.size} already-extracted messages`);
+        logDebug(`Backfill: Skipping ${alreadyExtractedIds.size} already-extracted messages`);
     }
 
     if (initialMessageIds.length === 0) {
@@ -724,10 +724,10 @@ export async function extractAllMessages(updateEventListenersFn) {
             // Debug: log processed message tracking state
             const processedCount = (freshData?.processed_message_ids || []).length;
             const memoryCount = (freshData?.memories || []).length;
-            log(`Backfill state: ${processedCount} processed messages tracked, ${memoryCount} memories stored`);
+            logDebug(`Backfill state: ${processedCount} processed messages tracked, ${memoryCount} memories stored`);
 
             if (!freshChat || !freshData) {
-                log('Backfill: Lost chat context, stopping');
+                logDebug('Backfill: Lost chat context, stopping');
                 break;
             }
 
@@ -737,14 +737,14 @@ export async function extractAllMessages(updateEventListenersFn) {
                 tokenBudget
             );
 
-            log(
+            logDebug(
                 `Backfill check: ${freshIds.length} unextracted messages available, ${remainingBatches} complete batches remaining`
             );
 
             // Get next batch using token budget
             currentBatch = getNextBatch(freshChat, freshData, tokenBudget);
             if (!currentBatch) {
-                log('Backfill: No more complete batches available');
+                logDebug('Backfill: No more complete batches available');
                 break;
             }
         }
@@ -760,7 +760,7 @@ export async function extractAllMessages(updateEventListenersFn) {
         );
 
         try {
-            log(`Processing batch ${batchesProcessed + 1}/${initialBatchCount}${retryText}...`);
+            logDebug(`Processing batch ${batchesProcessed + 1}/${initialBatchCount}${retryText}...`);
             const result = await extractMemories(currentBatch, targetChatId);
             totalEvents += result?.events_created || 0;
             messagesProcessed += currentBatch?.length || 0;
@@ -774,7 +774,7 @@ export async function extractAllMessages(updateEventListenersFn) {
         } catch (error) {
             // AbortError = chat switched (same as existing chat-change detection)
             if (error.name === 'AbortError' || error.message === 'Chat changed during extraction') {
-                log('Chat changed during backfill, aborting');
+                logDebug('Chat changed during backfill, aborting');
                 $('.openvault-backfill-toast').remove();
                 showToast('warning', 'Backfill aborted: chat changed', 'OpenVault');
                 clearAllLocks();
@@ -794,7 +794,7 @@ export async function extractAllMessages(updateEventListenersFn) {
 
             // If cumulative backoff exceeds limit, stop extraction entirely
             if (cumulativeBackoffMs >= MAX_BACKOFF_TOTAL_MS) {
-                log(
+                logDebug(
                     `Batch ${batchesProcessed + 1} failed: cumulative backoff reached ${Math.round(cumulativeBackoffMs / 1000)}s (limit: ${Math.round(MAX_BACKOFF_TOTAL_MS / 1000)}s). Stopping extraction.`
                 );
                 console.error('[OpenVault] Extraction stopped after exceeding backoff limit:', error);
@@ -806,7 +806,7 @@ export async function extractAllMessages(updateEventListenersFn) {
                 break;
             }
 
-            log(
+            logDebug(
                 `Batch ${batchesProcessed + 1} failed with ${errorType}, retrying in ${backoffSeconds}s (attempt ${retryCount}, cumulative backoff: ${Math.round(cumulativeBackoffMs / 1000)}s/${Math.round(MAX_BACKOFF_TOTAL_MS / 1000)}s)...`
             );
 
@@ -838,5 +838,5 @@ export async function extractAllMessages(updateEventListenersFn) {
     showToast('success', `Extracted ${totalEvents} events from ${messagesProcessed} messages`);
     refreshAllUI();
     setStatus('ready');
-    log('Backfill complete');
+    logDebug('Backfill complete');
 }

@@ -1,6 +1,6 @@
 import { PERF_METRICS } from '../constants.js';
 import { getOpenVaultData } from '../utils/data.js';
-import { log } from '../utils/logging.js';
+import { logDebug } from '../utils/logging.js';
 
 /** @type {Object<string, {ms: number, size: string|null, ts: number}>} */
 let _store = {};
@@ -25,7 +25,7 @@ export function record(metricId, durationMs, size = null) {
         data.perf[metricId] = entry;
     }
 
-    log(`⏱️ [${PERF_METRICS[metricId].label}] ${durationMs.toFixed(2)}ms${size ? ` (${size})` : ''}`);
+    logDebug(`⏱️ [${PERF_METRICS[metricId].label}] ${durationMs.toFixed(2)}ms${size ? ` (${size})` : ''}`);
 }
 
 /**

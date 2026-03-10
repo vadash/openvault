@@ -16,7 +16,7 @@ import {
 } from './extraction/structured.js';
 import { getSessionSignal } from './state.js';
 import { showToast } from './utils/dom.js';
-import { log, logRequest } from './utils/logging.js';
+import { logDebug, logRequest } from './utils/logging.js';
 import { withTimeout } from './utils/st-helpers.js';
 
 /**
@@ -113,7 +113,7 @@ export async function callLLM(messages, config, options = {}) {
         if (profileId) {
             const profiles = extension_settings?.connectionManager?.profiles || [];
             const profile = profiles.find((p) => p.id === profileId);
-            log(`No ${profileSettingKey} set, using current profile: ${profile?.name || profileId}`);
+            logDebug(`No ${profileSettingKey} set, using current profile: ${profile?.name || profileId}`);
         }
     }
 
@@ -141,11 +141,11 @@ export async function callLLM(messages, config, options = {}) {
         // Extract content from result object, preserving empty strings as valid (not falsy)
         const content = result && typeof result === 'object' && 'content' in result ? result.content : result || '';
 
-        log(`LLM response received (${content.length} chars)`);
+        logDebug(`LLM response received (${content.length} chars)`);
         logRequest(errorContext, { messages, maxTokens, profileId: targetProfileId, response: content });
 
         if (content.length === 0) {
-            log(`ERROR: Empty LLM response! Full result: ${JSON.stringify(result).substring(0, 200)}`);
+            logDebug(`ERROR: Empty LLM response! Full result: ${JSON.stringify(result).substring(0, 200)}`);
         }
 
         if (!content) {
@@ -165,7 +165,7 @@ export async function callLLM(messages, config, options = {}) {
 
     // --- Main request with backup failover ---
     try {
-        log(`Using ConnectionManagerRequestService with profile: ${profileId}`);
+        logDebug(`Using ConnectionManagerRequestService with profile: ${profileId}`);
         return await executeRequest(profileId);
     } catch (mainError) {
         if (mainError.name === 'AbortError') throw mainError;
@@ -175,20 +175,20 @@ export async function callLLM(messages, config, options = {}) {
         if (backupProfileId && backupProfileId !== profileId) {
             const profiles = extension_settings?.connectionManager?.profiles || [];
             const backupName = profiles.find((p) => p.id === backupProfileId)?.name || backupProfileId;
-            log(`${errorContext} failed on main profile, trying backup: ${backupName}`);
+            logDebug(`${errorContext} failed on main profile, trying backup: ${backupName}`);
             try {
                 const backupResult = await executeRequest(backupProfileId);
                 // Backup succeeded - return the result
                 return backupResult;
             } catch (backupError) {
                 // Backup failed (including empty response) - fall through to main error handling
-                log(`${errorContext} backup also failed: ${backupError.message}`);
+                logDebug(`${errorContext} backup also failed: ${backupError.message}`);
             }
         }
 
         // Original error handling — toast + re-throw main error
         const errorMessage = mainError.message || 'Unknown error';
-        log(`${errorContext} LLM call error: ${errorMessage}`);
+        logDebug(`${errorContext} LLM call error: ${errorMessage}`);
         if (!errorMessage.includes('timed out')) {
             showToast('error', `${errorContext} failed: ${errorMessage}`);
         }

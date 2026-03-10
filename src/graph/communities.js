@@ -15,7 +15,7 @@ import { callLLM, LLM_CONFIGS } from '../llm.js';
 import { record } from '../perf/store.js';
 import { buildCommunitySummaryPrompt, resolveExtractionPreamble, resolveOutputLanguage } from '../prompts/index.js';
 import { hasEmbedding, setEmbedding } from '../utils/embedding-codec.js';
-import { log } from '../utils/logging.js';
+import { logDebug } from '../utils/logging.js';
 import { yieldToMain } from '../utils/st-helpers.js';
 
 /**
@@ -33,7 +33,7 @@ export function toGraphology(graphData) {
     for (const [key, attrs] of Object.entries(graphData.edges || {})) {
         // Delete self-loops from backing store (defensive - should be prevented at insertion time)
         if (attrs.source === attrs.target) {
-            log(`[communities] Removing self-loop edge ${key}: ${attrs.source} -> ${attrs.target}`);
+            logDebug(`[communities] Removing self-loop edge ${key}: ${attrs.source} -> ${attrs.target}`);
             delete graphData.edges[key];
             continue;
         }
@@ -259,9 +259,9 @@ export async function updateCommunitySummaries(
             }
             updatedCommunities[key] = community;
 
-            log(`Community ${key}: "${parsed.title}" (${group.nodeKeys.length} nodes)`);
+            logDebug(`Community ${key}: "${parsed.title}" (${group.nodeKeys.length} nodes)`);
         } catch (error) {
-            log(`Community ${key} summarization failed: ${error.message}`);
+            logDebug(`Community ${key} summarization failed: ${error.message}`);
             // Keep existing if available, otherwise skip
             if (existing) {
                 updatedCommunities[key] = existing;

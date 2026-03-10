@@ -29,7 +29,7 @@ import {
 import { cosineSimilarity, tokenize } from '../retrieval/math.js';
 import { generateId } from '../utils/data.js';
 import { getEmbedding, hasEmbedding } from '../utils/embedding-codec.js';
-import { log } from '../utils/logging.js';
+import { logDebug } from '../utils/logging.js';
 import { sortMemoriesBySequence } from '../utils/text.js';
 
 const REFLECTION_THRESHOLD = 40;
@@ -110,7 +110,7 @@ export function filterDuplicateReflections(
 
         if (bestMatch && bestScore >= rejectThreshold) {
             // Tier 1: Reject - too similar
-            log(
+            logDebug(
                 `Reflection rejected: "${ref.summary}" (${(bestScore * 100).toFixed(1)}% similar to existing "${bestMatch.summary}")`
             );
             continue;
@@ -118,7 +118,7 @@ export function filterDuplicateReflections(
 
         if (bestMatch && bestScore >= replaceThreshold) {
             // Tier 2: Replace - same theme, newer wording
-            log(
+            logDebug(
                 `Reflection replaced: OLD "${bestMatch.summary}" -> NEW "${ref.summary}" (${(bestScore * 100).toFixed(1)}% correlation)`
             );
             toArchiveIds.add(bestMatch.id);
@@ -211,7 +211,7 @@ export async function generateReflections(characterName, allMemories, characterS
         for (let i = 0; i < toArchive && i < sortedBySequence.length; i++) {
             sortedBySequence[i].archived = true;
         }
-        log(`Reflection: Archived ${toArchive} old reflections for ${characterName} (cap: ${maxReflections})`);
+        logDebug(`Reflection: Archived ${toArchive} old reflections for ${characterName} (cap: ${maxReflections})`);
     }
 
     // Filter memories to what this character knows
@@ -220,7 +220,7 @@ export async function generateReflections(characterName, allMemories, characterS
     const recentMemories = sortMemoriesBySequence(accessibleMemories, false).slice(0, 100);
 
     if (recentMemories.length < 3) {
-        log(`Reflection: ${characterName} has too few accessible memories (${recentMemories.length}), skipping`);
+        logDebug(`Reflection: ${characterName} has too few accessible memories (${recentMemories.length}), skipping`);
         return [];
     }
 
@@ -237,7 +237,7 @@ export async function generateReflections(characterName, allMemories, characterS
     );
 
     if (shouldSkip) {
-        log(`Reflection: ${skipReason} for ${characterName}`);
+        logDebug(`Reflection: ${skipReason} for ${characterName}`);
         // Note: Caller should reset importance_sum for this character
         return [];
     }
@@ -247,7 +247,7 @@ export async function generateReflections(characterName, allMemories, characterS
     const questionsResponse = await callLLM(questionsPrompt, LLM_CONFIGS.reflection_questions, { structured: true });
     const { questions } = parseSalientQuestionsResponse(questionsResponse);
 
-    log(`Reflection: Generated ${questions.length} salient questions for ${characterName}`);
+    logDebug(`Reflection: Generated ${questions.length} salient questions for ${characterName}`);
 
     // Step 2: For each question, retrieve relevant memories and extract insights (in parallel)
     const insightPromises = questions.map(async (question) => {
@@ -330,10 +330,10 @@ export async function generateReflections(characterName, allMemories, characterS
                 memory.archived = true;
             }
         }
-        log(`Reflection: Archived ${toArchiveIds.length} replaced reflections for ${characterName}`);
+        logDebug(`Reflection: Archived ${toArchiveIds.length} replaced reflections for ${characterName}`);
     }
 
-    log(
+    logDebug(
         `Reflection: Generated ${toAdd.length} reflections for ${characterName} (${reflections.length - toAdd.length} filtered)`
     );
     record('llm_reflection', performance.now() - t0);

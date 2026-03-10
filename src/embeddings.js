@@ -10,7 +10,7 @@ import { getDeps } from './deps.js';
 import { record } from './perf/store.js';
 import { getSessionSignal } from './state.js';
 import { hasEmbedding, setEmbedding } from './utils/embedding-codec.js';
-import { log } from './utils/logging.js';
+import { logDebug } from './utils/logging.js';
 
 // =============================================================================
 // Strategy Classes (from src/embeddings/strategies.js)
@@ -134,16 +134,16 @@ async function isWebGPUAvailable() {
         // Use globalThis.navigator?.gpu for safest access across all environments
         const gpu = globalThis.navigator?.gpu;
         if (!gpu) {
-            log('WebGPU: not available in this context');
+            logDebug('WebGPU: not available in this context');
             webGPUSupported = false;
             return false;
         }
         const adapter = await gpu.requestAdapter();
         webGPUSupported = !!adapter;
-        log(`WebGPU ${webGPUSupported ? 'available' : 'adapter request failed'}`);
+        logDebug(`WebGPU ${webGPUSupported ? 'available' : 'adapter request failed'}`);
         return webGPUSupported;
     } catch (error) {
-        log(`WebGPU detection error: ${error.message}`);
+        logDebug(`WebGPU detection error: ${error.message}`);
         webGPUSupported = false;
         return false;
     }
@@ -235,7 +235,7 @@ class TransformersStrategy extends EmbeddingStrategy {
                 const device = useWebGPU ? 'webgpu' : 'wasm';
                 const dtype = useWebGPU ? modelConfig.dtypeWebGPU : modelConfig.dtypeWASM;
 
-                log(`Loading ${modelKey} with ${device} (${dtype})`);
+                logDebug(`Loading ${modelKey} with ${device} (${dtype})`);
 
                 const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1');
 
@@ -275,7 +275,7 @@ class TransformersStrategy extends EmbeddingStrategy {
         if (this.#statusCallback) {
             this.#statusCallback(status);
         }
-        log(`Embedding status: ${status}`);
+        logDebug(`Embedding status: ${status}`);
     }
 
     async #embed(text, prefix, { signal } = {}) {
@@ -292,7 +292,7 @@ class TransformersStrategy extends EmbeddingStrategy {
             return output.data instanceof Float32Array ? output.data : new Float32Array(output.data);
         } catch (error) {
             if (error.name === 'AbortError') throw error;
-            log(`Transformers embedding error: ${error?.message || error || 'unknown'}`);
+            logDebug(`Transformers embedding error: ${error?.message || error || 'unknown'}`);
             return null;
         }
     }
@@ -373,7 +373,7 @@ class OllamaStrategy extends EmbeddingStrategy {
             });
 
             if (!response.ok) {
-                log(`Ollama embedding request failed: ${response.status} ${response.statusText}`);
+                logDebug(`Ollama embedding request failed: ${response.status} ${response.statusText}`);
                 return null;
             }
 
@@ -381,7 +381,7 @@ class OllamaStrategy extends EmbeddingStrategy {
             return data.embedding ? new Float32Array(data.embedding) : null;
         } catch (error) {
             if (error.name === 'AbortError') throw error;
-            log(`Ollama embedding error: ${error.message}`);
+            logDebug(`Ollama embedding error: ${error.message}`);
             return null;
         }
     }
@@ -659,7 +659,7 @@ export async function enrichEventsWithEmbeddings(events, { signal } = {}) {
         return 0;
     }
 
-    log(`Generating embeddings for ${validEvents.length} events`);
+    logDebug(`Generating embeddings for ${validEvents.length} events`);
 
     const t0 = performance.now();
     const settings = getDeps().getExtensionSettings()[extensionName];
@@ -668,7 +668,7 @@ export async function enrichEventsWithEmbeddings(events, { signal } = {}) {
 
     const embeddings = await processInBatches(validEvents, 5, async (e) => {
         if (settings?.debugMode) {
-            log(`Embedding doc: "${e.summary.slice(0, 80)}${e.summary.length > 80 ? '...' : ''}"`);
+            logDebug(`Embedding doc: "${e.summary.slice(0, 80)}${e.summary.length > 80 ? '...' : ''}"`);
         }
         return strategy.getDocumentEmbedding(e.summary, { signal });
     });
@@ -769,7 +769,7 @@ export async function backfillAllEmbeddings({ signal, silent = false } = {}) {
         const total = memoryCount + nodeCount + communityCount;
         if (total > 0) {
             await saveOpenVaultData();
-            log(`Backfill complete: ${memoryCount} memories, ${nodeCount} nodes, ${communityCount} communities`);
+            logDebug(`Backfill complete: ${memoryCount} memories, ${nodeCount} nodes, ${communityCount} communities`);
         }
 
         return { memories: memoryCount, nodes: nodeCount, communities: communityCount, total, skipped: false };
