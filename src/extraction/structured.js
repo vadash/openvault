@@ -1,5 +1,6 @@
 import { jsonrepair } from 'https://esm.sh/jsonrepair';
 import { z } from 'https://esm.sh/zod';
+import { logWarn } from '../utils/logging.js';
 import { stripThinkingTags } from '../utils/text.js';
 
 // --- Schemas (inlined from schemas/) ---
@@ -123,7 +124,7 @@ function parseStructuredResponse(content, schema) {
     // Array recovery - if LLM returned a bare array instead of expected object
     // Note: callers expecting objects must handle this appropriately
     if (Array.isArray(parsed)) {
-        console.warn('[OpenVault] LLM returned array instead of object in parseStructuredResponse');
+        logWarn('LLM returned array instead of object in parseStructuredResponse');
     }
 
     const result = schema.safeParse(parsed);
