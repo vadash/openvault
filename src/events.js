@@ -248,9 +248,9 @@ export async function onChatChanged() {
     // Clear current injection - it will be refreshed in onBeforeGeneration
     safeSetExtensionPrompt('');
 
-    // Refresh UI on chat change
-    refreshAllUI();
+    // Load perf data BEFORE refreshing UI so perf tab has data to render
     loadPerfFromChat();
+    refreshAllUI();
     setStatus('ready');
 }
 
