@@ -15,10 +15,10 @@ const [{ default: Graph }, { default: louvain }, { toUndirected }] = await Promi
 import { extensionName } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { getQueryEmbedding } from '../embeddings.js';
-import { parseCommunitySummaryResponse } from '../extraction/structured.js';
+import { parseCommunitySummaryResponse, parseGlobalSynthesisResponse } from '../extraction/structured.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
 import { record } from '../perf/store.js';
-import { buildCommunitySummaryPrompt, resolveExtractionPreamble, resolveOutputLanguage } from '../prompts/index.js';
+import { buildCommunitySummaryPrompt, buildGlobalSynthesisPrompt, resolveExtractionPreamble, resolveOutputLanguage } from '../prompts/index.js';
 import { hasEmbedding, setEmbedding } from '../utils/embedding-codec.js';
 import { logDebug } from '../utils/logging.js';
 import { yieldToMain } from '../utils/st-helpers.js';
@@ -277,4 +277,42 @@ export async function updateCommunitySummaries(
     const communityCount = Object.keys(updatedCommunities).length;
     record('llm_communities', performance.now() - t0, `${communityCount} communities`);
     return updatedCommunities;
+}
+
+/**
+ * Generate global world state from all community summaries.
+ * Called after community updates, only if 1+ communities changed.
+ *
+ * @param {Object} communities - All community summaries
+ * @param {string} preamble - Extraction preamble language
+ * @param {string} outputLanguage - Output language setting
+ * @returns {Promise<{ summary: string, last_updated: number, community_count: number } | null>}
+ */
+export async function generateGlobalWorldState(communities, preamble, outputLanguage) {
+    const communityList = Object.values(communities || {});
+    if (communityList.length === 0) {
+        return null;
+    }
+
+    const t0 = performance.now();
+    const deps = getDeps();
+
+    try {
+        const prompt = buildGlobalSynthesisPrompt(communityList, preamble, outputLanguage);
+        const response = await callLLM(prompt, LLM_CONFIGS.community, { structured: true });
+        const parsed = parseGlobalSynthesisResponse(response);
+
+        const result = {
+            summary: parsed.global_summary,
+            last_updated: deps.Date.now(),
+            community_count: communityList.length,
+        };
+
+        logDebug(`Global world state synthesized from ${communityList.length} communities`);
+        record('global_synthesis', performance.now() - t0, `${communityList.length} communities`);
+        return result;
+    } catch (error) {
+        logDebug(`Global world state synthesis failed: ${error.message}`);
+        return null;
+    }
 }

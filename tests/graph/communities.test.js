@@ -3,6 +3,7 @@ import { resetDeps } from '../../src/deps.js';
 import {
     buildCommunityGroups,
     detectCommunities,
+    generateGlobalWorldState,
     toGraphology,
     updateCommunitySummaries,
 } from '../../src/graph/communities.js';
@@ -336,5 +337,77 @@ describe('updateCommunitySummaries', () => {
         // when _edgesNeedingConsolidation has entries
         expect(graphData._edgesNeedingConsolidation).toBeDefined();
         expect(graphData._edgesNeedingConsolidation).toContain('test__edge');
+    });
+});
+
+// Mock global synthesis prompt
+vi.mock('../../src/prompts/index.js', async () => {
+    const actual = await vi.importActual('../../src/prompts/index.js');
+    return {
+        ...actual,
+        buildGlobalSynthesisPrompt: vi.fn((communities, preamble, outputLanguage) => [
+            { role: 'system', content: 'You are a narrative synthesist.' },
+            { role: 'user', content: `Communities: ${communities.map(c => c.title).join(', ')}` },
+        ]),
+    };
+});
+
+// Mock global synthesis response parser
+vi.mock('../../src/extraction/structured.js', async () => {
+    const actual = await vi.importActual('../../src/extraction/structured.js');
+    return {
+        ...actual,
+        parseGlobalSynthesisResponse: vi.fn((content) => {
+            const parsed = JSON.parse(content);
+            return { global_summary: parsed.global_summary };
+        }),
+    };
+});
+
+describe('generateGlobalWorldState', () => {
+    beforeEach(() => {
+        setupTestContext();
+        mockCallLLM.mockResolvedValue('{"global_summary": "Synthesized narrative..."}');
+    });
+
+    afterEach(() => {
+        resetDeps();
+        vi.clearAllMocks();
+    });
+
+    it('should call LLM with global synthesis prompt', async () => {
+        const communities = {
+            C0: { title: 'Community A', summary: 'Summary A', findings: ['f1'] },
+            C1: { title: 'Community B', summary: 'Summary B', findings: ['f2'] },
+        };
+
+        const result = await generateGlobalWorldState(communities, 'auto', 'auto');
+
+        expect(result.summary).toBe('Synthesized narrative...');
+        expect(result.community_count).toBe(2);
+        expect(result.last_updated).toBeDefined();
+        expect(mockCallLLM).toHaveBeenCalled();
+    });
+
+    it('should return null when no communities exist', async () => {
+        const result = await generateGlobalWorldState({}, 'auto', 'auto');
+        expect(result).toBeNull();
+        expect(mockCallLLM).not.toHaveBeenCalled();
+    });
+
+    it('should return null when communities is null or undefined', async () => {
+        expect(await generateGlobalWorldState(null, 'auto', 'auto')).toBeNull();
+        expect(await generateGlobalWorldState(undefined, 'auto', 'auto')).toBeNull();
+    });
+
+    it('should handle LLM errors gracefully', async () => {
+        const communities = {
+            C0: { title: 'Community A', summary: 'Summary A', findings: ['f1'] },
+        };
+
+        mockCallLLM.mockRejectedValue(new Error('LLM failed'));
+
+        const result = await generateGlobalWorldState(communities, 'auto', 'auto');
+        expect(result).toBeNull();
     });
 });
