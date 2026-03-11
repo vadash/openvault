@@ -191,7 +191,7 @@ export const PERF_THRESHOLDS = {
     idf_calculation: 100, // Full IDF setup: tokenization + calculation (larger corpus)
     llm_events: 30000,
     llm_graph: 30000,
-    llm_reflection: 45000,
+    llm_reflection: 20000,  // Reduced from 45000 (was 4-call, now 1-call)
     llm_communities: 30000,
     embedding_generation: 10000,
     louvain_detection: 1000,
