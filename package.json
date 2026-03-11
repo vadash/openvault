@@ -11,10 +11,11 @@
         "format": "biome format --write .",
         "test": "node scripts/test.js",
         "sync-version": "node scripts/sync-version.js",
-        "repomix": "npm run repomix:source && npm run repomix:tests",
         "check-css": "node scripts/check-css.js",
-        "repomix:source": "npx repomix --style markdown --output repomix-source.md --include \"README.md,CLAUDE.md,index.js,style.css,css/**,manifest.json,package.json,biome.json,vitest.config.js,src/**,include/**,scripts/**,templates/**\"",
-        "repomix:tests": "npx repomix --style markdown --output repomix-tests.md --include \"tests/**\""
+        "repomix": "npm run repomix:logic && npm run repomix:ui && npm run repomix:tests",
+        "repomix:logic": "npx repomix --remove-empty-lines --compress --output repomix-logic.md --include \"src/**/*.js,index.js,package.json,include/**,**/CLAUDE.md\" --ignore \"src/ui/**,src/prompts/examples/**,**/*.css,**/*.html\"",
+        "repomix:ui": "npx repomix --remove-empty-lines --compress --output repomix-ui.md --include \"src/ui/**/*.js,templates/**/*.html,css/**/*.css,manifest.json,**/CLAUDE.md\" --remove-empty-lines",
+        "repomix:tests": "npx repomix --remove-empty-lines --compress --output repomix-tests.md --include \"tests/**,vitest.config.js,**/CLAUDE.md\""
     },
     "devDependencies": {
         "@biomejs/biome": "2.4.4",

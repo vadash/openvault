@@ -9,10 +9,8 @@
 /src/vendor/
 
 # Repomix generated bundles
-/repomix-source.md
-/repomix-tests.md
-/repomix-output.txt
 /repomix*.xml
+/repomix*.md
 
 # Runtime & temporary
 /tmp/
