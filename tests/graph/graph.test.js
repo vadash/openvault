@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CONSOLIDATION } from '../../src/constants.js';
 import { getDocumentEmbedding } from '../../src/embeddings.js';
 import {
     consolidateGraph,
@@ -237,6 +238,22 @@ describe('upsertRelationship', () => {
         const initialTokens = graph.edges['alice__bob']._descriptionTokens;
         upsertRelationship(graph, 'Alice', 'Bob', 'Traded goods', 5);
         expect(graph.edges['alice__bob']._descriptionTokens).toBeGreaterThan(initialTokens);
+    });
+
+    it('marks edge for consolidation when token threshold exceeded', () => {
+        const graph = createEmptyGraph();
+        upsertEntity(graph, 'Alice', 'PERSON', 'Explorer');
+        upsertEntity(graph, 'Bob', 'PERSON', 'Merchant');
+
+        // Create an edge with bloated description
+        // Use real text to ensure token count is accurate
+        const longDesc = 'Alice and Bob have a very long and detailed relationship history that spans many years and involves numerous events. '.repeat(10);
+        const settings = { consolidationTokenThreshold: 50 }; // Lower threshold for testing
+
+        upsertRelationship(graph, 'Alice', 'Bob', longDesc, 5, settings);
+
+        // Should be marked for consolidation
+        expect(graph._edgesNeedingConsolidation).toContain('alice__bob');
     });
 });
 

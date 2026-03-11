@@ -13,6 +13,7 @@ import { yieldToMain } from '../utils/st-helpers.js';
 import { stemWord } from '../utils/stemmer.js';
 import { ALL_STOPWORDS } from '../utils/stopwords.js';
 import { countTokens } from '../utils/tokens.js';
+import { CONSOLIDATION } from '../constants.js';
 
 /**
  * Resolve a raw entity name to its final graph key, accounting for merge redirects.
@@ -110,8 +111,9 @@ export function upsertEntity(graphData, name, type, description, cap = 3) {
  * @param {string} target - Target entity name (will be normalized)
  * @param {string} description - Relationship description
  * @param {number} cap - Maximum number of description segments to retain (default: 5)
+ * @param {Object} settings - Optional settings for consolidation behavior
  */
-export function upsertRelationship(graphData, source, target, description, cap = 5) {
+export function upsertRelationship(graphData, source, target, description, cap = 5, settings = null) {
     const srcKey = _resolveKey(graphData, source);
     const tgtKey = _resolveKey(graphData, target);
 
@@ -143,14 +145,27 @@ export function upsertRelationship(graphData, source, target, description, cap =
 
         // Track token count after update
         existing._descriptionTokens = countTokens(existing.description);
+
+        // Mark for consolidation if over threshold
+        const threshold = settings?.consolidationTokenThreshold ?? CONSOLIDATION.TOKEN_THRESHOLD;
+        if (existing._descriptionTokens > threshold) {
+            markEdgeForConsolidation(graphData, edgeKey);
+        }
     } else {
-        graphData.edges[edgeKey] = {
+        const newEdge = {
             source: srcKey,
             target: tgtKey,
             description,
             weight: 1,
             _descriptionTokens: countTokens(description),
         };
+        graphData.edges[edgeKey] = newEdge;
+
+        // Mark for consolidation if over threshold
+        const threshold = settings?.consolidationTokenThreshold ?? CONSOLIDATION.TOKEN_THRESHOLD;
+        if (newEdge._descriptionTokens > threshold) {
+            markEdgeForConsolidation(graphData, edgeKey);
+        }
     }
 }
 
