@@ -12,6 +12,7 @@ import { logDebug } from '../utils/logging.js';
 import { yieldToMain } from '../utils/st-helpers.js';
 import { stemWord } from '../utils/stemmer.js';
 import { ALL_STOPWORDS } from '../utils/stopwords.js';
+import { countTokens } from '../utils/tokens.js';
 
 /**
  * Resolve a raw entity name to its final graph key, accounting for merge redirects.
@@ -139,12 +140,16 @@ export function upsertRelationship(graphData, source, target, description, cap =
         if (cap > 0 && segments.length > cap) {
             existing.description = segments.slice(-cap).join(' | ');
         }
+
+        // Track token count after update
+        existing._descriptionTokens = countTokens(existing.description);
     } else {
         graphData.edges[edgeKey] = {
             source: srcKey,
             target: tgtKey,
             description,
             weight: 1,
+            _descriptionTokens: countTokens(description),
         };
     }
 }

@@ -222,6 +222,21 @@ describe('upsertRelationship', () => {
         upsertRelationship(graphData, 'King Aldric', 'King', 'Redirected self-loop');
         expect(Object.keys(graphData.edges)).toHaveLength(0);
     });
+
+    it('tracks _descriptionTokens on edges', () => {
+        const graph = createEmptyGraph();
+        upsertEntity(graph, 'Alice', 'PERSON', 'Explorer');
+        upsertEntity(graph, 'Bob', 'PERSON', 'Merchant');
+
+        upsertRelationship(graph, 'Alice', 'Bob', 'Met at tavern', 5);
+        expect(graph.edges['alice__bob']._descriptionTokens).toBeDefined();
+        expect(graph.edges['alice__bob']._descriptionTokens).toBeGreaterThan(0);
+
+        // After adding more, token count increases
+        const initialTokens = graph.edges['alice__bob']._descriptionTokens;
+        upsertRelationship(graph, 'Alice', 'Bob', 'Traded goods', 5);
+        expect(graph.edges['alice__bob']._descriptionTokens).toBeGreaterThan(initialTokens);
+    });
 });
 
 describe('createEmptyGraph', () => {
