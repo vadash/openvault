@@ -548,7 +548,7 @@ export async function consolidateEdges(graphData, settings) {
     const toProcess = graphData._edgesNeedingConsolidation
         .slice(0, CONSOLIDATION.MAX_CONSOLIDATION_BATCH);
 
-    let consolidated = 0;
+    const successfulKeys = [];
 
     for (const edgeKey of toProcess) {
         const edge = graphData.edges[edgeKey];
@@ -574,16 +574,17 @@ export async function consolidateEdges(graphData, settings) {
                     setEmbedding(edge, newEmbedding);
                 }
 
-                consolidated++;
+                successfulKeys.push(edgeKey);
             }
         } catch (err) {
             logError(`Failed to consolidate edge ${edgeKey}`, err);
         }
     }
 
-    // Remove processed edges from queue
-    graphData._edgesNeedingConsolidation = graphData._edgesNeedingConsolidation
-        .slice(consolidated);
+    // Remove only successfully processed edges from queue
+    graphData._edgesNeedingConsolidation = graphData._edgesNeedingConsolidation.filter(
+        key => !successfulKeys.includes(key)
+    );
 
-    return consolidated;
+    return successfulKeys.length;
 }
