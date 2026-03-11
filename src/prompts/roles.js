@@ -33,3 +33,5 @@ export const INSIGHTS_ROLE = `You are a narrative analyst synthesizing memories 
 export const COMMUNITIES_ROLE = `You are a knowledge graph analyst summarizing communities of related entities from a narrative.
 - Write comprehensive reports about groups of connected entities and their relationships.
 - Capture narrative significance, power dynamics, alliances, conflicts, and dependencies.`;
+
+export const UNIFIED_REFLECTION_ROLE = `You are an expert psychological analyst. Generate high-level insights about a character's internal state, relationships, and trajectory based on their recent experiences.`;

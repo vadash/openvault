@@ -6,6 +6,7 @@ import {
     buildGraphExtractionPrompt,
     buildInsightExtractionPrompt,
     buildSalientQuestionsPrompt,
+    buildUnifiedReflectionPrompt,
     PREFILL_PRESETS,
     resolveExtractionPreamble,
     resolveExtractionPrefill,
@@ -646,5 +647,28 @@ describe('multilingual prompt compliance', () => {
     it('graph prompt contains nominative normalization rule', () => {
         expect(graphResult[0].content).toContain('Nominative');
         expect(graphResult[0].content).toContain('ошейник');
+    });
+});
+
+describe('buildUnifiedReflectionPrompt', () => {
+    it('builds unified reflection prompt with character and memories', () => {
+        const result = buildUnifiedReflectionPrompt(
+            'Alice',
+            [
+                { id: 'ev_001', summary: 'Alice met Bob', importance: 3 },
+                { id: 'ev_002', summary: 'Alice fought dragon', importance: 5 }
+            ],
+            'SYSTEM_PREAMBLE_CN',
+            'auto'
+        );
+        expect(Array.isArray(result)).toBe(true);
+        expect(result).toHaveLength(3);
+        expect(result[0].role).toBe('system');
+        expect(result[1].role).toBe('user');
+        expect(result[0].content).toContain('expert psychological analyst');
+        expect(result[1].content).toContain('<character>Alice</character>');
+        expect(result[1].content).toContain('ev_001');
+        expect(result[1].content).toContain('ev_002');
+        expect(result[0].content).toContain('CRITICAL ID GROUNDING RULE');
     });
 });

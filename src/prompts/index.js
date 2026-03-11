@@ -16,6 +16,7 @@ import { EVENT_EXAMPLES } from './examples/events.js';
 import { GRAPH_EXAMPLES } from './examples/graph.js';
 import { INSIGHT_EXAMPLES } from './examples/insights.js';
 import { QUESTION_EXAMPLES } from './examples/questions.js';
+import { UNIFIED_REFLECTION_EXAMPLES } from './examples/reflections.js';
 import {
     assembleSystemPrompt,
     buildMessages,
@@ -31,7 +32,7 @@ import {
     SYSTEM_PREAMBLE_CN,
     SYSTEM_PREAMBLE_EN,
 } from './preambles.js';
-import { COMMUNITIES_ROLE, EVENT_ROLE, GRAPH_ROLE, INSIGHTS_ROLE, QUESTIONS_ROLE } from './roles.js';
+import { COMMUNITIES_ROLE, EVENT_ROLE, GRAPH_ROLE, INSIGHTS_ROLE, QUESTIONS_ROLE, UNIFIED_REFLECTION_ROLE } from './roles.js';
 
 // Re-export public API from submodules
 export {
@@ -118,6 +119,31 @@ CRITICAL FORMAT RULES:
 2. The "questions" array MUST contain EXACTLY 3 strings.
 3. Do NOT wrap output in markdown code blocks.
 4. Do NOT include ANY text outside the JSON object.`;
+
+const UNIFIED_REFLECTION_SCHEMA = `You MUST respond with EXACTLY ONE JSON object. No other text, no markdown fences, no commentary.
+
+The JSON object MUST have this EXACT structure:
+
+{
+  "reflections": [
+    {
+      "question": "A salient high-level question about the character",
+      "insight": "A deep psychological insight answering the question",
+      "evidence_ids": ["id1", "id2"]
+    }
+  ]
+}
+
+CRITICAL FORMAT RULES:
+1. The top level MUST be a JSON object { }, NEVER a bare array [ ].
+2. The "reflections" array MUST contain 1 to 3 reflection objects.
+3. Each reflection MUST have "question", "insight" (strings) and "evidence_ids" (array of strings).
+4. Do NOT wrap output in markdown code blocks.
+5. Do NOT include ANY text outside the JSON object.
+
+CRITICAL ID GROUNDING RULE:
+For "evidence_ids", you MUST ONLY use the exact IDs shown in the <recent_memories> list.
+Do NOT invent, hallucinate, or modify IDs. If you cannot find the exact ID in the list, use an empty array [].`;
 
 const INSIGHTS_SCHEMA = `You MUST respond with EXACTLY ONE JSON object. No other text, no markdown fences, no commentary.
 
@@ -232,6 +258,11 @@ IMPORTANT: Extract entities and relationships even when no events are extracted.
 const QUESTIONS_RULES = `1. Questions should be answerable from the provided memory stream.
 2. Focus on patterns, changes, and emotional arcs — not individual events.
 3. Good questions ask about: psychological state, evolving relationships, shifting goals, recurring fears, unresolved conflicts.`;
+
+const UNIFIED_REFLECTION_RULES = `1. Generate 1-3 salient high-level questions about the character's psychological state, relationships, goals, or unresolved conflicts.
+2. For each question, provide a deep insight that synthesizes patterns across multiple memories.
+3. Cite specific memory IDs as evidence for each insight. You MUST use IDs exactly as shown in the input.
+4. Quality over quantity — generate only as many reflections as you can support with strong evidence.`;
 
 const INSIGHTS_RULES = `1. Each insight must be a concise, high-level statement — not a restatement of a single memory.
 2. Each insight must cite specific memory IDs as evidence.
@@ -402,6 +433,46 @@ ${languageInstruction}
 Based on these memories about ${characterName}, extract 1-3 insights that answer the question above.
 Cite specific memory IDs as evidence for each insight.
 Respond with a single JSON object. No other text.`;
+
+    return buildMessages(systemPrompt, userPrompt, '{', preamble);
+}
+
+/**
+ * Build the unified reflection prompt.
+ * Combines question generation and insight extraction into a single call.
+ * @param {string} characterName
+ * @param {Array} recentMemories - Top 100 recent memories
+ * @param {string} preamble
+ * @param {string} outputLanguage
+ * @returns {object} { system, user } prompt object
+ */
+export function buildUnifiedReflectionPrompt(characterName, recentMemories, preamble, outputLanguage = 'auto') {
+    const memoryList = recentMemories.map((m) =>
+        `${m.id}. [${'★'.repeat(m.importance || 3)}] ${m.summary}`
+    ).join('\n');
+
+    const systemPrompt = assembleSystemPrompt({
+        role: UNIFIED_REFLECTION_ROLE,
+        schema: UNIFIED_REFLECTION_SCHEMA,
+        rules: UNIFIED_REFLECTION_RULES,
+        examples: UNIFIED_REFLECTION_EXAMPLES,
+        outputLanguage,
+    });
+
+    const languageInstruction = resolveLanguageInstruction(memoryList, outputLanguage);
+    const userPrompt = `<character>${characterName}</character>
+
+<recent_memories>
+${memoryList}
+</recent_memories>
+
+${languageInstruction}
+Based on these memories about ${characterName}:
+1. Generate 1-3 salient high-level questions about their current psychological state, relationships, goals, or unresolved conflicts.
+2. For each question, provide a deep insight that synthesizes patterns across the memories.
+3. Cite specific memory IDs as evidence for each insight. You MUST use IDs exactly as shown above.
+
+Respond with a single JSON object containing a "reflections" array with 1-3 items. No other text.`;
 
     return buildMessages(systemPrompt, userPrompt, '{', preamble);
 }
