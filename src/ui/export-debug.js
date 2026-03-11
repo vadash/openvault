@@ -15,6 +15,43 @@ import { deleteEmbedding } from '../utils/embedding-codec.js';
 const _RECENT_CONTEXT_CAP = 2000;
 
 /**
+ * Round number to 2 decimal places.
+ * @param {number} n
+ * @returns {number}
+ */
+function r2(n) {
+    return Math.round(n * 100) / 100;
+}
+
+/**
+ * Truncate string to limit with '...' suffix.
+ * @param {string} text
+ * @param {number} limit
+ * @returns {string}
+ */
+function truncateSummary(text, limit) {
+    if (!text || text.length <= limit) return text || '';
+    return text.slice(0, limit - 3) + '...';
+}
+
+/**
+ * Return only settings that differ from defaults.
+ * @param {Object} current - Current settings
+ * @param {Object} defaults - Default settings
+ * @returns {Object} Diff object (may be empty)
+ */
+function diffSettings(current, defaults) {
+    const diff = {};
+    for (const [key, defaultVal] of Object.entries(defaults)) {
+        const currentVal = current[key];
+        if (currentVal !== defaultVal) {
+            diff[key === 'enabled' ? 'autoMode' : key] = currentVal;
+        }
+    }
+    return diff;
+}
+
+/**
  * Build scoring statistics from cached scoring details.
  * @param {Array<Object>|null} scoringDetails
  * @returns {Object}
@@ -251,15 +288,8 @@ export function buildExportPayload() {
             communities: buildCommunitiesExport(communities),
         },
 
-        // Dump all settings dynamically using defaultSettings keys as source of truth
-        // This ensures any new settings added to defaultSettings are auto-included
-        settings: Object.fromEntries(
-            Object.keys(defaultSettings).map((key) => {
-                // Special case: 'enabled' is exported as 'autoMode' for clarity
-                if (key === 'enabled') return ['autoMode', settings[key]];
-                return [key, settings[key]];
-            })
-        ),
+        // Settings: only values that differ from defaults
+        settings: diffSettings(settings, defaultSettings),
         // Runtime-computed values (not in defaultSettings)
         runtime: {
             embeddingsEnabled: isEmbeddingsEnabled(),

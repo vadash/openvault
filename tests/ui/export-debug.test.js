@@ -115,14 +115,10 @@ describe('buildExportPayload', () => {
         expect(payload.state.communities.details.c1.embedding).toBeUndefined();
     });
 
-    it('includes all settings dynamically from defaultSettings', () => {
+    it('settings contains only non-default values', () => {
         const payload = buildExportPayload();
-        // Should have all defaultSetting keys (with 'enabled' -> 'autoMode')
-        expect(payload.settings.alpha).toBe(0.7);
-        expect(payload.settings.autoMode).toBe(true); // 'enabled' mapped to 'autoMode'
-        expect(payload.settings.debugMode).toBe(false);
-        // Check that we have roughly the right number of settings (default has ~40)
-        expect(Object.keys(payload.settings).length).toBeGreaterThanOrEqual(40);
+        // All mock settings match defaults → empty diff
+        expect(Object.keys(payload.settings).length).toBe(0);
     });
 
     it('includes runtime computed values', () => {
@@ -143,5 +139,14 @@ describe('buildExportPayload', () => {
     it('sets lastRetrieval to null when no cache', () => {
         const payload = buildExportPayload();
         expect(payload.lastRetrieval).toBeNull();
+    });
+
+    it('settings contains only values that differ from defaults', () => {
+        const payload = buildExportPayload();
+        // Mock has alpha: 0.7 and enabled: true which match defaults
+        // debugMode: false also matches default
+        // So settings should be empty (or contain only truly different values)
+        // Since all mock values match defaultSettings, settings should be {}
+        expect(payload.settings).toEqual({});
     });
 });
