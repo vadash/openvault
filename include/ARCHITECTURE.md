@@ -27,8 +27,8 @@ Worker (`src/extraction/worker.js`) is single-instance, interruptible (checks `w
 - **INTERMEDIATE SAVE**: Events, graph, and `processed_message_ids` persisted.
 
 **Phase 2: Enrichment (Errors swallowed, non-blocking)**
-- **Reflection**: If character `importance_sum >= 40` -> Generate questions -> Insights -> 3-Tier dedup -> Embed.
-- **Communities**: Every 50 msgs -> Louvain GraphRAG -> LLM Summaries.
+- **Reflection**: If character `importance_sum >= 40` -> Unified call (questions + insights combined) -> 3-Tier dedup -> Embed.
+- **Communities**: Every 50 msgs -> Edge consolidation (bloated edges synthesized) -> Louvain GraphRAG -> LLM Summaries.
 - **FINAL SAVE**: Reflections and Communities persisted.
 
 ## 2. DATA SCHEMA (`chatMetadata.openvault`)
@@ -42,7 +42,8 @@ Worker (`src/extraction/worker.js`) is single-instance, interruptible (checks `w
   }],
   graph: {
     nodes: { [normKey]: { name, type, description, mentions, embedding_b64: string, aliases? } },
-    edges: { "src__tgt": { source, target, description, weight } }
+    edges: { "src__tgt": { source, target, description, weight, _descriptionTokens: number } },
+    _edgesNeedingConsolidation: string[]  // Edge keys pending consolidation
   },
   communities: { "C0": { title, summary, findings: string[], nodeKeys: string[], embedding_b64: string } },
   character_states: { "Name": { current_emotion, emotion_intensity, known_events: string[] } },

@@ -1,12 +1,18 @@
 # Graph & GraphRAG Subsystem
 
 ## WHAT
-Flat-JSON entity and relationship storage with rigorous semantic deduplication and Louvain-based community detection.
+Flat-JSON entity and relationship storage with rigorous semantic deduplication, edge consolidation, and Louvain-based community detection.
 
 ## STORAGE STRUCTURE (`graph.js`)
 - **Keys**: Normalized (`normalizeKey()`) — lowercased, possessives stripped ("Vova's" -> "vova"), whitespace collapsed.
 - **Nodes**: `{ [key]: { name, type, description, mentions, embedding, aliases? } }`. Descriptions append with `|` (FIFO capped).
-- **Edges**: `{ "source__target": { source, target, description, weight } }`.
+- **Edges**: `{ "source__target": { source, target, description, weight, _descriptionTokens } }`. Token count tracked for consolidation triggers.
+
+## EDGE CONSOLIDATION
+- **Token Tracking**: Each edge stores `_descriptionTokens` count (updated on every `upsertRelationship` call).
+- **Trigger**: When `_descriptionTokens > CONSOLIDATION.TOKEN_THRESHOLD` (500), edge marked for consolidation via `_edgesNeedingConsolidation` queue.
+- **Batch Processing**: During community detection, `consolidateEdges()` processes up to `MAX_CONSOLIDATION_BATCH` (10) edges per run.
+- **LLM Consolidation**: Bloated pipe-separated descriptions synthesized into single coherent summary (<100 tokens), re-embedded for RAG accuracy.
 
 ## SEMANTIC MERGE LOGIC
 Prevents duplicate nodes (e.g., "The King" vs "King Aldric").
@@ -19,10 +25,12 @@ Prevents duplicate nodes (e.g., "The King" vs "King Aldric").
 ## GRAPHRAG COMMUNITIES (`communities.js`)
 - **Trigger**: Every 50 messages during extraction.
 - **Algorithm**: `graphology-communities-louvain` on an undirected graph.
+- **Edge Consolidation**: Runs before summarization (`consolidateEdges()`). Processes bloated edges flagged in `_edgesNeedingConsolidation` queue.
 - **Hairball Pruning**: Edges involving main characters (User/Char + their aliases) are temporarily removed. Prevents the "protagonist hairball" where all entities group into one giant cluster. Nodes re-assigned to strongest neighbor's community after.
 - **Summarization**: LLM generates Title, Summary, and Findings. Injected into ST context.
 
 ## GOTCHAS & RULES
 - **Embedding Storage**: Embeddings are stored as Base64-encoded `Float32Array` strings (`embedding_b64`) via the codec in `src/utils/embedding-codec.js`. Legacy `number[]` format (`embedding`) is read transparently but never written.
 - **Orphaned Edges**: `upsertRelationship` quietly skips if source/target nodes don't exist.
+- **CONSOLIDATION Constants**: `TOKEN_THRESHOLD: 500`, `MAX_CONSOLIDATION_BATCH: 10` defined in `src/constants.js`.
 - **ESM Libraries**: Relies on `https://esm.sh/graphology`. Mapped in `vitest.config.js`.
