@@ -262,11 +262,12 @@ export function selectMemoriesWithSoftBalance(
 6. Add tests for multi-level reflection generation
 
 ### Phase 3: Score-First Budgeting (1-2 days)
-1. Create `selectMemoriesWithSoftBalance()` function
-2. Modify `selectRelevantMemories()` to use new selection logic
-3. Update `formatContextForInjection()` to remove hard 50% quota
-4. Add tests for bucket distribution and edge cases
-5. Update debug export to show bucket distribution before/after
+1. Move `assignMemoriesToBuckets()` and `getMemoryPosition()` to `src/utils/text.js` to avoid circular dependencies
+2. Create `selectMemoriesWithSoftBalance()` function in `scoring.js`
+3. Modify `selectRelevantMemories()` to use new selection logic
+4. Update `formatContextForInjection()` to remove hard 50% quota
+5. Add tests for bucket distribution and edge cases
+6. Update debug export to show bucket distribution before/after
 
 ### Phase 4: Integration & Testing (1 day)
 1. End-to-end testing with realistic RP scenarios
@@ -274,7 +275,81 @@ export function selectMemoriesWithSoftBalance(
 3. Update UI settings panel with new constants
 4. Documentation updates
 
-## 8. Success Metrics
+## 8. Implementation Notes
+
+### 8.1 BM25 Exact Phrase Token Detection
+
+**Distinguishing exact phrases from stems**:
+Since `buildBM25Tokens()` returns a flat `string[]`, exact phrases (Layer 0) can be distinguished from stems (Layers 1-3) by checking for spaces:
+
+```javascript
+// Inside scoreMemories() in math.js
+const exactPhrases = tokens.filter(t => t.includes(' '));
+const stemTokens = tokens.filter(t => !t.includes(' '));
+```
+
+**Handling exact phrases in BM25**:
+Because `calculateIDF()` relies on `m.tokens` (which only contains single-word stems), exact phrases should be handled separately from the standard `idfMap`. Two approaches:
+
+1. Assign maximum possible IDF (since phrases are highly specific)
+2. Apply the 10x boost as a direct flat multiplier to the final BM25 score for matching memories
+
+**Phrase matching implementation**:
+Use a helper in `bm25Score()`:
+```javascript
+function hasExactPhrase(phrase, docTokens, docText) {
+    const normalized = phrase.toLowerCase().trim();
+    const searchText = docText.toLowerCase();
+    // Simple substring search (phrase contains spaces)
+    return searchText.includes(normalized);
+}
+```
+
+### 8.2 Reflection Candidate Set Construction
+
+In `src/reflection/reflect.js`, modify `generateReflections()` to include old reflections:
+
+```javascript
+// Current: Top 100 recent memories only
+const recentMemories = sortMemoriesBySequence(accessibleMemories, false).slice(0, 100);
+
+// NEW: Combine recent memories with existing reflections for synthesis
+const recentMemories = sortMemoriesBySequence(accessibleMemories, false).slice(0, 100);
+const oldReflections = accessibleMemories.filter(m =>
+    m.type === 'reflection' &&
+    m.level >= 1
+);
+const candidateSet = _deduplicateById([...recentMemories, ...oldReflections]);
+```
+
+### 8.3 Avoiding Circular Dependencies
+
+**Issue**: `assignMemoriesToBuckets()` lives in `formatting.js`, but `selectMemoriesWithSoftBalance()` in `scoring.js` needs it. Since `formatting.js` imports from `scoring.js`, this creates a circular dependency.
+
+**Solution**: Move `assignMemoriesToBuckets()` and `getMemoryPosition()` to a shared utility file:
+- Option A: Move to `src/utils/text.js` (already has `sortMemoriesBySequence`)
+- Option B: Move to `src/retrieval/math.js` (pure functions, already imported by scoring)
+
+Recommended: **Option A** (`text.js`) to keep temporal utilities together.
+
+```javascript
+// In src/utils/text.js - export bucket utilities
+export { assignMemoriesToBuckets, getMemoryPosition } from './retrieval/formatting.js';
+// Then move the actual implementations to text.js
+```
+
+### 8.4 Backward Compatibility for Reflection Level
+
+Existing reflections lack the `level` field. Use safe defaulting:
+
+```javascript
+// In math.js calculateScore()
+const level = memory.level || 1; // Defaults legacy reflections to Level 1
+```
+
+No destructive database migration required—reflections gain `level: 1` on next save.
+
+## 9. Success Metrics
 
 | Metric | Target | Measurement |
 |--------|--------|-------------|
