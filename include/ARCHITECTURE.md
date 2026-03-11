@@ -29,6 +29,7 @@ Worker (`src/extraction/worker.js`) is single-instance, interruptible (checks `w
 **Phase 2: Enrichment (Errors swallowed, non-blocking)**
 - **Reflection**: If character `importance_sum >= 40` -> Unified call (questions + insights combined) -> 3-Tier dedup -> Embed.
 - **Communities**: Every 50 msgs -> Edge consolidation (bloated edges synthesized) -> Louvain GraphRAG -> LLM Summaries.
+- **BACKFILL OPTIMIZATION**: During `extractAllMessages()` (manual backfill), Phase 2 is deferred. `extractMemories(batch, { isBackfill: true })` skips reflection/community LLM calls. State accumulation (`importance_sum`, graph nodes/edges) still runs per batch. After all batches complete, `runPhase2Enrichment()` processes ALL accumulated characters' reflections + communities in a single pass. This reduces API calls from 20+ (one per 50-msg boundary during backfill) to 1 final call, eliminates UI stall, and prevents redundant synthesis as graph grows. Worker extractions (incremental, non-backfill) always run normal Phase 2 flow.
 - **FINAL SAVE**: Reflections and Communities persisted.
 
 ## 2. DATA SCHEMA (`chatMetadata.openvault`)
