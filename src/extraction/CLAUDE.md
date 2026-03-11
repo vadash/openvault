@@ -25,6 +25,24 @@ Background pipeline converting raw messages -> structured JSON -> Deduplicated M
 9. **Communities**: Runs Louvain every 50 extracted messages.
 10. **Final Save**.
 
+## BACKFILL OPTIMIZATION: Phase 2 Defer
+**Problem**: Backfilling 1000+ messages triggers reflection/community LLM calls 20+ times, incurring:
+- 20+ API calls (vs 1 at end)
+- Stalled UI during intermediate synthesis
+- Redundant work (re-synthesizing communities as graph grows)
+
+**Solution** (`isBackfill` option):
+- **During Batches**: `extractMemories([batch], null, { isBackfill: true })` skips Phase 2 entirely. State accumulation (`importance_sum`, graph nodes/edges) still runs.
+- **After Backfill**: Single call to `runPhase2Enrichment(data, settings, targetChatId)` processes ALL accumulated characters' reflections + communities once.
+
+**Key Functions**:
+- `extractMemories(..., { isBackfill: true })`: Returns early after `accumulateImportance()` (line ~380).
+- `runPhase2Enrichment(data, settings, targetChatId)`: Standalone Phase 2 runner. Guards: returns immediately if `memories.length === 0`. Processes all characters in `reflection_state` that exceed threshold.
+
+**Integration**:
+- `extractAllMessages()`: Passes `{ isBackfill: true, silent: true }` in the while loop. After loop, calls `runPhase2Enrichment()` with "Synthesizing..." toast.
+- Worker: Unchanged. Calls `extractMemories(batch, chatId, { silent: true })` (no `isBackfill`, normal flow for incremental extractions).
+
 ## GOTCHAS & RULES
 - **Split Schemas**: Events, Graph, Community Summary, and Global Synthesis each have separate Zod schemas. No unified schema. Lowers LLM cognitive load.
 - **GlobalSynthesisSchema**: `global_summary` field, min 50 chars, max ~300 tokens. Map-reduce output over all communities.
