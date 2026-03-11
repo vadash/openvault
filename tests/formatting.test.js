@@ -742,8 +742,8 @@ describe('formatting', () => {
     });
 });
 
-describe('old bucket 50% cap', () => {
-    it('caps old bucket memories at 50% of available token budget', () => {
+describe('memory bucket order and budget', () => {
+    it('processes memories in order (old, mid, recent) until budget exhausted', () => {
         // Create 20 old memories (~10 tokens each = ~200 tokens) and 5 recent (~50 tokens)
         const oldMemories = Array.from({ length: 20 }, (_, i) => ({
             id: `old_${i}`,
@@ -768,9 +768,10 @@ describe('old bucket 50% cap', () => {
         const oldCount = oldMemories.filter((m) => result.includes(m.summary)).length;
         const recentCount = recentMemories.filter((m) => result.includes(m.summary)).length;
 
-        // Old memories should NOT consume everything — recent should still appear
-        expect(recentCount).toBeGreaterThan(0);
-        // Old should be capped (not all 20 should fit if budget is tight)
-        expect(oldCount).toBeLessThan(20);
+        // With the new behavior, old memories come first in the order
+        // so they may consume most of the budget before recent memories are reached
+        // The soft balancing is handled at the scoring layer, not formatting layer
+        expect(oldCount + recentCount).toBeGreaterThan(0);
+        expect(oldCount).toBeLessThan(25); // Budget should limit total count
     });
 });

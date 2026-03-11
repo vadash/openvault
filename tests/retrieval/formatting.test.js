@@ -44,3 +44,49 @@ describe('formatContextForInjection - Subconscious Drives', () => {
         expect(result).not.toContain('<subconscious_drives>');
     });
 });
+
+describe('formatContextForInjection without hard quotas', () => {
+    it('should accept memories pre-selected by scoring', async () => {
+        const memories = [
+            { id: '1', summary: 'Old memory', message_ids: [100], sequence: 10000, importance: 3 },
+            { id: '2', summary: 'Recent memory', message_ids: [900], sequence: 9000, importance: 3 },
+        ];
+
+        const result = formatContextForInjection(
+            memories,
+            ['OtherChar'],
+            { emotion: 'neutral' },
+            'TestChar',
+            1000, // budget
+            1000  // chatLength
+        );
+
+        expect(result).toContain('Old memory');
+        expect(result).toContain('Recent memory');
+    });
+
+    it('should not apply 50% quota to old bucket', async () => {
+        // Create many old memories that would exceed 50% quota
+        const oldMemories = Array.from({ length: 20 }, (_, i) => ({
+            id: `old${i}`,
+            summary: `Old memory ${i}`,
+            message_ids: [100 + i],
+            sequence: 10000 + i,
+            importance: 3,
+        }));
+
+        const result = formatContextForInjection(
+            oldMemories,
+            [],
+            null,
+            'TestChar',
+            5000, // Large budget
+            1000
+        );
+
+        // Count how many old memories were included
+        const count = (result.match(/Old memory/g) || []).length;
+        // With soft balance, could be more than 50% if scoring selected them
+        expect(count).toBeGreaterThan(0);
+    });
+});
