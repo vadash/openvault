@@ -15,14 +15,13 @@
 
 import { extensionName } from '../constants.js';
 import { getDeps } from '../deps.js';
-import { enrichEventsWithEmbeddings, getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
-import { parseInsightExtractionResponse, parseSalientQuestionsResponse } from '../extraction/structured.js';
+import { enrichEventsWithEmbeddings } from '../embeddings.js';
+import { parseUnifiedReflectionResponse } from '../extraction/structured.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
 import { record } from '../perf/store.js';
 import { filterMemoriesByPOV } from '../pov.js';
 import {
-    buildInsightExtractionPrompt,
-    buildSalientQuestionsPrompt,
+    buildUnifiedReflectionPrompt,
     resolveExtractionPreamble,
     resolveOutputLanguage,
 } from '../prompts/index.js';
@@ -182,11 +181,9 @@ export function shouldSkipReflectionGeneration(recentMemories, existingReflectio
 }
 
 /**
- * Run the 3-step reflection pipeline for a single character.
+ * Run the unified reflection pipeline for a single character.
  *
- * Step 1: Generate 3 salient questions from recent memories
- * Step 2: For each question, retrieve relevant memories and extract insights (3 calls via Promise.all)
- * Step 3: Store reflections as memory objects with embeddings
+ * Single-call approach: Generate questions and insights together in one LLM call.
  *
  * @param {string} characterName
  * @param {Array} allMemories - Full memory stream
@@ -242,82 +239,41 @@ export async function generateReflections(characterName, allMemories, characterS
         return [];
     }
 
-    // Step 1: Generate salient questions
-    const questionsPrompt = buildSalientQuestionsPrompt(characterName, recentMemories, preamble, outputLanguage);
-    const questionsResponse = await callLLM(questionsPrompt, LLM_CONFIGS.reflection_questions, { structured: true });
-    const { questions } = parseSalientQuestionsResponse(questionsResponse);
+    // Single unified reflection call (replaces Step 1 + Step 2)
+    const reflectionPrompt = buildUnifiedReflectionPrompt(characterName, recentMemories, preamble, outputLanguage);
+    const reflectionResponse = await callLLM(reflectionPrompt, LLM_CONFIGS.reflection, { structured: true });
+    const { reflections } = parseUnifiedReflectionResponse(reflectionResponse);
 
-    logDebug(`Reflection: Generated ${questions.length} salient questions for ${characterName}`);
+    logDebug(`Reflection: Generated ${reflections.length} unified reflections for ${characterName}`);
 
-    // Step 2: For each question, retrieve relevant memories and extract insights (in parallel)
-    const insightPromises = questions.map(async (question) => {
-        // Retrieve memories relevant to this question via embedding similarity
-        let relevantMemories = accessibleMemories;
-        if (isEmbeddingsEnabled()) {
-            const queryEmb = await getQueryEmbedding(question);
-            if (queryEmb) {
-                const scored = accessibleMemories
-                    .filter((m) => hasEmbedding(m))
-                    .map((m) => ({ memory: m, score: cosineSimilarity(queryEmb, getEmbedding(m)) }))
-                    .sort((a, b) => b.score - a.score)
-                    .slice(0, 20);
-                relevantMemories = scored.map((s) => s.memory);
-            }
-        } else {
-            relevantMemories = recentMemories.slice(0, 20);
-        }
-
-        const insightPrompt = buildInsightExtractionPrompt(
-            characterName,
-            question,
-            relevantMemories,
-            preamble,
-            outputLanguage
-        );
-        const insightResponse = await callLLM(insightPrompt, LLM_CONFIGS.reflection_insights, { structured: true });
-        const parsed = parseInsightExtractionResponse(insightResponse);
-        // Cap insights per question
-        const maxInsights = settings.maxInsightsPerReflection;
-        parsed.insights = parsed.insights.slice(0, maxInsights);
-        return parsed;
-    });
-
-    const insightResults = await Promise.all(insightPromises);
-
-    // Step 3: Convert insights into reflection memory objects
-    const reflections = [];
+    // Convert unified reflections to memory objects
     const now = deps.Date.now();
-
-    for (const result of insightResults) {
-        for (const { insight, evidence_ids } of result.insights) {
-            reflections.push({
-                id: `ref_${generateId()}`,
-                type: 'reflection',
-                summary: insight,
-                tokens: tokenize(insight || ''),
-                importance: 4,
-                sequence: now,
-                characters_involved: [characterName],
-                character: characterName,
-                source_ids: evidence_ids,
-                witnesses: [characterName],
-                location: null,
-                is_secret: false,
-                emotional_impact: {},
-                relationship_impact: {},
-                created_at: now,
-            });
-        }
-    }
+    const newReflections = reflections.map(({ question, insight, evidence_ids }) => ({
+        id: `ref_${generateId()}`,
+        type: 'reflection',
+        summary: insight,
+        tokens: tokenize(insight || ''),
+        importance: 4,
+        sequence: now,
+        characters_involved: [characterName],
+        character: characterName,
+        source_ids: evidence_ids,
+        witnesses: [characterName],
+        location: null,
+        is_secret: false,
+        emotional_impact: {},
+        relationship_impact: {},
+        created_at: now,
+    }));
 
     // Generate embeddings for reflections
-    await enrichEventsWithEmbeddings(reflections);
+    await enrichEventsWithEmbeddings(newReflections);
 
     // Dedup: 3-tier filter (reject/replace/add) reflections based on similarity
     const reflectionDedupThreshold = settings.reflectionDedupThreshold;
     const replaceThreshold = reflectionDedupThreshold - 0.1; // 0.80 when default is 0.90
     const { toAdd, toArchiveIds } = filterDuplicateReflections(
-        reflections,
+        newReflections,
         allMemories,
         reflectionDedupThreshold,
         replaceThreshold
@@ -334,7 +290,7 @@ export async function generateReflections(characterName, allMemories, characterS
     }
 
     logDebug(
-        `Reflection: Generated ${toAdd.length} reflections for ${characterName} (${reflections.length - toAdd.length} filtered)`
+        `Reflection: Generated ${toAdd.length} reflections for ${characterName} (${newReflections.length - toAdd.length} filtered)`
     );
     record('llm_reflection', performance.now() - t0);
     return toAdd;

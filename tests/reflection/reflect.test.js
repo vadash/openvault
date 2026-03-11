@@ -23,8 +23,7 @@ const mockCallLLM = vi.fn();
 vi.mock('../../src/llm.js', () => ({
     callLLM: (...args) => mockCallLLM(...args),
     LLM_CONFIGS: {
-        reflection_questions: { profileSettingKey: 'extractionProfile' },
-        reflection_insights: { profileSettingKey: 'extractionProfile' },
+        reflection: { profileSettingKey: 'extractionProfile' },
     },
 }));
 
@@ -136,34 +135,29 @@ describe('generateReflections', () => {
             deps: { Date: { now: () => 2000000 } },
         });
 
-        // Step 1: Return 3 salient questions
-        // Steps 2a, 2b, 2c: Return insights for each question
+        // Mock single unified reflection call
         mockCallLLM.mockReset();
-        mockCallLLM
-            .mockResolvedValueOnce(
-                JSON.stringify({
-                    questions: [
-                        'How has Alice grown as a fighter?',
-                        "What is Alice's relationship with Bob?",
-                        'What drives Alice?',
-                    ],
-                })
-            )
-            .mockResolvedValueOnce(
-                JSON.stringify({
-                    insights: [{ insight: 'Alice is becoming a seasoned warrior', evidence_ids: ['ev_002'] }],
-                })
-            )
-            .mockResolvedValueOnce(
-                JSON.stringify({
-                    insights: [{ insight: 'Alice values her friendship with Bob', evidence_ids: ['ev_001'] }],
-                })
-            )
-            .mockResolvedValueOnce(
-                JSON.stringify({
-                    insights: [{ insight: 'Alice is driven by curiosity', evidence_ids: ['ev_003'] }],
-                })
-            );
+        mockCallLLM.mockResolvedValue(
+            JSON.stringify({
+                reflections: [
+                    {
+                        question: 'Q1',
+                        insight: 'Alice is becoming a seasoned warrior',
+                        evidence_ids: ['ev_002'],
+                    },
+                    {
+                        question: 'Q2',
+                        insight: 'Alice values her friendship with Bob',
+                        evidence_ids: ['ev_001'],
+                    },
+                    {
+                        question: 'Q3',
+                        insight: 'Alice is driven by curiosity',
+                        evidence_ids: ['ev_003'],
+                    },
+                ],
+            })
+        );
     });
 
     afterEach(() => {
@@ -181,9 +175,9 @@ describe('generateReflections', () => {
         expect(reflections[0].embedding).toBeDefined();
     });
 
-    it('makes 4 LLM calls total (1 questions + 3 insights in parallel)', async () => {
+    it('makes 1 LLM call total (unified reflection)', async () => {
         await generateReflections(characterName, allMemories, characterStates);
-        expect(mockCallLLM).toHaveBeenCalledTimes(4);
+        expect(mockCallLLM).toHaveBeenCalledTimes(1);
     });
 
     it('assigns importance 4 to reflections by default', async () => {
