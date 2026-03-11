@@ -323,6 +323,9 @@ export async function filterSimilarEvents(newEvents, existingMemories, cosineThr
  *
  * @param {number[]} [messageIds=null] - Optional specific message IDs for targeted extraction
  * @param {string} [targetChatId=null] - Optional chat ID to verify before saving
+ * @param {Object} [options={}] - Optional configuration
+ * @param {boolean} [options.silent=false] - Suppress toast notifications
+ * @param {boolean} [options.isBackfill=false] - Skip Phase 2 LLM synthesis (for backfill mode)
  * @returns {Promise<{status: string, events_created?: number, messages_processed?: number, reason?: string}>}
  */
 export async function extractMemories(messageIds = null, targetChatId = null, options = {}) {
