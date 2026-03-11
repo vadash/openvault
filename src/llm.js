@@ -13,6 +13,7 @@ import {
     getGraphExtractionJsonSchema,
     getInsightExtractionJsonSchema,
     getSalientQuestionsJsonSchema,
+    getUnifiedReflectionJsonSchema,
 } from './extraction/structured.js';
 import { getSessionSignal } from './state.js';
 import { showToast } from './utils/dom.js';
@@ -64,6 +65,13 @@ export const LLM_CONFIGS = {
         errorContext: 'Graph Extraction',
         timeoutMs: 90000,
         getJsonSchema: getGraphExtractionJsonSchema,
+    },
+    reflection: {
+        profileSettingKey: 'extractionProfile',
+        maxTokens: 8000,
+        errorContext: 'Unified Reflection',
+        timeoutMs: 90000,
+        getJsonSchema: getUnifiedReflectionJsonSchema,
     },
     reflection_questions: {
         profileSettingKey: 'extractionProfile',
