@@ -149,7 +149,7 @@ const newReflections = reflections.map(({ question, insight, evidence_ids }) => 
        target: "bob",
        description: "Alice saved Bob from the dragon",
        weight: 3,
-       _descriptionTokens: 8 // Estimated token count (can use tokenizer or simple heuristic)
+       _descriptionTokens: 8 // Exact count from countTokens() in src/utils/tokens.js
      }
    }
    ```
@@ -190,7 +190,12 @@ OUTPUT SCHEMA:
   ]
 }
 
-Generate exactly 3 reflection objects. Each insight should synthesize patterns across multiple memories.`,
+CRITICAL ID GROUNDING RULE:
+For "evidence_ids", you MUST ONLY use the exact IDs shown in the <recent_memories> list.
+Do NOT invent, hallucinate, or modify IDs. If you cannot find the exact ID in the list, use an empty array [].
+
+Generate 1-3 reflection objects. Each insight should synthesize patterns across multiple memories.
+Only generate as many reflections as you can support with strong evidence — quality over quantity.`,
 
         user: `<character>${characterName}</character>
 
@@ -201,11 +206,11 @@ ${memoryList}
 ${resolveLanguageInstruction(memoryList, outputLanguage)}
 
 Based on these memories about ${characterName}:
-1. Generate 3 salient high-level questions about their current psychological state, relationships, goals, or unresolved conflicts.
+1. Generate 1-3 salient high-level questions about their current psychological state, relationships, goals, or unresolved conflicts.
 2. For each question, provide a deep insight that synthesizes patterns across the memories.
-3. Cite specific memory IDs as evidence for each insight.
+3. Cite specific memory IDs as evidence for each insight. You MUST use IDs exactly as shown above.
 
-Respond with a single JSON object containing a "reflections" array with exactly 3 items. No other text.`
+Respond with a single JSON object containing a "reflections" array with 1-3 items. No other text.`
     };
 }
 ```
@@ -216,7 +221,7 @@ Respond with a single JSON object containing a "reflections" array with exactly 
 function buildEdgeConsolidationPrompt(edgeData) {
     const segments = edgeData.description.split(' | ');
     return {
-        system: "You are a relationship state synthesizer. Combine multiple relationship descriptions into a single, coherent summary.",
+        system: "You are a relationship state synthesizer. Combine multiple relationship descriptions into a single, coherent summary that preserves narrative depth.",
         user: `Synthesize these relationship developments into ONE unified description:
 
 Source: ${edgeData.source}
@@ -231,7 +236,11 @@ Output a JSON object with:
   "consolidated_description": "string - unified relationship summary that captures the evolution"
 }
 
-Keep the description under 100 tokens. Focus on the CURRENT state of the relationship, not a chronological list.`
+Keep the description under 100 tokens.
+
+IMPORTANT: Summarize the CURRENT dynamic, but preserve critical historical shifts.
+For example: "Started as enemies, but allied after the dragon incident; now close friends."
+If the relationship has evolved significantly, capture that trajectory in a concise way.`
     };
 }
 ```
@@ -316,18 +325,26 @@ export function parseUnifiedReflectionResponse(response) {
             throw new Error('Missing or invalid reflections array');
         }
 
-        if (parsed.reflections.length !== 3) {
-            throw new Error(`Expected 3 reflections, got ${parsed.reflections.length}`);
+        // Accept 1-3 valid reflections (quality over quantity)
+        if (parsed.reflections.length < 1 || parsed.reflections.length > 3) {
+            throw new Error(`Expected 1-3 reflections, got ${parsed.reflections.length}`);
         }
 
         // Validate each reflection has required fields
+        const validReflections = [];
         for (const ref of parsed.reflections) {
-            if (!ref.question || !ref.insight || !Array.isArray(ref.evidence_ids)) {
-                throw new Error('Invalid reflection structure');
+            if (ref.question && ref.insight && Array.isArray(ref.evidence_ids)) {
+                // Filter out hallucinated IDs (warn but don't fail)
+                // Caller will validate IDs against actual memory IDs
+                validReflections.push(ref);
             }
         }
 
-        return parsed;
+        if (validReflections.length === 0) {
+            throw new Error('No valid reflections found in response');
+        }
+
+        return { reflections: validReflections };
     } catch (err) {
         logError('Failed to parse unified reflection response', err);
         return { reflections: [] }; // Fail gracefully
@@ -375,13 +392,13 @@ function markEdgeForConsolidation(graphData, edgeKey) {
 }
 
 /**
- * Estimate token count for a string (simple heuristic).
- * ~4 characters per token for English text.
+ * Count tokens for a string using the existing tokenizer.
  * @param {string} text
  * @returns {number}
  */
-function estimateTokens(text) {
-    return Math.ceil(text.length / 4);
+function countDescriptionTokens(text) {
+    // Use existing tokenizer from src/utils/tokens.js
+    return countTokens(text);
 }
 
 /**
@@ -415,10 +432,10 @@ export async function consolidateEdges(graphData, settings) {
             const result = parseConsolidationResponse(response);
             if (result.consolidated_description) {
                 edge.description = result.consolidated_description;
-                edge._descriptionTokens = estimateTokens(result.consolidated_description);
+                edge._descriptionTokens = countDescriptionTokens(result.consolidated_description);
 
-                // Re-embed for accurate RAG
-                if (hasEmbedding(edge)) {
+                // Re-embed for accurate RAG (only if embeddings enabled)
+                if (isEmbeddingsEnabled()) {
                     const newEmbedding = await getDocumentEmbedding(
                         `relationship: ${edge.source} - ${edge.target}: ${edge.description}`
                     );
@@ -470,6 +487,8 @@ export async function detectCommunities(graphData, settings) {
 | **Larger token input** | Sends 100 memories (~2-4k tokens) instead of 20×3 (~2-4k total). Same input size, fewer API calls. |
 | **UI appears frozen** | Single call ~10-15s total vs 4 sequential calls ~30-90s. Actually faster. |
 | **Chat switch mid-call** | Existing `AbortError` handling in `callLLM` works the same. |
+| **ID hallucination** | Added strict grounding rule to system prompt: "MUST ONLY use the exact IDs shown in the <recent_memories> list." |
+| **Fewer than 3 insights** | Parser now accepts 1-3 valid insights. Quality over quantity — better to have 1 strong insight than 3 weak ones. |
 
 ### 6.2 Edge Consolidation Risks
 
@@ -477,8 +496,9 @@ export async function detectCommunities(graphData, settings) {
 |------|------------|
 | **Consolidation LLM fails** | Error is swallowed, edge remains in queue for next attempt. Logged for debugging. |
 | **Queue grows indefinitely** | Cap at `MAX_CONSOLIDATION_BATCH` per run. Oldest edges processed first (FIFO). |
-| **Information loss from synthesis** | LLM is instructed to capture evolution in unified summary. Original segments remain in memory for reference if needed. |
-| **Token estimation inaccurate** | Simple heuristic (length/4) is conservative. Real tokenizer could be added if needed. |
+| **Information loss from synthesis** | Prompt instructs to "preserve critical historical shifts" (e.g., "Started as enemies, now allies"). Original segments remain in memory for reference if needed. |
+| **Token count accuracy** | Using existing `countTokens()` from `src/utils/tokens.js` instead of heuristic. Already used in scheduler.js and formatting.js. |
+| **Re-embedding when disabled** | Wrapped in `if (isEmbeddingsEnabled())` guard. BM25-only users won't crash. |
 | **Re-embedding cost** | Only re-embed consolidated edges (infrequent). Trades off compute for cleaner RAG. |
 | **Edge no longer exists** | Defensive check: `if (!edge) continue` during consolidation. |
 | **Concurrent modification** | Consolidation runs in background worker during community detection, which is sequential. No race conditions. |
@@ -486,14 +506,14 @@ export async function detectCommunities(graphData, settings) {
 ### 6.3 Migration Path
 
 - **Existing edges:** No immediate migration. Edges will be consolidated naturally on next community detection cycle (every 50 messages).
-- **Missing `_descriptionTokens` field:** Backfilled when `estimateTokens()` is first called during `upsertRelationship`.
+- **Missing `_descriptionTokens` field:** Backfilled when `countDescriptionTokens()` (using existing `countTokens()`) is first called during `upsertRelationship`.
 - **Missing `_edgesNeedingConsolidation` field:** Initialized as empty array on first access.
 
 ## 7. Implementation Checklist
 
 ### Phase 1: Unified Reflection (4 calls → 1 call)
-- [ ] Add `buildUnifiedReflectionPrompt()` to `src/prompts/index.js`
-- [ ] Add `parseUnifiedReflectionResponse()` to `src/extraction/structured.js`
+- [ ] Add `buildUnifiedReflectionPrompt()` to `src/prompts/index.js` (with ID grounding rule)
+- [ ] Add `parseUnifiedReflectionResponse()` to `src/extraction/structured.js` (accept 1-3 insights)
 - [ ] Remove `buildSalientQuestionsPrompt()` and `buildInsightExtractionPrompt()` (unused)
 - [ ] Remove `parseSalientQuestionsResponse()` and `parseInsightExtractionResponse()` (unused)
 - [ ] Refactor `generateReflections()` to use single unified call
@@ -503,23 +523,27 @@ export async function detectCommunities(graphData, settings) {
 - [ ] Update performance tracking (1 call instead of 4)
 
 ### Phase 2: Edge Consolidation Infrastructure
-- [ ] Add `_descriptionTokens` tracking to `upsertRelationship()`
+- [ ] Add `_descriptionTokens` tracking to `upsertRelationship()` using `countTokens()` from `src/utils/tokens.js`
 - [ ] Add `markEdgeForConsolidation()` function
-- [ ] Add `estimateTokens()` utility function
 - [ ] Add `CONSOLIDATION` constants to `src/constants.js`
+- [ ] Ensure `countTokens()` is exported from `src/utils/tokens.js` (should already exist)
 
 ### Phase 3: Edge Consolidation Implementation
-- [ ] Add `buildEdgeConsolidationPrompt()` to prompts
+- [ ] Add `buildEdgeConsolidationPrompt()` to prompts (with historical shifts instruction)
 - [ ] Add `parseConsolidationResponse()` to `structured.js`
-- [ ] Implement `consolidateEdges()` function
+- [ ] Implement `consolidateEdges()` function (with `isEmbeddingsEnabled()` guard)
 - [ ] Integrate consolidation into community detection flow
 
 ### Phase 4: Testing
-- [ ] Test sequential reflection with local LLM (Ollama)
+- [ ] Test unified reflection with local LLM (Ollama)
+- [ ] Test reflection parsing accepts 1-3 insights (not strictly 3)
 - [ ] Test edge consolidation with >5 segment edge
+- [ ] Test consolidation preserves historical shifts in relationships
+- [ ] Test consolidation with embeddings DISABLED (BM25-only mode)
 - [ ] Test consolidation queue persistence across saves
 - [ ] Test error handling (LLM failure during consolidation)
-- [ ] Verify re-embedding updates work correctly
+- [ ] Verify `countTokens()` works correctly for edge descriptions
+- [ ] Verify re-embedding updates work correctly (when enabled)
 
 ## 8. Performance Impact
 
