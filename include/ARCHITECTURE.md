@@ -2,6 +2,13 @@
 
 Decoupled two-path architecture operating entirely within SillyTavern's `chatMetadata.openvault`.
 
+## 0. REQUIREMENTS
+
+1. Extention will be run on win 11, modern chrome 130+ browser, RTX 2060+ for RAG.
+2. Main RP LLM is strong model Kimi K25 1T params. Can handle 32-64k tokens.
+3. Extention will use medium strength cheap CN instruct model. Examples: qwen3-next-80b-a3b-instruct, kimi-k2-instruct-0905.
+4. Average RP length 1000-4000 messages with 100-800 memories.
+
 ## 1. DATA FLOW PIPELINES
 
 ### Critical Path (Synchronous, on `GENERATION_AFTER_COMMANDS`)
