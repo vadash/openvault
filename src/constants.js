@@ -82,6 +82,9 @@ export const defaultSettings = {
     maxReflectionsPerCharacter: 50,
     maxReflectionLevel: 3, // Maximum reflection tree depth
     reflectionLevelMultiplier: 2.0, // Decay slows by 2x per level
+    // Bucket balance settings (score-first budgeting with soft chronological balancing)
+    bucketMinRepresentation: 0.20, // 20% minimum per bucket
+    bucketSoftBalanceBudget: 0.05, // 5% budget for soft balancing
     // Community staleness settings
     communityStalenessThreshold: 100,
     // Preamble & prefill settings
@@ -182,6 +185,8 @@ export const UI_DEFAULT_HINTS = {
     reflectionDecayThreshold: defaultSettings.reflectionDecayThreshold,
     maxReflectionLevel: defaultSettings.maxReflectionLevel,
     reflectionLevelMultiplier: defaultSettings.reflectionLevelMultiplier,
+    bucketMinRepresentation: defaultSettings.bucketMinRepresentation,
+    bucketSoftBalanceBudget: defaultSettings.bucketSoftBalanceBudget,
     // Graph cap settings
     entityDescriptionCap: defaultSettings.entityDescriptionCap,
     maxReflectionsPerCharacter: defaultSettings.maxReflectionsPerCharacter,

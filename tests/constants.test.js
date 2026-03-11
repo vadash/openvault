@@ -61,3 +61,25 @@ describe('Reflection Level Settings', () => {
         expect(UI_DEFAULT_HINTS.reflectionLevelMultiplier).toBeDefined();
     });
 });
+
+describe('Bucket Balance Settings', () => {
+    it('should have bucketMinRepresentation in defaultSettings', async () => {
+        const { defaultSettings } = await import('../src/constants.js');
+        expect(defaultSettings.bucketMinRepresentation).toBe(0.20);
+    });
+
+    it('should have bucketSoftBalanceBudget in defaultSettings', async () => {
+        const { defaultSettings } = await import('../src/constants.js');
+        expect(defaultSettings.bucketSoftBalanceBudget).toBe(0.05);
+    });
+
+    it('should have bucketMinRepresentation in UI_DEFAULT_HINTS', async () => {
+        const { UI_DEFAULT_HINTS } = await import('../src/constants.js');
+        expect(UI_DEFAULT_HINTS.bucketMinRepresentation).toBeDefined();
+    });
+
+    it('should have bucketSoftBalanceBudget in UI_DEFAULT_HINTS', async () => {
+        const { UI_DEFAULT_HINTS } = await import('../src/constants.js');
+        expect(UI_DEFAULT_HINTS.bucketSoftBalanceBudget).toBeDefined();
+    });
+});
