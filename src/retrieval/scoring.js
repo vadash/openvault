@@ -9,7 +9,8 @@ import { extensionName } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { logDebug } from '../utils/logging.js';
-import { sliceToTokenBudget } from '../utils/text.js';
+import { sliceToTokenBudget, assignMemoriesToBuckets, getMemoryPosition } from '../utils/text.js';
+import { countTokens } from '../utils/tokens.js';
 import { cacheRetrievalDebug, cacheScoringDetails } from './debug-cache.js';
 import { scoreMemories } from './math.js';
 import { buildBM25Tokens, buildCorpusVocab, buildEmbeddingQuery, extractQueryContext, parseRecentMessages } from './query-context.js';
@@ -147,6 +148,87 @@ async function selectRelevantMemoriesSimple(memories, ctx, limit, allHiddenMemor
         activeCharacters || [],
         allHiddenMemories // NEW: Pass hidden memories for IDF
     );
+}
+
+/**
+ * Select memories using score-first budgeting with soft chronological balancing.
+ * @param {Array<{memory: Object, score: number, breakdown: Object}>} scoredMemories - Pre-scored, sorted
+ * @param {number} tokenBudget - Maximum tokens to select
+ * @param {number} chatLength - Current chat length
+ * @param {number} [minRepresentation=0.20] - Minimum 20% per bucket
+ * @param {number} [softBalanceBudget=0.05] - 5% budget for balancing
+ * @returns {Object[]} Selected memories
+ */
+export function selectMemoriesWithSoftBalance(
+    scoredMemories,
+    tokenBudget,
+    chatLength,
+    minRepresentation = 0.20,
+    softBalanceBudget = 0.05
+) {
+    if (!scoredMemories || scoredMemories.length === 0) return [];
+    if (tokenBudget <= 0) return [];
+
+    // Phase 1: Score-first selection (95% of budget)
+    const phase1Budget = tokenBudget * (1 - softBalanceBudget);
+    const phase1Selected = [];
+
+    let totalTokens = 0;
+    for (const { memory } of scoredMemories) {
+        const memTokens = countTokens(memory.summary || '');
+        if (totalTokens + memTokens > phase1Budget) break;
+        phase1Selected.push(memory);
+        totalTokens += memTokens;
+    }
+
+    // Phase 2: Soft chronological balancing (5% of budget)
+    const phase2Budget = tokenBudget - totalTokens;
+    if (phase2Budget <= 0) return phase1Selected;
+
+    // Analyze bucket distribution
+    const buckets = assignMemoriesToBuckets(phase1Selected, chatLength);
+    const bucketCounts = {
+        old: buckets.old.reduce((sum, m) => sum + countTokens(m.summary), 0),
+        mid: buckets.mid.reduce((sum, m) => sum + countTokens(m.summary), 0),
+        recent: buckets.recent.reduce((sum, m) => sum + countTokens(m.summary), 0),
+    };
+    const totalSelected = bucketCounts.old + bucketCounts.mid + bucketCounts.recent;
+
+    // Calculate minimum tokens per bucket
+    const minTokens = totalSelected * minRepresentation;
+
+    // Find underrepresented buckets and add memories
+    const phase2Selected = [...phase1Selected];
+    const remainingCandidates = scoredMemories
+        .filter(({ memory }) => !phase1Selected.includes(memory))
+        .map(({ memory }) => memory);
+
+    for (const bucketName of ['old', 'mid', 'recent']) {
+        if (bucketCounts[bucketName] < minTokens && buckets[bucketName].length > 0) {
+            // Add memories from this bucket until min reached
+            for (const memory of remainingCandidates) {
+                const memTokens = countTokens(memory.summary || '');
+                if (totalTokens + memTokens > tokenBudget) break;
+
+                // Use getMemoryPosition for consistent bucket assignment
+                const position = getMemoryPosition(memory);
+                const isRecent = position >= chatLength - 100;
+                const isMid = position >= chatLength - 500 && !isRecent;
+                const isOld = !isRecent && !isMid;
+
+                if ((bucketName === 'old' && isOld) ||
+                    (bucketName === 'mid' && isMid) ||
+                    (bucketName === 'recent' && isRecent)) {
+                    phase2Selected.push(memory);
+                    totalTokens += memTokens;
+                    bucketCounts[bucketName] += memTokens;
+                    remainingCandidates.splice(remainingCandidates.indexOf(memory), 1);
+                }
+            }
+        }
+    }
+
+    return phase2Selected;
 }
 
 /**
