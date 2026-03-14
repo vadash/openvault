@@ -104,7 +104,8 @@ CRITICAL FORMAT RULES — violating ANY of these will cause a system error:
 2. BOTH keys ("entities", "relationships") MUST always be present.
 3. If nothing was found, use empty arrays: "entities": [], "relationships": [].
 4. Do NOT wrap output in markdown code blocks (no \\\`\\\`\\\`json).
-5. Do NOT include ANY text outside the JSON object.
+5. You MAY use <thinking> tags for reasoning before providing the JSON.
+   The JSON object must still be valid and parseable.
 6. "type" for entities MUST be one of: PERSON, PLACE, ORGANIZATION, OBJECT, CONCEPT.`;
 
 const QUESTIONS_SCHEMA = `You MUST respond with EXACTLY ONE JSON object. No other text, no markdown fences, no commentary.

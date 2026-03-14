@@ -192,6 +192,18 @@ describe('buildGraphExtractionPrompt', () => {
     });
 });
 
+describe('GRAPH_SCHEMA think tag support', () => {
+    it('allows think tags before JSON', () => {
+        const result = buildGraphExtractionPrompt({
+            messages: '[A]: test',
+            names: { char: 'A', user: 'B' },
+        });
+        const sys = result[0].content;
+        expect(sys).toContain('You MAY use <thinking> tags');
+        expect(sys).toContain('JSON object must still be valid');
+    });
+});
+
 describe('CN preamble and assistant prefill', () => {
     it('all prompts include CN system preamble in system message', () => {
         const eventResult = buildEventExtractionPrompt({
