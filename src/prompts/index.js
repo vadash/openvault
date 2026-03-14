@@ -547,9 +547,15 @@ Respond with a single JSON object containing "consolidated_description". No othe
  * Build the community summarization prompt.
  * @param {string[]} nodeLines - Formatted node descriptions
  * @param {string[]} edgeLines - Formatted edge descriptions
+ * @param {string} preamble - System preamble (anti-refusal framing)
+ * @param {string} outputLanguage - Output language setting
+ * @param {string} prefill - Required prefill for assistant message
  * @returns {Array<{role: string, content: string}>}
  */
-export function buildCommunitySummaryPrompt(nodeLines, edgeLines, preamble, outputLanguage = 'auto') {
+export function buildCommunitySummaryPrompt(nodeLines, edgeLines, preamble, outputLanguage = 'auto', prefill) {
+    if (!prefill) {
+        throw new Error('buildCommunitySummaryPrompt: prefill is required');
+    }
     const systemPrompt = assembleSystemPrompt({
         role: COMMUNITIES_ROLE,
         schema: COMMUNITY_SCHEMA,
@@ -571,7 +577,7 @@ ${languageInstruction}
 Write a comprehensive report about this community of entities.
 Respond with a single JSON object containing title, summary, and 1-5 findings. No other text.`;
 
-    return buildMessages(systemPrompt, userPrompt, '{', preamble);
+    return buildMessages(systemPrompt, userPrompt, prefill, preamble);
 }
 
 /**

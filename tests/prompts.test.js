@@ -271,9 +271,26 @@ describe('buildUnifiedReflectionPrompt prefill parameter', () => {
 
 describe('COMMUNITY_SCHEMA think tag support', () => {
     it('allows think tags before JSON', () => {
-        const result = buildCommunitySummaryPrompt(['- Node'], ['- Edge']);
+        const result = buildCommunitySummaryPrompt(['- Node'], ['- Edge'], 'auto', 'auto', '{');
         const sys = result[0].content;
         expect(sys).toContain('You MAY use <thinking> tags');
+    });
+});
+
+describe('buildCommunitySummaryPrompt prefill parameter', () => {
+    it('throws when prefill is missing', () => {
+        expect(() => buildCommunitySummaryPrompt(['- Node'], ['- Edge']))
+            .toThrow('prefill is required');
+    });
+
+    it('throws when prefill is empty string', () => {
+        expect(() => buildCommunitySummaryPrompt(['- Node'], ['- Edge'], 'auto', 'auto', ''))
+            .toThrow('prefill is required');
+    });
+
+    it('uses provided prefill in assistant message', () => {
+        const result = buildCommunitySummaryPrompt(['- Node'], ['- Edge'], 'auto', 'auto', '<thinking>');
+        expect(result[2].content).toBe('<thinking>');
     });
 });
 

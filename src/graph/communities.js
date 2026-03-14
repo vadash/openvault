@@ -18,7 +18,7 @@ import { getQueryEmbedding } from '../embeddings.js';
 import { parseCommunitySummaryResponse, parseGlobalSynthesisResponse } from '../extraction/structured.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
 import { record } from '../perf/store.js';
-import { buildCommunitySummaryPrompt, buildGlobalSynthesisPrompt, resolveExtractionPreamble, resolveOutputLanguage } from '../prompts/index.js';
+import { buildCommunitySummaryPrompt, buildGlobalSynthesisPrompt, resolveExtractionPreamble, resolveExtractionPrefill, resolveOutputLanguage } from '../prompts/index.js';
 import { hasEmbedding, setEmbedding } from '../utils/embedding-codec.js';
 import { logDebug } from '../utils/logging.js';
 import { yieldToMain } from '../utils/st-helpers.js';
@@ -213,6 +213,7 @@ export async function updateCommunitySummaries(
     const settings = deps.getExtensionSettings()?.[extensionName] || {};
     const preamble = resolveExtractionPreamble(settings);
     const outputLanguage = resolveOutputLanguage(settings);
+    const prefill = resolveExtractionPrefill(settings);
     const updatedCommunities = {};
 
     // Track how many communities were actually updated
@@ -247,7 +248,7 @@ export async function updateCommunitySummaries(
 
         // Generate new summary
         try {
-            const prompt = buildCommunitySummaryPrompt(group.nodeLines, group.edgeLines, preamble, outputLanguage);
+            const prompt = buildCommunitySummaryPrompt(group.nodeLines, group.edgeLines, preamble, outputLanguage, prefill);
             const response = await callLLM(prompt, LLM_CONFIGS.community, { structured: true });
             const parsed = parseCommunitySummaryResponse(response);
 
