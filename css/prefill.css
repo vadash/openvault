@@ -108,8 +108,8 @@
     color: var(--SmartThemeBodyColor, #ccc);
     white-space: pre-wrap;
     word-break: break-word;
-    max-height: 100px;
-    overflow-y: auto;
+    max-height: none;
+    overflow: visible;
     min-height: 20px;
     line-height: 1.4;
     font-family: "Consolas", "Monaco", "Courier New", monospace;

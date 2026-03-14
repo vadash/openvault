@@ -89,7 +89,7 @@ export const defaultSettings = {
     communityStalenessThreshold: 100,
     // Preamble & prefill settings
     preambleLanguage: 'cn',
-    extractionPrefill: 'think_tag',
+    extractionPrefill: 'cn_compliance',
     outputLanguage: 'auto',
 };
 
