@@ -8,7 +8,7 @@
 import { getDocumentEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
 import { parseConsolidationResponse } from '../extraction/structured.js';
-import { buildEdgeConsolidationPrompt, resolveExtractionPreamble, resolveOutputLanguage } from '../prompts/index.js';
+import { buildEdgeConsolidationPrompt, resolveExtractionPreamble, resolveExtractionPrefill, resolveOutputLanguage } from '../prompts/index.js';
 import { logError, logDebug } from '../utils/logging.js';
 import { yieldToMain } from '../utils/st-helpers.js';
 import { stemWord } from '../utils/stemmer.js';
@@ -572,6 +572,7 @@ export async function consolidateEdges(graphData, settings) {
     const extensionSettings = deps.getExtensionSettings()?.[extensionName] || {};
     const preamble = resolveExtractionPreamble(extensionSettings);
     const outputLanguage = resolveOutputLanguage(extensionSettings);
+    const prefill = resolveExtractionPrefill(extensionSettings);
     const successfulKeys = [];
 
     for (const edgeKey of toProcess) {
@@ -579,7 +580,7 @@ export async function consolidateEdges(graphData, settings) {
         if (!edge) continue;
 
         try {
-            const prompt = buildEdgeConsolidationPrompt(edge, preamble, outputLanguage);
+            const prompt = buildEdgeConsolidationPrompt(edge, preamble, outputLanguage, prefill);
             const response = await callLLM(prompt, LLM_CONFIGS.edge_consolidation, { structured: true });
 
             const result = parseConsolidationResponse(response);

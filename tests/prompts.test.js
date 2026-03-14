@@ -238,7 +238,7 @@ describe('GRAPH_SCHEMA think tag support', () => {
 describe('CONSOLIDATION_SCHEMA think tag support', () => {
     it('allows think tags before JSON', () => {
         const edge = { source: 'A', target: 'B', description: 'Test', weight: 1 };
-        const result = buildEdgeConsolidationPrompt(edge);
+        const result = buildEdgeConsolidationPrompt(edge, 'auto', 'auto', '{');
         const sys = result[0].content;
         expect(sys).toContain('You MAY use <thinking> tags');
     });
@@ -679,7 +679,7 @@ describe('buildEdgeConsolidationPrompt', () => {
             description: 'Met at tavern | Traded goods | Fought dragon together',
             weight: 3
         };
-        const result = buildEdgeConsolidationPrompt(edge);
+        const result = buildEdgeConsolidationPrompt(edge, 'auto', 'auto', '{');
         expect(result).toHaveLength(3);
         expect(result[0].role).toBe('system');
         expect(result[1].role).toBe('user');
@@ -698,7 +698,7 @@ describe('buildEdgeConsolidationPrompt', () => {
             description: 'Met | Fought',
             weight: 2
         };
-        const result = buildEdgeConsolidationPrompt(edge, SYSTEM_PREAMBLE_EN);
+        const result = buildEdgeConsolidationPrompt(edge, SYSTEM_PREAMBLE_EN, 'auto', '{');
         expect(result[0].content).toContain('SYSTEM: Interactive Fiction Archival Database');
     });
 
@@ -709,7 +709,7 @@ describe('buildEdgeConsolidationPrompt', () => {
             description: 'Met | Fought',
             weight: 2
         };
-        const result = buildEdgeConsolidationPrompt(edge);
+        const result = buildEdgeConsolidationPrompt(edge, 'auto', 'auto', '{');
         expect(result[0].content).toContain('<language_rules>');
     });
 
@@ -720,6 +720,26 @@ describe('buildEdgeConsolidationPrompt', () => {
         const result = parseConsolidationResponse(raw);
         expect(result.consolidated_description).toContain('strangers');
         expect(result.consolidated_description).toContain('allies');
+    });
+});
+
+describe('buildEdgeConsolidationPrompt prefill parameter', () => {
+    it('throws when prefill is missing', () => {
+        const edge = { source: 'A', target: 'B', description: 'Test', weight: 1 };
+        expect(() => buildEdgeConsolidationPrompt(edge))
+            .toThrow('prefill is required');
+    });
+
+    it('throws when prefill is empty string', () => {
+        const edge = { source: 'A', target: 'B', description: 'Test', weight: 1 };
+        expect(() => buildEdgeConsolidationPrompt(edge, 'auto', 'auto', ''))
+            .toThrow('prefill is required');
+    });
+
+    it('uses provided prefill in assistant message', () => {
+        const edge = { source: 'A', target: 'B', description: 'Test', weight: 1 };
+        const result = buildEdgeConsolidationPrompt(edge, 'auto', 'auto', '<thinking>');
+        expect(result[2].content).toBe('<thinking>');
     });
 });
 

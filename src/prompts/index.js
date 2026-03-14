@@ -512,7 +512,11 @@ Respond with a single JSON object containing a "reflections" array with 1-3 item
  * @param {string} [outputLanguage='auto'] - Output language setting
  * @returns {Array<{role: string, content: string}>} Array of message objects
  */
-export function buildEdgeConsolidationPrompt(edgeData, preamble, outputLanguage = 'auto') {
+export function buildEdgeConsolidationPrompt(edgeData, preamble, outputLanguage = 'auto', prefill) {
+    if (!prefill) {
+        throw new Error('buildEdgeConsolidationPrompt: prefill is required');
+    }
+
     const systemPrompt = assembleSystemPrompt({
         role: EDGE_CONSOLIDATION_ROLE,
         schema: EDGE_CONSOLIDATION_SCHEMA,
@@ -536,7 +540,7 @@ ${languageInstruction}
 Synthesize these relationship developments into ONE unified description.
 Respond with a single JSON object containing "consolidated_description". No other text.`;
 
-    return buildMessages(systemPrompt, userPrompt, '{', preamble);
+    return buildMessages(systemPrompt, userPrompt, prefill, preamble);
 }
 
 /**

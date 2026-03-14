@@ -50,6 +50,7 @@ vi.mock('../../src/prompts/index.js', () => ({
     ],
     resolveExtractionPreamble: () => 'preamble',
     resolveOutputLanguage: () => 'auto',
+    resolveExtractionPrefill: () => '{',
 }));
 
 // Mock deps module (needed by consolidateEdges for preamble/outputLanguage resolution)
