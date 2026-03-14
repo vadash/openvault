@@ -25,7 +25,7 @@ describe('LLM_CONFIGS community config', () => {
         expect(LLM_CONFIGS.community.profileSettingKey).toBe('extractionProfile');
         expect(LLM_CONFIGS.community.maxTokens).toBe(8000);
         expect(LLM_CONFIGS.community.errorContext).toBe('Community summarization');
-        expect(LLM_CONFIGS.community.timeoutMs).toBe(90000);
+        expect(LLM_CONFIGS.community.timeoutMs).toBe(180000);
         expect(LLM_CONFIGS.community.getJsonSchema).toBeInstanceOf(Function);
     });
 });
