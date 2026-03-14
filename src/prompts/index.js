@@ -199,7 +199,8 @@ CRITICAL FORMAT RULES:
 1. The top level MUST be a JSON object { }, NEVER a bare array [ ].
 2. "global_summary" must be a single comprehensive string.
 3. Do NOT wrap output in markdown code blocks.
-4. Do NOT include ANY text outside the JSON object.`;
+4. You MAY use <thinking> tags for reasoning before providing the JSON.
+   The JSON object must still be valid and parseable.`;
 
 // =============================================================================
 // RULES (per-prompt task-specific rules)
