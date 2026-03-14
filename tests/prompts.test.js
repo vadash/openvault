@@ -20,7 +20,7 @@ describe('buildCommunitySummaryPrompt', () => {
     it('returns system/user message pair with node and edge data', () => {
         const nodes = ['- Castle (PLACE): An ancient fortress'];
         const edges = ['- King Aldric → Castle: Rules from [weight: 4]'];
-        const result = buildCommunitySummaryPrompt(nodes, edges);
+        const result = buildCommunitySummaryPrompt(nodes, edges, 'auto', 'auto', '{');
         expect(result).toHaveLength(3);
         expect(result[0].role).toBe('system');
         expect(result[1].role).toBe('user');
@@ -29,7 +29,7 @@ describe('buildCommunitySummaryPrompt', () => {
     });
 
     it('system prompt contains report structure instructions', () => {
-        const result = buildCommunitySummaryPrompt([], []);
+        const result = buildCommunitySummaryPrompt([], [], 'auto', 'auto', '{');
         const system = result[0].content;
         expect(system).toContain('title');
         expect(system).toContain('summary');
@@ -37,7 +37,7 @@ describe('buildCommunitySummaryPrompt', () => {
     });
 
     it('system prompt specifies 1-5 findings limit', () => {
-        const result = buildCommunitySummaryPrompt([], []);
+        const result = buildCommunitySummaryPrompt([], [], 'auto', 'auto', '{');
         const system = result[0].content;
         expect(system).toContain('1-5');
         expect(system).toContain('findings');
@@ -45,7 +45,7 @@ describe('buildCommunitySummaryPrompt', () => {
 
     it('user prompt wraps nodes in community_entities tag', () => {
         const nodes = ['- King (PERSON): The ruler'];
-        const result = buildCommunitySummaryPrompt(nodes, []);
+        const result = buildCommunitySummaryPrompt(nodes, [], 'auto', 'auto', '{');
         const user = result[1].content;
         expect(user).toContain('<community_entities>');
         expect(user).toContain('</community_entities>');
@@ -54,20 +54,20 @@ describe('buildCommunitySummaryPrompt', () => {
 
     it('user prompt wraps edges in community_relationships tag', () => {
         const edges = ['- King → Castle: Rules from [weight: 4]'];
-        const result = buildCommunitySummaryPrompt([], edges);
+        const result = buildCommunitySummaryPrompt([], edges, 'auto', 'auto', '{');
         const user = result[1].content;
         expect(user).toContain('<community_relationships>');
         expect(user).toContain('</community_relationships>');
     });
 
     it('includes JSON format instruction', () => {
-        const result = buildCommunitySummaryPrompt([], []);
+        const result = buildCommunitySummaryPrompt([], [], 'auto', 'auto', '{');
         const user = result[1].content;
         expect(user).toContain('JSON');
     });
 
     it('uses unified XML structure with role, output_schema, and examples', () => {
-        const result = buildCommunitySummaryPrompt([], []);
+        const result = buildCommunitySummaryPrompt([], [], 'auto', 'auto', '{');
         const sys = result[0].content;
         expect(sys).toContain('<role>');
         expect(sys).toContain('<output_schema>');
@@ -150,7 +150,7 @@ describe('all prompts use raw JSON instruction', () => {
     });
 
     it('community summary prompt forbids markdown wrapping', () => {
-        const result = buildCommunitySummaryPrompt(['Node A'], ['A -> B']);
+        const result = buildCommunitySummaryPrompt(['Node A'], ['A -> B'], 'auto', 'auto', '{');
         const sys = result[0].content;
         expect(sys).toContain('Do NOT wrap output in markdown code blocks');
     });
@@ -296,7 +296,7 @@ describe('buildCommunitySummaryPrompt prefill parameter', () => {
 
 describe('GLOBAL_SYNTHESIS_SCHEMA think tag support', () => {
     it('allows think tags before JSON', () => {
-        const result = buildGlobalSynthesisPrompt([{ title: 'C1', summary: 'S1' }], 'auto', 'auto');
+        const result = buildGlobalSynthesisPrompt([{ title: 'C1', summary: 'S1' }], 'auto', 'auto', '{');
         const sys = result[0].content;
         expect(sys).toContain('You MAY use <thinking> tags');
     });
@@ -314,7 +314,7 @@ describe('CN preamble and assistant prefill', () => {
             names: { char: 'A', user: 'B' },
             prefill: '{',
         });
-        const communityResult = buildCommunitySummaryPrompt([], []);
+        const communityResult = buildCommunitySummaryPrompt([], [], SYSTEM_PREAMBLE_CN, 'auto', '{');
 
         for (const result of [eventResult, graphResult, communityResult]) {
             expect(result[0].content).toContain('<system_config>');
@@ -338,7 +338,7 @@ describe('CN preamble and assistant prefill', () => {
             names: { char: 'A', user: 'B' },
             prefill: '{',
         });
-        const communityResult = buildCommunitySummaryPrompt([], []);
+        const communityResult = buildCommunitySummaryPrompt([], [], 'auto', 'auto', '{');
 
         for (const result of [graphResult, communityResult]) {
             expect(result[2].role).toBe('assistant');
@@ -470,7 +470,7 @@ describe('buildMessages via non-event prompts', () => {
     });
 
     it('community summary prompt uses custom preamble', () => {
-        const result = buildCommunitySummaryPrompt(['- Node'], ['- Edge'], SYSTEM_PREAMBLE_EN);
+        const result = buildCommunitySummaryPrompt(['- Node'], ['- Edge'], SYSTEM_PREAMBLE_EN, 'auto', '{');
         expect(result[0].content).toContain('Interactive Fiction Archival Database');
     });
 });
@@ -597,7 +597,7 @@ describe('output language in builders', () => {
     });
 
     it('community summary prompt passes outputLanguage through', () => {
-        const result = buildCommunitySummaryPrompt(['- Node'], ['- Edge'], undefined, 'en');
+        const result = buildCommunitySummaryPrompt(['- Node'], ['- Edge'], undefined, 'en', '{');
         const user = result[1].content;
         expect(user).toContain('English');
     });
@@ -623,7 +623,7 @@ describe('multilingual prompt compliance', () => {
         names: { char: 'A', user: 'B' },
         prefill: '{',
     });
-    const communityResult = buildCommunitySummaryPrompt([], []);
+    const communityResult = buildCommunitySummaryPrompt([], [], 'auto', 'auto', '{');
 
     it('all prompts contain mirror language rules', () => {
         for (const result of [eventResult, graphResult, communityResult]) {
@@ -766,7 +766,7 @@ describe('buildGlobalSynthesisPrompt', () => {
             { title: 'Community A', summary: 'Summary A', findings: ['f1'] },
             { title: 'Community B', summary: 'Summary B', findings: ['f2'] },
         ];
-        const result = buildGlobalSynthesisPrompt(communities, 'auto', 'auto');
+        const result = buildGlobalSynthesisPrompt(communities, 'auto', 'auto', '{');
 
         expect(result).toHaveLength(3);
         expect(result[0].role).toBe('system');
@@ -780,15 +780,32 @@ describe('buildGlobalSynthesisPrompt', () => {
 
     it('should include language rules from assembleSystemPrompt', () => {
         const communities = [{ title: 'C1', summary: 'S1', findings: [] }];
-        const result = buildGlobalSynthesisPrompt(communities, SYSTEM_PREAMBLE_EN, 'auto');
+        const result = buildGlobalSynthesisPrompt(communities, SYSTEM_PREAMBLE_EN, 'auto', '{');
 
         expect(result[0].content).toContain('<language_rules>');
     });
 
     it('should include preamble in system message', () => {
         const communities = [{ title: 'C1', summary: 'S1', findings: [] }];
-        const result = buildGlobalSynthesisPrompt(communities, SYSTEM_PREAMBLE_EN, 'auto');
+        const result = buildGlobalSynthesisPrompt(communities, SYSTEM_PREAMBLE_EN, 'auto', '{');
 
         expect(result[0].content).toContain('SYSTEM: Interactive Fiction Archival Database');
+    });
+});
+
+describe('buildGlobalSynthesisPrompt prefill parameter', () => {
+    it('throws when prefill is missing', () => {
+        expect(() => buildGlobalSynthesisPrompt([{ title: 'C1', summary: 'S1' }], 'auto', 'auto'))
+            .toThrow('prefill is required');
+    });
+
+    it('throws when prefill is empty string', () => {
+        expect(() => buildGlobalSynthesisPrompt([{ title: 'C1', summary: 'S1' }], 'auto', 'auto', ''))
+            .toThrow('prefill is required');
+    });
+
+    it('uses provided prefill in assistant message', () => {
+        const result = buildGlobalSynthesisPrompt([{ title: 'C1', summary: 'S1' }], 'auto', 'auto', '<thinking>');
+        expect(result[2].content).toBe('<thinking>');
     });
 });

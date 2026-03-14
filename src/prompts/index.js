@@ -587,7 +587,11 @@ Respond with a single JSON object containing title, summary, and 1-5 findings. N
  * @param {string} outputLanguage - Output language setting ('auto'|'en'|'ru')
  * @returns {Array<{role: string, content: string}>} Array of message objects
  */
-export function buildGlobalSynthesisPrompt(communities, preamble, outputLanguage = 'auto') {
+export function buildGlobalSynthesisPrompt(communities, preamble, outputLanguage = 'auto', prefill) {
+    if (!prefill) {
+        throw new Error('buildGlobalSynthesisPrompt: prefill is required');
+    }
+
     const systemPrompt = assembleSystemPrompt({
         role: GLOBAL_SYNTHESIS_ROLE,
         schema: GLOBAL_SYNTHESIS_SCHEMA,
@@ -611,5 +615,5 @@ Focus on macro-relationships, overarching tensions, and plot trajectory.
 
 Respond with a single JSON object containing "global_summary". No other text.`;
 
-    return buildMessages(systemPrompt, userPrompt, '{', preamble);
+    return buildMessages(systemPrompt, userPrompt, prefill, preamble);
 }

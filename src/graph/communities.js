@@ -285,7 +285,7 @@ export async function updateCommunitySummaries(
     // Trigger global world state synthesis if any communities were updated
     let globalState = null;
     if (updatedCount > 0) {
-        globalState = await generateGlobalWorldState(updatedCommunities, preamble, outputLanguage);
+        globalState = await generateGlobalWorldState(updatedCommunities, preamble, outputLanguage, prefill);
     }
 
     // Return object with communities and optional global state
@@ -302,12 +302,13 @@ export async function updateCommunitySummaries(
  * @param {Object[]} communityList - Array of community objects with { title, summary, findings }
  * @param {string} preamble - Extraction preamble
  * @param {string} outputLanguage - Output language setting
+ * @param {string} prefill - Required prefill for assistant message
  * @returns {Promise<string|null>} Global summary string, or null if all chunks fail
  */
-export async function synthesizeInChunks(communityList, preamble, outputLanguage) {
+export async function synthesizeInChunks(communityList, preamble, outputLanguage, prefill) {
     if (communityList.length <= GLOBAL_SYNTHESIS_CHUNK_SIZE) {
         // Small set: single-pass (current behavior)
-        const prompt = buildGlobalSynthesisPrompt(communityList, preamble, outputLanguage);
+        const prompt = buildGlobalSynthesisPrompt(communityList, preamble, outputLanguage, prefill);
         const response = await callLLM(prompt, LLM_CONFIGS.community, { structured: true });
         return parseGlobalSynthesisResponse(response).global_summary;
     }
@@ -321,7 +322,7 @@ export async function synthesizeInChunks(communityList, preamble, outputLanguage
     const regionalSummaries = [];
     for (const chunk of chunks) {
         try {
-            const prompt = buildGlobalSynthesisPrompt(chunk, preamble, outputLanguage);
+            const prompt = buildGlobalSynthesisPrompt(chunk, preamble, outputLanguage, prefill);
             const response = await callLLM(prompt, LLM_CONFIGS.community, { structured: true });
             const parsed = parseGlobalSynthesisResponse(response);
             regionalSummaries.push(parsed.global_summary);
@@ -338,7 +339,7 @@ export async function synthesizeInChunks(communityList, preamble, outputLanguage
         summary,
         findings: [],
     }));
-    const reducePrompt = buildGlobalSynthesisPrompt(pseudoCommunities, preamble, outputLanguage);
+    const reducePrompt = buildGlobalSynthesisPrompt(pseudoCommunities, preamble, outputLanguage, prefill);
     const reduceResponse = await callLLM(reducePrompt, LLM_CONFIGS.community, { structured: true });
     return parseGlobalSynthesisResponse(reduceResponse).global_summary;
 }
@@ -350,9 +351,10 @@ export async function synthesizeInChunks(communityList, preamble, outputLanguage
  * @param {Object} communities - All community summaries
  * @param {string} preamble - Extraction preamble language
  * @param {string} outputLanguage - Output language setting
+ * @param {string} prefill - Required prefill for assistant message
  * @returns {Promise<{ summary: string, last_updated: number, community_count: number } | null>}
  */
-export async function generateGlobalWorldState(communities, preamble, outputLanguage) {
+export async function generateGlobalWorldState(communities, preamble, outputLanguage, prefill) {
     const communityList = Object.values(communities || {});
     if (communityList.length === 0) {
         return null;
@@ -362,7 +364,7 @@ export async function generateGlobalWorldState(communities, preamble, outputLang
     const deps = getDeps();
 
     try {
-        const summary = await synthesizeInChunks(communityList, preamble, outputLanguage);
+        const summary = await synthesizeInChunks(communityList, preamble, outputLanguage, prefill);
 
         const result = {
             summary,

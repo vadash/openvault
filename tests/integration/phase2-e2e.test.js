@@ -123,7 +123,7 @@ describe('Phase 2 End-to-End Integration', () => {
                 global_summary: 'The kingdom faces internal collapse on two fronts. Queen Elena secretly supports northern rebels while maintaining court appearance, creating a powder keg if exposed. Simultaneously, the eastern merchant embargo has begun economic strangulation.'
             }));
 
-            const result = await generateGlobalWorldState(communities, 'auto', 'auto');
+            const result = await generateGlobalWorldState(communities, 'auto', 'auto', '{');
 
             expect(result).not.toBeNull();
             expect(result.summary).toContain('The kingdom faces internal collapse');
@@ -133,12 +133,12 @@ describe('Phase 2 End-to-End Integration', () => {
         });
 
         it('should return null when no communities exist', async () => {
-            const result = await generateGlobalWorldState([], 'auto', 'auto');
+            const result = await generateGlobalWorldState([], 'auto', 'auto', '{');
             expect(result).toBeNull();
         });
 
         it('should return null for null input', async () => {
-            const result = await generateGlobalWorldState(null, 'auto', 'auto');
+            const result = await generateGlobalWorldState(null, 'auto', 'auto', '{');
             expect(result).toBeNull();
         });
     });
@@ -253,7 +253,7 @@ describe('Phase 2 End-to-End Integration', () => {
                 global_summary: 'A love triangle with betrayal at its core. Alice betrayed Bob while loving Charlie, creating emotional tension that will inevitably explode.'
             }));
 
-            const globalState = await generateGlobalWorldState(communities, 'auto', 'auto');
+            const globalState = await generateGlobalWorldState(communities, 'auto', 'auto', '{');
             expect(globalState.summary).toContain('love triangle');
 
             // 4. Verify macro-intent message retrieves global state
