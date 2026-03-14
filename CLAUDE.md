@@ -12,6 +12,7 @@ Agentic memory extension for SillyTavern providing POV-aware memory, witness tra
 - **Test Aliasing**: If adding a CDN dependency, you MUST `npm install` it and map the URL to `node_modules/` in `vitest.config.js`.
 - **SillyTavern Globals**: NEVER access ST globals (`getContext`, `eventSource`) directly. Always use `getDeps()` from `src/deps.js`.
 - **Settings Access**: NEVER use `settings.xxx ?? <hardcoded>` or `settings.xxx || <hardcoded>`. All defaults live in `defaultSettings` (src/constants.js). `loadSettings()` guarantees every key is populated.
+- **LLM Prompt Format**: ALL prompt builders MUST return `buildMessages(systemPrompt, userPrompt, prefill, preamble)` from `src/prompts/formatters.js`. System prompt MUST be assembled via `assembleSystemPrompt({ role, schema, rules, examples, outputLanguage })`. Every LLM call config MUST use an `LLM_CONFIGS.*` entry from `src/llm.js` — NEVER inline `{ maxTokens, ... }` objects. This ensures uniform preamble injection, assistant prefill, language rules, and structured output support across all call sites.
 - **Pre-commit**: Biome lints/formats automatically. DO NOT format manually. `npm run test` uses Vitest + JSDOM.
 - **Plans Archive**: `docs/plans/` contains execution plans. Move to `docs/designs/` after completion.
 

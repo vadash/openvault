@@ -12,7 +12,7 @@ Flat-JSON entity and relationship storage with rigorous semantic deduplication, 
 - **Token Tracking**: Each edge stores `_descriptionTokens` count (updated on every `upsertRelationship` call).
 - **Trigger**: When `_descriptionTokens > CONSOLIDATION.TOKEN_THRESHOLD` (500), edge marked for consolidation via `_edgesNeedingConsolidation` queue.
 - **Batch Processing**: During community detection, `consolidateEdges()` processes up to `MAX_CONSOLIDATION_BATCH` (10) edges per run.
-- **LLM Consolidation**: Bloated pipe-separated descriptions synthesized into single coherent summary (<100 tokens), re-embedded for RAG accuracy.
+- **LLM Consolidation**: Uses `LLM_CONFIGS.edge_consolidation` and `buildEdgeConsolidationPrompt()` (standard `buildMessages()` pattern with preamble + prefill). Bloated pipe-separated descriptions synthesized into single coherent summary (<100 tokens), re-embedded for RAG accuracy.
 
 ## SEMANTIC MERGE LOGIC
 Prevents duplicate nodes (e.g., "The King" vs "King Aldric").
