@@ -3,7 +3,7 @@ import { cdnImport } from '../utils/cdn.js';
 const [{ jsonrepair }, { z }] = await Promise.all([cdnImport('jsonrepair'), cdnImport('zod')]);
 
 import { logError, logWarn } from '../utils/logging.js';
-import { stripThinkingTags } from '../utils/text.js';
+import { stripThinkingTags, safeParseJSON } from '../utils/text.js';
 
 // --- Schemas (inlined from schemas/) ---
 
@@ -114,16 +114,18 @@ function parseStructuredResponse(content, schema) {
     // Then strip markdown code blocks
     const jsonContent = stripMarkdown(cleanedContent);
 
-    let parsed;
-    try {
-        // Use jsonrepair to handle common LLM JSON issues (unescaped control chars, etc)
-        const repaired = jsonrepair(jsonContent);
-        parsed = JSON.parse(repaired);
-    } catch (e) {
-        logError('JSON parse failed in structured response', e, {
-            rawContent: content.slice(0, 2000),
+    // Use safeParseJSON which handles:
+    // - Thinking tags
+    // - Markdown code blocks
+    // - Stringified JSON (JSON wrapped in quotes)
+    // - Extra content after JSON (like extra closing braces)
+    // - Bracket balancing for nested structures
+    const parsed = safeParseJSON(jsonContent);
+    if (!parsed) {
+        logError('JSON parse failed in structured response', null, {
+            rawContent: jsonContent,
         });
-        throw new Error(`JSON parse failed: ${e.message}`);
+        throw new Error('JSON parse failed: Could not extract valid JSON from response');
     }
 
     // Array recovery - if LLM returned a bare array instead of expected object
@@ -166,15 +168,18 @@ export function parseEventExtractionResponse(content) {
     const cleanedContent = stripThinkingTags(content);
     const jsonContent = stripMarkdown(cleanedContent);
 
-    let parsed;
-    try {
-        const repaired = jsonrepair(jsonContent);
-        parsed = JSON.parse(repaired);
-    } catch (e) {
-        logError('JSON parse failed in event extraction', e, {
-            rawContent: content.slice(0, 2000),
+    // Use safeParseJSON which handles:
+    // - Thinking tags
+    // - Markdown code blocks
+    // - Stringified JSON (JSON wrapped in quotes)
+    // - Extra content after JSON (like extra closing braces)
+    // - Bracket balancing for nested structures
+    const parsed = safeParseJSON(jsonContent);
+    if (!parsed) {
+        logError('JSON parse failed in event extraction', null, {
+            rawContent: jsonContent,
         });
-        throw new Error(`JSON parse failed: ${e.message}`);
+        throw new Error('JSON parse failed: Could not extract valid JSON from response');
     }
 
     // Array recovery
@@ -219,15 +224,18 @@ export function parseGraphExtractionResponse(content) {
     const cleanedContent = stripThinkingTags(content);
     const jsonContent = stripMarkdown(cleanedContent);
 
-    let parsed;
-    try {
-        const repaired = jsonrepair(jsonContent);
-        parsed = JSON.parse(repaired);
-    } catch (e) {
-        logError('JSON parse failed in graph extraction', e, {
-            rawContent: content.slice(0, 2000),
+    // Use safeParseJSON which handles:
+    // - Thinking tags
+    // - Markdown code blocks
+    // - Stringified JSON (JSON wrapped in quotes)
+    // - Extra content after JSON (like extra closing braces)
+    // - Bracket balancing for nested structures
+    const parsed = safeParseJSON(jsonContent);
+    if (!parsed) {
+        logError('JSON parse failed in graph extraction', null, {
+            rawContent: jsonContent,
         });
-        throw new Error(`JSON parse failed: ${e.message}`);
+        throw new Error('JSON parse failed: Could not extract valid JSON from response');
     }
 
     // Per-item validation: salvage valid entities/relationships instead of rejecting the entire batch

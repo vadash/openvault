@@ -108,13 +108,32 @@ export function safeParseJSON(input) {
         }
 
         // Extract JSON using bracket balancing to handle nested structures
+        // This also handles extra content after the JSON (like </ChatGPT>)
         const extracted = extractBalancedJSON(cleanedInput);
         if (extracted) {
             cleanedInput = extracted;
         }
 
-        const repaired = jsonrepair(cleanedInput);
-        const parsed = JSON.parse(repaired);
+        // Handle case where LLM returns JSON without opening brace
+        // e.g., "entities": [...], "relationships": [...]} instead of {"entities": [...], "relationships": [...]}
+        if (cleanedInput.startsWith('"') && !cleanedInput.startsWith('{"')) {
+            // Try adding the opening brace
+            cleanedInput = '{' + cleanedInput;
+        }
+
+        // Handle stringified JSON (LLM returns JSON wrapped in quotes)
+        // This happens when LLM outputs: "{\"entities\": [...], \"relationships\": [...]}"
+        // We need to parse it twice - first to unescape, then to get the actual object
+        const firstParse = jsonrepair(cleanedInput);
+        let parsed;
+        try {
+            parsed = JSON.parse(firstParse);
+        } catch (e) {
+            // If first parse fails, try to unescape and parse again (stringified JSON case)
+            // Remove surrounding quotes and unescape
+            const unescaped = firstParse.replace(/^"|"$/g, '').replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+            parsed = JSON.parse(unescaped);
+        }
 
         if (parsed === null || typeof parsed !== 'object') {
             logError('JSON parse returned non-object/array', null, {
