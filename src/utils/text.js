@@ -55,11 +55,9 @@ export function stripThinkingTags(text) {
 /**
  * Extract the LAST balanced JSON object or array from a string.
  * Scans all balanced blocks and returns the final one found.
- *
- * "Last block" is correct because LLMs output reasoning/tool_call noise
- * BEFORE the payload. The real JSON is always the last thing in the response.
- * When stripThinkingTags succeeds (common case), there is only one block —
- * first = last, no behavior change.
+ * 
+ * Why "Last"? LLMs output reasoning and hallucinated <tool_call> snippets
+ * BEFORE the actual payload. The real JSON is always the last complete block.
  *
  * @param {string} str - Input string potentially containing JSON
  * @returns {string|null} Extracted JSON substring or null
@@ -77,6 +75,7 @@ function extractBalancedJSON(str) {
                 break;
             }
         }
+
         if (startIdx === -1) break;
 
         const open = str[startIdx];
@@ -88,6 +87,7 @@ function extractBalancedJSON(str) {
 
         for (let i = startIdx; i < str.length; i++) {
             const ch = str[i];
+
             if (isEscaped) {
                 isEscaped = false;
                 continue;
@@ -100,9 +100,12 @@ function extractBalancedJSON(str) {
                 inString = !inString;
                 continue;
             }
+
             if (inString) continue;
-            if (ch === open) depth++;
-            else if (ch === close) {
+
+            if (ch === open) {
+                depth++;
+            } else if (ch === close) {
                 depth--;
                 if (depth === 0) {
                     endIdx = i;
@@ -113,9 +116,9 @@ function extractBalancedJSON(str) {
 
         if (endIdx !== -1) {
             lastMatch = str.slice(startIdx, endIdx + 1);
-            searchFrom = endIdx + 1;
+            searchFrom = endIdx + 1; // Continue searching for later blocks
         } else {
-            // Unbalanced — skip past this opening bracket
+            // Unbalanced — skip past this opening bracket and try again
             searchFrom = startIdx + 1;
         }
     }
@@ -124,7 +127,7 @@ function extractBalancedJSON(str) {
 }
 
 /**
- * Safely parse JSON, handling markdown code blocks and malformed JSON
+ * Safely parse JSON, handling markdown code blocks and malformed LLM syntax
  * @param {string} input - Raw JSON string potentially wrapped in markdown
  * @returns {any} Parsed JSON object/array, or null on failure
  */
@@ -138,15 +141,26 @@ export function safeParseJSON(input) {
             cleanedInput = codeBlockMatch[1].trim();
         }
 
-        // Extract JSON using bracket balancing to handle nested structures
+        // Extract the LAST balanced block to dodge tool_call hallucinations
         const extracted = extractBalancedJSON(cleanedInput);
         if (extracted) {
             cleanedInput = extracted;
         }
 
-        // Fix string concatenation hallucinations: "text " + "more text" -> "text more text"
-        cleanedInput = cleanedInput.replace(/"\s*\+\s*"/g, '');
+        // --- LLM SYNTAX HALLUCINATION SANITIZER ---
+        // Negative lookbehinds (?<!\\) ensure we don't accidentally remove escaped quotes inside valid strings.
+        // Matches both standard (+) and full-width (＋) Chinese plus signs.
+        
+        // 1. Mid-string concatenation: "text" + "more text" -> "textmore text"
+        cleanedInput = cleanedInput.replace(/(?<!\\)(["'])\s*[+＋]\s*(?<!\\)(["'])/g, "");
 
+        // 2. Dangling plus before punctuation: "text" + , -> "text" ,
+        cleanedInput = cleanedInput.replace(/(?<!\\)(["'])\s*[+＋]\s*([,}\]])/g, "$1$2");
+
+        // 3. Cut-off dangling plus at EOF: "text" + [EOF] -> "text"
+        cleanedInput = cleanedInput.replace(/(?<!\\)(["'])\s*[+＋]\s*$/g, "$1");
+
+        // Pass sanitized string to repair library
         const repaired = jsonrepair(cleanedInput);
         const parsed = JSON.parse(repaired);
 
