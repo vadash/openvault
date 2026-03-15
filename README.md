@@ -4,6 +4,14 @@ OpenVault is a memory extension for [SillyTavern](https://github.com/SillyTavern
 
 It runs entirely in the browser. No external databases, no cloud services, no setup beyond installing the extension. All data is stored inside your SillyTavern chat files.
 
+## History
+
+9.00 - good stable for single char RP
+
+9.50 - fixing rewrite prompt structure for CN models + fix of group play (PoV)
+
+10.00 - || requests (optional)
+
 ## What It Does
 
 During a conversation, OpenVault silently works in the background:
