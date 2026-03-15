@@ -75,6 +75,7 @@ import { getCurrentChatId, getOpenVaultData, saveOpenVaultData } from '../utils/
 import { showToast } from '../utils/dom.js';
 import { getEmbedding, hasEmbedding } from '../utils/embedding-codec.js';
 import { logDebug, logError, logInfo } from '../utils/logging.js';
+import { createLadderQueue } from '../utils/queue.js';
 import { isExtensionEnabled, safeSetExtensionPrompt, yieldToMain } from '../utils/st-helpers.js';
 import { sliceToTokenBudget, sortMemoriesBySequence } from '../utils/text.js';
 import { countTokens, getMessageTokenCount } from '../utils/tokens.js';
@@ -589,26 +590,34 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
 
                 // Check each character for reflection trigger
                 const reflectionThreshold = settings.reflectionThreshold;
+                const ladderQueue = await createLadderQueue(settings.maxConcurrency);
+                const reflectionPromises = [];
+
                 for (const characterName of characters) {
                     if (shouldReflect(data.reflection_state, characterName, reflectionThreshold)) {
-                        try {
-                            const reflections = await generateReflections(
-                                characterName,
-                                data[MEMORIES_KEY] || [],
-                                data[CHARACTERS_KEY] || {}
-                            );
-                            if (reflections.length > 0) {
-                                data[MEMORIES_KEY].push(...reflections);
-                            }
-                            // Reset accumulator after reflection
-                            data.reflection_state[characterName].importance_sum = 0;
-                        } catch (error) {
-                            // AbortError must propagate — session cancellation, not a reflection failure
-                            if (error.name === 'AbortError') throw error;
-                            logError(`Reflection error for ${characterName}`, error);
-                        }
+                        reflectionPromises.push(
+                            ladderQueue
+                                .add(async () => {
+                                    const reflections = await generateReflections(
+                                        characterName,
+                                        data[MEMORIES_KEY] || [],
+                                        data[CHARACTERS_KEY] || {}
+                                    );
+                                    if (reflections.length > 0) {
+                                        data[MEMORIES_KEY].push(...reflections);
+                                    }
+                                    // Reset accumulator after reflection
+                                    data.reflection_state[characterName].importance_sum = 0;
+                                })
+                                .catch((error) => {
+                                    if (error.name === 'AbortError') throw error;
+                                    logError(`Reflection error for ${characterName}`, error);
+                                })
+                        );
                     }
                 }
+
+                await Promise.all(reflectionPromises);
             }
 
             // Stage 4.7: Community detection
@@ -707,25 +716,34 @@ export async function runPhase2Enrichment(data, settings, targetChatId) {
         const characterNames = Object.keys(data.reflection_state || {});
         const reflectionThreshold = settings.reflectionThreshold;
 
+        const ladderQueue = await createLadderQueue(settings.maxConcurrency);
+        const reflectionPromises = [];
+
         for (const characterName of characterNames) {
             if (shouldReflect(data.reflection_state, characterName, reflectionThreshold)) {
-                try {
-                    const reflections = await generateReflections(
-                        characterName,
-                        memories,
-                        data[CHARACTERS_KEY] || {}
-                    );
-                    if (reflections.length > 0) {
-                        data[MEMORIES_KEY].push(...reflections);
-                    }
-                    // Reset accumulator after reflection
-                    data.reflection_state[characterName].importance_sum = 0;
-                } catch (error) {
-                    if (error.name === 'AbortError') throw error;
-                    logError(`Reflection error for ${characterName}`, error);
-                }
+                reflectionPromises.push(
+                    ladderQueue
+                        .add(async () => {
+                            const reflections = await generateReflections(
+                                characterName,
+                                memories,
+                                data[CHARACTERS_KEY] || {}
+                            );
+                            if (reflections.length > 0) {
+                                data[MEMORIES_KEY].push(...reflections);
+                            }
+                            // Reset accumulator after reflection
+                            data.reflection_state[characterName].importance_sum = 0;
+                        })
+                        .catch((error) => {
+                            if (error.name === 'AbortError') throw error;
+                            logError(`Reflection error for ${characterName}`, error);
+                        })
+                );
             }
         }
+
+        await Promise.all(reflectionPromises);
 
         // ===== COMMUNITIES: Force-run unconditionally (skip interval check) =====
         const context = getDeps().getContext();
