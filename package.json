@@ -1,6 +1,6 @@
 {
     "name": "openvault",
-    "version": "10.00",
+    "version": "10.50",
     "type": "module",
     "description": "SillyTavern memory extension",
     "scripts": {
