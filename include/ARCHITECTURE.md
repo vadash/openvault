@@ -101,7 +101,7 @@ Worker (`src/extraction/worker.js`) is single-instance, interruptible (checks `w
 - *Tier 3 (Add <80%)*: Genuinely new.
 
 **GraphRAG Communities**:
-- *Pruning*: Edges involving User/Char temporarily removed before Louvain to prevent "hairball" clusters. Re-assigned after.
+- *Pruning*: Edges involving User/Char attenuated by `MAIN_CHARACTER_ATTENUATION` (95% weight reduction) before Louvain to prevent hairball clusters without orphaning objects in hub-and-spoke topologies. Re-anchored to strongest community using original weights after. Fallback for tiny graphs (< 3 nodes) uses logarithmic weight scaling.
 - *Injection*: Intent-based routing. Macro queries (summarize, recap, вкратце) use pre-computed global state (map-reduce over all communities). Local queries use vector search on individual community embeddings.
 - *Map-Reduce Synthesis*: `synthesizeInChunks()` handles global state generation. <= `GLOBAL_SYNTHESIS_CHUNK_SIZE` (10) communities: single-pass LLM call. Larger sets: chunked into regional summaries (with per-chunk error recovery), then reduced into final narrative. Prevents 502 timeouts from oversized prompts.
 

@@ -243,3 +243,9 @@ export const REFLECTION_CANDIDATE_LIMIT = 50;
 // Maximum number of communities per chunk in map-reduce global synthesis.
 // Sets larger than this are chunked into regional summaries before final reduction.
 export const GLOBAL_SYNTHESIS_CHUNK_SIZE = 10;
+
+// Attenuation factor for main character edges during Louvain community detection.
+// Edges involving User/Char are multiplied by this value instead of being dropped,
+// preventing object orphaning in hub-and-spoke topologies (closed-room RPs)
+// while still breaking hairball gravity in open-world RPs.
+export const MAIN_CHARACTER_ATTENUATION = 0.05;

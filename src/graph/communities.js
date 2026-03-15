@@ -12,7 +12,7 @@ const [{ default: Graph }, { default: louvain }, { toUndirected }] = await Promi
     cdnImport('graphology-operators'),
 ]);
 
-import { extensionName, GLOBAL_SYNTHESIS_CHUNK_SIZE } from '../constants.js';
+import { extensionName, GLOBAL_SYNTHESIS_CHUNK_SIZE, MAIN_CHARACTER_ATTENUATION } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { getQueryEmbedding } from '../embeddings.js';
 import { parseCommunitySummaryResponse, parseGlobalSynthesisResponse } from '../extraction/structured.js';
@@ -77,34 +77,31 @@ export function detectCommunities(graphData, mainCharacterKeys = []) {
         const directed = toGraphology(graphData);
         const undirected = toUndirected(directed);
 
-        // Temporarily remove edges involving main characters for better community structure
+        // Attenuate edges involving main characters instead of dropping them.
+        // This breaks hairball gravity in open-world RPs while preventing object
+        // orphaning in hub-and-spoke topologies (closed-room RPs).
         const mainSet = new Set(mainCharacterKeys);
         if (mainSet.size > 0) {
-            const edgesToDrop = [];
-            undirected.forEachEdge((edge, _attrs, source, target) => {
+            undirected.forEachEdge((edge, attrs, source, target) => {
                 if (mainSet.has(source) || mainSet.has(target)) {
-                    edgesToDrop.push(edge);
-                }
-            });
-            for (const edge of edgesToDrop) {
-                undirected.dropEdge(edge);
-            }
-            // Also drop isolated nodes that lost all edges (main chars themselves)
-            undirected.forEachNode((node) => {
-                if (undirected.degree(node) === 0) {
-                    undirected.dropNode(node);
+                    undirected.setEdgeAttribute(edge, 'weight', (attrs.weight || 1) * MAIN_CHARACTER_ATTENUATION);
                 }
             });
         }
 
-        // Need at least 3 nodes after pruning
+        // Fallback safety net for extremely tiny graphs
         if (undirected.order < 3) {
-            // Fallback: run without pruning
             const fallbackDirected = toGraphology(graphData);
             const fallbackUndirected = toUndirected(fallbackDirected);
+
+            // Logarithmic scaling to reduce black-hole effect of high-weight edges
+            fallbackUndirected.forEachEdge((edge, attrs) => {
+                fallbackUndirected.setEdgeAttribute(edge, 'weight', Math.log((attrs.weight || 1) + 1) + 1);
+            });
+
             const details = louvain.detailed(fallbackUndirected, {
                 getEdgeWeight: 'weight',
-                resolution: 1.0,
+                resolution: 1.1,
             });
             return { communities: details.communities, count: details.count };
         }
@@ -114,10 +111,10 @@ export function detectCommunities(graphData, mainCharacterKeys = []) {
             resolution: 1.0,
         });
 
-        // Re-assign main characters to the community of their strongest remaining neighbor
+        // Re-anchor main characters to the community of their strongest neighbor
+        // using original un-attenuated weights from graphData.edges.
         for (const mainKey of mainCharacterKeys) {
             if (!graphData.nodes[mainKey]) continue;
-            // Find neighbor with highest edge weight
             let bestCommunity = 0;
             let bestWeight = -1;
             for (const [_edgeKey, edge] of Object.entries(graphData.edges || {})) {

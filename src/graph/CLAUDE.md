@@ -29,7 +29,7 @@ Prevents duplicate nodes (e.g., "The King" vs "King Aldric"). Uses `shouldMergeE
 - **Trigger**: Every 50 messages during extraction.
 - **Algorithm**: `graphology-communities-louvain` on an undirected graph.
 - **Edge Consolidation**: Runs before summarization (`consolidateEdges()`). Processes bloated edges flagged in `_edgesNeedingConsolidation` queue.
-- **Hairball Pruning**: Edges involving main characters (User/Char + their aliases) are temporarily removed. Prevents the "protagonist hairball" where all entities group into one giant cluster. Nodes re-assigned to strongest neighbor's community after.
+- **Hairball Prevention**: Edges involving main characters (User/Char + their aliases) are attenuated by `MAIN_CHARACTER_ATTENUATION` (95% weight reduction) instead of dropped. Prevents the "protagonist hairball" without orphaning objects in hub-and-spoke topologies. Nodes re-anchored to strongest neighbor's community using original un-attenuated weights after Louvain. Fallback for tiny graphs (< 3 nodes) uses logarithmic weight scaling + resolution bump.
 - **Summarization**: LLM generates Title, Summary, and Findings. Injected into ST context.
 - **Global World State**: `generateGlobalWorldState()` delegates to `synthesizeInChunks()` for map-reduce synthesis. <= `GLOBAL_SYNTHESIS_CHUNK_SIZE` (10) communities: single-pass. Larger sets: chunked into regional summaries, then reduced into final narrative (~300 tokens). Per-chunk try/catch for resiliency. Stored in `chatMetadata.openvault.global_world_state` as `{ summary, last_updated, community_count }`. Used for macro-intent queries.
 
