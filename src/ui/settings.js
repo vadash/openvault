@@ -150,8 +150,8 @@ function initPrefillSelector() {
     if (!$container.length) return;
 
     const settings = getSettings();
-    const currentKey = settings.extractionPrefill || 'think_tag';
-    const currentPreset = PREFILL_PRESETS[currentKey] || PREFILL_PRESETS.think_tag;
+    const currentKey = settings.extractionPrefill || 'pure_think';
+    const currentPreset = PREFILL_PRESETS[currentKey] || PREFILL_PRESETS.pure_think;
 
     // Trigger button
     const $trigger = $('<div class="openvault-prefill-trigger" tabindex="0"></div>').text(currentPreset.label);
@@ -226,7 +226,7 @@ function renderPrefillPreview($pre, value) {
 
 function syncPrefillSelector() {
     const settings = getSettings();
-    const key = settings.extractionPrefill || 'think_tag';
+    const key = settings.extractionPrefill || 'pure_think';
     const preset = PREFILL_PRESETS[key];
     if (!preset) return;
 
