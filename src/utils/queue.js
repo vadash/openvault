@@ -18,6 +18,15 @@ let PQueue;
 const _RATE_LIMIT_COOLOFF_MS = 4000;
 
 /**
+ * Detect rate-limit or timeout errors.
+ * @param {Error} error
+ * @returns {boolean}
+ */
+function isRateLimitError(error) {
+    return error.status === 429 || error.message?.includes('429') || error.message?.includes('timeout');
+}
+
+/**
  * Creates an AIMD-governed task queue.
  *
  * @param {number} [maxConcurrency=1] - Absolute ceiling for parallel tasks.
@@ -32,11 +41,30 @@ export async function createLadderQueue(maxConcurrency = 1) {
 
     const ceiling = Math.max(1, maxConcurrency);
     const queue = new PQueue({ concurrency: ceiling });
+    let currentLimit = ceiling;
 
     const add = async (taskFn) => {
         return queue.add(async () => {
-            const result = await taskFn();
-            return result;
+            try {
+                const result = await taskFn();
+
+                // Additive Increase: slowly climb back up on success
+                if (currentLimit < ceiling) {
+                    currentLimit = Math.min(ceiling, currentLimit + 0.5);
+                    queue.concurrency = Math.floor(currentLimit);
+                }
+
+                return result;
+            } catch (error) {
+                if (isRateLimitError(error)) {
+                    // Multiplicative Decrease: drop the ladder
+                    currentLimit = Math.max(1, Math.floor(currentLimit / 2));
+                    queue.concurrency = Math.floor(currentLimit);
+                    console.warn(`[LadderQueue] Rate limit hit. Dropping concurrency to ${queue.concurrency}`);
+                }
+
+                throw error;
+            }
         });
     };
 
