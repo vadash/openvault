@@ -21,7 +21,7 @@ Prevents duplicate nodes (e.g., "The King" vs "King Aldric"). Uses `shouldMergeE
    - **Above threshold** (>= 0.94): Merge directly (cosine alone sufficient).
    - **Grey zone** (threshold - 0.10 to threshold): Token overlap confirmation required. `tokensB` lazily constructed only here.
    - **Below grey zone**: Skip (no merge).
-3. **Token Overlap Guard** (grey zone only): Strips base EN+RU stopwords (via `stopword` lib). Requires >= 50% overlap OR direct substring match.
+3. **Token Overlap Guard** (grey zone only): Strips base EN+RU stopwords (via `stopword` lib). Requires >= 60% stem/token overlap OR direct substring match OR fuzzy LCS match (≥ 70% ratio AND ≥ 4 absolute chars; short keys ≤ 4 chars: ≥ 60% ratio AND ≥ 2 chars).
 4. **Aliases**: If merged, the absorbed name is pushed to the surviving node's `aliases` array for future retrieval matching.
 5. **Redirects**: Transient `_mergeRedirects` map ensures edges pointing to the old node route to the merged one.
 
