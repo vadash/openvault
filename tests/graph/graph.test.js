@@ -832,9 +832,9 @@ describe('shouldMergeEntities', () => {
 
     it('returns true in grey zone when token overlap passes', () => {
         // cosine=0.90, threshold=0.94, greyZoneFloor=0.84 → grey zone
-        // tokensA='vova house', keyB='vova apartment' → 'vova' overlaps → pass
-        const tokensA = new Set(['vova', 'house']);
-        expect(shouldMergeEntities(0.9, 0.94, tokensA, 'vova house', 'vova apartment')).toBe(true);
+        // tokensA='king aldric castle', keyB='king aldric tower' → 2/3=0.67 overlap → pass
+        const tokensA = new Set(['king', 'aldric', 'castle']);
+        expect(shouldMergeEntities(0.9, 0.94, tokensA, 'king aldric castle', 'king aldric tower')).toBe(true);
     });
 
     it('returns false in grey zone when token overlap fails', () => {

@@ -68,6 +68,7 @@ const CDN_SPECS = {
     'graphology-operators': () => import('graphology-operators'),
     'gpt-tokenizer/encoding/o200k_base': () => import('gpt-tokenizer/encoding/o200k_base'),
     'p-queue': () => import('p-queue'),
+    'cyrillic-to-translit-js': () => import('cyrillic-to-translit-js'),
 };
 
 // Initial registration (setup.js module instance of cdn.js)
