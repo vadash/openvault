@@ -328,23 +328,31 @@ export async function synthesizeInChunks(communityList, preamble, outputLanguage
         return parseGlobalSynthesisResponse(response).global_summary;
     }
 
-    // Map phase: chunk communities, get regional summaries
+    // Map phase: chunk communities, get regional summaries (parallelized)
     const chunks = [];
     for (let i = 0; i < communityList.length; i += GLOBAL_SYNTHESIS_CHUNK_SIZE) {
         chunks.push(communityList.slice(i, i + GLOBAL_SYNTHESIS_CHUNK_SIZE));
     }
 
-    const regionalSummaries = [];
-    for (const chunk of chunks) {
-        try {
-            const prompt = buildGlobalSynthesisPrompt(chunk, preamble, outputLanguage, prefill);
-            const response = await callLLM(prompt, LLM_CONFIGS.community, { structured: true });
-            const parsed = parseGlobalSynthesisResponse(response);
-            regionalSummaries.push(parsed.global_summary);
-        } catch (err) {
-            logDebug(`Regional synthesis chunk failed, skipping: ${err.message}`);
-        }
-    }
+    const settings = getDeps().getExtensionSettings()?.[extensionName] || {};
+    const ladderQueue = await createLadderQueue(settings.maxConcurrency);
+
+    const results = await Promise.all(
+        chunks.map((chunk) =>
+            ladderQueue
+                .add(async () => {
+                    const prompt = buildGlobalSynthesisPrompt(chunk, preamble, outputLanguage, prefill);
+                    const response = await callLLM(prompt, LLM_CONFIGS.community, { structured: true });
+                    return parseGlobalSynthesisResponse(response).global_summary;
+                })
+                .catch((err) => {
+                    logDebug(`Regional synthesis chunk failed, skipping: ${err.message}`);
+                    return null;
+                })
+        )
+    );
+
+    const regionalSummaries = results.filter((r) => r !== null);
 
     if (regionalSummaries.length === 0) return null;
 

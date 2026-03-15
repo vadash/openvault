@@ -681,3 +681,38 @@ describe('updateCommunitySummaries with queue', () => {
         expect(mockCallLLM).toHaveBeenCalledTimes(4);
     });
 });
+
+describe('synthesizeInChunks with queue', () => {
+    beforeEach(() => {
+        setupTestContext({
+            settings: { maxConcurrency: 3 },
+        });
+        mockCallLLM.mockReset();
+    });
+
+    afterEach(() => {
+        resetDeps();
+        vi.restoreAllMocks();
+    });
+
+    it('should process large community sets via chunked map-reduce with queue', async () => {
+        // Create 15 communities (> GLOBAL_SYNTHESIS_CHUNK_SIZE of 10)
+        const communities = Array.from({ length: 15 }, (_, i) => ({
+            title: `Community ${i}`,
+            summary: `Summary for community ${i}`,
+            findings: [`Finding ${i}`],
+        }));
+
+        // Mock: regional summaries for map phase, then final summary for reduce phase
+        mockCallLLM
+            .mockResolvedValueOnce(JSON.stringify({ global_summary: 'Region A summary' }))
+            .mockResolvedValueOnce(JSON.stringify({ global_summary: 'Region B summary' }))
+            .mockResolvedValue(JSON.stringify({ global_summary: 'Final global summary' }));
+
+        const result = await synthesizeInChunks(communities, 'auto', 'auto', '{');
+
+        // Map phase: 2 chunks (10 + 5), Reduce phase: 1 call = 3 total
+        expect(mockCallLLM).toHaveBeenCalledTimes(3);
+        expect(result).toBe('Final global summary');
+    });
+});
