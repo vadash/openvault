@@ -50,7 +50,7 @@ Rate each event from 1 (trivial) to 5 (critical):
 </importance_scale>
 
 <thinking_process>
-Follow these steps IN ORDER. Write your work inside <thinking> tags BEFORE outputting the JSON:
+Follow these steps IN ORDER. Write your work inside  tags BEFORE outputting the JSON:
 
 Step 1: List the specific actions, emotions, and facts in the new messages.
 Step 2: Check <established_memories>. Is any of this already recorded?
