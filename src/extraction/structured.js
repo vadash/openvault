@@ -126,10 +126,15 @@ function parseStructuredResponse(content, schema) {
         throw new Error(`JSON parse failed: ${e.message}`);
     }
 
-    // Array recovery - if LLM returned a bare array instead of expected object
-    // Note: callers expecting objects must handle this appropriately
+    // Array recovery — unwrap bare arrays to first element before Zod validation.
+    // LLMs occasionally return [{...}] instead of {...}. The Zod schema provides
+    // real structural validation, so permissive unwrapping here is safe.
     if (Array.isArray(parsed)) {
-        logWarn('LLM returned array instead of object in parseStructuredResponse');
+        if (parsed.length === 0) {
+            throw new Error('LLM returned empty array');
+        }
+        logWarn(`LLM returned ${parsed.length}-element array instead of object — unwrapping first element`);
+        parsed = parsed[0];
     }
 
     const result = schema.safeParse(parsed);

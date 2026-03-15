@@ -119,6 +119,41 @@ describe('CommunitySummarySchema', () => {
         expect(result.title).toBe('Test');
         expect(result.findings).toHaveLength(1);
     });
+
+    it('recovers when LLM returns single-element array instead of object', () => {
+        const json = JSON.stringify([
+            {
+                title: 'The Royal Court',
+                summary: 'King Aldric rules from the Castle...',
+                findings: ['The King fears betrayal', 'The Guard is loyal'],
+            },
+        ]);
+        const result = parseCommunitySummaryResponse(json);
+        expect(result.title).toBe('The Royal Court');
+        expect(result.findings).toHaveLength(2);
+    });
+
+    it('recovers when LLM returns multi-element array (uses first)', () => {
+        const json = JSON.stringify([
+            {
+                title: 'First Community',
+                summary: 'The main group of characters',
+                findings: ['Finding one'],
+            },
+            {
+                title: 'Second Community',
+                summary: 'Should be ignored',
+                findings: ['Ignored'],
+            },
+        ]);
+        const result = parseCommunitySummaryResponse(json);
+        expect(result.title).toBe('First Community');
+    });
+
+    it('throws on empty array from LLM', () => {
+        const json = '[]';
+        expect(() => parseCommunitySummaryResponse(json)).toThrow('LLM returned empty array');
+    });
 });
 
 describe('getEventExtractionJsonSchema', () => {
