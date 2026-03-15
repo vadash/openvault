@@ -43,6 +43,7 @@ OpenVault implements ideas from two papers:
    https://github.com/vadash/openvault
    ```
 4. Reload SillyTavern.
+5. You should also pick one of "stable_XXX" branches when installing
 
 ## Setup
 
@@ -125,3 +126,4 @@ For full technical details, see [`include/ARCHITECTURE.md`](include/ARCHITECTURE
 ## License
 
 GNU AGPL v3.0
+
