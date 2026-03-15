@@ -480,6 +480,9 @@ function bindUIElements() {
         $(this).val(value);
     });
 
+    // Concurrency settings
+    bindSetting('max_concurrency', 'maxConcurrency');
+
     // Embedding settings
     $('#openvault_ollama_url').on('change', function () {
         saveSetting('ollamaUrl', $(this).val().trim());
@@ -703,6 +706,10 @@ export function updateUI() {
 
     $('#openvault_entity_boost').val(settings.entityBoostWeight);
     $('#openvault_entity_boost_value').text(settings.entityBoostWeight);
+
+    // Concurrency settings
+    $('#openvault_max_concurrency').val(settings.maxConcurrency);
+    $('#openvault_max_concurrency_value').text(settings.maxConcurrency);
 
     // Backfill settings
     $('#openvault_backfill_rpm').val(settings.backfillMaxRPM);

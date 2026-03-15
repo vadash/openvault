@@ -398,6 +398,15 @@
                 <details class="openvault-details" style="margin-top: 10px;">
                     <summary><i class="fa-solid fa-gauge"></i> System Limits</summary>
                     <div class="openvault-settings-group">
+                        <label for="openvault_max_concurrency">
+                            Cloud API Concurrency: <span id="openvault_max_concurrency_value">1</span>
+                            <small class="openvault-default-hint" data-default-key="maxConcurrency"></small>
+                        </label>
+                        <input type="range" id="openvault_max_concurrency" min="1" max="5" step="1" />
+                        <small class="openvault-hint">Keep at 1 for local LLMs (Ollama/LM Studio). Increase to 3-5 for cloud APIs (Kimi/OpenAI) to speed up background processing. Auto-drops on rate limits.</small>
+
+                        <div style="height: 8px;"></div>
+
                         <label for="openvault_backfill_rpm">
                             Backfill Rate Limit (RPM)
                             <small class="openvault-default-hint" data-default-key="backfillRateLimit"></small>
