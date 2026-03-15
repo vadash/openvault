@@ -7,8 +7,8 @@
 import { CHARACTERS_KEY, defaultSettings, extensionName, MEMORIES_KEY, PERF_METRICS } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { isEmbeddingsEnabled } from '../embeddings.js';
-import { getCachedScoringDetails, getLastRetrievalDebug } from '../retrieval/debug-cache.js';
 import { getAll as getPerfMetrics } from '../perf/store.js';
+import { getCachedScoringDetails, getLastRetrievalDebug } from '../retrieval/debug-cache.js';
 import { getOpenVaultData } from '../utils/data.js';
 import { showToast } from '../utils/dom.js';
 import { deleteEmbedding } from '../utils/embedding-codec.js';
@@ -57,7 +57,19 @@ function diffSettings(current, defaults) {
  * @returns {Object} Compact entry
  */
 function compactScores(detail, summaryLimit) {
-    const { scores, memoryId, type, level, parent_ids, summary, distance, importance, retrieval_hits, mentions, characters_involved } = detail;
+    const {
+        scores,
+        memoryId,
+        type,
+        level,
+        parent_ids,
+        summary,
+        distance,
+        importance,
+        retrieval_hits,
+        mentions,
+        characters_involved,
+    } = detail;
     const base = r2(scores.base);
     const entry = {
         id: memoryId,
@@ -105,10 +117,15 @@ function buildScoringStats(scoringDetails) {
     }
 
     const totalScored = scoringDetails.length;
-    let reflectionsScored = 0, reflectionsSelected = 0;
-    let eventsScored = 0, eventsSelected = 0;
-    let totalReflectionScore = 0, totalEventScore = 0;
-    let topScore = 0, cutoffScore = null, selectedCount = 0;
+    let reflectionsScored = 0,
+        reflectionsSelected = 0;
+    let eventsScored = 0,
+        eventsSelected = 0;
+    let totalReflectionScore = 0,
+        totalEventScore = 0;
+    let topScore = 0,
+        cutoffScore = null,
+        selectedCount = 0;
 
     for (const detail of scoringDetails) {
         const { scores, type, selected } = detail;

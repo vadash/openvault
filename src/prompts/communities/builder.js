@@ -8,10 +8,10 @@ import {
     buildMessages,
     resolveLanguageInstruction,
 } from '../shared/formatters.js';
-import { COMMUNITIES_ROLE, GLOBAL_SYNTHESIS_ROLE } from './role.js';
-import { COMMUNITY_SCHEMA, GLOBAL_SYNTHESIS_SCHEMA } from './schema.js';
-import { COMMUNITY_RULES, GLOBAL_SYNTHESIS_RULES } from './rules.js';
 import { getExamples } from './examples/index.js';
+import { COMMUNITIES_ROLE, GLOBAL_SYNTHESIS_ROLE } from './role.js';
+import { COMMUNITY_RULES, GLOBAL_SYNTHESIS_RULES } from './rules.js';
+import { COMMUNITY_SCHEMA, GLOBAL_SYNTHESIS_SCHEMA } from './schema.js';
 
 export function buildCommunitySummaryPrompt(nodeLines, edgeLines, preamble, outputLanguage = 'auto', prefill) {
     if (!prefill) {
@@ -57,9 +57,12 @@ export function buildGlobalSynthesisPrompt(communities, preamble, outputLanguage
         outputLanguage,
     });
 
-    const communityText = communities.map((c, i) =>
-        `${i + 1}. ${c.title}\n${c.summary}${c.findings?.length ? '\nKey findings: ' + c.findings.join('; ') : ''}`
-    ).join('\n\n');
+    const communityText = communities
+        .map(
+            (c, i) =>
+                `${i + 1}. ${c.title}\n${c.summary}${c.findings?.length ? '\nKey findings: ' + c.findings.join('; ') : ''}`
+        )
+        .join('\n\n');
 
     const languageInstruction = resolveLanguageInstruction(communityText, outputLanguage);
     const constraints = assembleUserConstraints({

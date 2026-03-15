@@ -168,7 +168,7 @@ describe('retrieveAndInjectContext with global state', () => {
         setupTestContext({
             context: {
                 chat: [
-                    { mes: 'Previous context', is_user: true, is_system: true },  // Hidden message with memory source
+                    { mes: 'Previous context', is_user: true, is_system: true }, // Hidden message with memory source
                     { mes: 'Summarize the story so far', is_user: true, is_system: false },
                 ],
                 chatMetadata: {
@@ -179,7 +179,7 @@ describe('retrieveAndInjectContext with global state', () => {
                                 type: 'event',
                                 summary: 'Test memory',
                                 importance: 3,
-                                message_ids: [0],  // References hidden message at index 0
+                                message_ids: [0], // References hidden message at index 0
                                 characters_involved: ['Alice'],
                                 witnesses: ['Alice'],
                                 is_secret: false,

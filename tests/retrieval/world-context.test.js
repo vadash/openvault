@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { retrieveWorldContext, detectMacroIntent } from '../../src/retrieval/world-context.js';
+import { detectMacroIntent, retrieveWorldContext } from '../../src/retrieval/world-context.js';
 
 describe('retrieveWorldContext', () => {
     const communities = {
@@ -69,7 +69,7 @@ describe('detectMacroIntent', () => {
     });
 
     it('should return false for local queries', () => {
-        expect(detectMacroIntent('Let\'s go to the kitchen')).toBe(false);
+        expect(detectMacroIntent("Let's go to the kitchen")).toBe(false);
         expect(detectMacroIntent('I kiss her gently')).toBe(false);
         expect(detectMacroIntent('Пойдём в спальню')).toBe(false);
     });
@@ -106,7 +106,7 @@ describe('retrieveWorldContext with intent routing', () => {
             },
         };
         const queryEmbedding = new Float32Array([0.9, 0.1, 0.0]);
-        const userMessages = 'Let\'s go to the kitchen';
+        const userMessages = "Let's go to the kitchen";
 
         const result = retrieveWorldContext(communities, globalState, userMessages, queryEmbedding, 2000);
 

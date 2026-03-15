@@ -1,14 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { buildCommunitySummaryPrompt, buildGlobalSynthesisPrompt } from '../../src/prompts/communities/builder.js';
 import { buildEventExtractionPrompt } from '../../src/prompts/events/builder.js';
-import {
-    buildGraphExtractionPrompt,
-    buildEdgeConsolidationPrompt,
-} from '../../src/prompts/graph/builder.js';
+import { buildEdgeConsolidationPrompt, buildGraphExtractionPrompt } from '../../src/prompts/graph/builder.js';
 import { buildUnifiedReflectionPrompt } from '../../src/prompts/reflection/builder.js';
-import {
-    buildCommunitySummaryPrompt,
-    buildGlobalSynthesisPrompt,
-} from '../../src/prompts/communities/builder.js';
 import { SYSTEM_PREAMBLE_CN } from '../../src/prompts/shared/preambles.js';
 
 const PREAMBLE = SYSTEM_PREAMBLE_CN;
@@ -68,7 +62,7 @@ describe('Prompt Topology — Recency Bias Layout', () => {
             { source: 'A', target: 'B', weight: 5, description: 'seg1 | seg2' },
             PREAMBLE,
             'auto',
-            PREFILL,
+            PREFILL
         );
         assertSystemPrompt(msgs[0].content);
         assertUserPrompt(msgs[1].content);
@@ -80,7 +74,7 @@ describe('Prompt Topology — Recency Bias Layout', () => {
             [{ id: '1', type: 'event', summary: 'Test', importance: 3 }],
             PREAMBLE,
             'auto',
-            PREFILL,
+            PREFILL
         );
         assertSystemPrompt(msgs[0].content);
         assertUserPrompt(msgs[1].content);
@@ -92,7 +86,7 @@ describe('Prompt Topology — Recency Bias Layout', () => {
             ['Alice → Bob: friends'],
             PREAMBLE,
             'auto',
-            PREFILL,
+            PREFILL
         );
         assertSystemPrompt(msgs[0].content);
         assertUserPrompt(msgs[1].content);
@@ -103,7 +97,7 @@ describe('Prompt Topology — Recency Bias Layout', () => {
             [{ title: 'Test', summary: 'Sum', findings: ['f1'] }],
             PREAMBLE,
             'auto',
-            PREFILL,
+            PREFILL
         );
         assertSystemPrompt(msgs[0].content);
         assertUserPrompt(msgs[1].content);

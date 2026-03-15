@@ -9,10 +9,10 @@ import {
     formatCharacters,
     resolveLanguageInstruction,
 } from '../shared/formatters.js';
-import { GRAPH_ROLE, EDGE_CONSOLIDATION_ROLE } from './role.js';
-import { GRAPH_SCHEMA, EDGE_CONSOLIDATION_SCHEMA } from './schema.js';
-import { GRAPH_RULES, EDGE_CONSOLIDATION_RULES } from './rules.js';
 import { getExamples } from './examples/index.js';
+import { EDGE_CONSOLIDATION_ROLE, GRAPH_ROLE } from './role.js';
+import { EDGE_CONSOLIDATION_RULES, GRAPH_RULES } from './rules.js';
+import { EDGE_CONSOLIDATION_SCHEMA, GRAPH_SCHEMA } from './schema.js';
 
 export function buildGraphExtractionPrompt({
     messages,

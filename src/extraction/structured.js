@@ -366,7 +366,9 @@ export const GlobalSynthesisSchema = z.object({
     global_summary: z
         .string()
         .min(50, 'Global summary must be substantive')
-        .describe('Overarching summary of current story state, focusing on macro-relationships and trajectory (max ~300 tokens)'),
+        .describe(
+            'Overarching summary of current story state, focusing on macro-relationships and trajectory (max ~300 tokens)'
+        ),
 });
 
 /**

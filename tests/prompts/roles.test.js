@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { EVENT_ROLE } from '../../src/prompts/events/role.js';
-import { GRAPH_ROLE, EDGE_CONSOLIDATION_ROLE } from '../../src/prompts/graph/role.js';
 import { COMMUNITIES_ROLE, GLOBAL_SYNTHESIS_ROLE } from '../../src/prompts/communities/role.js';
-import {
-    UNIFIED_REFLECTION_ROLE,
-    QUESTIONS_ROLE,
-    INSIGHTS_ROLE,
-} from '../../src/prompts/reflection/role.js';
+import { EVENT_ROLE } from '../../src/prompts/events/role.js';
+import { EDGE_CONSOLIDATION_ROLE, GRAPH_ROLE } from '../../src/prompts/graph/role.js';
+import { INSIGHTS_ROLE, QUESTIONS_ROLE, UNIFIED_REFLECTION_ROLE } from '../../src/prompts/reflection/role.js';
 
 const ALL_ROLES = {
     EVENT_ROLE,
@@ -31,7 +27,7 @@ describe('Role exports — Mechanical framing', () => {
         for (const [name, role] of Object.entries(ALL_ROLES)) {
             expect(
                 /automated|pipeline|consolidator/i.test(role),
-                `${name} must use mechanical framing (automated/pipeline/consolidator)`,
+                `${name} must use mechanical framing (automated/pipeline/consolidator)`
             ).toBe(true);
         }
     });

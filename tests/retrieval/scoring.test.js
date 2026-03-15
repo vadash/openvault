@@ -31,7 +31,7 @@ describe('selectMemoriesWithSoftBalance', () => {
             { memory: { id: 'r3', summary: 'Recent C' }, score: 3.0, breakdown: { distance: 150 } },
             { memory: { id: 'm1', summary: 'Mid A' }, score: 4.5, breakdown: { distance: 400 } },
             { memory: { id: 'm2', summary: 'Mid B' }, score: 3.5, breakdown: { distance: 450 } },
-            { memory: { id: 'o1', summary: 'Old A' }, score: 6.0, breakdown: { distance: 800 } },  // Highest score!
+            { memory: { id: 'o1', summary: 'Old A' }, score: 6.0, breakdown: { distance: 800 } }, // Highest score!
             { memory: { id: 'o2', summary: 'Old B' }, score: 5.5, breakdown: { distance: 850 } },
         ];
 
@@ -41,16 +41,14 @@ describe('selectMemoriesWithSoftBalance', () => {
         const selected = selectMemoriesWithSoftBalance(scoredMemories, tokenBudget, chatLength);
 
         // Old bucket should have at least one memory (20% min)
-        const selectedIds = selected.map(m => m.id);
+        const selectedIds = selected.map((m) => m.id);
         expect(selectedIds).toContain('o1');
     });
 
     it('should handle empty buckets gracefully', async () => {
         const { selectMemoriesWithSoftBalance } = await import('../../src/retrieval/scoring.js');
 
-        const scoredMemories = [
-            { memory: { id: 'r1', summary: 'Recent' }, score: 5.0, breakdown: { distance: 50 } },
-        ];
+        const scoredMemories = [{ memory: { id: 'r1', summary: 'Recent' }, score: 5.0, breakdown: { distance: 50 } }];
 
         const selected = selectMemoriesWithSoftBalance(scoredMemories, 100, 100);
         expect(selected.length).toBe(1);

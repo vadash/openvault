@@ -254,14 +254,22 @@ describe('filterDuplicateReflections', () => {
 
 describe('Reflection level and parent_ids fields', () => {
     it('should set level=1 for new reflections from events', async () => {
-        const { generateReflections } = await import('../../src/reflection/reflect.js');
+        const { generateReflections: _generateReflections } = await import('../../src/reflection/reflect.js');
 
         // Mock dependencies
-        const characterName = 'TestChar';
-        const allMemories = [
-            { id: '1', type: 'event', summary: 'Important event', importance: 5, sequence: 1000, message_ids: [100], characters_involved: ['TestChar'] },
+        const _characterName = 'TestChar';
+        const _allMemories = [
+            {
+                id: '1',
+                type: 'event',
+                summary: 'Important event',
+                importance: 5,
+                sequence: 1000,
+                message_ids: [100],
+                characters_involved: ['TestChar'],
+            },
         ];
-        const characterStates = { TestChar: { importance_sum: 50 } };
+        const _characterStates = { TestChar: { importance_sum: 50 } };
 
         // Note: This test will need extensive mocking of LLM, embeddings, etc.
         // For now, verify the structure is accepted
@@ -297,13 +305,11 @@ describe('Old reflections in candidate set', () => {
 
         // Simulate sorting and filtering
         const recentMemories = accessibleMemories
-            .filter(m => m.type === 'event')
+            .filter((m) => m.type === 'event')
             .sort((a, b) => b.sequence - a.sequence)
             .slice(0, 100);
 
-        const oldReflections = accessibleMemories.filter(m =>
-            m.type === 'reflection' && m.level >= 1
-        );
+        const oldReflections = accessibleMemories.filter((m) => m.type === 'reflection' && m.level >= 1);
 
         expect(recentMemories.length).toBe(1);
         expect(oldReflections.length).toBe(2);

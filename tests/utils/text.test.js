@@ -171,12 +171,14 @@ describe('text', () => {
         });
 
         it('returns last block when tool_call noise is larger than payload', () => {
-            const input = '<tool_call>{"name": "extract_events", "arguments": {"query": "test"}}</tool_call>{"events": []}';
+            const input =
+                '<tool_call>{"name": "extract_events", "arguments": {"query": "test"}}</tool_call>{"events": []}';
             expect(safeParseJSON(input)).toEqual({ events: [] });
         });
 
         it('returns last block when tool_call noise is smaller than payload', () => {
-            const input = '<tool_call>{"name": "x"}</tool_call>{"events": [{"summary": "Alice fought Bob", "importance": 3, "characters_involved": ["Alice", "Bob"]}]}';
+            const input =
+                '<tool_call>{"name": "x"}</tool_call>{"events": [{"summary": "Alice fought Bob", "importance": 3, "characters_involved": ["Alice", "Bob"]}]}';
             const result = safeParseJSON(input);
             expect(result.events).toHaveLength(1);
             expect(result.events[0].summary).toBe('Alice fought Bob');
@@ -259,9 +261,9 @@ describe('text', () => {
             const { assignMemoriesToBuckets } = await import('../../src/utils/text.js');
 
             const memories = [
-                { id: '1', message_ids: [50], sequence: 50000 },   // Old (pos < 500)
-                { id: '2', message_ids: [600], sequence: 30000 },  // Mid (500 <= pos < 900)
-                { id: '3', message_ids: [900], sequence: 9000 },   // Recent (pos >= 900)
+                { id: '1', message_ids: [50], sequence: 50000 }, // Old (pos < 500)
+                { id: '2', message_ids: [600], sequence: 30000 }, // Mid (500 <= pos < 900)
+                { id: '3', message_ids: [900], sequence: 9000 }, // Recent (pos >= 900)
             ];
             const chatLength = 1000;
 

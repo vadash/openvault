@@ -219,15 +219,10 @@ export async function generateReflections(characterName, allMemories, characterS
     const recentMemories = sortMemoriesBySequence(accessibleMemories, false).slice(0, REFLECTION_CANDIDATE_LIMIT);
 
     // Include old reflections for potential synthesis
-    const oldReflections = accessibleMemories.filter(m =>
-        m.type === 'reflection' &&
-        (m.level || 1) >= 1
-    );
+    const oldReflections = accessibleMemories.filter((m) => m.type === 'reflection' && (m.level || 1) >= 1);
 
     // Combine and deduplicate by id (recent memories take precedence if duplicate)
-    const candidateSet = Array.from(
-        new Map([...recentMemories, ...oldReflections].map(m => [m.id, m])).values()
-    );
+    const candidateSet = Array.from(new Map([...recentMemories, ...oldReflections].map((m) => [m.id, m])).values());
 
     if (recentMemories.length < 3) {
         logDebug(`Reflection: ${characterName} has too few accessible memories (${recentMemories.length}), skipping`);
@@ -240,7 +235,7 @@ export async function generateReflections(characterName, allMemories, characterS
     );
 
     // For pre-flight gate, use only events (not reflections) to check alignment
-    const recentEvents = recentMemories.filter(m => m.type === 'event');
+    const recentEvents = recentMemories.filter((m) => m.type === 'event');
 
     // Pre-flight similarity gate: check if recent events align with existing insights
     const { shouldSkip, reason: skipReason } = shouldSkipReflectionGeneration(
@@ -256,7 +251,13 @@ export async function generateReflections(characterName, allMemories, characterS
     }
 
     // Single unified reflection call (replaces Step 1 + Step 2)
-    const reflectionPrompt = buildUnifiedReflectionPrompt(characterName, candidateSet, preamble, outputLanguage, prefill);
+    const reflectionPrompt = buildUnifiedReflectionPrompt(
+        characterName,
+        candidateSet,
+        preamble,
+        outputLanguage,
+        prefill
+    );
     const reflectionResponse = await callLLM(reflectionPrompt, LLM_CONFIGS.reflection, { structured: true });
     const { reflections } = parseUnifiedReflectionResponse(reflectionResponse);
 
@@ -264,12 +265,12 @@ export async function generateReflections(characterName, allMemories, characterS
 
     // Convert unified reflections to memory objects
     const now = deps.Date.now();
-    const newReflections = reflections.map(({ question, insight, evidence_ids }) => {
+    const newReflections = reflections.map(({ insight, evidence_ids }) => {
         // Detect meta-synthesis: if evidence_ids contain reflection IDs (starting with "ref_"),
         // this is a Level 2+ reflection synthesizing existing reflections
-        const hasReflectionEvidence = evidence_ids.some(id => id.startsWith('ref_'));
-        const reflectionEvidenceIds = evidence_ids.filter(id => id.startsWith('ref_'));
-        const eventEvidenceIds = evidence_ids.filter(id => !id.startsWith('ref_'));
+        const hasReflectionEvidence = evidence_ids.some((id) => id.startsWith('ref_'));
+        const reflectionEvidenceIds = evidence_ids.filter((id) => id.startsWith('ref_'));
+        const eventEvidenceIds = evidence_ids.filter((id) => !id.startsWith('ref_'));
 
         return {
             id: `ref_${generateId()}`,
@@ -280,7 +281,7 @@ export async function generateReflections(characterName, allMemories, characterS
             sequence: now,
             characters_involved: [characterName],
             character: characterName,
-            source_ids: eventEvidenceIds,     // Event IDs used as source
+            source_ids: eventEvidenceIds, // Event IDs used as source
             parent_ids: reflectionEvidenceIds, // Reflection IDs synthesized (empty for level 1)
             level: hasReflectionEvidence ? 2 : 1, // Level 2 if synthesizing reflections, else 1
             witnesses: [characterName],

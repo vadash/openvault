@@ -5,8 +5,8 @@ import {
     cleanupCharacterStates,
     extractMemories,
     filterSimilarEvents,
-    updateCharacterStatesFromEvents,
     runPhase2Enrichment,
+    updateCharacterStatesFromEvents,
 } from '../../src/extraction/extract.js';
 
 /**
@@ -578,9 +578,30 @@ describe('two-phase extraction with intermediate save', () => {
         // Arrange: Set up conditions that WOULD trigger Phase 2 without isBackfill
         // We need enough existing memories to pass the "recentMemories.length >= 3" check
         const existingMemories = [
-            { id: 'm1', type: 'event', summary: 'Old event 1', sequence: 100, characters_involved: ['King Aldric'], embedding_b64: 'AAAAAAAAAAAAAAAAAAAAAA==' },
-            { id: 'm2', type: 'event', summary: 'Old event 2', sequence: 200, characters_involved: ['King Aldric'], embedding_b64: 'AAAAAAAAAAAAAAAAAAAAAA==' },
-            { id: 'm3', type: 'event', summary: 'Old event 3', sequence: 300, characters_involved: ['King Aldric'], embedding_b64: 'AAAAAAAAAAAAAAAAAAAAAA==' },
+            {
+                id: 'm1',
+                type: 'event',
+                summary: 'Old event 1',
+                sequence: 100,
+                characters_involved: ['King Aldric'],
+                embedding_b64: 'AAAAAAAAAAAAAAAAAAAAAA==',
+            },
+            {
+                id: 'm2',
+                type: 'event',
+                summary: 'Old event 2',
+                sequence: 200,
+                characters_involved: ['King Aldric'],
+                embedding_b64: 'AAAAAAAAAAAAAAAAAAAAAA==',
+            },
+            {
+                id: 'm3',
+                type: 'event',
+                summary: 'Old event 3',
+                sequence: 300,
+                characters_involved: ['King Aldric'],
+                embedding_b64: 'AAAAAAAAAAAAAAAAAAAAAA==',
+            },
         ];
         mockData.memories = existingMemories;
         mockData.reflection_state = { 'King Aldric': { importance_sum: 38 } }; // Will trigger reflection (38 + 3 = 41 >= 40)
@@ -1139,9 +1160,10 @@ describe('extractMemories backfill mode integration', () => {
 
     it('should accumulate importance across batches and run Phase 2 once', async () => {
         // Arrange: Set up responses for extraction (events + graph only, no Phase 2)
-        const sendRequest = mockSendRequest(
-            // No Phase 2 responses - backfill mode should not request them
-        );
+        const sendRequest =
+            mockSendRequest(
+                // No Phase 2 responses - backfill mode should not request them
+            );
 
         const saveChatConditionalSpy = vi.fn().mockResolvedValue(true);
 

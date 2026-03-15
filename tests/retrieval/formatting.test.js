@@ -14,7 +14,12 @@ describe('formatContextForInjection - Subconscious Drives', () => {
         const chatLength = 100;
 
         const result = formatContextForInjection(
-            memories, presentCharacters, emotionalInfo, characterName, tokenBudget, chatLength
+            memories,
+            presentCharacters,
+            emotionalInfo,
+            characterName,
+            tokenBudget,
+            chatLength
         );
 
         // Should contain scene_memory with events only
@@ -33,12 +38,8 @@ describe('formatContextForInjection - Subconscious Drives', () => {
     });
 
     it('should omit subconscious_drives block when no reflections exist', () => {
-        const memories = [
-            { id: 'ev_1', type: 'event', summary: 'Event 1', importance: 3, sequence: 1000 },
-        ];
-        const result = formatContextForInjection(
-            memories, [], null, 'Char', 1000, 100
-        );
+        const memories = [{ id: 'ev_1', type: 'event', summary: 'Event 1', importance: 3, sequence: 1000 }];
+        const result = formatContextForInjection(memories, [], null, 'Char', 1000, 100);
 
         expect(result).toContain('<scene_memory>');
         expect(result).not.toContain('<subconscious_drives>');
@@ -58,7 +59,7 @@ describe('formatContextForInjection without hard quotas', () => {
             { emotion: 'neutral' },
             'TestChar',
             1000, // budget
-            1000  // chatLength
+            1000 // chatLength
         );
 
         expect(result).toContain('Old memory');

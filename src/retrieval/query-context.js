@@ -170,7 +170,8 @@ export function buildBM25Tokens(userMessage, extractedEntities, corpusVocab = nu
 
     // Layer 0: Multi-word entities (exact phrases, un-tokenized, added ONCE)
     // Layer 1: Single-word entities (stems, with 5x boost)
-    let layer0Count = 0, layer1Count = 0;
+    let layer0Count = 0,
+        layer1Count = 0;
 
     if (extractedEntities?.entities) {
         for (const entity of extractedEntities.entities) {
@@ -197,13 +198,14 @@ export function buildBM25Tokens(userMessage, extractedEntities, corpusVocab = nu
     }
 
     const entityStemCount = layer1Count; // Count of Layer 1 stems (Layer 0 counted separately)
-    let groundedCount = 0, nonGroundedCount = 0;
+    let groundedCount = 0,
+        nonGroundedCount = 0;
 
     // Three-tier message token processing
     if (corpusVocab && corpusVocab.size > 0) {
         const msgStems = tokenize(userMessage || '');
-        const grounded = msgStems.filter(t => corpusVocab.has(t));
-        const nonGrounded = msgStems.filter(t => !corpusVocab.has(t));
+        const grounded = msgStems.filter((t) => corpusVocab.has(t));
+        const nonGrounded = msgStems.filter((t) => !corpusVocab.has(t));
 
         // DEBUG: Log corpus grounding behavior
         if (msgStems.length > 0) {
@@ -217,8 +219,8 @@ export function buildBM25Tokens(userMessage, extractedEntities, corpusVocab = nu
                 weights: {
                     layer1: `${settings.entityBoostWeight}x (entities)`,
                     layer2: `${Math.ceil(settings.entityBoostWeight * CORPUS_GROUNDED_BOOST_RATIO)}x (grounded)`,
-                    layer3: `${Math.ceil(settings.entityBoostWeight * NON_GROUNDED_BOOST_RATIO)}x (non-grounded)`
-                }
+                    layer3: `${Math.ceil(settings.entityBoostWeight * NON_GROUNDED_BOOST_RATIO)}x (non-grounded)`,
+                },
             });
         }
 

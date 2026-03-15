@@ -1,4 +1,5 @@
 import { getExamples } from '../../../src/prompts/communities/examples/index.js';
+
 const GLOBAL_SYNTHESIS_EXAMPLES = getExamples('GLOBAL_SYNTHESIS', 'auto');
 
 /**
@@ -20,14 +21,14 @@ describe('GLOBAL_SYNTHESIS_EXAMPLES', () => {
     });
 
     it('should have bilingual examples', () => {
-        const hasEn = GLOBAL_SYNTHESIS_EXAMPLES.some(e => e.label.includes('EN'));
-        const hasRu = GLOBAL_SYNTHESIS_EXAMPLES.some(e => e.label.includes('RU'));
+        const hasEn = GLOBAL_SYNTHESIS_EXAMPLES.some((e) => e.label.includes('EN'));
+        const hasRu = GLOBAL_SYNTHESIS_EXAMPLES.some((e) => e.label.includes('RU'));
         expect(hasEn).toBe(true);
         expect(hasRu).toBe(true);
     });
 
     it('should have required input/output fields', () => {
-        GLOBAL_SYNTHESIS_EXAMPLES.forEach(example => {
+        GLOBAL_SYNTHESIS_EXAMPLES.forEach((example) => {
             expect(example.input).toBeDefined();
             expect(example.output).toBeDefined();
             expect(example.label).toBeDefined();

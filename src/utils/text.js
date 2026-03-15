@@ -41,7 +41,10 @@ export function stripThinkingTags(text) {
         text
             // Paired XML tags: <think>...</think>, <tool_call>...</tool_call>, etc.
             // (?:s+[^>]*)? matches optional attributes like <tool_call name="extract_events">
-            .replace(/<(think|thinking|thought|reasoning|reflection|tool_call|search)(?:\s+[^>]*)?>\s*[\s\S]*?<\/\1>/gi, '')
+            .replace(
+                /<(think|thinking|thought|reasoning|reflection|tool_call|search)(?:\s+[^>]*)?>\s*[\s\S]*?<\/\1>/gi,
+                ''
+            )
             // Paired bracket tags: [THINK]...[/THINK], [TOOL_CALL]...[/TOOL_CALL], etc.
             .replace(/\[(THINK|THOUGHT|REASONING|TOOL_CALL)\][\s\S]*?\[\/\1\]/gi, '')
             .replace(/\*thinks?:[\s\S]*?\*/gi, '')
@@ -55,7 +58,7 @@ export function stripThinkingTags(text) {
 /**
  * Extract the LAST balanced JSON object or array from a string.
  * Scans all balanced blocks and returns the final one found.
- * 
+ *
  * Why "Last"? LLMs output reasoning and hallucinated <tool_call> snippets
  * BEFORE the actual payload. The real JSON is always the last complete block.
  *
@@ -150,15 +153,15 @@ export function safeParseJSON(input) {
         // --- LLM SYNTAX HALLUCINATION SANITIZER ---
         // Negative lookbehinds (?<!\\) ensure we don't accidentally remove escaped quotes inside valid strings.
         // Matches both standard (+) and full-width (＋) Chinese plus signs.
-        
+
         // 1. Mid-string concatenation across newlines: "text" +\n "more" -> "textmore"
-        cleanedInput = cleanedInput.replace(/(?<!\\)(["'])\s*[+＋]\s*(?:\r?\n)?\s*(?<!\\)(["'])/g, "");
-        
+        cleanedInput = cleanedInput.replace(/(?<!\\)(["'])\s*[+＋]\s*(?:\r?\n)?\s*(?<!\\)(["'])/g, '');
+
         // 2. Dangling plus before punctuation/newlines: "text" + , -> "text" ,
-        cleanedInput = cleanedInput.replace(/(?<!\\)(["'])\s*[+＋]\s*(?:\r?\n)?\s*([,}\]])/g, "$1$2");
-        
+        cleanedInput = cleanedInput.replace(/(?<!\\)(["'])\s*[+＋]\s*(?:\r?\n)?\s*([,}\]])/g, '$1$2');
+
         // 3. Cut-off dangling plus at EOF or followed by whitespace/EOF: "text" + \n -> "text"
-        cleanedInput = cleanedInput.replace(/(?<!\\)(["'])\s*[+＋]\s*(?:\r?\n)?\s*$/g, "$1");
+        cleanedInput = cleanedInput.replace(/(?<!\\)(["'])\s*[+＋]\s*(?:\r?\n)?\s*$/g, '$1');
 
         // 4. Pad truncated outputs: odd number of unescaped " means an unclosed string
         const withoutEscapedQuotes = cleanedInput.replace(/\\"/g, '');

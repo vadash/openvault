@@ -46,9 +46,10 @@ export function hasExactPhrase(phrase, memory) {
 
     // Normalize both strings: lowercase, normalize whitespace, strip punctuation
     const normalize = (str) =>
-        str.toLowerCase()
-            .replace(/\s+/g, ' ')  // Normalize whitespace
-            .replace(/[^\p{L}\p{N}\s]/gu, '')  // Strip punctuation (keep letters, numbers, spaces)
+        str
+            .toLowerCase()
+            .replace(/\s+/g, ' ') // Normalize whitespace
+            .replace(/[^\p{L}\p{N}\s]/gu, '') // Strip punctuation (keep letters, numbers, spaces)
             .trim();
 
     const normalizedPhrase = normalize(trimmedPhrase);
@@ -277,9 +278,9 @@ export function calculateScore(memory, contextEmbedding, chatLength, constants, 
     // Higher-level reflections decay slower (level divisor)
     if (memory.type === 'reflection' && distance > constants.reflectionDecayThreshold) {
         const threshold = constants.reflectionDecayThreshold;
-        const level = memory.level || 1;  // Default to level 1 for legacy
+        const level = memory.level || 1; // Default to level 1 for legacy
         const multiplier = constants.reflectionLevelMultiplier || 2.0;
-        const levelDivisor = Math.pow(multiplier, level - 1);
+        const levelDivisor = multiplier ** (level - 1);
 
         // Decay is divided by level multiplier: level 2 decays 2x slower
         const decayFactor = Math.max(0.25, 1 - (distance - threshold) / (2 * threshold * levelDivisor));
@@ -371,8 +372,8 @@ export async function scoreMemories(
     // Separate exact phrase tokens from stem tokens
     // Exact phrases contain spaces (multi-word entities from Layer 0)
     // Stem tokens are single words (Layer 1+)
-    const exactPhrases = (tokens || []).filter(t => t.includes(' '));
-    const stemTokens = (tokens || []).filter(t => !t.includes(' '));
+    const exactPhrases = (tokens || []).filter((t) => t.includes(' '));
+    const stemTokens = (tokens || []).filter((t) => !t.includes(' '));
 
     // Compute BM25 using stem tokens only (existing logic)
     const rawBM25Scores = memories.map((_memory, index) => {

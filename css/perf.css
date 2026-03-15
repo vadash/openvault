@@ -7,7 +7,7 @@
 .openvault-perf-table th {
     text-align: left;
     padding: 6px 8px;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--SmartThemeEmColor, #888);
     font-weight: 600;
     font-size: 0.8em;
@@ -15,7 +15,7 @@
 }
 .openvault-perf-table td {
     padding: 5px 8px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     white-space: nowrap;
 }
 .openvault-perf-table td:nth-child(3) {
@@ -31,9 +31,6 @@
 }
 .openvault-perf-warn {
     color: #f44;
-}
-.openvault-perf-neutral {
-    color: var(--SmartThemeEmColor, #888);
 }
 .openvault-perf-icon {
     width: 20px;

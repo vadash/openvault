@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getExamples } from '../../../src/prompts/communities/examples/index.js';
+
 const COMMUNITY_EXAMPLES = getExamples('COMMUNITIES', 'auto');
 
 /**

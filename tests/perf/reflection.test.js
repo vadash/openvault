@@ -1,6 +1,6 @@
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
-import { record, getAll, _resetForTest } from '../../src/perf/store.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PERF_THRESHOLDS } from '../../src/constants.js';
+import { _resetForTest, getAll, record } from '../../src/perf/store.js';
 
 describe('Reflection Performance', () => {
     beforeEach(() => {

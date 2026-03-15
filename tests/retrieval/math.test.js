@@ -44,10 +44,18 @@ describe('Access-Reinforced Decay (hitDamping)', () => {
         const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
 
         const noHits = calculateScore(
-            { message_ids: [10], importance: 3, retrieval_hits: 0 }, null, 200, constants, settings
+            { message_ids: [10], importance: 3, retrieval_hits: 0 },
+            null,
+            200,
+            constants,
+            settings
         );
         const withHits = calculateScore(
-            { message_ids: [10], importance: 3, retrieval_hits: 10 }, null, 200, constants, settings
+            { message_ids: [10], importance: 3, retrieval_hits: 10 },
+            null,
+            200,
+            constants,
+            settings
         );
         expect(withHits.base).toBeGreaterThan(noHits.base);
     });
@@ -143,11 +151,13 @@ describe('Frequency Factor (mentions boost)', () => {
         const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 1.0, reflectionDecayThreshold: 750 };
         const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
 
-        const noMentions = calculateScore(
-            { message_ids: [10], importance: 3 }, null, 100, constants, settings
-        );
+        const noMentions = calculateScore({ message_ids: [10], importance: 3 }, null, 100, constants, settings);
         const withMentions = calculateScore(
-            { message_ids: [10], importance: 3, mentions: 10 }, null, 100, constants, settings
+            { message_ids: [10], importance: 3, mentions: 10 },
+            null,
+            100,
+            constants,
+            settings
         );
         // Total should be proportionally higher by frequencyFactor
         const expectedRatio = withMentions.frequencyFactor / noMentions.frequencyFactor;
@@ -158,17 +168,26 @@ describe('Frequency Factor (mentions boost)', () => {
 describe('Debug cache propagation', () => {
     it('cacheScoringDetails includes hitDamping and frequencyFactor in scores', async () => {
         const { cacheScoringDetails, getCachedScoringDetails } = await import('../../src/retrieval/debug-cache.js');
-        const scoredResults = [{
-            memory: { id: 'test1', summary: 'Test event' },
-            score: 2.5,
-            breakdown: {
-                base: 2.0, baseAfterFloor: 2.0, recencyPenalty: 0,
-                vectorSimilarity: 0.6, vectorBonus: 0.3,
-                bm25Score: 0.4, bm25Bonus: 0.2,
-                total: 2.5, distance: 50, importance: 3,
-                hitDamping: 0.67, frequencyFactor: 1.115,
+        const scoredResults = [
+            {
+                memory: { id: 'test1', summary: 'Test event' },
+                score: 2.5,
+                breakdown: {
+                    base: 2.0,
+                    baseAfterFloor: 2.0,
+                    recencyPenalty: 0,
+                    vectorSimilarity: 0.6,
+                    vectorBonus: 0.3,
+                    bm25Score: 0.4,
+                    bm25Bonus: 0.2,
+                    total: 2.5,
+                    distance: 50,
+                    importance: 3,
+                    hitDamping: 0.67,
+                    frequencyFactor: 1.115,
+                },
             },
-        }];
+        ];
         cacheScoringDetails(scoredResults, ['test1']);
         const cached = getCachedScoringDetails();
         expect(cached[0].scores.hitDamping).toBeCloseTo(0.67);
@@ -226,8 +245,20 @@ describe('BM25 with exact phrase tokens', () => {
         const { scoreMemories } = await import('../../src/retrieval/math.js');
 
         const memories = [
-            { id: '1', summary: 'She wore the burgundy lingerie set to bed', tokens: ['burgundi', 'lingeri', 'set'], message_ids: [100], importance: 3 },
-            { id: '2', summary: 'He grabbed the key set from the table', tokens: ['key', 'set', 'tabl'], message_ids: [100], importance: 3 },
+            {
+                id: '1',
+                summary: 'She wore the burgundy lingerie set to bed',
+                tokens: ['burgundi', 'lingeri', 'set'],
+                message_ids: [100],
+                importance: 3,
+            },
+            {
+                id: '2',
+                summary: 'He grabbed the key set from the table',
+                tokens: ['key', 'set', 'tabl'],
+                message_ids: [100],
+                importance: 3,
+            },
         ];
 
         const contextEmbedding = null;
@@ -238,8 +269,10 @@ describe('BM25 with exact phrase tokens', () => {
         // Query tokens: "бордовый комплект белья" as exact phrase + stems
         // This simulates user typing about the burgundy lingerie set
         const queryTokens = [
-            'lingerie set', 'lingerie set', // Layer 0 (10x would be 10, using 2 for test)
-            'lingeri', 'set'  // Layer 1 stems
+            'lingerie set',
+            'lingerie set', // Layer 0 (10x would be 10, using 2 for test)
+            'lingeri',
+            'set', // Layer 1 stems
         ];
 
         const scored = await scoreMemories(memories, contextEmbedding, chatLength, constants, settings, queryTokens);
@@ -253,8 +286,20 @@ describe('BM25 with exact phrase tokens', () => {
         const { scoreMemories } = await import('../../src/retrieval/math.js');
 
         const memories = [
-            { id: '1', summary: 'The King Aldric ruled wisely', tokens: ['king', 'aldr', 'rule', 'wis'], message_ids: [100], importance: 3 },
-            { id: '2', summary: 'Aldric was a great ruler', tokens: ['aldr', 'great', 'ruler'], message_ids: [100], importance: 3 },
+            {
+                id: '1',
+                summary: 'The King Aldric ruled wisely',
+                tokens: ['king', 'aldr', 'rule', 'wis'],
+                message_ids: [100],
+                importance: 3,
+            },
+            {
+                id: '2',
+                summary: 'Aldric was a great ruler',
+                tokens: ['aldr', 'great', 'ruler'],
+                message_ids: [100],
+                importance: 3,
+            },
         ];
 
         const contextEmbedding = null;
@@ -265,7 +310,8 @@ describe('BM25 with exact phrase tokens', () => {
         // Query with both exact phrase "King Aldric" and stems
         const queryTokens = [
             'King Aldric', // Layer 0: exact phrase
-            'king', 'aldr' // Layer 1: stems
+            'king',
+            'aldr', // Layer 1: stems
         ];
 
         const scored = await scoreMemories(memories, contextEmbedding, chatLength, constants, settings, queryTokens);
@@ -279,8 +325,20 @@ describe('BM25 with exact phrase tokens', () => {
         const { scoreMemories } = await import('../../src/retrieval/math.js');
 
         const memories = [
-            { id: '1', summary: 'The brave knight fought', tokens: ['brave', 'knight', 'fought'], message_ids: [100], importance: 3 },
-            { id: '2', summary: 'The kingdom is at peace', tokens: ['kingdom', 'peace'], message_ids: [100], importance: 3 },
+            {
+                id: '1',
+                summary: 'The brave knight fought',
+                tokens: ['brave', 'knight', 'fought'],
+                message_ids: [100],
+                importance: 3,
+            },
+            {
+                id: '2',
+                summary: 'The kingdom is at peace',
+                tokens: ['kingdom', 'peace'],
+                message_ids: [100],
+                importance: 3,
+            },
         ];
 
         const contextEmbedding = null;
@@ -319,7 +377,7 @@ describe('Reflection decay with level divisor', () => {
             BASE_LAMBDA: 0.05,
             IMPORTANCE_5_FLOOR: 1.0,
             reflectionDecayThreshold: 750,
-            reflectionLevelMultiplier: 2.0  // NEW
+            reflectionLevelMultiplier: 2.0, // NEW
         };
         const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
 
@@ -346,7 +404,7 @@ describe('Reflection decay with level divisor', () => {
             BASE_LAMBDA: 0.05,
             IMPORTANCE_5_FLOOR: 1.0,
             reflectionDecayThreshold: 750,
-            reflectionLevelMultiplier: 2.0
+            reflectionLevelMultiplier: 2.0,
         };
         const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
 

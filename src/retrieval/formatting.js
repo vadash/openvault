@@ -4,8 +4,8 @@
  * Formats memories and character presence for injection into prompts.
  */
 
-import { countTokens } from '../utils/tokens.js';
 import { assignMemoriesToBuckets, getMemoryPosition } from '../utils/text.js';
+import { countTokens } from '../utils/tokens.js';
 
 // Re-export for external consumers
 export { assignMemoriesToBuckets, getMemoryPosition };
@@ -86,8 +86,8 @@ export function formatContextForInjection(
 
     // Separate memories into events and reflections for different XML blocks
     // Treat memories without a type field as events (backward compatibility)
-    const events = memories.filter(m => !m.type || m.type === 'event');
-    const reflections = memories.filter(m => m.type === 'reflection');
+    const events = memories.filter((m) => !m.type || m.type === 'event');
+    const reflections = memories.filter((m) => m.type === 'reflection');
 
     // Assign only events to buckets (reflections go to subconscious_drives)
     const buckets = assignMemoriesToBuckets(events, chatLength);
@@ -222,7 +222,9 @@ export function formatContextForInjection(
     if (reflections.length > 0) {
         lines.push('');
         lines.push('<subconscious_drives>');
-        lines.push('[CRITICAL RULE: The following are hidden psychological truths. The character is NOT consciously aware of these dynamics and would NEVER speak them aloud. Use this ONLY as subtext to influence their subtle actions and emotional reactions.]');
+        lines.push(
+            '[CRITICAL RULE: The following are hidden psychological truths. The character is NOT consciously aware of these dynamics and would NEVER speak them aloud. Use this ONLY as subtext to influence their subtle actions and emotional reactions.]'
+        );
         lines.push('');
         for (const ref of reflections) {
             const importance = ref.importance || 3;

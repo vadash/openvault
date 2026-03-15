@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { CONSOLIDATION, extensionName, defaultSettings } from '../../src/constants.js';
+import { defaultSettings, extensionName } from '../../src/constants.js';
 import { getDocumentEmbedding } from '../../src/embeddings.js';
 import {
     consolidateEdges,
@@ -276,13 +276,13 @@ describe('upsertRelationship', () => {
         upsertEntity(graph, 'Bob', 'PERSON', 'Merchant');
 
         upsertRelationship(graph, 'Alice', 'Bob', 'Met at tavern', 5);
-        expect(graph.edges['alice__bob']._descriptionTokens).toBeDefined();
-        expect(graph.edges['alice__bob']._descriptionTokens).toBeGreaterThan(0);
+        expect(graph.edges.alice__bob._descriptionTokens).toBeDefined();
+        expect(graph.edges.alice__bob._descriptionTokens).toBeGreaterThan(0);
 
         // After adding more, token count increases
-        const initialTokens = graph.edges['alice__bob']._descriptionTokens;
+        const initialTokens = graph.edges.alice__bob._descriptionTokens;
         upsertRelationship(graph, 'Alice', 'Bob', 'Traded goods', 5);
-        expect(graph.edges['alice__bob']._descriptionTokens).toBeGreaterThan(initialTokens);
+        expect(graph.edges.alice__bob._descriptionTokens).toBeGreaterThan(initialTokens);
     });
 
     it('marks edge for consolidation when token threshold exceeded', () => {
@@ -292,7 +292,10 @@ describe('upsertRelationship', () => {
 
         // Create an edge with bloated description
         // Use real text to ensure token count is accurate
-        const longDesc = 'Alice and Bob have a very long and detailed relationship history that spans many years and involves numerous events. '.repeat(10);
+        const longDesc =
+            'Alice and Bob have a very long and detailed relationship history that spans many years and involves numerous events. '.repeat(
+                10
+            );
         const settings = { consolidationTokenThreshold: 50 }; // Lower threshold for testing
 
         upsertRelationship(graph, 'Alice', 'Bob', longDesc, 5, settings);
@@ -713,14 +716,14 @@ describe('markEdgeForConsolidation', () => {
         const graph = { nodes: {}, edges: {}, _edgesNeedingConsolidation: [] };
         graph.nodes.alice = { name: 'Alice', type: 'PERSON', description: 'test', mentions: 1 };
         graph.nodes.bob = { name: 'Bob', type: 'PERSON', description: 'test', mentions: 1 };
-        graph.edges['alice__bob'] = { source: 'alice', target: 'bob', description: 'test', weight: 1 };
+        graph.edges.alice__bob = { source: 'alice', target: 'bob', description: 'test', weight: 1 };
 
         markEdgeForConsolidation(graph, 'alice__bob');
         expect(graph._edgesNeedingConsolidation).toContain('alice__bob');
 
         // Duplicate add is idempotent
         markEdgeForConsolidation(graph, 'alice__bob');
-        expect(graph._edgesNeedingConsolidation.filter(e => e === 'alice__bob')).toHaveLength(1);
+        expect(graph._edgesNeedingConsolidation.filter((e) => e === 'alice__bob')).toHaveLength(1);
     });
 });
 
@@ -729,33 +732,31 @@ describe('consolidateEdges', () => {
         const { callLLM: mockCallLLM } = await import('../../src/llm.js');
         const { isEmbeddingsEnabled } = await import('../../src/embeddings.js');
 
-        mockCallLLM.mockResolvedValue(
-            JSON.stringify({ consolidated_description: 'From strangers to battle allies' })
-        );
+        mockCallLLM.mockResolvedValue(JSON.stringify({ consolidated_description: 'From strangers to battle allies' }));
         isEmbeddingsEnabled.mockReturnValue(false);
 
         const graph = {
             nodes: {
                 alice: { name: 'Alice', type: 'PERSON', description: 'test', mentions: 1, embedding_b64: null },
-                bob: { name: 'Bob', type: 'PERSON', description: 'test', mentions: 1, embedding_b64: null }
+                bob: { name: 'Bob', type: 'PERSON', description: 'test', mentions: 1, embedding_b64: null },
             },
             edges: {
-                'alice__bob': {
+                alice__bob: {
                     source: 'alice',
                     target: 'bob',
                     description: 'Met | Traded | Fought | Celebrated | Parted',
                     weight: 5,
-                    _descriptionTokens: 600
-                }
+                    _descriptionTokens: 600,
+                },
             },
-            _edgesNeedingConsolidation: ['alice__bob']
+            _edgesNeedingConsolidation: ['alice__bob'],
         };
 
         const mockSettings = { consolidationTokenThreshold: 500 };
 
         const result = await consolidateEdges(graph, mockSettings);
         expect(result).toBe(1);
-        expect(graph.edges['alice__bob'].description).toBe('From strangers to battle allies');
+        expect(graph.edges.alice__bob.description).toBe('From strangers to battle allies');
         expect(graph._edgesNeedingConsolidation).toHaveLength(0);
     });
 
@@ -763,18 +764,18 @@ describe('consolidateEdges', () => {
         const graph = {
             nodes: {
                 alice: { name: 'Alice', type: 'PERSON', description: 'test', mentions: 1 },
-                bob: { name: 'Bob', type: 'PERSON', description: 'test', mentions: 1 }
+                bob: { name: 'Bob', type: 'PERSON', description: 'test', mentions: 1 },
             },
             edges: {
-                'alice__bob': {
+                alice__bob: {
                     source: 'alice',
                     target: 'bob',
                     description: 'Met',
                     weight: 1,
-                    _descriptionTokens: 5
-                }
+                    _descriptionTokens: 5,
+                },
             },
-            _edgesNeedingConsolidation: []
+            _edgesNeedingConsolidation: [],
         };
 
         const result = await consolidateEdges(graph, {});
@@ -785,15 +786,13 @@ describe('consolidateEdges', () => {
         const { callLLM: mockCallLLM } = await import('../../src/llm.js');
         const { isEmbeddingsEnabled } = await import('../../src/embeddings.js');
 
-        mockCallLLM.mockResolvedValue(
-            JSON.stringify({ consolidated_description: 'Consolidated' })
-        );
+        mockCallLLM.mockResolvedValue(JSON.stringify({ consolidated_description: 'Consolidated' }));
         isEmbeddingsEnabled.mockReturnValue(false);
 
         const graph = {
             nodes: {},
             edges: {},
-            _edgesNeedingConsolidation: []
+            _edgesNeedingConsolidation: [],
         };
 
         // Create 15 edges over the threshold (MAX_CONSOLIDATION_BATCH is 10)
@@ -807,7 +806,7 @@ describe('consolidateEdges', () => {
                 target: tgt,
                 description: 'Long description',
                 weight: 1,
-                _descriptionTokens: 600
+                _descriptionTokens: 600,
             };
             graph._edgesNeedingConsolidation.push(`${src}__${tgt}`);
         }
@@ -835,20 +834,20 @@ describe('shouldMergeEntities', () => {
         // cosine=0.90, threshold=0.94, greyZoneFloor=0.84 → grey zone
         // tokensA='vova house', keyB='vova apartment' → 'vova' overlaps → pass
         const tokensA = new Set(['vova', 'house']);
-        expect(shouldMergeEntities(0.90, 0.94, tokensA, 'vova house', 'vova apartment')).toBe(true);
+        expect(shouldMergeEntities(0.9, 0.94, tokensA, 'vova house', 'vova apartment')).toBe(true);
     });
 
     it('returns false in grey zone when token overlap fails', () => {
         // cosine=0.90, threshold=0.94, greyZoneFloor=0.84 → grey zone
         // tokensA='alpha', keyB='omega' → no overlap → fail
         const tokensA = new Set(['alpha']);
-        expect(shouldMergeEntities(0.90, 0.94, tokensA, 'alpha', 'omega')).toBe(false);
+        expect(shouldMergeEntities(0.9, 0.94, tokensA, 'alpha', 'omega')).toBe(false);
     });
 
     it('returns false when cosine is below grey zone', () => {
         // cosine=0.80, threshold=0.94, greyZoneFloor=0.84 → below grey zone
         const tokensA = new Set(['king', 'aldric']);
-        expect(shouldMergeEntities(0.80, 0.94, tokensA, 'king aldric', 'king aldric')).toBe(false);
+        expect(shouldMergeEntities(0.8, 0.94, tokensA, 'king aldric', 'king aldric')).toBe(false);
     });
 
     it('does not construct tokensB when cosine is above threshold', () => {
@@ -860,17 +859,17 @@ describe('shouldMergeEntities', () => {
     it('does not construct tokensB when cosine is below grey zone', () => {
         // cosine=0.70, threshold=0.94 → below 0.84 floor → skip
         const tokensA = new Set(['king']);
-        expect(shouldMergeEntities(0.70, 0.94, tokensA, 'king', 'king')).toBe(false);
+        expect(shouldMergeEntities(0.7, 0.94, tokensA, 'king', 'king')).toBe(false);
     });
 
     it('respects custom threshold values', () => {
         // threshold=0.80, greyZoneFloor=0.70
         const tokensA = new Set(['castle']);
         // cosine=0.82 → above 0.80 threshold → true
-        expect(shouldMergeEntities(0.82, 0.80, tokensA, 'castle', 'fortress')).toBe(true);
+        expect(shouldMergeEntities(0.82, 0.8, tokensA, 'castle', 'fortress')).toBe(true);
         // cosine=0.75 → grey zone (0.70-0.80) → depends on token overlap
-        expect(shouldMergeEntities(0.75, 0.80, tokensA, 'castle', 'fortress')).toBe(false); // no overlap
+        expect(shouldMergeEntities(0.75, 0.8, tokensA, 'castle', 'fortress')).toBe(false); // no overlap
         // cosine=0.65 → below 0.70 floor → false
-        expect(shouldMergeEntities(0.65, 0.80, tokensA, 'castle', 'castle')).toBe(false);
+        expect(shouldMergeEntities(0.65, 0.8, tokensA, 'castle', 'castle')).toBe(false);
     });
 });

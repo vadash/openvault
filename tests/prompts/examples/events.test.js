@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getExamples } from '../../../src/prompts/events/examples/index.js';
+
 const EVENT_EXAMPLES = getExamples('auto');
 
 describe('EVENT_EXAMPLES', () => {

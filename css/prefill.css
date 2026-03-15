@@ -82,7 +82,7 @@
 }
 
 .openvault-prefill-option.selected::before {
-    content: "\2713 \a0";
+    content: "\2713 a0";
 }
 
 .openvault-prefill-preview {

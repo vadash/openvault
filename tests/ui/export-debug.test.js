@@ -74,7 +74,9 @@ vi.mock('../../src/perf/store.js', () => ({
 
 // Must import after mocks
 const { buildExportPayload } = await import('../../src/ui/export-debug.js');
-const { cacheRetrievalDebug, clearRetrievalDebug, cacheScoringDetails } = await import('../../src/retrieval/debug-cache.js');
+const { cacheRetrievalDebug, clearRetrievalDebug, cacheScoringDetails } = await import(
+    '../../src/retrieval/debug-cache.js'
+);
 
 describe('buildExportPayload', () => {
     beforeEach(() => {
@@ -109,7 +111,11 @@ describe('buildExportPayload', () => {
 
     it('excludes embeddings from relevant graph nodes', () => {
         cacheRetrievalDebug({
-            queryContext: { entities: ['Alice'], embeddingQuery: '', bm25Tokens: { total: 0, entityStems: 0, grounded: 0, nonGrounded: 0 } },
+            queryContext: {
+                entities: ['Alice'],
+                embeddingQuery: '',
+                bm25Tokens: { total: 0, entityStems: 0, grounded: 0, nonGrounded: 0 },
+            },
         });
         const payload = buildExportPayload();
         expect(payload.state.graph.relevant.nodes.alice).toBeDefined();
@@ -160,7 +166,11 @@ describe('buildExportPayload', () => {
     describe('graph filtering', () => {
         it('shows relevant section with matched entities when retrieval cached', () => {
             cacheRetrievalDebug({
-                queryContext: { entities: ['Alice'], embeddingQuery: 'test', bm25Tokens: { total: 0, entityStems: 0, grounded: 0, nonGrounded: 0 } },
+                queryContext: {
+                    entities: ['Alice'],
+                    embeddingQuery: 'test',
+                    bm25Tokens: { total: 0, entityStems: 0, grounded: 0, nonGrounded: 0 },
+                },
             });
             const payload = buildExportPayload();
             expect(payload.state.graph.relevant).toBeDefined();
@@ -173,7 +183,11 @@ describe('buildExportPayload', () => {
 
         it('omits graph.raw (replaced by relevant)', () => {
             cacheRetrievalDebug({
-                queryContext: { entities: ['Alice'], embeddingQuery: 'test', bm25Tokens: { total: 0, entityStems: 0, grounded: 0, nonGrounded: 0 } },
+                queryContext: {
+                    entities: ['Alice'],
+                    embeddingQuery: 'test',
+                    bm25Tokens: { total: 0, entityStems: 0, grounded: 0, nonGrounded: 0 },
+                },
             });
             const payload = buildExportPayload();
             expect(payload.state.graph.raw).toBeUndefined();
@@ -194,14 +208,54 @@ describe('buildExportPayload', () => {
         function setupScoringCache() {
             const results = [
                 {
-                    memory: { id: 's1', type: 'event', summary: 'Selected memory one', retrieval_hits: 3, mentions: 2, characters_involved: ['Alice'] },
+                    memory: {
+                        id: 's1',
+                        type: 'event',
+                        summary: 'Selected memory one',
+                        retrieval_hits: 3,
+                        mentions: 2,
+                        characters_involved: ['Alice'],
+                    },
                     score: 5.12345,
-                    breakdown: { base: 2.34567, baseAfterFloor: 2.34567, recencyPenalty: 0, vectorSimilarity: 0.71234, vectorBonus: 1.56789, bm25Score: 0.45678, bm25Bonus: 1.23456, hitDamping: 0.67, frequencyFactor: 1.035, total: 5.12345, distance: 42, importance: 4 },
+                    breakdown: {
+                        base: 2.34567,
+                        baseAfterFloor: 2.34567,
+                        recencyPenalty: 0,
+                        vectorSimilarity: 0.71234,
+                        vectorBonus: 1.56789,
+                        bm25Score: 0.45678,
+                        bm25Bonus: 1.23456,
+                        hitDamping: 0.67,
+                        frequencyFactor: 1.035,
+                        total: 5.12345,
+                        distance: 42,
+                        importance: 4,
+                    },
                 },
                 {
-                    memory: { id: 'r1', type: 'event', summary: 'Rejected memory', retrieval_hits: 0, mentions: 1, characters_involved: ['Bob'] },
+                    memory: {
+                        id: 'r1',
+                        type: 'event',
+                        summary: 'Rejected memory',
+                        retrieval_hits: 0,
+                        mentions: 1,
+                        characters_involved: ['Bob'],
+                    },
                     score: 1.0,
-                    breakdown: { base: 0.98765, baseAfterFloor: 0.98765, recencyPenalty: 0, vectorSimilarity: 0, vectorBonus: 0, bm25Score: 0, bm25Bonus: 0, hitDamping: 1, frequencyFactor: 1, total: 1.0, distance: 150, importance: 2 },
+                    breakdown: {
+                        base: 0.98765,
+                        baseAfterFloor: 0.98765,
+                        recencyPenalty: 0,
+                        vectorSimilarity: 0,
+                        vectorBonus: 0,
+                        bm25Score: 0,
+                        bm25Bonus: 0,
+                        hitDamping: 1,
+                        frequencyFactor: 1,
+                        total: 1.0,
+                        distance: 150,
+                        importance: 2,
+                    },
                 },
             ];
             cacheScoringDetails(results, new Set(['s1']));

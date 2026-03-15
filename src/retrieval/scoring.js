@@ -9,11 +9,17 @@ import { extensionName } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { logDebug } from '../utils/logging.js';
-import { sliceToTokenBudget, assignMemoriesToBuckets, getMemoryPosition } from '../utils/text.js';
+import { assignMemoriesToBuckets, getMemoryPosition } from '../utils/text.js';
 import { countTokens } from '../utils/tokens.js';
 import { cacheRetrievalDebug, cacheScoringDetails } from './debug-cache.js';
 import { scoreMemories } from './math.js';
-import { buildBM25Tokens, buildCorpusVocab, buildEmbeddingQuery, extractQueryContext, parseRecentMessages } from './query-context.js';
+import {
+    buildBM25Tokens,
+    buildCorpusVocab,
+    buildEmbeddingQuery,
+    extractQueryContext,
+    parseRecentMessages,
+} from './query-context.js';
 
 /**
  * Build scoring parameters from extension settings
@@ -96,17 +102,12 @@ async function selectRelevantMemoriesSimple(memories, ctx, limit, allHiddenMemor
     const embeddingQuery = buildEmbeddingQuery(userMessagesForEmbedding, queryContext);
 
     // Event gate: skip BM25 pipeline when no events in candidates
-    const hasEvents = memories.some(m => m.type === 'event');
+    const hasEvents = memories.some((m) => m.type === 'event');
 
     let bm25Tokens = [];
     const bm25Meta = {};
     if (hasEvents) {
-        const corpusVocab = buildCorpusVocab(
-            memories,
-            allHiddenMemories,
-            ctx.graphNodes || {},
-            ctx.graphEdges || {}
-        );
+        const corpusVocab = buildCorpusVocab(memories, allHiddenMemories, ctx.graphNodes || {}, ctx.graphEdges || {});
         bm25Tokens = buildBM25Tokens(userMessages, queryContext, corpusVocab, bm25Meta);
     }
 
@@ -163,7 +164,7 @@ export function selectMemoriesWithSoftBalance(
     scoredMemories,
     tokenBudget,
     chatLength,
-    minRepresentation = 0.20,
+    minRepresentation = 0.2,
     softBalanceBudget = 0.05
 ) {
     if (!scoredMemories || scoredMemories.length === 0) return [];
@@ -216,9 +217,11 @@ export function selectMemoriesWithSoftBalance(
                 const isMid = position >= chatLength - 500 && !isRecent;
                 const isOld = !isRecent && !isMid;
 
-                if ((bucketName === 'old' && isOld) ||
+                if (
+                    (bucketName === 'old' && isOld) ||
                     (bucketName === 'mid' && isMid) ||
-                    (bucketName === 'recent' && isRecent)) {
+                    (bucketName === 'recent' && isRecent)
+                ) {
                     phase2Selected.push(memory);
                     totalTokens += memTokens;
                     bucketCounts[bucketName] += memTokens;
@@ -268,8 +271,7 @@ export async function selectRelevantMemories(memories, ctx) {
     const beforeBuckets = assignMemoriesToBuckets(scoredMemories, ctx.chatLength);
     const afterBuckets = assignMemoriesToBuckets(finalResults, ctx.chatLength);
 
-    const countTokens = (bucket) =>
-        bucket.reduce((sum, m) => sum + (m.summary?.length || 0), 0); // Approximation
+    const countTokens = (bucket) => bucket.reduce((sum, m) => sum + (m.summary?.length || 0), 0); // Approximation
 
     // Cache token budget utilization and bucket distribution for debug export
     cacheRetrievalDebug({

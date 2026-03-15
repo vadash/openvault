@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
     _testStripMarkdown,
+    GlobalSynthesisSchema,
     getEventExtractionJsonSchema,
     getGraphExtractionJsonSchema,
     parseCommunitySummaryResponse,
     parseEvent,
     parseEventExtractionResponse,
+    parseGlobalSynthesisResponse,
     parseGraphExtractionResponse,
     parseUnifiedReflectionResponse,
-    parseGlobalSynthesisResponse,
-    GlobalSynthesisSchema,
 } from '../../src/extraction/structured.js';
 
 describe('stripMarkdown edge cases', () => {

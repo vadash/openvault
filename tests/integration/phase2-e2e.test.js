@@ -8,26 +8,25 @@
  * - Backward compatibility
  */
 
-import { describe, expect, it, beforeEach, vi, afterEach } from 'vitest';
-import { formatContextForInjection } from '../../src/retrieval/formatting.js';
-import { retrieveWorldContext, detectMacroIntent } from '../../src/retrieval/world-context.js';
-import { generateGlobalWorldState } from '../../src/graph/communities.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDeps } from '../../src/deps.js';
+import { generateGlobalWorldState } from '../../src/graph/communities.js';
+import { formatContextForInjection } from '../../src/retrieval/formatting.js';
+import { detectMacroIntent, retrieveWorldContext } from '../../src/retrieval/world-context.js';
 
 // Mock LLM
 const mockCallLLM = vi.fn();
 vi.mock('../../src/llm.js', () => ({
     callLLM: (...args) => mockCallLLM(...args),
     LLM_CONFIGS: {
-        community: { profileSettingKey: 'extractionProfile' }
-    }
+        community: { profileSettingKey: 'extractionProfile' },
+    },
 }));
 
 describe('Phase 2 End-to-End Integration', () => {
-
     beforeEach(() => {
         setupTestContext({
-            deps: { Date: { now: () => 2000000 } }
+            deps: { Date: { now: () => 2000000 } },
         });
         mockCallLLM.mockReset();
     });
@@ -38,13 +37,24 @@ describe('Phase 2 End-to-End Integration', () => {
     });
 
     describe('Subconscious Drives Formatting', () => {
-
         it('should separate reflections into <subconscious_drives> block', () => {
             const memories = [
                 { id: 'ev_1', type: 'event', summary: 'Alice went to the market', importance: 3, sequence: 1000 },
                 { id: 'ev_2', type: 'event', summary: 'Alice met Bob at the fountain', importance: 3, sequence: 2000 },
-                { id: 'ref_1', type: 'reflection', summary: 'Alice secretly fears abandonment due to childhood trauma', importance: 4, sequence: 1500 },
-                { id: 'ref_2', type: 'reflection', summary: 'Alice seeks validation through romantic relationships', importance: 3, sequence: 2500 },
+                {
+                    id: 'ref_1',
+                    type: 'reflection',
+                    summary: 'Alice secretly fears abandonment due to childhood trauma',
+                    importance: 4,
+                    sequence: 1500,
+                },
+                {
+                    id: 'ref_2',
+                    type: 'reflection',
+                    summary: 'Alice seeks validation through romantic relationships',
+                    importance: 3,
+                    sequence: 2500,
+                },
             ];
             const presentCharacters = ['Bob'];
             const emotionalInfo = null;
@@ -52,7 +62,12 @@ describe('Phase 2 End-to-End Integration', () => {
             const chatLength = 100;
 
             const result = formatContextForInjection(
-                memories, presentCharacters, emotionalInfo, 'Alice', tokenBudget, chatLength
+                memories,
+                presentCharacters,
+                emotionalInfo,
+                'Alice',
+                tokenBudget,
+                chatLength
             );
 
             // Should contain scene_memory with events only
@@ -80,9 +95,7 @@ describe('Phase 2 End-to-End Integration', () => {
             const memories = [
                 { id: 'ev_1', type: 'event', summary: 'Alice walked to the store', importance: 3, sequence: 1000 },
             ];
-            const result = formatContextForInjection(
-                memories, [], null, 'Alice', 1000, 100
-            );
+            const result = formatContextForInjection(memories, [], null, 'Alice', 1000, 100);
 
             expect(result).toContain('<scene_memory>');
             expect(result).not.toContain('<subconscious_drives>');
@@ -90,12 +103,8 @@ describe('Phase 2 End-to-End Integration', () => {
 
         it('should handle backward compatibility (memories without type field)', () => {
             // Old memories without type field should be treated as events
-            const memories = [
-                { id: 'ev_1', summary: 'Old memory without type', importance: 3, sequence: 1000 },
-            ];
-            const result = formatContextForInjection(
-                memories, [], null, 'Alice', 1000, 100
-            );
+            const memories = [{ id: 'ev_1', summary: 'Old memory without type', importance: 3, sequence: 1000 }];
+            const result = formatContextForInjection(memories, [], null, 'Alice', 1000, 100);
 
             expect(result).toContain('<scene_memory>');
             expect(result).toContain('Old memory without type');
@@ -104,24 +113,28 @@ describe('Phase 2 End-to-End Integration', () => {
     });
 
     describe('Global World State Generation', () => {
-
         it('should generate global world state from communities', async () => {
             const communities = [
                 {
                     title: 'The Royal Court',
-                    summary: 'Queen Elena navigates treacherous court politics while hiding her alliance with the northern rebels.',
+                    summary:
+                        'Queen Elena navigates treacherous court politics while hiding her alliance with the northern rebels.',
                     findings: ['The Queen fears betrayal', 'The Guard is loyal'],
                 },
                 {
                     title: 'Merchant Trade Network',
-                    summary: 'Eastern merchants have formed an embargo against the kingdom, threatening economic collapse.',
+                    summary:
+                        'Eastern merchants have formed an embargo against the kingdom, threatening economic collapse.',
                     findings: ['Trade routes are blocked', 'Prices are rising'],
                 },
             ];
 
-            mockCallLLM.mockResolvedValue(JSON.stringify({
-                global_summary: 'The kingdom faces internal collapse on two fronts. Queen Elena secretly supports northern rebels while maintaining court appearance, creating a powder keg if exposed. Simultaneously, the eastern merchant embargo has begun economic strangulation.'
-            }));
+            mockCallLLM.mockResolvedValue(
+                JSON.stringify({
+                    global_summary:
+                        'The kingdom faces internal collapse on two fronts. Queen Elena secretly supports northern rebels while maintaining court appearance, creating a powder keg if exposed. Simultaneously, the eastern merchant embargo has begun economic strangulation.',
+                })
+            );
 
             const result = await generateGlobalWorldState(communities, 'auto', 'auto', '{');
 
@@ -144,7 +157,6 @@ describe('Phase 2 End-to-End Integration', () => {
     });
 
     describe('Intent Detection & Routing', () => {
-
         it('should detect English macro intent keywords', () => {
             expect(detectMacroIntent('Can you summarize what happened so far?')).toBe(true);
             expect(detectMacroIntent('Give me a recap of the story')).toBe(true);
@@ -194,7 +206,7 @@ describe('Phase 2 End-to-End Integration', () => {
                     title: 'Community A',
                     summary: 'A local community about market encounters',
                     _embedding: 'AQIDBA==', // [0.1, 0.2, 0.3, 0.4] in base64
-                }
+                },
             };
             const queryEmbedding = new Float32Array([0.1, 0.2, 0.3, 0.4]);
             const userMessages = "Let's go to the kitchen";
@@ -227,12 +239,17 @@ describe('Phase 2 End-to-End Integration', () => {
     });
 
     describe('Full Pipeline Integration', () => {
-
         it('should complete full cycle: extraction → communities → global state → retrieval', async () => {
             // 1. Simulate chat growth resulting in reflections and communities
             const memories = [
                 { id: 'ev_1', type: 'event', summary: 'Alice betrayed Bob', importance: 4, sequence: 1000 },
-                { id: 'ref_1', type: 'reflection', summary: 'Alice feels guilt but cannot confess', importance: 4, sequence: 1500 },
+                {
+                    id: 'ref_1',
+                    type: 'reflection',
+                    summary: 'Alice feels guilt but cannot confess',
+                    importance: 4,
+                    sequence: 1500,
+                },
             ];
 
             // 2. Verify formatting separates reflections
@@ -249,22 +266,19 @@ describe('Phase 2 End-to-End Integration', () => {
                 },
             ];
 
-            mockCallLLM.mockResolvedValue(JSON.stringify({
-                global_summary: 'A love triangle with betrayal at its core. Alice betrayed Bob while loving Charlie, creating emotional tension that will inevitably explode.'
-            }));
+            mockCallLLM.mockResolvedValue(
+                JSON.stringify({
+                    global_summary:
+                        'A love triangle with betrayal at its core. Alice betrayed Bob while loving Charlie, creating emotional tension that will inevitably explode.',
+                })
+            );
 
             const globalState = await generateGlobalWorldState(communities, 'auto', 'auto', '{');
             expect(globalState.summary).toContain('love triangle');
 
             // 4. Verify macro-intent message retrieves global state
             const macroQuery = 'What is the story so far?';
-            const worldContext = retrieveWorldContext(
-                {},
-                globalState,
-                macroQuery,
-                new Float32Array([0.1]),
-                2000
-            );
+            const worldContext = retrieveWorldContext({}, globalState, macroQuery, new Float32Array([0.1]), 2000);
 
             expect(worldContext.text).toContain('<world_context>');
             expect(worldContext.text).toContain('love triangle');
@@ -272,7 +286,6 @@ describe('Phase 2 End-to-End Integration', () => {
     });
 
     describe('Backward Compatibility', () => {
-
         it('should handle chats without global_world_state', () => {
             const oldState = null;
             const communities = {};
@@ -286,9 +299,7 @@ describe('Phase 2 End-to-End Integration', () => {
         });
 
         it('should handle memories without type field (legacy data)', () => {
-            const legacyMemories = [
-                { id: 'old_1', summary: 'Old memory', importance: 3, sequence: 1000 },
-            ];
+            const legacyMemories = [{ id: 'old_1', summary: 'Old memory', importance: 3, sequence: 1000 }];
 
             const result = formatContextForInjection(legacyMemories, [], null, 'Alice', 1000, 100);
 

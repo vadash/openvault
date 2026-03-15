@@ -8,26 +8,35 @@ import {
     buildMessages,
     resolveLanguageInstruction,
 } from '../shared/formatters.js';
-import { UNIFIED_REFLECTION_ROLE } from './role.js';
-import { UNIFIED_REFLECTION_SCHEMA } from './schema.js';
-import { UNIFIED_REFLECTION_RULES } from './rules.js';
 import { getExamples } from './examples/index.js';
+import { UNIFIED_REFLECTION_ROLE } from './role.js';
+import { UNIFIED_REFLECTION_RULES } from './rules.js';
+import { UNIFIED_REFLECTION_SCHEMA } from './schema.js';
 
-export function buildUnifiedReflectionPrompt(characterName, recentMemories, preamble, outputLanguage = 'auto', prefill) {
+export function buildUnifiedReflectionPrompt(
+    characterName,
+    recentMemories,
+    preamble,
+    outputLanguage = 'auto',
+    prefill
+) {
     if (!prefill) {
         throw new Error('buildUnifiedReflectionPrompt: prefill is required');
     }
 
-    const hasOldReflections = recentMemories.some(m => m.type === 'reflection' && (m.level || 1) >= 1);
+    const hasOldReflections = recentMemories.some((m) => m.type === 'reflection' && (m.level || 1) >= 1);
 
-    const memoryList = recentMemories.map((m) => {
-        const importance = '★'.repeat(m.importance || 3);
-        const levelIndicator = m.type === 'reflection' ? ` [Ref L${m.level || 1}]` : '';
-        return `${m.id}. [${importance}]${levelIndicator} ${m.summary}`;
-    }).join('\n');
+    const memoryList = recentMemories
+        .map((m) => {
+            const importance = '★'.repeat(m.importance || 3);
+            const levelIndicator = m.type === 'reflection' ? ` [Ref L${m.level || 1}]` : '';
+            return `${m.id}. [${importance}]${levelIndicator} ${m.summary}`;
+        })
+        .join('\n');
 
     const rules = hasOldReflections
-        ? UNIFIED_REFLECTION_RULES + '\n\nLEVEL-AWARE SYNTHESIS:\n' +
+        ? UNIFIED_REFLECTION_RULES +
+          '\n\nLEVEL-AWARE SYNTHESIS:\n' +
           '5. Some candidate memories are existing reflections (marked [Ref L1], [Ref L2], etc.).\n' +
           '6. You may synthesize multiple existing reflections into higher-level insights (Level 2+).\n' +
           '7. Level 2 reflections should distill common patterns across multiple Level 1 reflections.\n' +

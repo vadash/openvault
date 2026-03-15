@@ -13,7 +13,8 @@ import { cosineSimilarity } from './math.js';
  * Matches keywords that indicate user wants a global summary rather than local context.
  * English + Russian triggers as per Phase 2 design.
  */
-const MACRO_INTENT_REGEX = /(summarize|recap|story so far|overall|time skip|what has happened|lately|dynamic|вкратце|что было|расскажи|итог|наполни|напомни)/i;
+const MACRO_INTENT_REGEX =
+    /(summarize|recap|story so far|overall|time skip|what has happened|lately|dynamic|вкратце|что было|расскажи|итог|наполни|напомни)/i;
 
 /**
  * Detect if user message indicates macro-intent (global summary needed).
