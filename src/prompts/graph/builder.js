@@ -1,0 +1,87 @@
+/**
+ * Graph extraction and edge consolidation prompt builders.
+ */
+
+import {
+    assembleSystemPrompt,
+    buildMessages,
+    formatCharacters,
+    resolveLanguageInstruction,
+} from '../shared/formatters.js';
+import { GRAPH_ROLE, EDGE_CONSOLIDATION_ROLE } from './role.js';
+import { GRAPH_SCHEMA, EDGE_CONSOLIDATION_SCHEMA } from './schema.js';
+import { GRAPH_RULES, EDGE_CONSOLIDATION_RULES } from './rules.js';
+import { getExamples } from './examples/index.js';
+
+export function buildGraphExtractionPrompt({
+    messages,
+    names,
+    extractedEvents = [],
+    context = {},
+    preamble,
+    prefill,
+    outputLanguage = 'auto',
+}) {
+    if (!prefill) {
+        throw new Error('buildGraphExtractionPrompt: prefill is required');
+    }
+    const { char: characterName, user: userName } = names;
+    const { charDesc: characterDescription = '', personaDesc: personaDescription = '' } = context;
+
+    const systemPrompt = assembleSystemPrompt({
+        role: GRAPH_ROLE,
+        schema: GRAPH_SCHEMA,
+        rules: GRAPH_RULES,
+        examples: getExamples(outputLanguage),
+        outputLanguage,
+    });
+
+    const charactersSection = formatCharacters(characterName, userName, characterDescription, personaDescription);
+    const contextSection = charactersSection ? `<context>\n${charactersSection}\n</context>\n` : '';
+    const eventsSection =
+        extractedEvents.length > 0 ? `<extracted_events>\n${extractedEvents.join('\n')}\n</extracted_events>\n` : '';
+
+    const languageInstruction = resolveLanguageInstruction(messages, outputLanguage);
+    const userPrompt = `${contextSection}
+<messages>
+${messages}
+</messages>
+
+${eventsSection}${languageInstruction}
+Based on the messages${extractedEvents.length > 0 ? ' and extracted events above' : ''}, extract named entities and relationships.
+Use EXACT character names: ${characterName}, ${userName}. Never transliterate these names into another script.
+Respond with a single JSON object containing 'entities' and 'relationships' keys. No other text.`;
+
+    return buildMessages(systemPrompt, userPrompt, prefill, preamble);
+}
+
+export function buildEdgeConsolidationPrompt(edgeData, preamble, outputLanguage = 'auto', prefill) {
+    if (!prefill) {
+        throw new Error('buildEdgeConsolidationPrompt: prefill is required');
+    }
+
+    const systemPrompt = assembleSystemPrompt({
+        role: EDGE_CONSOLIDATION_ROLE,
+        schema: EDGE_CONSOLIDATION_SCHEMA,
+        rules: EDGE_CONSOLIDATION_RULES,
+        examples: [],
+        outputLanguage,
+    });
+
+    const segments = edgeData.description.split(' | ');
+    const segmentText = segments.map((s, i) => `${i + 1}. ${s}`).join('\n');
+    const languageInstruction = resolveLanguageInstruction(segmentText, outputLanguage);
+    const userPrompt = `<edge_data>
+Source: ${edgeData.source}
+Target: ${edgeData.target}
+Weight: ${edgeData.weight}
+
+Timeline segments:
+${segmentText}
+</edge_data>
+${languageInstruction}
+Synthesize these relationship developments into ONE unified description.
+Respond with a single JSON object containing "consolidated_description". No other text.`;
+
+    return buildMessages(systemPrompt, userPrompt, prefill, preamble);
+}
