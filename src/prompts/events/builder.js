@@ -8,7 +8,7 @@ import {
     formatCharacters,
     formatEstablishedMemories,
     resolveLanguageInstruction,
-} from '../formatters.js';
+} from '../shared/formatters.js';
 import { EVENT_ROLE } from './role.js';
 import { EVENT_SCHEMA } from './schema.js';
 import { EVENT_RULES } from './rules.js';

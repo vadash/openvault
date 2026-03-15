@@ -6,7 +6,7 @@ import {
     assembleSystemPrompt,
     buildMessages,
     resolveLanguageInstruction,
-} from '../formatters.js';
+} from '../shared/formatters.js';
 import { UNIFIED_REFLECTION_ROLE } from './role.js';
 import { UNIFIED_REFLECTION_SCHEMA } from './schema.js';
 import { UNIFIED_REFLECTION_RULES } from './rules.js';

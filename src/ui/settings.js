@@ -67,7 +67,7 @@ async function testOllamaConnection() {
     }, 3000);
 }
 
-import { PREFILL_PRESETS } from '../prompts/preambles.js';
+import { PREFILL_PRESETS } from '../prompts/index.js';
 import { deleteCurrentChatData, getOpenVaultData } from '../utils/data.js';
 import { showToast } from '../utils/dom.js';
 
