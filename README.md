@@ -16,6 +16,8 @@ It runs entirely in the browser. No external databases, no cloud services, no se
 
 11.00 - refactored tests (easier to maintain), prep for more lang
 
+11.50 - fixed memory balance (old / mid / new memories distribution), faster graph generation, less delay after send before llm answers 
+
 ## What It Does
 
 During a conversation, OpenVault silently works in the background:
