@@ -1,5 +1,84 @@
 import { describe, expect, it } from 'vitest';
 
+// Default constants reused across scoring tests
+const DEFAULT_CONSTANTS = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 };
+const DEFAULT_SETTINGS = {
+  vectorSimilarityThreshold: 0.5,
+  alpha: 0.7,
+  combinedBoostWeight: 15,
+};
+
+describe('calculateScore - parameterized alpha-blend', () => {
+  const SCORE_CASES = [
+    {
+      name: 'BM25 bonus capped at (1-alpha) * weight',
+      memory: { importance: 3, message_ids: [50], embedding: [1, 0, 0] },
+      contextEmbedding: [1, 0, 0],
+      chatPosition: 100,
+      settings: { alpha: 0.7, combinedBoostWeight: 15 },
+      normalizedBm25: 1.0,
+      expect: { field: 'bm25Bonus', closeTo: 4.5, precision: 1 },
+    },
+    {
+      name: 'vector bonus uses alpha * weight',
+      memory: { importance: 3, message_ids: [100], embedding: [1, 0, 0] },
+      contextEmbedding: [1, 0, 0],
+      chatPosition: 100,
+      settings: { alpha: 0.7, combinedBoostWeight: 15 },
+      normalizedBm25: 0,
+      expect: { field: 'vectorBonus', closeTo: 10.5, precision: 1 },
+    },
+    {
+      name: 'respects vector similarity threshold',
+      memory: { importance: 3, message_ids: [100], embedding: [1, 0] },
+      contextEmbedding: [0, 1], // sim = 0 (orthogonal)
+      chatPosition: 100,
+      settings: { vectorSimilarityThreshold: 0.5, alpha: 0.7, combinedBoostWeight: 15 },
+      normalizedBm25: 0,
+      expect: { field: 'vectorBonus', toBe: 0 },
+    },
+    {
+      name: 'importance-5 uses soft floor of 1.0',
+      memory: { importance: 5, message_ids: [10], embedding: null },
+      contextEmbedding: null,
+      chatPosition: 1000, // distance 990
+      settings: {},
+      normalizedBm25: 0,
+      expect: [
+        { field: 'baseAfterFloor', gte: 1.0 },
+        { field: 'baseAfterFloor', lt: 5.0 },
+      ],
+    },
+  ];
+
+  it.each(SCORE_CASES)('$name', async ({
+    memory, contextEmbedding, chatPosition, settings, normalizedBm25, expect: exp
+  }) => {
+    const { calculateScore } = await import('../../src/retrieval/math.js');
+    const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
+    const result = calculateScore(
+      memory, contextEmbedding, chatPosition,
+      DEFAULT_CONSTANTS, mergedSettings, normalizedBm25
+    );
+
+    const expectations = Array.isArray(exp) ? exp : [exp];
+    for (const e of expectations) {
+      if (e.closeTo !== undefined) {
+        expect(result[e.field]).toBeCloseTo(e.closeTo, e.precision);
+      }
+      if (e.toBe !== undefined) {
+        expect(result[e.field]).toBe(e.toBe);
+      }
+      if (e.gte !== undefined) {
+        expect(result[e.field]).toBeGreaterThanOrEqual(e.gte);
+      }
+      if (e.lt !== undefined) {
+        expect(result[e.field]).toBeLessThan(e.lt);
+      }
+    }
+  });
+});
+
 describe('Access-Reinforced Decay (hitDamping)', () => {
     it('should return hitDamping=1.0 when retrieval_hits is 0', async () => {
         const { calculateScore } = await import('../../src/retrieval/math.js');
