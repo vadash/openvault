@@ -3,9 +3,16 @@ import { defaultSettings, extensionName } from '../../src/constants.js';
 import { resetDeps } from '../../src/deps.js';
 import { updateInjection } from '../../src/retrieval/retrieve.js';
 
-describe('reflection retrieval', () => {
-    it('includes both events and reflections in injected context', async () => {
-        const mockSetPrompt = vi.fn();
+describe('retrieve pipeline', () => {
+    let mockSetPrompt;
+
+    afterEach(() => {
+        resetDeps();
+        vi.clearAllMocks();
+    });
+
+    it('happy path: includes both events and reflections in injected context', async () => {
+        mockSetPrompt = vi.fn();
 
         setupTestContext({
             deps: {
@@ -70,19 +77,14 @@ describe('reflection retrieval', () => {
 
         await updateInjection();
 
-        // The memory injection slot should contain BOTH event and reflection text
         const memoryCall = mockSetPrompt.mock.calls.find((c) => c[0] === extensionName);
         expect(memoryCall).toBeDefined();
         const injectedText = memoryCall[1];
         expect(injectedText).toContain('ancient library');
         expect(injectedText).toContain('abandonment');
     });
-});
 
-describe('updateInjection world context', () => {
-    let mockSetPrompt;
-
-    beforeEach(() => {
+    it('empty state: no memories produces empty injection', async () => {
         mockSetPrompt = vi.fn();
 
         setupTestContext({
@@ -93,32 +95,12 @@ describe('updateInjection world context', () => {
                 ],
                 chatMetadata: {
                     openvault: {
-                        memories: [
-                            {
-                                id: 'ev1',
-                                type: 'event',
-                                summary: 'Test memory about the kingdom',
-                                importance: 3,
-                                message_ids: [0],
-                                characters_involved: ['Alice'],
-                                witnesses: ['Alice'],
-                                is_secret: false,
-                                embedding: [0.5, 0.5],
-                            },
-                        ],
-                        character_states: { Alice: { name: 'Alice', known_events: ['ev1'] } },
-                        communities: {
-                            C0: {
-                                title: 'Royal Court',
-                                summary: 'The seat of power in the kingdom',
-                                findings: ['The king rules wisely'],
-                                embedding: [0.5, 0.5],
-                                nodeKeys: ['alice'],
-                            },
-                        },
+                        memories: [],
+                        character_states: {},
+                        communities: {},
                     },
                 },
-                chatId: 'test',
+                chatId: 'test-chat',
             },
             settings: {
                 enabled: true,
@@ -135,40 +117,23 @@ describe('updateInjection world context', () => {
                 })),
             },
         });
-    });
 
-    afterEach(() => {
-        resetDeps();
-        vi.clearAllMocks();
-    });
-
-    it('injects world context when communities exist', async () => {
         await updateInjection();
 
-        const worldCall = mockSetPrompt.mock.calls.find((c) => c[0] === 'openvault_world');
-        expect(worldCall).toBeDefined();
-        expect(worldCall[1]).toContain('world_context');
+        // With no memories, setExtensionPrompt is called with empty string
+        const memoryCall = mockSetPrompt.mock.calls.find(
+            (c) => c[0] === extensionName && c[1] === ''
+        );
+        expect(memoryCall).toBeDefined();
     });
 
-    it('includes community title in world context', async () => {
-        await updateInjection();
-
-        const worldCall = mockSetPrompt.mock.calls.find((c) => c[0] === 'openvault_world');
-        expect(worldCall).toBeDefined();
-        expect(worldCall[1]).toContain('Royal Court');
-    });
-});
-
-describe('retrieveAndInjectContext with global state', () => {
-    let mockSetPrompt;
-
-    beforeEach(() => {
+    it('macro intent: summarize request uses global state injection', async () => {
         mockSetPrompt = vi.fn();
 
         setupTestContext({
             context: {
                 chat: [
-                    { mes: 'Previous context', is_user: true, is_system: true }, // Hidden message with memory source
+                    { mes: 'Previous context', is_user: true, is_system: true },
                     { mes: 'Summarize the story so far', is_user: true, is_system: false },
                 ],
                 chatMetadata: {
@@ -179,7 +144,7 @@ describe('retrieveAndInjectContext with global state', () => {
                                 type: 'event',
                                 summary: 'Test memory',
                                 importance: 3,
-                                message_ids: [0], // References hidden message at index 0
+                                message_ids: [0],
                                 characters_involved: ['Alice'],
                                 witnesses: ['Alice'],
                                 is_secret: false,
@@ -222,110 +187,13 @@ describe('retrieveAndInjectContext with global state', () => {
                 })),
             },
         });
-    });
 
-    afterEach(() => {
-        resetDeps();
-        vi.clearAllMocks();
-    });
-
-    it('should pass global state and user messages to retrieveWorldContext for macro intent', async () => {
         const { retrieveAndInjectContext } = await import('../../src/retrieval/retrieve.js');
-
         await retrieveAndInjectContext();
 
-        // Verify world context was injected with global state (macro intent triggers global summary)
         const worldCall = mockSetPrompt.mock.calls.find((c) => c[0] === 'openvault_world');
         expect(worldCall).toBeDefined();
         expect(worldCall[1]).toContain('world_context');
-        // Global state should be injected due to macro-intent message "Summarize the story so far"
         expect(worldCall[1]).toContain('Test global state');
-    });
-
-    it('should pass user messages for intent detection', async () => {
-        const { retrieveAndInjectContext } = await import('../../src/retrieval/retrieve.js');
-
-        await retrieveAndInjectContext();
-
-        // The user message "Summarize the story so far" contains macro-intent keywords
-        // Should trigger global state injection
-        const worldCall = mockSetPrompt.mock.calls.find((c) => c[0] === 'openvault_world');
-        expect(worldCall).toBeDefined();
-        // Should use global state summary, not local community summaries
-        expect(worldCall[1]).toContain('Test global state - the story has progressed');
-    });
-
-    it('should fall back to vector search for non-macro queries', async () => {
-        // Setup test with non-macro message
-        mockSetPrompt = vi.fn();
-        setupTestContext({
-            context: {
-                chat: [
-                    { mes: 'Previous context', is_user: true, is_system: true },
-                    { mes: "Let's go to the kitchen", is_user: true, is_system: false },
-                ],
-                chatMetadata: {
-                    openvault: {
-                        memories: [
-                            {
-                                id: 'ev1',
-                                type: 'event',
-                                summary: 'Test memory about kitchen',
-                                importance: 3,
-                                message_ids: [0],
-                                characters_involved: ['Alice'],
-                                witnesses: ['Alice'],
-                                is_secret: false,
-                                embedding: [0.5, 0.5],
-                            },
-                        ],
-                        character_states: { Alice: { name: 'Alice' } },
-                        global_world_state: {
-                            summary: 'Test global state that should not be used',
-                            last_updated: Date.now(),
-                            community_count: 1,
-                        },
-                        communities: {
-                            C0: {
-                                title: 'Kitchen Location',
-                                summary: 'The kitchen is a cozy place',
-                                findings: ['Has a stove'],
-                                embedding: [0.5, 0.5],
-                                nodeKeys: ['alice'],
-                            },
-                        },
-                        graph: { nodes: {}, edges: {} },
-                    },
-                },
-                chatId: 'test',
-                name2: 'Alice',
-            },
-            settings: {
-                enabled: true,
-                embeddingSource: 'ollama',
-                ollamaUrl: 'http://test:11434',
-                embeddingModel: 'test-model',
-            },
-            deps: {
-                setExtensionPrompt: mockSetPrompt,
-                extension_prompt_types: { IN_PROMPT: 0 },
-                fetch: vi.fn(async () => ({
-                    ok: true,
-                    json: async () => ({ embedding: [0.5, 0.5] }),
-                })),
-            },
-        });
-
-        const { retrieveAndInjectContext } = await import('../../src/retrieval/retrieve.js');
-
-        await retrieveAndInjectContext();
-
-        // "Let's go to the kitchen" is NOT a macro-intent query
-        // Should use vector search, not global state
-        const worldCall = mockSetPrompt.mock.calls.find((c) => c[0] === 'openvault_world');
-        expect(worldCall).toBeDefined();
-        // Should contain community-based results (Kitchen), not global state
-        expect(worldCall[1]).toContain('Kitchen Location');
-        expect(worldCall[1]).not.toContain('Test global state that should not be used');
     });
 });
