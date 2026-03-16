@@ -74,10 +74,10 @@ Worker (`src/extraction/worker.js`) is single-instance, interruptible (checks `w
 - Backward compat: `corpusVocab=null` includes all message tokens at 1x (unfiltered).
 
 **Score-First Budgeting** (`selectMemoriesWithSoftBalance` in `scoring.js`):
-- Phase 1: Select top-scoring memories until 95% of budget consumed (`bucketSoftBalanceBudget` = 0.05).
-- Phase 2: Allocate remaining 5% for chronological balance — ensure minimum 20% per temporal bucket (`bucketMinRepresentation` = 0.20).
+- Phase 1: Reserve minimum representation per bucket (20% each for Old/Mid/Recent), fill with highest-scoring memories from respective buckets.
+- Phase 2: Pool remaining budget (40%) and fill strictly by highest score, regardless of bucket.
 - Buckets: old (story so far), mid (leading up), recent (current scene). Uses `getMemoryPosition()` from `utils/text.js`.
-- Replaces hard 50% quota in formatting layer.
+- Guarantees minimum temporal representation without starvation.
 
 **Entity Semantic Merging**: Prevents duplicates ("The King" vs "King Aldric").
 - *Guard 1*: Embeddings (type + name + description) cosine sim checked first via `shouldMergeEntities()`:

@@ -152,86 +152,69 @@ async function selectRelevantMemoriesSimple(memories, ctx, limit, allHiddenMemor
 }
 
 /**
- * Select memories using score-first budgeting with soft chronological balancing.
+ * Select memories using pre-allocated bucket quotas with score-based filling.
+ * Fixed: Pre-allocates minRepresentation per bucket first, then fills remainder by score.
  * @param {Array<{memory: Object, score: number, breakdown: Object}>} scoredMemories - Pre-scored, sorted
  * @param {number} tokenBudget - Maximum tokens to select
  * @param {number} chatLength - Current chat length
  * @param {number} [minRepresentation=0.20] - Minimum 20% per bucket
- * @param {number} [softBalanceBudget=0.05] - 5% budget for balancing
  * @returns {Object[]} Selected memories
  */
 export function selectMemoriesWithSoftBalance(
     scoredMemories,
     tokenBudget,
     chatLength,
-    minRepresentation = 0.2,
-    softBalanceBudget = 0.05
+    minRepresentation = 0.2
 ) {
     if (!scoredMemories || scoredMemories.length === 0) return [];
     if (tokenBudget <= 0) return [];
 
-    // Phase 1: Score-first selection (95% of budget)
-    const phase1Budget = tokenBudget * (1 - softBalanceBudget);
-    const phase1Selected = [];
-
-    let totalTokens = 0;
+    // Group all candidates by bucket first
+    const bucketCandidates = { old: [], mid: [], recent: [] };
     for (const { memory } of scoredMemories) {
-        const memTokens = countTokens(memory.summary || '');
-        if (totalTokens + memTokens > phase1Budget) break;
-        phase1Selected.push(memory);
-        totalTokens += memTokens;
+        const position = getMemoryPosition(memory);
+        const isRecent = position >= chatLength - 100;
+        const isMid = position >= chatLength - 500 && !isRecent;
+        const isOld = !isRecent && !isMid;
+
+        if (isOld) bucketCandidates.old.push(memory);
+        else if (isMid) bucketCandidates.mid.push(memory);
+        else bucketCandidates.recent.push(memory);
     }
 
-    // Phase 2: Soft chronological balancing (5% of budget)
-    const phase2Budget = tokenBudget - totalTokens;
-    if (phase2Budget <= 0) return phase1Selected;
-
-    // Analyze bucket distribution
-    const buckets = assignMemoriesToBuckets(phase1Selected, chatLength);
-    const bucketCounts = {
-        old: buckets.old.reduce((sum, m) => sum + countTokens(m.summary), 0),
-        mid: buckets.mid.reduce((sum, m) => sum + countTokens(m.summary), 0),
-        recent: buckets.recent.reduce((sum, m) => sum + countTokens(m.summary), 0),
-    };
-    const totalSelected = bucketCounts.old + bucketCounts.mid + bucketCounts.recent;
-
-    // Calculate minimum tokens per bucket
-    const minTokens = totalSelected * minRepresentation;
-
-    // Find underrepresented buckets and add memories
-    const phase2Selected = [...phase1Selected];
-    const remainingCandidates = scoredMemories
-        .filter(({ memory }) => !phase1Selected.includes(memory))
-        .map(({ memory }) => memory);
+    // Phase 1: Fill each bucket's quota (minRepresentation per bucket)
+    const quotaBudget = tokenBudget * minRepresentation;
+    const selected = [];
+    let totalTokens = 0;
+    const selectedIds = new Set();
 
     for (const bucketName of ['old', 'mid', 'recent']) {
-        if (bucketCounts[bucketName] < minTokens && buckets[bucketName].length > 0) {
-            // Add memories from this bucket until min reached
-            for (const memory of remainingCandidates) {
-                const memTokens = countTokens(memory.summary || '');
-                if (totalTokens + memTokens > tokenBudget) break;
-
-                // Use getMemoryPosition for consistent bucket assignment
-                const position = getMemoryPosition(memory);
-                const isRecent = position >= chatLength - 100;
-                const isMid = position >= chatLength - 500 && !isRecent;
-                const isOld = !isRecent && !isMid;
-
-                if (
-                    (bucketName === 'old' && isOld) ||
-                    (bucketName === 'mid' && isMid) ||
-                    (bucketName === 'recent' && isRecent)
-                ) {
-                    phase2Selected.push(memory);
-                    totalTokens += memTokens;
-                    bucketCounts[bucketName] += memTokens;
-                    remainingCandidates.splice(remainingCandidates.indexOf(memory), 1);
-                }
-            }
+        let bucketTokens = 0;
+        for (const memory of bucketCandidates[bucketName]) {
+            if (selectedIds.has(memory.id)) continue;
+            const memTokens = countTokens(memory.summary || '');
+            if (bucketTokens + memTokens > quotaBudget) break;
+            selected.push(memory);
+            selectedIds.add(memory.id);
+            totalTokens += memTokens;
+            bucketTokens += memTokens;
         }
     }
 
-    return phase2Selected;
+    // Phase 2: Fill remaining budget by highest score (regardless of bucket)
+    const remainingBudget = tokenBudget - totalTokens;
+    if (remainingBudget > 0) {
+        for (const { memory } of scoredMemories) {
+            if (selectedIds.has(memory.id)) continue;
+            const memTokens = countTokens(memory.summary || '');
+            if (totalTokens + memTokens > tokenBudget) break;
+            selected.push(memory);
+            selectedIds.add(memory.id);
+            totalTokens += memTokens;
+        }
+    }
+
+    return selected;
 }
 
 /**

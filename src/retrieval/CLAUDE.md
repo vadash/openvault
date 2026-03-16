@@ -7,7 +7,7 @@ Selects optimal memories (events + reflections) and community summaries, then fo
 1. **Candidate Pool**: Hidden memories (visible ones are already in ST context) + Reflections (no message IDs).
 2. **Hidden Memories for IDF**: `allAvailableMemories` in context includes all memories. Non-candidate memories are extracted and passed to `scoreMemories()` as `hiddenMemories` for expanded IDF corpus.
 3. **POV Filter**: Strict filter. Characters only recall what they witnessed or are told (`known_events`).
-4. **Budgeting**: **Score-First with Soft Balance**. `selectMemoriesWithSoftBalance()` selects top 95% by score, then allocates 5% budget for chronological balance (min 20% per bucket: old/mid/recent). `bucketMinRepresentation=0.20`, `bucketSoftBalanceBudget=0.05`.
+4. **Budgeting**: **Pre-Allocated Quotas with Score Fill**. `selectMemoriesWithSoftBalance()` reserves `minRepresentation` (20%) per temporal bucket (old/mid/recent), filling each quota with highest-scoring memories from that bucket. Remaining budget (40%) is filled by highest score regardless of bucket. Guarantees minimum temporal representation without starvation.
 5. **Formatting** (`formatting.js`): Grouped into temporal buckets: *The Story So Far*, *Leading Up To This Moment*, *Current Scene*. **No hard quotas** — scoring handles balance.
    - **Subconscious Drives**: Reflections (`type: 'reflection'`) separated into `<subconscious_drives>` XML block. Events stay in `<scene_memory>`.
    - CRITICAL RULE text prevents therapist-speak — reflections are hidden psychological truths, never spoken aloud.
