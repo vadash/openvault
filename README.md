@@ -14,6 +14,8 @@ It runs entirely in the browser. No external databases, no cloud services, no se
 
 10.50 - fixed hairball cluster bug (ie 3 communities goes down to 1)
 
+11.00 - refactored tests (easier to maintain), prep for more lang
+
 ## What It Does
 
 During a conversation, OpenVault silently works in the background:
@@ -67,6 +69,8 @@ OpenVault implements ideas from two papers:
    - **WASM** — CPU fallback if WebGPU is unavailable.
    - **Ollama** — connect to a local Ollama server with your preferred embedding model.
 5. Start chatting. OpenVault activates automatically.
+
+For main model you can pick nvidia nim free qwen and keep as backup cheap one. 
 
 For existing chats, click **Backfill Chat History** to generate memories for past messages.
 
