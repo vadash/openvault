@@ -274,3 +274,43 @@ export function renderEntityCard(entity) {
         </div>
     `;
 }
+
+/**
+ * Graph Stats Card template for World tab
+ * @param {Object} stats - { entities, relationships, communities, lastClustered }
+ * @returns {string} HTML string
+ */
+export function graphStatsCard(stats) {
+  const lastClusteredText = stats.lastClustered > 0
+    ? `${stats.lastClustered} msgs ago`
+    : 'Not yet clustered';
+
+  return `
+    <div class="openvault-card openvault-graph-stats">
+      <div class="openvault-card-header">
+        <span class="openvault-card-title">
+          <i class="fa-solid fa-chart-pie"></i> Graph Status
+        </span>
+      </div>
+      <div class="openvault-stats-row">
+        <div class="openvault-stat-item">
+          <span class="openvault-stat-number">${stats.entities}</span>
+          <span class="openvault-stat-label">Entities Tracked</span>
+        </div>
+        <div class="openvault-stat-item">
+          <span class="openvault-stat-number">${stats.relationships}</span>
+          <span class="openvault-stat-label">Relationships</span>
+        </div>
+        <div class="openvault-stat-item">
+          <span class="openvault-stat-number">${stats.communities}</span>
+          <span class="openvault-stat-label">Communities</span>
+        </div>
+      </div>
+      <div class="openvault-stats-footer">
+        <span class="openvault-stats-last">
+          <i class="fa-solid fa-clock"></i> Last Clustered: ${lastClusteredText}
+        </span>
+      </div>
+    </div>
+  `;
+}
