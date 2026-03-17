@@ -34,6 +34,24 @@ Test a single exported function by passing plain objects and asserting on return
 | Prompt builders, formatters, schemas | `tests/prompts/*.test.js` | `src/prompts/*.js` |
 | Reflection filter, preflight gate | `tests/reflection/*.test.js` | `src/reflection/*.js` |
 | Perf store, instrumentation | `tests/perf/*.test.js` | `src/perf/*.js` |
+| Internal constants | `tests/constants/internal.test.js` | `src/constants.js` |
+| Settings removed from UI | `tests/constants/settings.test.js` | `src/constants.js` |
+
+### UI Structure Tests (HTML parsing, no JSDOM setup)
+Validate the progressive disclosure UI layout. Parse `templates/settings_panel.html` directly to verify:
+- Dashboard: Quick Toggles and Status before collapsible Connection/Setup sections
+- Memories: Browser/Search before collapsed settings
+- World: Graph Stats Card at top, zero visible range inputs (pure viewer)
+- Advanced: Warning banner present, Danger Zone with renamed reset button
+- Setting descriptions updated for clarity
+
+| What | Test file | Source |
+|------|-----------|--------|
+| Tab structure validation | `tests/ui/*-structure.test.js` | `templates/settings_panel.html` |
+| Template functions | `tests/ui/templates.test.js` | `src/ui/templates.js` |
+| Reset logic (preserved settings) | `tests/ui/reset-logic.test.js` | `src/ui/settings.js` |
+| Payload calculator warning | `tests/ui/payload-calculator.test.js` | `src/ui/settings.js` |
+| Full UI integration | `tests/ui/progressive-disclosure.integration.test.js` | All tabs |
 
 ### Integration Tests (`setupTestContext` required — mock LLM, ST context, fetch)
 

@@ -1,39 +1,56 @@
 # UI Subsystem
 
 ## WHAT
-Handles the ST settings panel, dashboard stats, the interactive memory/entity browser, and the Perf monitoring tab. Uses standard jQuery but enforces strict architectural boundaries.
+Handles the ST settings panel with progressive disclosure design: status/browsing first, settings hidden behind collapsible sections. Uses standard jQuery with strict architectural boundaries.
 
 ## ARCHITECTURE
 - **`helpers.js`**: Pure data transformations (pagination, filtering, math). **ZERO DOM INTERACTION**. Fully unit testable.
-- **`templates.js`**: Pure functions returning HTML strings. **ZERO STATE MUTATION**.
-- **`render.js`**: State orchestration and DOM manipulation (`$()`).
-- **`settings.js`**: Event binding and persistence.
+- **`templates.js`**: Pure functions returning HTML strings. Includes `graphStatsCard()` for World tab. **ZERO STATE MUTATION**.
+- **`render.js`**: State orchestration and DOM manipulation (`$()`). Includes `renderGraphStats()` for World tab.
+- **`settings.js`**: Event binding and persistence. `handleResetSettings()` preserves connection settings.
+
+## TAB STRUCTURE (Progressive Disclosure)
+Settings reorganized by user activity pattern, not technical category:
+
+1. **Dashboard** (dashboard-connections): Quick Toggles → Status → Stats → Progress → [collapsed] Connection & Setup, Embeddings, API Limits
+2. **Memories** (memory-bank): Browser/Search first → [collapsed] Character States, Extraction & Context, Reflection Engine
+3. **World** (world): Graph Stats Card → Communities → Entities. **Pure viewer, zero settings**.
+4. **Advanced** (advanced): Warning banner → [collapsed] Scoring & Weights, Decay Math, Similarity Thresholds → Danger Zone
+5. **Perf** (perf): Performance metrics table with health indicators
 
 ## PATTERNS & CONVENTIONS
-- **Drawers (`.openvault-details`)**: Collapsible `<details>` elements. CSS hides the native triangle, uses `::after` for a rotating `›` chevron, and applies a tinted background via `color-mix()`.
-- **Settings Binding**: Uses `bindSetting(elementId, settingKey, type)`. ALL saves must use `getDeps().saveSettingsDebounced()`.
-- **Dropdowns**: `preambleLanguage` (cn/en) and `extractionPrefill` (10 presets) bound via `$('#openvault_...').on('change')` + `saveSetting()`. Populated from `PREFILL_PRESETS` in `src/prompts.js`.
-- **Naming**: 
+- **Drawers (`.openvault-details`)**: Collapsible `<details>` elements. CSS hides native triangle, uses rotating `›` chevron.
+- **Settings Binding**: Uses `bindSetting(elementId, settingKey, type)`. ALL saves via `getDeps().saveSettingsDebounced()`.
+- **Reset Behavior**: `handleResetSettings()` preserves connection profiles (extractionProfile, embeddingSource, ollamaUrl, etc.) and only resets fine-tuning math.
+- **Warning Banner**: Advanced tab has amber warning banner discouraging changes to pre-calibrated values.
+- **Naming**:
   - IDs: `openvault_setting_name`
   - Values: `openvault_setting_name_value`
   - Setting Keys: `camelCase` (e.g., `reflectionThreshold`)
 
+## INTERNAL CONSTANTS (Not User-Configurable)
+These 9 settings were moved from `defaultSettings` to internal constants in `src/constants.js`:
+- `REFLECTION_DEDUP_REJECT_THRESHOLD` (0.9), `REFLECTION_DEDUP_REPLACE_THRESHOLD` (0.8)
+- `REFLECTION_DECAY_THRESHOLD` (750), `ENTITY_DESCRIPTION_CAP` (3), `EDGE_DESCRIPTION_CAP` (5)
+- `COMMUNITY_STALENESS_THRESHOLD` (100), `COMBINED_BOOST_WEIGHT` (15)
+- `IMPORTANCE_5_FLOOR` (5), `ENTITY_MERGE_THRESHOLD` (0.8)
+
 ## PAYLOAD CALCULATOR (`PAYLOAD_CALC`)
 - Single source of truth in `src/constants.js`.
-- Shows user the real total token cost: `Budget + Rearview + OVERHEAD`.
+- Shows real total token cost: `Budget + Rearview + OVERHEAD`.
 - **OVERHEAD** = 12k (8k max output + 4k prompt/safety buffer).
 - Thresholds: Green <=32k, Yellow <=48k, Orange <=64k, Red >64k.
+- Shows LLM context size compatibility warning.
 
 ## GOTCHAS & RULES
 - **No Inline Events**: Bind exclusively via jQuery `.on()` in `initBrowser()`.
-- **XSS Safety**: ALL user-generated data (summaries, entity names) MUST pass through `escapeHtml()` from `src/utils/dom.js` before hitting templates.
-- **Manual Backfill Guard**: The manual "Backfill Chat" button checks `isWorkerRunning()` (the background worker) first. If active, it rejects to prevent race conditions. The worker also yields if manual backfill takes over.
+- **XSS Safety**: ALL user-generated data (summaries, entity names) MUST pass through `escapeHtml()` from `src/utils/dom.js` before templates.
+- **Manual Backfill Guard**: Checks `isWorkerRunning()` first. Rejects if active to prevent race conditions.
 
-## PERF TAB (5th Tab)
-- **Purpose**: Displays last-run timings for 12 metrics (2 sync, 10 async) with health indicators (green/red).
-- **Table Structure**: Icon | Metric name | Last timing | Scale | Status dot
-- **Health Indicators**: Green = within threshold (`PERF_THRESHOLDS`), Red = exceeds threshold
-- **SYNC Badge**: Metrics that block chat generation (`retrieval_injection`, `auto_hide`) show a red "SYNC" badge.
-- **Copy Button**: `formatForClipboard()` generates plain text report for paste into issues/debugging.
+## PERF TAB
+- **Purpose**: Last-run timings for 12 metrics (2 sync, 10 async) with health indicators.
+- **Table**: Icon | Metric name | Last timing | Scale | Status dot
+- **SYNC Badge**: Blocking metrics (`retrieval_injection`, `auto_hide`) show red "SYNC" badge.
+- **Copy Button**: `formatForClipboard()` generates plain text report.
 - **Rendering**: `renderPerfTab()` in `settings.js` called from `refreshAllUI()`.
-- **Hydration**: `loadPerfFromChat()` called from `onChatChanged()` to restore persisted perf data on chat switch.
+- **Hydration**: `loadPerfFromChat()` restores persisted perf data on chat switch.
