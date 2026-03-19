@@ -201,6 +201,10 @@ export function safeParseJSON(input) {
         // 1. Mid-string concatenation across newlines: "text" +\n "more" -> "textmore"
         cleanedInput = cleanedInput.replace(/(?<!\\)(["'])\s*[+＋]\s*(?:\r?\n)?\s*(?<!\\)(["'])/g, '');
 
+        // 1.5 NEW: Catch rogue '+' symbols stranded across multiple newlines
+        cleanedInput = cleanedInput.replace(/(["'])\s*(?:\r?\n)+\s*[+＋]\s*(?:\r?\n)+\s*(["'])/g, '$1$2');
+        cleanedInput = cleanedInput.replace(/(["'])\s*(?:\r?\n)+\s*[+＋]\s*(["'])/g, '$1$2');
+
         // 2. Dangling plus before punctuation/newlines: "text" + , -> "text" ,
         cleanedInput = cleanedInput.replace(/(?<!\\)(["'])\s*[+＋]\s*(?:\r?\n)?\s*([,}\]])/g, '$1$2');
 
