@@ -17,6 +17,31 @@ Decoupled two-path architecture operating entirely within SillyTavern's `chatMet
 
 **Pending Message Source**: ST fires this event BEFORE `chat.push()` and BEFORE textarea clear. For new sends (`type=normal`), the user message is read from `$('#send_textarea').val()`. For regenerate/swipe, it falls back to the last `is_user` message in `context.chat`.
 
+### Macro Positioning System
+OpenVault supports configurable injection positions for memory and world context via `safeSetExtensionPrompt()` in `src/utils/st-helpers.js`:
+
+**Position Codes** (`INJECTION_POSITIONS` in `src/constants.js`):
+- `0 (BEFORE_MAIN)`: ↑Char — Before character definitions
+- `1 (AFTER_MAIN)`: ↓Char — After character definitions (default, recommended)
+- `2 (BEFORE_AN)`: ↑AN — Before author's note
+- `3 (AFTER_AN)`: ↓AN — After author's note
+- `4 (IN_CHAT)`: In-chat — At specified message depth
+- `-1 (CUSTOM)`: Macro-only — No auto-injection
+
+**Macro Access** (`src/injection/macros.js`):
+- `{{openvault_memory}}` — Returns current memory context
+- `{{openvault_world}}` — Returns current world context
+- Content cached in `cachedContent` object (mutated on each injection, not reassigned)
+- Macros are synchronous (no async/await) — ST calls them directly
+
+**Injection Flow**:
+1. `injectContext()` updates `cachedContent.memory` and `cachedContent.world`
+2. Position settings read from `settings.injection.memory.{position,depth}` and `settings.injection.world.{position,depth}`
+3. `safeSetExtensionPrompt(content, name, position, depth)` maps position to ST's `extension_prompt_types`
+4. Custom position (-1) skips `setExtensionPrompt` call entirely — content only available via macros
+
+**Settings Storage**: Defaults in `defaultSettings.injection` (`src/constants.js`). Merged with existing settings via `lodash.merge` on load.
+
 ### Background Path (Async worker, on `MESSAGE_RECEIVED`)
 Worker (`src/extraction/worker.js`) is single-instance, interruptible (checks `wakeGeneration` every 500ms), fast-fails on chat switch, and uses exponential backoff.
 
