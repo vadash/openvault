@@ -21,6 +21,28 @@ export const CHARACTERS_KEY = 'character_states';
 export const LAST_PROCESSED_KEY = 'last_processed_message_id';
 export const PROCESSED_MESSAGES_KEY = 'processed_message_ids';
 
+// =============================================================================
+// Injection Position Constants
+// =============================================================================
+
+export const INJECTION_POSITIONS = Object.freeze({
+    BEFORE_MAIN: 0,  // ↑Char - Before character definitions
+    AFTER_MAIN: 1,   // ↓Char - After character definitions (default)
+    BEFORE_AN: 2,    // ↑AN - Before author's note
+    AFTER_AN: 3,     // ↓AN - After author's note
+    IN_CHAT: 4,      // In-chat - At specified message depth
+    CUSTOM: -1,      // Custom - Macro-only, no auto-injection
+});
+
+export const POSITION_LABELS = Object.freeze([
+    { value: 0, label: '↑Char', description: 'Before character definitions' },
+    { value: 1, label: '↓Char', description: 'After character definitions' },
+    { value: 2, label: '↑AN', description: 'Before author\'s note' },
+    { value: 3, label: '↓AN', description: 'After author\'s note' },
+    { value: 4, label: 'In-chat', description: 'At specified message depth' },
+    { value: -1, label: 'Custom', description: 'Use macro manually' },
+]);
+
 // Default settings
 export const defaultSettings = {
     enabled: true,
@@ -84,6 +106,11 @@ export const defaultSettings = {
     preambleLanguage: 'cn',
     extractionPrefill: 'cn_compliance',
     outputLanguage: 'auto',
+    // Injection settings
+    injection: {
+        memory: { position: 1, depth: 4 },
+        world: { position: 1, depth: 4 },
+    },
 };
 
 // Embedding prefix defaults per model

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultSettings, PAYLOAD_CALC, UI_DEFAULT_HINTS } from '../src/constants.js';
+import { defaultSettings, PAYLOAD_CALC, UI_DEFAULT_HINTS, INJECTION_POSITIONS, POSITION_LABELS } from '../src/constants.js';
 
 describe('PAYLOAD_CALC', () => {
     it('exports all required fields', () => {
@@ -90,5 +90,45 @@ describe('Concurrency Settings', () => {
     it('should have maxConcurrency in UI_DEFAULT_HINTS', () => {
         expect(UI_DEFAULT_HINTS.maxConcurrency).toBeDefined();
         expect(UI_DEFAULT_HINTS.maxConcurrency).toBe(1);
+    });
+});
+
+describe('INJECTION_POSITIONS', () => {
+    it('should have all position codes with correct labels', () => {
+        expect(INJECTION_POSITIONS).toEqual({
+            BEFORE_MAIN: 0,
+            AFTER_MAIN: 1,
+            BEFORE_AN: 2,
+            AFTER_AN: 3,
+            IN_CHAT: 4,
+            CUSTOM: -1,
+        });
+    });
+});
+
+describe('POSITION_LABELS', () => {
+    it('should have position labels array with correct structure', () => {
+        expect(POSITION_LABELS).toBeDefined();
+        expect(POSITION_LABELS).toHaveLength(6);
+        expect(POSITION_LABELS[0]).toEqual({ value: 0, label: '↑Char', description: 'Before character definitions' });
+        expect(POSITION_LABELS[1]).toEqual({ value: 1, label: '↓Char', description: 'After character definitions' });
+        expect(POSITION_LABELS[2]).toEqual({ value: 2, label: '↑AN', description: 'Before author\'s note' });
+        expect(POSITION_LABELS[3]).toEqual({ value: 3, label: '↓AN', description: 'After author\'s note' });
+        expect(POSITION_LABELS[4]).toEqual({ value: 4, label: 'In-chat', description: 'At specified message depth' });
+        expect(POSITION_LABELS[5]).toEqual({ value: -1, label: 'Custom', description: 'Use macro manually' });
+    });
+});
+
+describe('defaultSettings injection config', () => {
+    it('should have injection defaults for memory and world', () => {
+        expect(defaultSettings.injection).toBeDefined();
+        expect(defaultSettings.injection.memory).toEqual({
+            position: 1,
+            depth: 4,
+        });
+        expect(defaultSettings.injection.world).toEqual({
+            position: 1,
+            depth: 4,
+        });
     });
 });
