@@ -1,0 +1,80 @@
+<!-- Create: templates/injection_settings.html -->
+<div class="openvault-inline-drawer">
+    <div class="inline-drawer-content openvault-injection-settings">
+        <h3>Injection Positions</h3>
+        <p class="margin5">
+            <small>Choose where memories and world info are injected in the prompt.</small>
+        </p>
+
+        <!-- Memory Position -->
+        <div class="openvault-injection-block">
+            <h4>Memory Position</h4>
+            <div class="openvault-position-selector">
+                <label for="openvault_memory_position">Position:</label>
+                <select id="openvault_memory_position" class="text_pole">
+                    <option value="0">↑Char (Before character definitions)</option>
+                    <option value="1" selected>↓Char (After character definitions)</option>
+                    <option value="2">↑AN (Before author's note)</option>
+                    <option value="3">↓AN (After author's note)</option>
+                    <option value="4">In-chat (At message depth)</option>
+                    <option value="-1">Custom (Use macro manually)</option>
+                </select>
+            </div>
+
+            <div class="openvault-depth-input" style="display:none;">
+                <label for="openvault_memory_depth">Depth:</label>
+                <input type="number" id="openvault_memory_depth" class="text_pole" min="0" max="50" value="4">
+                <small>Messages from end</small>
+            </div>
+
+            <div class="openvault-macro-info" style="display:none;">
+                <label>Macro:</label>
+                <code>{{openvault_memory}}</code>
+                <button class="openvault-copy-macro" data-macro="openvault_memory" title="Copy to clipboard">
+                    <i class="fa-solid fa-copy"></i>
+                </button>
+                <small>Place this macro in your prompt or character card</small>
+            </div>
+        </div>
+
+        <!-- World Position -->
+        <div class="openvault-injection-block">
+            <h4>World Info Position</h4>
+            <div class="openvault-position-selector">
+                <label for="openvault_world_position">Position:</label>
+                <select id="openvault_world_position" class="text_pole">
+                    <option value="0">↑Char (Before character definitions)</option>
+                    <option value="1" selected>↓Char (After character definitions)</option>
+                    <option value="2">↑AN (Before author's note)</option>
+                    <option value="3">↓AN (After author's note)</option>
+                    <option value="4">In-chat (At message depth)</option>
+                    <option value="-1">Custom (Use macro manually)</option>
+                </select>
+            </div>
+
+            <div class="openvault-depth-input" style="display:none;">
+                <label for="openvault_world_depth">Depth:</label>
+                <input type="number" id="openvault_world_depth" class="text_pole" min="0" max="50" value="4">
+                <small>Messages from end</small>
+            </div>
+
+            <div class="openvault-macro-info" style="display:none;">
+                <label>Macro:</label>
+                <code>{{openvault_world}}</code>
+                <button class="openvault-copy-macro" data-macro="openvault_world" title="Copy to clipboard">
+                    <i class="fa-solid fa-copy"></i>
+                </button>
+                <small>Place this macro in your prompt or character card</small>
+            </div>
+        </div>
+
+        <hr class="openvault-divider">
+
+        <p class="margin5">
+            <small class="text-muted">
+                <i class="fa-solid fa-info-circle"></i>
+                ↓Char is recommended. Memories injected at ↑Char may not affect character behavior in some models.
+            </small>
+        </p>
+    </div>
+</div>
