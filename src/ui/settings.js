@@ -137,7 +137,24 @@ function getSettings() {
 }
 
 function saveSetting(key, value) {
-    getSettings()[key] = value;
+    const settings = getSettings();
+
+    // Support dot-notation paths for nested objects (e.g., 'injection.memory.position')
+    if (key.includes('.')) {
+        const parts = key.split('.');
+        let current = settings;
+        for (let i = 0; i < parts.length - 1; i++) {
+            const part = parts[i];
+            if (!(part in current)) {
+                current[part] = {};
+            }
+            current = current[part];
+        }
+        current[parts[parts.length - 1]] = value;
+    } else {
+        settings[key] = value;
+    }
+
     getDeps().saveSettingsDebounced();
 }
 
