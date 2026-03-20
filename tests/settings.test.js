@@ -162,5 +162,61 @@ describe('Centralized Settings Module', () => {
             setSetting('testArray[0].name', 'first');
             expect(getSettings('testArray[0].name')).toBe('first');
         });
+
+        it('should use setByPath fallback when lodash.set is unavailable', async () => {
+            // Re-mock with lodash that has no .set
+            const lodashNoSet = {
+                get: mockLodash.get,
+                has: mockLodash.has,
+                merge: mockLodash.merge,
+                // No .set property
+            };
+
+            vi.doMock('../src/deps.js', () => ({
+                getDeps: () => ({
+                    getContext: () => ({
+                        lodash: lodashNoSet,
+                    }),
+                    getExtensionSettings: () => mockExtensionSettings,
+                    saveSettingsDebounced: mockSaveSettingsDebounced,
+                }),
+                setDeps: vi.fn(),
+                resetDeps: vi.fn(),
+            }));
+
+            // Re-import to get fresh module
+            const { setSetting, getSettings } = await import('../src/settings.js');
+            setSetting('fallback.test.value', 'works');
+            expect(getSettings('fallback.test.value')).toBe('works');
+        });
+    });
+
+    describe('Edge Cases', () => {
+        it('should handle undefined path in getSettings', async () => {
+            const { getSettings } = await import('../src/settings.js');
+            const result = getSettings();
+            expect(result).toEqual(mockExtensionSettings.openvault);
+        });
+
+        it('should handle array notation in paths', async () => {
+            mockExtensionSettings.openvault = {
+                testArray: [{ name: 'first' }, { name: 'second' }],
+            };
+
+            const { getSettings, setSetting } = await import('../src/settings.js');
+            expect(getSettings('testArray[0].name')).toBe('first');
+        });
+
+        it('should handle deeply nested paths', async () => {
+            const { getSettings, setSetting } = await import('../src/settings.js');
+            setSetting('a.b.c.d.e', 'deep');
+            expect(getSettings('a.b.c.d.e')).toBe('deep');
+        });
+
+        it('should return defaultValue for undefined settings object', async () => {
+            mockExtensionSettings.openvault = undefined;
+            const { getSettings } = await import('../src/settings.js');
+            expect(getSettings('any.path', 'default')).toBe('default');
+        });
     });
 });

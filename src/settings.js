@@ -65,7 +65,24 @@ export function setSetting(path, value) {
     const lodash = deps.getContext()?.lodash;
     const settings = deps.getExtensionSettings()[extensionName];
 
-    lodash.set(settings, path, value);
+    if (lodash?.set) {
+        lodash.set(settings, path, value);
+    } else {
+        // Fallback: simple setByPath implementation
+        const keys = String(path).split(/[.[\]]+/).filter(Boolean);
+        let current = settings;
+        for (let i = 0; i < keys.length - 1; i++) {
+            const key = keys[i];
+            const numKey = /^\d+$/.test(key) ? parseInt(key, 10) : key;
+            if (!(numKey in current)) {
+                current[numKey] = /^\d+$/.test(keys[i + 1]) ? [] : {};
+            }
+            current = current[numKey];
+        }
+        const lastKey = keys[keys.length - 1];
+        const numLastKey = /^\d+$/.test(lastKey) ? parseInt(lastKey, 10) : lastKey;
+        current[numLastKey] = value;
+    }
     deps.saveSettingsDebounced();
 }
 
