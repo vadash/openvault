@@ -17,6 +17,7 @@ import {
     UI_DEFAULT_HINTS,
 } from '../constants.js';
 import { getDeps } from '../deps.js';
+import { getSettings, setSetting } from '../settings.js';
 import { getEmbeddingStatus, getStrategy, isEmbeddingsEnabled, setEmbeddingStatusCallback } from '../embeddings.js';
 import { updateEventListeners } from '../events.js';
 import { formatForClipboard, getAll as getPerfData } from '../perf/store.js';
@@ -130,32 +131,6 @@ export function updatePayloadCalculator() {
     } else {
         $warning.text(`Ensure your Extraction Profile supports at least ${Math.ceil(total / 1000)}k context.`);
     }
-}
-
-function getSettings() {
-    return getDeps().getExtensionSettings()[extensionName];
-}
-
-function saveSetting(key, value) {
-    const settings = getSettings();
-
-    // Support dot-notation paths for nested objects (e.g., 'injection.memory.position')
-    if (key.includes('.')) {
-        const parts = key.split('.');
-        let current = settings;
-        for (let i = 0; i < parts.length - 1; i++) {
-            const part = parts[i];
-            if (!(part in current)) {
-                current[part] = {};
-            }
-            current = current[part];
-        }
-        current[parts[parts.length - 1]] = value;
-    } else {
-        settings[key] = value;
-    }
-
-    getDeps().saveSettingsDebounced();
 }
 
 // =============================================================================
@@ -344,7 +319,7 @@ export async function handleResetSettings() {
     // Reset each fine-tune setting to default
     for (const key of RESETTABLE_KEYS) {
         if (key in defaultSettings) {
-            extension_settings[extensionName][key] = defaultSettings[key];
+            setSetting(key, defaultSettings[key]);
         }
     }
 
