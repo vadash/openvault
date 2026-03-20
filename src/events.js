@@ -6,6 +6,7 @@
 
 import { extensionName, MEMORIES_KEY, RETRIEVAL_TIMEOUT_MS } from './constants.js';
 import { getDeps } from './deps.js';
+import './settings.js';  // Side-effect import to initialize settings with lodash.merge
 import { loadFromChat as loadPerfFromChat, record } from './perf/store.js';
 import {
     clearGenerationLock,
