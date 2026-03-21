@@ -6,19 +6,19 @@ Reference document for data structures and non-obvious algorithm logic.
 
 ```typescript
 {
-  embedding_model_id: string,  // tracks which model generated stored embeddings
+  embedding_model_id: string,  // tracks which model generated stored embeddings, or 'st-vectors'
   memories: [{ // Both events and reflections
     id: string, type: "event"|"reflection", summary: string, importance: 1-5,
     tokens: string[], message_ids?: number[], source_ids?: string[], // source_ids for reflections
     level?: number, parent_ids?: string[], // Reflection hierarchy: level=1 (from events), level=2+ (from reflections)
-    characters_involved: string[], embedding_b64: string, archived: boolean, mentions?: number
+    characters_involved: string[], embedding_b64: string, _st_synced?: boolean, archived: boolean, mentions?: number
   }],
   graph: {
-    nodes: { [normKey]: { name, type, description, mentions, embedding_b64: string, aliases? } },
-    edges: { "src__tgt": { source, target, description, weight, _descriptionTokens: number } },
+    nodes: { [normKey]: { name, type, description, mentions, embedding_b64: string, _st_synced?: boolean, aliases? } },
+    edges: { "src__tgt": { source, target, description, weight, _descriptionTokens: number, _st_synced?: boolean } },
     _edgesNeedingConsolidation: string[]  // Edge keys pending consolidation
   },
-  communities: { "C0": { title, summary, findings: string[], nodeKeys: string[], embedding_b64: string } },
+  communities: { "C0": { title, summary, findings: string[], nodeKeys: string[], embedding_b64: string, _st_synced?: boolean } },
   global_world_state: { summary: string, last_updated: number, community_count: number },
   character_states: { "Name": { current_emotion, emotion_intensity, known_events: string[] } },
   reflection_state: { "Name": { importance_sum: number } },
@@ -27,6 +27,8 @@ Reference document for data structures and non-obvious algorithm logic.
   perf: { [metricId]: { ms: number, size: string | null, ts: number } }
 }
 ```
+
+**`_st_synced` Flag**: Set on items successfully synced to ST Vector Storage. Prevents re-sync loops during backfill. Items with this flag have no local `embedding_b64` — vectors live in ST's Vectra database. Cleared by `deleteEmbedding()` when switching embedding sources.
 
 ## 2. RETRIEVAL MATH (Alpha-Blend)
 
@@ -88,6 +90,18 @@ Prevents duplicates ("The King" vs "King Aldric"). Four-guard system:
 4. `backfillAllEmbeddings()` auto-triggers in background
 
 Legacy chats without tag treated as mismatch on first load (one-time re-embed). Manual "Backfill Embeddings" button also triggers full re-embed.
+
+### ST Vector Storage (`st-vectors` embedding source)
+
+When `embedding_source: 'st-vectors'`, OpenVault delegates embedding to ST's Vector Storage extension:
+- **ID Mapping**: Text prefix approach (`[OV_ID:entity_id] summary...`) embeds OpenVault IDs in ST's text field
+- **Hash Algorithm**: Cyrb53 (53-bit) for ST's numeric hash field — negligible collision probability
+- **Collection ID**: `openvault-{chatId}-{source}` — isolated per-chat
+- **Sync Hooks**: Events (extract.js), reflections (reflect.js), nodes (mergeOrInsertEntity), edges (consolidateEdges), communities (updateCommunitySummaries)
+- **Deletion Hooks**: Graph consolidation deletes merged nodes/edges from ST
+- **Batching**: 100 items per batch during backfill to prevent timeouts
+
+**Scoring Trade-off**: ST Vector Storage bypasses OpenVault's Alpha-Blend scoring. No forgetfulness curve, BM25, or frequency factor — raw cosine similarity only. Use local embeddings (Transformers/Ollama) for full scoring features.
 
 ## 6. MULTILINGUAL PROMPT ARCHITECTURE
 

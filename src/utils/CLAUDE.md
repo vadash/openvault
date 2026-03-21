@@ -31,6 +31,7 @@
 - `getEmbedding(obj)`, `setEmbedding(obj, vec)`, `hasEmbedding(obj)`, `deleteEmbedding(obj)`.
 - Lazy migration: reads legacy `embedding: number[]` transparently, writes only `embedding_b64: string`.
 - ~33% storage reduction vs JSON arrays.
+- **ST Vector Storage**: `hasEmbedding()` returns `true` for `_st_synced` items (no local embedding). `deleteEmbedding()` clears the flag. Use `markStSynced(obj)`, `isStSynced(obj)`, `clearStSynced(obj)` for explicit flag management.
 
 ### `tokens.js` (gpt-tokenizer)
 - Exact token counting replacing old heuristic estimators.

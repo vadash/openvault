@@ -48,6 +48,20 @@ To keep retrieval fast with large memory corpora (2000+ memories), scoring uses 
 - Local retrieval: **Pure Vector Similarity** (bypasses BM25 entirely).
 - Injects via `<world_context>` XML tag high up in the prompt (`openvault_world` slot).
 
+## ST VECTOR STORAGE MODE
+
+When `embeddingSource: 'st-vectors'`, retrieval uses ST's `/api/vector/query` instead of local embeddings:
+
+**Flow**: Query Text → ST search → Map-based ordering (preserves similarity rank) → Return results
+
+**Map-Based Ordering (CRITICAL)**: Uses `Map` to iterate over ST results (sorted by similarity) rather than memories array (sorted chronologically):
+```javascript
+const memoriesById = new Map(memories.map((m) => [m.id, m]));
+const selected = results.map((r) => memoriesById.get(r.id)).filter(Boolean);
+```
+
+**Trade-offs**: No Alpha-Blend, forgetfulness curve, BM25, or frequency factor. Raw cosine similarity only. Use local embeddings (Transformers/Ollama) for full scoring features.
+
 ## GOTCHAS & RULES
 - **Pure Math**: `math.js` contains ZERO DOM/deps imports. Fully worker-safe.
 - **Bucket Limits**: The *Old* bucket ("The Story So Far") is hard-capped at 50% of the memory budget to prevent ancient history from drowning out recent context.
