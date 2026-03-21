@@ -38,6 +38,21 @@ function getSTVectorSource() {
 }
 
 /**
+ * Get the API URL for a local text-generation source, respecting alt endpoint override.
+ * Mirrors ST's logic: use alt_endpoint_url if enabled, otherwise textCompletionSettings.server_urls.
+ * @param {string} sourceType - The textgen source type key (e.g., 'ollama', 'llamacpp', 'vllm')
+ * @returns {string|undefined} The API URL
+ */
+function getSourceApiUrl(sourceType) {
+    const vectors = getDeps().getExtensionSettings()?.vectors;
+    if (vectors?.use_alt_endpoint && vectors?.alt_endpoint_url) {
+        return vectors.alt_endpoint_url;
+    }
+    const ctx = getDeps().getContext();
+    return ctx?.textCompletionSettings?.server_urls?.[sourceType];
+}
+
+/**
  * Get additional request body parameters based on the source.
  * Mirrors ST's getVectorsRequestBody function.
  * @param {string} source - The vector source
@@ -61,29 +76,51 @@ function getSTVectorRequestBody(source) {
         case 'togetherai':
             body.model = extSettings?.vectors?.togetherai_model;
             break;
+        case 'openai':
+            body.model = extSettings?.vectors?.openai_model;
+            break;
         case 'cohere':
             body.model = extSettings?.vectors?.cohere_model;
             break;
         case 'ollama':
-            body.apiUrl = extSettings?.vectors?.ollama_url;
             body.model = extSettings?.vectors?.ollama_model;
-            body.keep = extSettings?.vectors?.ollama_keep;
+            body.apiUrl = getSourceApiUrl('ollama');
+            body.keep = !!extSettings?.vectors?.ollama_keep;
             break;
         case 'llamacpp':
-            body.apiUrl = extSettings?.vectors?.llamacpp_url;
+            body.apiUrl = getSourceApiUrl('llamacpp');
             break;
         case 'vllm':
-            body.apiUrl = extSettings?.vectors?.vllm_url;
+            body.apiUrl = getSourceApiUrl('vllm');
             body.model = extSettings?.vectors?.vllm_model;
             break;
+        case 'webllm':
+            body.model = extSettings?.vectors?.webllm_model;
+            break;
+        case 'palm':
+            body.model = extSettings?.vectors?.google_model;
+            body.api = 'makersuite';
+            break;
+        case 'vertexai': {
+            body.model = extSettings?.vectors?.google_model;
+            body.api = 'vertexai';
+            const oaiSettings = getDeps().getContext()?.chatCompletionSettings;
+            body.vertexai_auth_mode = oaiSettings?.vertexai_auth_mode;
+            body.vertexai_region = oaiSettings?.vertexai_region;
+            body.vertexai_express_project_id = oaiSettings?.vertexai_express_project_id;
+            break;
+        }
         case 'mistral':
             body.model = 'mistral-embed';
             break;
         case 'nomicai':
             body.model = 'nomic-embed-text-v1.5';
             break;
-        case 'openai':
-            body.model = extSettings?.vectors?.openai_model;
+        case 'chutes':
+            body.model = extSettings?.vectors?.chutes_model;
+            break;
+        case 'nanogpt':
+            body.model = extSettings?.vectors?.nanogpt_model;
             break;
         case 'transformers':
         default:
