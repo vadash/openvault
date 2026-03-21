@@ -23,6 +23,11 @@ To keep retrieval fast with large memory corpora (2000+ memories), scoring uses 
 
 **Performance**: With 2000 memories, vector calculations drop from 2000 to 200 (10x reduction). Critical path stays under 100ms.
 
+**ST Vector Storage Branch** (when `embeddingSource: 'st_vector'`):
+1. **Over-fetch**: Query ST Vector Storage with `topK = limit * OVER_FETCH_MULTIPLIER` (3x) for reranking headroom.
+2. **Proxy Scores**: Assign `_proxyVectorScore` based on rank position (1.0 for rank 0, linear decay to 0.5 for last).
+3. **Alpha-Blend**: Feed proxy scores into existing scoring pipeline (forgetfulness + BM25). No local cosine calculation needed.
+
 - **Forgetfulness Curve (Base)**: Exponential decay by narrative distance.
   - Higher importance = slower decay. Importance 5 has a soft floor of `1.0`.
   - *Reflection Decay*: Level-aware decay. Reflections older than 750 messages suffer linear penalty (floor 0.25x). **Level Divisor**: Each level above 1 decays 2x slower (`reflectionLevelMultiplier=2.0`). Level 2 reflections at 1000 msgs retain ~91% vs ~83% for level 1.
@@ -51,6 +56,8 @@ To keep retrieval fast with large memory corpora (2000+ memories), scoring uses 
 ## GOTCHAS & RULES
 - **Pure Math**: `math.js` contains ZERO DOM/deps imports. Fully worker-safe.
 - **Bucket Limits**: The *Old* bucket ("The Story So Far") is hard-capped at 50% of the memory budget to prevent ancient history from drowning out recent context.
+- **Proxy Scores**: `rankToProxyScore(rank, totalResults)` converts ST rank to cosine similarity proxy (range 0.5-1.0).
+- **ST Collection ID**: Format `openvault-{chatId}-{embeddingSource}` — prevents cross-chat data leakage.
 - **Function Signatures**:
   - `buildCorpusVocab(memories, hiddenMemories, graphNodes, graphEdges)` — Returns `Set<string>` of all stems in corpus.
   - `buildBM25Tokens(userMessage, extractedEntities, corpusVocab = null)` — Third param optional. When provided, implements three-tier system (5x/3x/2x). Null → backward compat (all tokens at 1x).

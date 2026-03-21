@@ -25,12 +25,16 @@
 - Lazy-initializes `chatMetadata.openvault`.
 - **Chat-Switch Guard**: `saveOpenVaultData(expectedChatId)` aborts save if the user switched chats during an async operation. Prevents massive cross-chat data corruption.
 - `updateMemory()`: Automatically invalidates/deletes the embedding if the `summary` string changes.
+- **ST Vector Storage**: `isStVectorSource()` checks if `embeddingSource === 'st_vector'`.
+- **ST Sync Helpers**: `syncItemsToST(items, chatId)`, `deleteItemsFromST(hashes, chatId)`, `purgeSTCollection(chatId)`, `querySTVector(query, topK, threshold, chatId)` — REST API wrappers for `/api/vector/*`.
 
 ### `embedding-codec.js`
 - Base64 Float32Array encode/decode for embeddings.
 - `getEmbedding(obj)`, `setEmbedding(obj, vec)`, `hasEmbedding(obj)`, `deleteEmbedding(obj)`.
 - Lazy migration: reads legacy `embedding: number[]` transparently, writes only `embedding_b64: string`.
 - ~33% storage reduction vs JSON arrays.
+- **ST Sync Flags**: `markStSynced(obj)`, `isStSynced(obj)`, `clearStSynced(obj)` — track sync status to ST Vector Storage.
+- **Cyrb53 Hash**: `cyrb53(str, seed?)` — 53-bit hash for ST Vector Storage compatibility (numeric hash IDs).
 
 ### `tokens.js` (gpt-tokenizer)
 - Exact token counting replacing old heuristic estimators.
