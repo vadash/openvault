@@ -143,6 +143,96 @@ describe('OllamaStrategy abort signal', () => {
     });
 });
 
+describe('STVectorsStrategy', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    describe('isEnabled', () => {
+        it('returns true when extension_settings.vectors.source is set', async () => {
+            const depsModule = await import('../src/deps.js');
+            vi.spyOn(depsModule, 'getDeps').mockReturnValue({
+                getExtensionSettings: vi.fn(() => ({
+                    vectors: { source: 'openrouter', openai_model: 'text-embedding-3-small' },
+                })),
+            });
+
+            const { getStrategy } = await import('../src/embeddings.js');
+            const strategy = getStrategy('st-vectors');
+
+            expect(strategy.isEnabled()).toBe(true);
+        });
+
+        it('returns false when extension_settings.vectors is missing', async () => {
+            const depsModule = await import('../src/deps.js');
+            vi.spyOn(depsModule, 'getDeps').mockReturnValue({
+                getExtensionSettings: vi.fn(() => ({})),
+            });
+
+            const { getStrategy } = await import('../src/embeddings.js');
+            const strategy = getStrategy('st-vectors');
+
+            expect(strategy.isEnabled()).toBe(false);
+        });
+
+        it('returns false when vectors.source is empty', async () => {
+            const depsModule = await import('../src/deps.js');
+            vi.spyOn(depsModule, 'getDeps').mockReturnValue({
+                getExtensionSettings: vi.fn(() => ({
+                    vectors: { source: '', openai_model: 'text-embedding-3-small' },
+                })),
+            });
+
+            const { getStrategy } = await import('../src/embeddings.js');
+            const strategy = getStrategy('st-vectors');
+
+            expect(strategy.isEnabled()).toBe(false);
+        });
+    });
+
+    describe('getStatus', () => {
+        it('shows provider and model when configured', async () => {
+            const depsModule = await import('../src/deps.js');
+            vi.spyOn(depsModule, 'getDeps').mockReturnValue({
+                getExtensionSettings: vi.fn(() => ({
+                    vectors: { source: 'openrouter', openai_model: 'text-embedding-3-small' },
+                })),
+            });
+
+            const { getStrategy } = await import('../src/embeddings.js');
+            const strategy = getStrategy('st-vectors');
+
+            expect(strategy.getStatus()).toBe('ST: openrouter / text-embedding-3-small');
+        });
+
+        it('shows "default" when model is empty', async () => {
+            const depsModule = await import('../src/deps.js');
+            vi.spyOn(depsModule, 'getDeps').mockReturnValue({
+                getExtensionSettings: vi.fn(() => ({
+                    vectors: { source: 'openai', openai_model: '' },
+                })),
+            });
+
+            const { getStrategy } = await import('../src/embeddings.js');
+            const strategy = getStrategy('st-vectors');
+
+            expect(strategy.getStatus()).toBe('ST: openai / default');
+        });
+
+        it('shows configure hint when not set up', async () => {
+            const depsModule = await import('../src/deps.js');
+            vi.spyOn(depsModule, 'getDeps').mockReturnValue({
+                getExtensionSettings: vi.fn(() => ({})),
+            });
+
+            const { getStrategy } = await import('../src/embeddings.js');
+            const strategy = getStrategy('st-vectors');
+
+            expect(strategy.getStatus()).toBe('Configure in Vector Storage');
+        });
+    });
+});
+
 describe('enrichEventsWithEmbeddings abort signal', () => {
     beforeEach(async () => {
         const depsModule = await import('../src/deps.js');

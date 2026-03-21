@@ -402,6 +402,85 @@ class OllamaStrategy extends EmbeddingStrategy {
 }
 
 // =============================================================================
+// ST Vectors Strategy (Vector Storage extension)
+// =============================================================================
+
+class STVectorsStrategy extends EmbeddingStrategy {
+    getId() {
+        return 'st-vectors';
+    }
+
+    #getVectorSettings() {
+        const extensionSettings = getDeps().getExtensionSettings();
+        return extensionSettings?.vectors || null;
+    }
+
+    isEnabled() {
+        const vectorSettings = this.#getVectorSettings();
+        return !!(vectorSettings?.source);
+    }
+
+    getStatus() {
+        const vectorSettings = this.#getVectorSettings();
+        if (!vectorSettings?.source) {
+            return 'Configure in Vector Storage';
+        }
+        const source = vectorSettings.source;
+        const model = vectorSettings.openai_model || 'default';
+        return `ST: ${source} / ${model}`;
+    }
+
+    async getEmbedding(text, { signal } = {}) {
+        const vectorSettings = this.#getVectorSettings();
+        if (!vectorSettings?.source) {
+            return null;
+        }
+
+        if (!text || text.trim().length === 0) {
+            return null;
+        }
+
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+
+        try {
+            const response = await getDeps().fetch('/api/embeddings/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    source: vectorSettings.source,
+                    items: [text.trim()],
+                    model: vectorSettings.openai_model || undefined,
+                }),
+                signal,
+            });
+
+            if (!response.ok) {
+                logDebug(`ST Vectors embedding request failed: ${response.status}`);
+                return null;
+            }
+
+            const data = await response.json();
+            return data.embeddings?.[0] ? new Float32Array(data.embeddings[0]) : null;
+        } catch (error) {
+            if (error.name === 'AbortError') throw error;
+            logError('ST Vectors embedding failed', error, {
+                source: vectorSettings?.source,
+                textSnippet: text?.slice(0, 100),
+            });
+            return null;
+        }
+    }
+
+    async getQueryEmbedding(text, options = {}) {
+        return this.getEmbedding(text, options);
+    }
+
+    async getDocumentEmbedding(text, options = {}) {
+        return this.getEmbedding(text, options);
+    }
+}
+
+// =============================================================================
 // Strategy Registry
 // =============================================================================
 
@@ -410,6 +489,7 @@ const strategies = {
     'bge-small-en-v1.5': new TransformersStrategy(),
     'embeddinggemma-300m': new TransformersStrategy(),
     ollama: new OllamaStrategy(),
+    'st-vectors': new STVectorsStrategy(),
 };
 
 // Configure model-specific transformers strategies
