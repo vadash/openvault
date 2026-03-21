@@ -402,115 +402,6 @@ class OllamaStrategy extends EmbeddingStrategy {
 }
 
 // =============================================================================
-// ST Vectors Strategy (Vector Storage extension)
-// =============================================================================
-
-class STVectorsStrategy extends EmbeddingStrategy {
-    getId() {
-        return 'st-vectors';
-    }
-
-    #getVectorSettings() {
-        const extensionSettings = getDeps().getExtensionSettings();
-        return extensionSettings?.vectors || null;
-    }
-
-    isEnabled() {
-        const vectorSettings = this.#getVectorSettings();
-        return !!(vectorSettings?.source);
-    }
-
-    /**
-     * Get the model name for the current source
-     * Each source has its own model field (openai_model, openrouter_model, etc.)
-     * @param {Object} vectorSettings - Vector storage settings
-     * @returns {string|null} Model name or null if not set
-     */
-    #getModelForSource(vectorSettings) {
-        const source = vectorSettings?.source;
-        if (!source) return null;
-
-        // Map source to its corresponding model field
-        const sourceToModelField = {
-            openai: 'openai_model',
-            openrouter: 'openrouter_model',
-            cohere: 'cohere_model',
-            ollama: 'ollama_model',
-            vllm: 'vllm_model',
-            webllm: 'webllm_model',
-            google: 'google_model',
-            togetherai: 'togetherai_model',
-            electronhub: 'electronhub_model',
-            chutes: 'chutes_model',
-            nanogpt: 'nanogpt_model',
-        };
-
-        const modelField = sourceToModelField[source];
-        return modelField ? vectorSettings[modelField] : null;
-    }
-
-    getStatus() {
-        const vectorSettings = this.#getVectorSettings();
-        if (!vectorSettings?.source) {
-            return 'Configure in Vector Storage';
-        }
-        const source = vectorSettings.source;
-        const model = this.#getModelForSource(vectorSettings) || 'default';
-        return `ST: ${source} / ${model}`;
-    }
-
-    async getEmbedding(text, { signal } = {}) {
-        const vectorSettings = this.#getVectorSettings();
-        if (!vectorSettings?.source) {
-            return null;
-        }
-
-        if (!text || text.trim().length === 0) {
-            return null;
-        }
-
-        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-
-        try {
-            const model = this.#getModelForSource(vectorSettings);
-            const response = await getDeps().fetch('/api/embeddings/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    source: vectorSettings.source,
-                    items: [text.trim()],
-                    model: model || undefined,
-                }),
-                signal,
-            });
-
-            if (!response.ok) {
-                logDebug(`ST Vectors embedding request failed: ${response.status}`);
-                return null;
-            }
-
-            const data = await response.json();
-            return data.embeddings?.[0] ? new Float32Array(data.embeddings[0]) : null;
-        } catch (error) {
-            if (error.name === 'AbortError') throw error;
-            logError('ST Vectors embedding failed', error, {
-                source: vectorSettings?.source,
-                textSnippet: text?.slice(0, 100),
-            });
-            return null;
-        }
-    }
-
-    async getQueryEmbedding(text, options = {}) {
-        return this.getEmbedding(text, options);
-    }
-
-    async getDocumentEmbedding(text, options = {}) {
-        return this.getEmbedding(text, options);
-    }
-}
-
-// =============================================================================
 // Strategy Registry
 // =============================================================================
 
@@ -519,7 +410,6 @@ const strategies = {
     'bge-small-en-v1.5': new TransformersStrategy(),
     'embeddinggemma-300m': new TransformersStrategy(),
     ollama: new OllamaStrategy(),
-    'st-vectors': new STVectorsStrategy(),
 };
 
 // Configure model-specific transformers strategies

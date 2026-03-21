@@ -140,4 +140,4 @@ OpenVault implements ideas from two papers:
 
 12.00 - UI revamp, need to protect users from themselves. I can see oneguy changes the Jaccard threshold to 0.1, their graph will turn to mush, and they will submit a bug report saying "your extension sucks."
 
-12.50 - Customize injection position, add ST Vectors Embedding Source
+12.50 - Customize injection position

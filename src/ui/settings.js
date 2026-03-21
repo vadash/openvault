@@ -558,14 +558,12 @@ function bindUIElements() {
         // Persist the model selection
         setSetting('embeddingSource', value);
 
-        // Auto-populate prefix fields from model defaults (skip for st-vectors)
-        if (value !== 'st-vectors') {
-            const prefixes = embeddingModelPrefixes[value] || embeddingModelPrefixes._default;
-            setSetting('embeddingQueryPrefix', prefixes.queryPrefix);
-            setSetting('embeddingDocPrefix', prefixes.docPrefix);
-            $('#openvault_embedding_query_prefix').val(prefixes.queryPrefix);
-            $('#openvault_embedding_doc_prefix').val(prefixes.docPrefix);
-        }
+        // Auto-populate prefix fields from model defaults
+        const prefixes = embeddingModelPrefixes[value] || embeddingModelPrefixes._default;
+        setSetting('embeddingQueryPrefix', prefixes.queryPrefix);
+        setSetting('embeddingDocPrefix', prefixes.docPrefix);
+        $('#openvault_embedding_query_prefix').val(prefixes.queryPrefix);
+        $('#openvault_embedding_doc_prefix').val(prefixes.docPrefix);
 
         // Invalidate stale embeddings if model changed
         const data = getOpenVaultData();
@@ -586,7 +584,6 @@ function bindUIElements() {
         }
 
         $('#openvault_ollama_settings').toggle(value === 'ollama');
-        $('#openvault_st_vectors_hint').toggle(value === 'st-vectors');
         updateEmbeddingStatusDisplay(getEmbeddingStatus());
     });
 
@@ -813,7 +810,6 @@ export function updateUI() {
     // Embedding settings
     $('#openvault_embedding_source').val(settings.embeddingSource);
     $('#openvault_ollama_settings').toggle(settings.embeddingSource === 'ollama');
-    $('#openvault_st_vectors_hint').toggle(settings.embeddingSource === 'st-vectors');
     $('#openvault_ollama_url').val(settings.ollamaUrl);
     $('#openvault_embedding_model').val(settings.embeddingModel);
     $('#openvault_embedding_query_prefix').val(settings.embeddingQueryPrefix);
