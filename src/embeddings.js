@@ -89,6 +89,55 @@ class EmbeddingStrategy {
     async reset() {
         // Default: no-op
     }
+
+    /**
+     * Insert items into external vector storage (storage-backed strategies only).
+     * @param {Array<{hash: number, text: string}>} _items - Items to insert
+     * @param {Object} _options - Options
+     * @returns {Promise<boolean>} True if successful, false if not supported
+     */
+    async insertItems(_items, _options = {}) {
+        return false;
+    }
+
+    /**
+     * Search items in external vector storage (storage-backed strategies only).
+     * @param {string} _query - Search text
+     * @param {number} _topK - Number of results
+     * @param {number} _threshold - Similarity threshold
+     * @param {Object} _options - Options
+     * @returns {Promise<Array<{id: string, hash: number, text: string}>|null>} Results or null if not supported
+     */
+    async searchItems(_query, _topK, _threshold, _options = {}) {
+        return null;
+    }
+
+    /**
+     * Delete items from external vector storage.
+     * @param {number[]} _hashes - Hashes to delete
+     * @param {Object} _options - Options
+     * @returns {Promise<boolean>}
+     */
+    async deleteItems(_hashes, _options = {}) {
+        return false;
+    }
+
+    /**
+     * Purge entire collection from external storage.
+     * @param {Object} _options - Options
+     * @returns {Promise<boolean>}
+     */
+    async purgeCollection(_options = {}) {
+        return false;
+    }
+
+    /**
+     * Whether this strategy uses external vector storage (vs local embeddings).
+     * @returns {boolean}
+     */
+    usesExternalStorage() {
+        return false;
+    }
 }
 
 // =============================================================================
