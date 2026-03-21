@@ -518,6 +518,187 @@ class OllamaStrategy extends EmbeddingStrategy {
 }
 
 // =============================================================================
+// ST Vector Storage Strategy
+// =============================================================================
+
+class StVectorStrategy extends EmbeddingStrategy {
+    getId() {
+        return 'st-vectors';
+    }
+
+    isEnabled() {
+        const settings = getDeps().getExtensionSettings()?.vectors;
+        return !!(settings?.source);
+    }
+
+    getStatus() {
+        const settings = getDeps().getExtensionSettings()?.vectors;
+        const source = settings?.source || 'not configured';
+        const model = settings?.[`${source}_model`] || '';
+        return `ST: ${source}${model ? ` / ${model}` : ''}`;
+    }
+
+    usesExternalStorage() {
+        return true;
+    }
+
+    async getQueryEmbedding() {
+        return null;
+    }
+
+    async getDocumentEmbedding() {
+        return null;
+    }
+
+    #getSource() {
+        const settings = getDeps().getExtensionSettings()?.vectors;
+        return settings?.source || 'transformers';
+    }
+
+    async #getCollectionId() {
+        const { getCurrentChatId } = await import('./utils/data.js');
+        const chatId = getCurrentChatId() || 'default';
+        const source = this.#getSource();
+        return `openvault-${chatId}-${source}`;
+    }
+
+    async insertItems(items, { signal } = {}) {
+        try {
+            const source = this.#getSource();
+            const settings = getDeps().getExtensionSettings()?.vectors;
+            const model = settings?.[`${source}_model`];
+
+            // Build items with ID prefix in text
+            const itemsForSt = items.map((item) => ({
+                hash: hashStringToNumber(item.id),
+                text: createTextWithId(item.id, item.summary),
+                index: 0,
+            }));
+
+            const body = {
+                collectionId: await this.#getCollectionId(),
+                source,
+                items: itemsForSt,
+            };
+
+            if (model) {
+                body.model = model;
+            }
+
+            const response = await getDeps().fetch('/api/vector/insert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+                signal,
+            });
+            return response.ok;
+        } catch (error) {
+            if (error.name === 'AbortError') throw error;
+            logError('ST Vector insert failed', error);
+            return false;
+        }
+    }
+
+    async searchItems(queryText, topK, threshold, { signal } = {}) {
+        try {
+            const source = this.#getSource();
+            const settings = getDeps().getExtensionSettings()?.vectors;
+            const model = settings?.[`${source}_model`];
+
+            const body = {
+                collectionId: await this.#getCollectionId(),
+                source,
+                searchText: queryText,
+                topK,
+                threshold,
+            };
+
+            if (model) {
+                body.model = model;
+            }
+
+            const response = await getDeps().fetch('/api/vector/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+                signal,
+            });
+
+            if (!response.ok) {
+                return [];
+            }
+
+            const data = await response.json();
+
+            // Extract IDs from text prefix, fall back to hash
+            return data.hashes.map((hash, i) => {
+                const rawText = data.metadata[i]?.text || '';
+                const { id, text } = extractIdFromText(rawText);
+                return {
+                    id: id || String(hash),
+                    text,
+                    score: data.scores?.[i],
+                };
+            });
+        } catch (error) {
+            if (error.name === 'AbortError') throw error;
+            logError('ST Vector search failed', error);
+            return [];
+        }
+    }
+
+    async deleteItems(ids, { signal } = {}) {
+        try {
+            const numericHashes = ids.map((id) => hashStringToNumber(id));
+
+            const source = this.#getSource();
+            const settings = getDeps().getExtensionSettings()?.vectors;
+            const model = settings?.[`${source}_model`];
+
+            const body = {
+                collectionId: await this.#getCollectionId(),
+                source,
+                hashes: numericHashes,
+            };
+
+            if (model) {
+                body.model = model;
+            }
+
+            const response = await getDeps().fetch('/api/vector/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+                signal,
+            });
+            return response.ok;
+        } catch (error) {
+            if (error.name === 'AbortError') throw error;
+            logError('ST Vector delete failed', error);
+            return false;
+        }
+    }
+
+    async purgeCollection({ signal } = {}) {
+        try {
+            const response = await getDeps().fetch('/api/vector/purge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    collectionId: await this.#getCollectionId(),
+                }),
+                signal,
+            });
+            return response.ok;
+        } catch (error) {
+            if (error.name === 'AbortError') throw error;
+            logError('ST Vector purge failed', error);
+            return false;
+        }
+    }
+}
+
+// =============================================================================
 // Strategy Registry
 // =============================================================================
 
@@ -526,6 +707,7 @@ const strategies = {
     'bge-small-en-v1.5': new TransformersStrategy(),
     'embeddinggemma-300m': new TransformersStrategy(),
     ollama: new OllamaStrategy(),
+    'st-vectors': new StVectorStrategy(),
 };
 
 // Configure model-specific transformers strategies
