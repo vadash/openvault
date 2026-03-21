@@ -1,9 +1,88 @@
-import { CHARACTERS_KEY, LAST_PROCESSED_KEY, MEMORIES_KEY, METADATA_KEY } from '../constants.js';
+import { CHARACTERS_KEY, LAST_PROCESSED_KEY, MEMORIES_KEY, METADATA_KEY, extensionName } from '../constants.js';
 import { getDeps } from '../deps.js';
+import { getStrategy } from '../embeddings.js';
 import { record } from '../perf/store.js';
 import { showToast } from './dom.js';
-import { deleteEmbedding, hasEmbedding } from './embedding-codec.js';
+import { deleteEmbedding, hasEmbedding, markStSynced, clearStSynced } from './embedding-codec.js';
 import { logDebug, logError, logInfo, logWarn } from './logging.js';
+
+/**
+ * Check if ST Vector Storage is active and sync items
+ * @param {Object[]} items - Items to sync [{ id, summary }]
+ * @param {Object} options - Options
+ * @param {Object} options.targetObjects - Objects to mark as synced (parallel to items)
+ * @returns {Promise<boolean>} True if synced or skipped
+ */
+export async function syncItemsToStStorage(items, { targetObjects } = {}) {
+    try {
+        const deps = getDeps();
+        const settings = deps.getExtensionSettings()?.[extensionName];
+        if (settings?.embeddingSource !== 'st-vectors') return false;
+
+        const strategy = getStrategy('st-vectors');
+        if (!strategy.usesExternalStorage()) return false;
+
+        if (!items || items.length === 0) return true;
+
+        const result = await strategy.insertItems(items);
+        if (result && targetObjects) {
+            // Mark the target objects as synced
+            for (const obj of targetObjects) {
+                markStSynced(obj);
+            }
+        }
+        if (!result) {
+            logWarn(`ST Vector sync failed for ${items.length} items`);
+        }
+        return result;
+    } catch (error) {
+        logError('Failed to sync items to ST Vector Storage', error);
+        return false;
+    }
+}
+
+/**
+ * Delete items from ST Vector Storage
+ * @param {string[]} ids - Item IDs to delete
+ * @returns {Promise<boolean>} True if deleted or skipped
+ */
+export async function deleteItemsFromStStorage(ids) {
+    try {
+        const deps = getDeps();
+        const settings = deps.getExtensionSettings()?.[extensionName];
+        if (settings?.embeddingSource !== 'st-vectors') return false;
+
+        const strategy = getStrategy('st-vectors');
+        if (!strategy.usesExternalStorage()) return false;
+
+        if (!ids || ids.length === 0) return true;
+
+        return await strategy.deleteItems(ids);
+    } catch (error) {
+        logError('Failed to delete items from ST Vector Storage', error);
+        return false;
+    }
+}
+
+/**
+ * Purge ST Vector Storage collection for current chat
+ * @returns {Promise<boolean>} True if purged or skipped
+ */
+export async function purgeStVectorCollection() {
+    try {
+        const deps = getDeps();
+        const settings = deps.getExtensionSettings()?.[extensionName];
+        if (settings?.embeddingSource !== 'st-vectors') return false;
+
+        const strategy = getStrategy('st-vectors');
+        if (!strategy.usesExternalStorage()) return false;
+
+        return await strategy.purgeCollection();
+    } catch (error) {
+        logError('Failed to purge ST Vector collection', error);
+        return false;
+    }
+}
 
 /**
  * Get OpenVault data from chat metadata
@@ -135,7 +214,13 @@ export async function deleteMemory(id) {
         return false;
     }
 
+    const memory = data[MEMORIES_KEY][idx];
     data[MEMORIES_KEY].splice(idx, 1);
+
+    // Clear sync flag and delete from ST Vector Storage
+    clearStSynced(memory);
+    await deleteItemsFromStStorage([id]);
+
     await getDeps().saveChatConditional();
     logDebug(`Deleted memory ${id}`);
     return true;
@@ -152,6 +237,9 @@ export async function deleteCurrentChatData() {
         logDebug('No chat metadata found');
         return false;
     }
+
+    // Purge ST Vector collection before deleting data
+    await purgeStVectorCollection();
 
     delete context.chatMetadata[METADATA_KEY];
     await getDeps().saveChatConditional();
