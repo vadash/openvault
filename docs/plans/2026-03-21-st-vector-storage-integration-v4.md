@@ -1455,9 +1455,15 @@ In `redirectEdges`, after removing old edges, add deletion:
 // }
 
 // Add after deletion:
-// Delete removed edges from ST Vector Storage
+// CRITICAL: Transform edge keys to ST Vector Storage ID format
+// Edge dictionary key: "source__target" (e.g., "alice__bob")
+// ST Vector ID: "edge_source_target" (e.g., "edge_alice_bob")
 const { deleteItemsFromStStorage } = await import('../utils/data.js');
-await deleteItemsFromStStorage(edgesToRemove);
+const edgeIdsToDelete = edgesToRemove.map((key) => {
+    const [source, target] = key.split('__');
+    return `edge_${source}_${target}`;
+});
+await deleteItemsFromStStorage(edgeIdsToDelete);
 ```
 
 - [ ] Step 5: Run tests

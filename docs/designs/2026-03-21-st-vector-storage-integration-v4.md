@@ -54,6 +54,18 @@ const selectedMemories = results
 - `src/graph/graph.js` - `consolidateGraph()` - delete merged nodes from ST
 - `src/graph/graph.js` - `redirectEdges()` - delete removed edges from ST
 
+**Edge ID Transformation:** Edge dictionary keys (`source__target`) must be transformed to ST Vector Storage IDs (`edge_source_target`) before deletion:
+
+```javascript
+// Edge dictionary key: "alice__bob"
+// ST Vector ID: "edge_alice_bob"
+const edgeIdsToDelete = edgesToRemove.map((key) => {
+    const [source, target] = key.split('__');
+    return `edge_${source}_${target}`;
+});
+await deleteItemsFromStStorage(edgeIdsToDelete);
+```
+
 ### 3. Batching for Bulk Inserts (RISK)
 
 **Problem:** v3's `backfillAllEmbeddings()` sent all items in a single POST request. Chats with 3000+ memories could cause network timeouts, memory spikes, or API rejections.
