@@ -1,10 +1,24 @@
-# ST Vector Storage Integration v2 - Implementation Plan
+# ST Vector Storage Integration v3 - Implementation Plan
 
 **Goal:** Add SillyTavern's Vector Storage as an optional embedding strategy that delegates embedding generation, storage, and similarity search to ST's `/api/vector/*` endpoints.
 
-**Architecture:** Extend existing `EmbeddingStrategy` pattern with `StVectorStrategy` that returns `null` for embedding methods but implements `insertItems()`, `searchItems()`, `deleteItems()`, and `purgeCollection()` for ST API delegation. Uses hash-to-number mapping for ID compatibility.
+**Architecture:** Extend existing `EmbeddingStrategy` pattern with `StVectorStrategy`. Uses text prefix approach for ID mapping (avoids hash collisions and memory leaks). Items are marked with `_st_synced` flag to prevent re-sync loops. Sync hooks added for all entity types.
 
 **Tech Stack:** JavaScript, Vitest, fetch API
+
+---
+
+## Changes from v2
+
+This plan addresses critical issues identified in code review:
+
+1. **Infinite Re-Sync Loop**: Added `_st_synced` flag check in `hasEmbedding()` to prevent `backfillAllEmbeddings()` from re-uploading already-synced items.
+
+2. **Missing Sync Hooks**: Added sync hooks for Graph Nodes (`mergeOrInsertEntity`), Communities (`updateCommunitySummaries`), and Edges (`consolidateEdges`).
+
+3. **Hardcoded Threshold**: Changed from hardcoded `0.0` to `settings.vectorSimilarityThreshold` (default `0.5`).
+
+4. **Hash Map Memory Leak**: Replaced numeric hash mapping with text prefix approach - IDs are embedded in the text field as `[OV_ID:xxx]` prefix, eliminating the need for `_st_hash_map`.
 
 ---
 
@@ -12,30 +26,106 @@
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/embeddings.js` | Modify | Add `StVectorStrategy`, extend base class with storage methods, update `backfillAllEmbeddings` |
-| `src/retrieval/scoring.js` | Modify | Add branch for `usesExternalStorage()` with mock scoring |
+| `src/utils/embedding-codec.js` | Modify | Add `_st_synced` check to `hasEmbedding()`, add `markStSynced()` and `isStSynced()` helpers |
+| `src/embeddings.js` | Modify | Add `StVectorStrategy` with text prefix approach, extend base class, update `backfillAllEmbeddings` |
+| `src/retrieval/scoring.js` | Modify | Add branch for `usesExternalStorage()` with threshold from settings |
 | `src/retrieval/world-context.js` | Modify | Add branch for ST search on communities |
-| `src/extraction/extract.js` | Modify | Add sync hook after Phase 1 commit |
+| `src/extraction/extract.js` | Modify | Add sync hook after Phase 1 commit for events and nodes |
 | `src/reflection/reflect.js` | Modify | Add sync hook after reflection generation |
+| `src/graph/graph.js` | Modify | Add sync support in `mergeOrInsertEntity` and `consolidateEdges` |
+| `src/graph/communities.js` | Modify | Add sync support in `updateCommunitySummaries` |
 | `src/utils/data.js` | Modify | Add sync helpers, call on delete operations |
 | `tests/embeddings.test.js` | Modify | Add tests for `StVectorStrategy` |
 
 ---
 
-### Task 1: Extend EmbeddingStrategy Base Class
+### Task 1: Update hasEmbedding for ST Synced Items
+
+**Files:**
+- Modify: `src/utils/embedding-codec.js`
+
+**Purpose:** Prevent infinite re-sync loops by recognizing items that have been synced to ST Vector Storage.
+
+**Common Pitfalls:**
+- The `_st_synced` flag must be checked BEFORE the `embedding_b64` check
+- This flag is set when `insertItems()` succeeds, NOT when the strategy is enabled
+
+- [ ] Step 1: Add `isStSynced`, `markStSynced`, and `clearStSynced` functions
+
+Add after the `deleteEmbedding` function (around line 72):
+
+```javascript
+/**
+ * Check if an object has been synced to ST Vector Storage.
+ * @param {Object} obj - Object to check
+ * @returns {boolean}
+ */
+export function isStSynced(obj) {
+    return !!(obj && obj._st_synced);
+}
+
+/**
+ * Mark an object as synced to ST Vector Storage.
+ * @param {Object} obj - Target object (mutated)
+ */
+export function markStSynced(obj) {
+    if (!obj) return;
+    obj._st_synced = true;
+}
+
+/**
+ * Clear the ST sync flag from an object.
+ * @param {Object} obj - Target object (mutated)
+ */
+export function clearStSynced(obj) {
+    if (!obj) return;
+    delete obj._st_synced;
+}
+```
+
+- [ ] Step 2: Update `hasEmbedding` to check `_st_synced`
+
+Replace the `hasEmbedding` function:
+
+```javascript
+/**
+ * Check if an object has an embedding (either format or ST synced).
+ * @param {Object} obj - Object to check
+ * @returns {boolean}
+ */
+export function hasEmbedding(obj) {
+    if (!obj) return false;
+    // ST Vector Storage synced items don't have local embeddings
+    if (obj._st_synced) return true;
+    if (obj.embedding_b64) return true;
+    if (obj.embedding && obj.embedding.length > 0) return true;
+    return false;
+}
+```
+
+- [ ] Step 3: Run existing tests to verify no regression
+
+Run: `npm run test:run tests/embeddings.test.js`
+Expected: All existing tests pass
+
+- [ ] Step 4: Commit
+
+```bash
+git add -A && git commit -m "feat(embedding-codec): add _st_synced flag to prevent re-sync loops"
+```
+
+---
+
+### Task 2: Add Storage Methods to EmbeddingStrategy Base Class
 
 **Files:**
 - Modify: `src/embeddings.js`
 
 **Purpose:** Add storage-related methods to the base class that strategies can optionally implement.
 
-**Common Pitfalls:**
-- Don't make new methods throw errors - return default values so existing strategies continue working
-- Keep methods optional - existing Transformers/Ollama strategies should not need changes
-
 - [ ] Step 1: Add storage methods to EmbeddingStrategy base class
 
-Add these methods after the `reset()` method (around line 92):
+Find the `EmbeddingStrategy` class and add these methods after the `reset()` method:
 
 ```javascript
     /**
@@ -64,7 +154,7 @@ Add these methods after the `reset()` method (around line 92):
      * @param {number} threshold - Similarity threshold
      * @param {Object} options - Options
      * @param {AbortSignal} options.signal - AbortSignal
-     * @returns {Promise<{id: string, text: string}[]|null>} Search results or null
+     * @returns {Promise<{id: string, text: string, score?: number}[]|null>} Search results or null
      */
     async searchItems(_queryText, _topK, _threshold, _options = {}) {
         return null;
@@ -105,97 +195,126 @@ git add -A && git commit -m "feat(embeddings): add storage methods to EmbeddingS
 
 ---
 
-### Task 2: Add Hash Mapping Utility
+### Task 3: Add ID Prefix Utility Functions
 
 **Files:**
 - Modify: `src/embeddings.js`
 
-**Purpose:** Add hash-to-number conversion functions for ST API compatibility.
+**Purpose:** Add text prefix utilities for embedding OpenVault IDs in ST text fields. This replaces the numeric hash approach, eliminating hash collision risk and memory leak from the hash map.
 
-**Common Pitfalls:**
-- Hash function must be stable (same input always produces same output)
-- Use absolute value to avoid negative numbers
-- Store mapping for reverse lookup
+- [ ] Step 1: Add ID prefix constants and functions after imports
 
-- [ ] Step 1: Add hash mapping functions after imports (around line 20)
+Add after the imports section (around line 20):
 
 ```javascript
+// =============================================================================
+// ST Vector Storage ID Prefix Utilities
+// =============================================================================
+
 /**
- * Simple but stable hash function (djb2)
- * Converts string IDs to numeric IDs for ST Vector Storage compatibility
+ * Prefix marker for embedding OpenVault IDs in ST Vector text fields.
+ * Format: [OV_ID:entity_id] Actual summary text...
+ */
+const OV_ID_PREFIX_START = '[OV_ID:';
+const OV_ID_PREFIX_END = '] ';
+
+/**
+ * Create text with embedded OpenVault ID for ST Vector Storage.
+ * @param {string} id - OpenVault entity ID (e.g., "event_123", "Alice")
+ * @param {string} text - Summary text
+ * @returns {string} Text with ID prefix
+ */
+function createTextWithId(id, text) {
+    return `${OV_ID_PREFIX_START}${id}${OV_ID_PREFIX_END}${text}`;
+}
+
+/**
+ * Extract OpenVault ID from ST Vector text field.
+ * @param {string} text - Text that may contain ID prefix
+ * @returns {{id: string|null, text: string}} Extracted ID and clean text
+ */
+function extractIdFromText(text) {
+    if (!text || !text.startsWith(OV_ID_PREFIX_START)) {
+        return { id: null, text: text || '' };
+    }
+    const endIdx = text.indexOf(OV_ID_PREFIX_END);
+    if (endIdx === -1) {
+        return { id: null, text };
+    }
+    const id = text.slice(OV_ID_PREFIX_START.length, endIdx);
+    const cleanText = text.slice(endIdx + OV_ID_PREFIX_END.length);
+    return { id, text: cleanText };
+}
+
+/**
+ * Generate a numeric hash from string for ST Vector hash field.
+ * ST requires numeric hashes, so we use a stable hash function.
  * @param {string} str - String to hash
  * @returns {number} Numeric hash
  */
-function hashToNumber(str) {
+function hashStringToNumber(str) {
     let hash = 5381;
     for (let i = 0; i < str.length; i++) {
         hash = ((hash << 5) + hash) + str.charCodeAt(i);
     }
     return Math.abs(hash);
 }
-
-/**
- * Get string ID from numeric hash using stored mapping
- * @param {number} numericHash - Numeric hash
- * @param {Object} data - OpenVault data object
- * @returns {string|null} Original string ID or null
- */
-function getStringId(numericHash, data) {
-    return data._st_hash_map?.[numericHash] || null;
-}
-
-/**
- * Store hash mapping for reverse lookup
- * @param {string} stringId - Original string ID
- * @param {number} numericHash - Numeric hash
- * @param {Object} data - OpenVault data object (mutated)
- */
-function storeHashMapping(stringId, numericHash, data) {
-    data._st_hash_map = data._st_hash_map || {};
-    data._st_hash_map[numericHash] = stringId;
-}
 ```
 
-- [ ] Step 2: Export hashToNumber for testing
+- [ ] Step 2: Export the extractIdFromText function for testing
 
-Add to exports at bottom of file:
+Add to the exports at the bottom of the file:
 
 ```javascript
-export { hashToNumber };
+export { extractIdFromText, hashStringToNumber };
 ```
 
-- [ ] Step 3: Write tests for hash mapping
+- [ ] Step 3: Write tests for ID prefix utilities
 
 Add to `tests/embeddings.test.js`:
 
 ```javascript
-describe('hashToNumber', () => {
-    it('produces stable numeric hashes', async () => {
-        const { hashToNumber } = await import('../src/embeddings.js');
+describe('ST Vector ID Prefix Utilities', () => {
+    it('creates and extracts ID from text', async () => {
+        const { extractIdFromText } = await import('../src/embeddings.js');
+
+        // Simulate what createTextWithId produces
+        const textWithId = '[OV_ID:event_123456789_0] This is a memory summary';
+        const result = extractIdFromText(textWithId);
+
+        expect(result.id).toBe('event_123456789_0');
+        expect(result.text).toBe('This is a memory summary');
+    });
+
+    it('handles text without ID prefix', async () => {
+        const { extractIdFromText } = await import('../src/embeddings.js');
+
+        const result = extractIdFromText('Plain text without prefix');
+
+        expect(result.id).toBeNull();
+        expect(result.text).toBe('Plain text without prefix');
+    });
+
+    it('handles IDs with special characters', async () => {
+        const { extractIdFromText } = await import('../src/embeddings.js');
+
+        const textWithId = '[OV_ID:ref_abc-123_xyz] Reflection summary';
+        const result = extractIdFromText(textWithId);
+
+        expect(result.id).toBe('ref_abc-123_xyz');
+        expect(result.text).toBe('Reflection summary');
+    });
+
+    it('hashStringToNumber produces stable hashes', async () => {
+        const { hashStringToNumber } = await import('../src/embeddings.js');
 
         const id1 = 'event_123456789_0';
         const id2 = 'ref_abc123-def456';
 
-        expect(hashToNumber(id1)).toBe(hashToNumber(id1)); // Stable
-        expect(hashToNumber(id2)).toBe(hashToNumber(id2)); // Stable
-        expect(hashToNumber(id1)).not.toBe(hashToNumber(id2)); // Different
-        expect(typeof hashToNumber(id1)).toBe('number');
-        expect(hashToNumber(id1)).toBeGreaterThan(0); // Positive
-    });
-
-    it('handles various ID formats', async () => {
-        const { hashToNumber } = await import('../src/embeddings.js');
-
-        const ids = [
-            'event_1',
-            'event_999999999999_99',
-            'ref_a1b2c3d4',
-            'comm_group1',
-            'Alice', // Graph node name
-        ];
-
-        const hashes = ids.map(hashToNumber);
-        expect(new Set(hashes).size).toBe(ids.length); // All unique
+        expect(hashStringToNumber(id1)).toBe(hashStringToNumber(id1)); // Stable
+        expect(hashStringToNumber(id2)).toBe(hashStringToNumber(id2)); // Stable
+        expect(hashStringToNumber(id1)).not.toBe(hashStringToNumber(id2)); // Different
+        expect(hashStringToNumber(id1)).toBeGreaterThan(0); // Positive
     });
 });
 ```
@@ -208,12 +327,12 @@ Expected: Tests pass
 - [ ] Step 5: Commit
 
 ```bash
-git add -A && git commit -m "feat(embeddings): add hash-to-number mapping for ST API compatibility"
+git add -A && git commit -m "feat(embeddings): add ID prefix utilities for ST Vector Storage"
 ```
 
 ---
 
-### Task 3: Write Tests for StVectorStrategy
+### Task 4: Write Tests for StVectorStrategy
 
 **Files:**
 - Modify: `tests/embeddings.test.js`
@@ -221,10 +340,9 @@ git add -A && git commit -m "feat(embeddings): add hash-to-number mapping for ST
 **Purpose:** Write failing tests that define the expected behavior of StVectorStrategy.
 
 **Common Pitfalls:**
-- Mock `getDeps()` to return ST's `extension_settings.vectors` config
-- The strategy reads from `vectors` extension settings, not `openvault` settings
+- Mock `getDeps()` to return ST's `vectors` extension settings
 - Collection ID should include chatId for isolation
-- Hash IDs are converted to numbers via `hashToNumber()`
+- Search threshold should come from settings, NOT hardcoded
 
 - [ ] Step 1: Write test suite for StVectorStrategy
 
@@ -316,9 +434,8 @@ describe('StVectorStrategy', () => {
     });
 
     describe('insertItems', () => {
-        it('calls ST /api/vector/insert with numeric hashes', async () => {
+        it('calls ST /api/vector/insert with ID prefix in text', async () => {
             const fetchSpy = vi.fn(async () => ({ ok: true }));
-            const mockData = { _st_hash_map: {} };
 
             const depsModule = await import('../src/deps.js');
             vi.spyOn(depsModule, 'getDeps').mockReturnValue({
@@ -328,12 +445,10 @@ describe('StVectorStrategy', () => {
                 fetch: fetchSpy,
             });
 
-            // Mock getOpenVaultData
             const dataModule = await import('../src/utils/data.js');
-            vi.spyOn(dataModule, 'getOpenVaultData').mockReturnValue(mockData);
             vi.spyOn(dataModule, 'getCurrentChatId').mockReturnValue('chat-123');
 
-            const { getStrategy, hashToNumber } = await import('../src/embeddings.js');
+            const { getStrategy } = await import('../src/embeddings.js');
             const strategy = getStrategy('st-vectors');
 
             const items = [
@@ -353,11 +468,9 @@ describe('StVectorStrategy', () => {
             expect(body.collectionId).toBe('openvault-chat-123-openrouter');
             expect(body.source).toBe('openrouter');
 
-            // Verify hashes are numeric
-            expect(typeof body.items[0].hash).toBe('number');
-            expect(typeof body.items[1].hash).toBe('number');
-            expect(body.items[0].hash).toBe(hashToNumber('event_123'));
-            expect(body.items[1].hash).toBe(hashToNumber('ref_456'));
+            // Verify text contains ID prefix
+            expect(body.items[0].text).toBe('[OV_ID:event_123] First memory');
+            expect(body.items[1].text).toBe('[OV_ID:ref_456] Second memory');
         });
 
         it('returns false on fetch failure', async () => {
@@ -370,7 +483,6 @@ describe('StVectorStrategy', () => {
             });
 
             const dataModule = await import('../src/utils/data.js');
-            vi.spyOn(dataModule, 'getOpenVaultData').mockReturnValue({});
             vi.spyOn(dataModule, 'getCurrentChatId').mockReturnValue('chat-123');
 
             const { getStrategy } = await import('../src/embeddings.js');
@@ -383,28 +495,17 @@ describe('StVectorStrategy', () => {
     });
 
     describe('searchItems', () => {
-        it('calls ST /api/vector/query and maps hashes back to string IDs', async () => {
-            const { hashToNumber } = await import('../src/embeddings.js');
-            const hash1 = hashToNumber('event_123');
-            const hash2 = hashToNumber('ref_456');
-
+        it('calls ST /api/vector/query and extracts IDs from text', async () => {
             const fetchSpy = vi.fn(async () => ({
                 ok: true,
                 json: async () => ({
-                    hashes: [hash1, hash2],
+                    hashes: [12345, 67890],
                     metadata: [
-                        { text: 'First memory' },
-                        { text: 'Second memory' },
+                        { text: '[OV_ID:event_123] First memory' },
+                        { text: '[OV_ID:ref_456] Second memory' },
                     ],
                 }),
             }));
-
-            const mockData = {
-                _st_hash_map: {
-                    [hash1]: 'event_123',
-                    [hash2]: 'ref_456',
-                },
-            };
 
             const depsModule = await import('../src/deps.js');
             vi.spyOn(depsModule, 'getDeps').mockReturnValue({
@@ -415,7 +516,6 @@ describe('StVectorStrategy', () => {
             });
 
             const dataModule = await import('../src/utils/data.js');
-            vi.spyOn(dataModule, 'getOpenVaultData').mockReturnValue(mockData);
             vi.spyOn(dataModule, 'getCurrentChatId').mockReturnValue('chat-123');
 
             const { getStrategy } = await import('../src/embeddings.js');
@@ -431,11 +531,41 @@ describe('StVectorStrategy', () => {
             const body = JSON.parse(callArgs[1].body);
             expect(body.collectionId).toBe('openvault-chat-123-openrouter');
             expect(body.searchText).toBe('query text');
+            expect(body.threshold).toBe(0.5);
 
-            // Verify hashes are mapped back to string IDs
+            // Verify IDs are extracted from text prefix
             expect(results).toEqual([
-                { id: 'event_123', text: 'First memory' },
-                { id: 'ref_456', text: 'Second memory' },
+                { id: 'event_123', text: 'First memory', score: undefined },
+                { id: 'ref_456', text: 'Second memory', score: undefined },
+            ]);
+        });
+
+        it('handles items without ID prefix gracefully', async () => {
+            const fetchSpy = vi.fn(async () => ({
+                ok: true,
+                json: async () => ({
+                    hashes: [12345],
+                    metadata: [{ text: 'Memory without ID prefix' }],
+                }),
+            }));
+
+            const depsModule = await import('../src/deps.js');
+            vi.spyOn(depsModule, 'getDeps').mockReturnValue({
+                getExtensionSettings: vi.fn(() => ({ vectors: { source: 'openrouter' } })),
+                fetch: fetchSpy,
+            });
+
+            const dataModule = await import('../src/utils/data.js');
+            vi.spyOn(dataModule, 'getCurrentChatId').mockReturnValue('chat-123');
+
+            const { getStrategy } = await import('../src/embeddings.js');
+            const strategy = getStrategy('st-vectors');
+
+            const results = await strategy.searchItems('query', 10, 0.5);
+
+            // Should return the hash as ID when no prefix found
+            expect(results).toEqual([
+                { id: '12345', text: 'Memory without ID prefix', score: undefined },
             ]);
         });
 
@@ -449,7 +579,6 @@ describe('StVectorStrategy', () => {
             });
 
             const dataModule = await import('../src/utils/data.js');
-            vi.spyOn(dataModule, 'getOpenVaultData').mockReturnValue({});
             vi.spyOn(dataModule, 'getCurrentChatId').mockReturnValue('chat-123');
 
             const { getStrategy } = await import('../src/embeddings.js');
@@ -464,7 +593,7 @@ describe('StVectorStrategy', () => {
     describe('deleteItems', () => {
         it('converts string IDs to numeric hashes for deletion', async () => {
             const fetchSpy = vi.fn(async () => ({ ok: true }));
-            const { hashToNumber } = await import('../src/embeddings.js');
+            const { hashStringToNumber } = await import('../src/embeddings.js');
 
             const depsModule = await import('../src/deps.js');
             vi.spyOn(depsModule, 'getDeps').mockReturnValue({
@@ -473,7 +602,6 @@ describe('StVectorStrategy', () => {
             });
 
             const dataModule = await import('../src/utils/data.js');
-            vi.spyOn(dataModule, 'getOpenVaultData').mockReturnValue({});
             vi.spyOn(dataModule, 'getCurrentChatId').mockReturnValue('chat-123');
 
             const { getStrategy } = await import('../src/embeddings.js');
@@ -488,7 +616,7 @@ describe('StVectorStrategy', () => {
 
             const callArgs = fetchSpy.mock.calls[0];
             const body = JSON.parse(callArgs[1].body);
-            expect(body.hashes).toEqual([hashToNumber('event_123'), hashToNumber('ref_456')]);
+            expect(body.hashes).toEqual([hashStringToNumber('event_123'), hashStringToNumber('ref_456')]);
         });
     });
 
@@ -532,7 +660,7 @@ git add -A && git commit -m "test(embeddings): add failing tests for StVectorStr
 
 ---
 
-### Task 4: Implement StVectorStrategy
+### Task 5: Implement StVectorStrategy
 
 **Files:**
 - Modify: `src/embeddings.js`
@@ -542,13 +670,13 @@ git add -A && git commit -m "test(embeddings): add failing tests for StVectorStr
 **Common Pitfalls:**
 - Register strategy as `'st-vectors'` in the strategies map
 - Collection ID must include chatId for isolation
-- Return `null` from `getQueryEmbedding` and `getDocumentEmbedding` - ST generates embeddings internally
-- Handle fetch errors gracefully - return false/empty array, don't throw
-- Use `hashToNumber()` for all hash conversions
+- Return `null` from `getQueryEmbedding` and `getDocumentEmbedding`
+- Use text prefix approach for ID mapping
+- Handle fetch errors gracefully
 
 - [ ] Step 1: Add StVectorStrategy class after OllamaStrategy
 
-Add after the `OllamaStrategy` class (around line 290, before the Strategy Registry comment):
+Add after the `OllamaStrategy` class (before the Strategy Registry comment):
 
 ```javascript
 // =============================================================================
@@ -598,28 +726,23 @@ class StVectorStrategy extends EmbeddingStrategy {
 
     async insertItems(items, { signal } = {}) {
         try {
-            const data = getOpenVaultData();
-            const itemsWithNumericHash = items.map((item) => {
-                const numericHash = hashToNumber(item.id);
-                storeHashMapping(item.id, numericHash, data);
-                return {
-                    hash: numericHash,
-                    text: item.summary,
-                    index: 0,
-                };
-            });
-
             const source = this.#getSource();
             const settings = getDeps().getExtensionSettings()?.vectors;
             const model = settings?.[`${source}_model`];
 
+            // Build items with ID prefix in text
+            const itemsForSt = items.map((item) => ({
+                hash: hashStringToNumber(item.id),
+                text: createTextWithId(item.id, item.summary),
+                index: 0,
+            }));
+
             const body = {
                 collectionId: await this.#getCollectionId(),
                 source,
-                items: itemsWithNumericHash,
+                items: itemsForSt,
             };
 
-            // Add model for sources that require it
             if (model) {
                 body.model = model;
             }
@@ -668,12 +791,17 @@ class StVectorStrategy extends EmbeddingStrategy {
             }
 
             const data = await response.json();
-            const openVaultData = getOpenVaultData();
 
-            return data.hashes.map((numericHash, i) => ({
-                id: getStringId(numericHash, openVaultData) || String(numericHash),
-                text: data.metadata[i]?.text,
-            }));
+            // Extract IDs from text prefix, fall back to hash
+            return data.hashes.map((hash, i) => {
+                const rawText = data.metadata[i]?.text || '';
+                const { id, text } = extractIdFromText(rawText);
+                return {
+                    id: id || String(hash),
+                    text,
+                    score: data.scores?.[i],
+                };
+            });
         } catch (error) {
             if (error.name === 'AbortError') throw error;
             logError('ST Vector search failed', error);
@@ -683,7 +811,7 @@ class StVectorStrategy extends EmbeddingStrategy {
 
     async deleteItems(ids, { signal } = {}) {
         try {
-            const numericHashes = ids.map((id) => hashToNumber(id));
+            const numericHashes = ids.map((id) => hashStringToNumber(id));
 
             const source = this.#getSource();
             const settings = getDeps().getExtensionSettings()?.vectors;
@@ -735,7 +863,7 @@ class StVectorStrategy extends EmbeddingStrategy {
 
 - [ ] Step 2: Register strategy in the strategies map
 
-Add to the strategies map (around line 380):
+Find the `strategies` object and add `'st-vectors'`:
 
 ```javascript
 const strategies = {
@@ -747,20 +875,12 @@ const strategies = {
 };
 ```
 
-- [ ] Step 3: Add getOpenVaultData import at top of file
-
-Add to imports:
-
-```javascript
-import { getOpenVaultData } from './utils/data.js';
-```
-
-- [ ] Step 4: Run tests to verify they pass
+- [ ] Step 3: Run tests to verify they pass
 
 Run: `npm run test:run tests/embeddings.test.js`
 Expected: All tests pass
 
-- [ ] Step 5: Commit
+- [ ] Step 4: Commit
 
 ```bash
 git add -A && git commit -m "feat(embeddings): implement StVectorStrategy for ST Vector Storage"
@@ -768,30 +888,30 @@ git add -A && git commit -m "feat(embeddings): implement StVectorStrategy for ST
 
 ---
 
-### Task 5: Integrate with Retrieval System
+### Task 6: Integrate with Retrieval System
 
 **Files:**
 - Modify: `src/retrieval/scoring.js`
 
-**Purpose:** Add branch in `selectRelevantMemories()` to use ST's search when the strategy uses external storage, with mock scoring for debug cache compatibility.
+**Purpose:** Add branch in `selectRelevantMemories()` to use ST's search when the strategy uses external storage, using the user's threshold setting.
 
 **Common Pitfalls:**
+- Use `settings.vectorSimilarityThreshold` NOT hardcoded `0.0`
 - Check `usesExternalStorage()` before calling `searchItems()`
-- Map returned IDs back to memory objects from the provided memories array
-- Generate mock `scoredResults` for debug cache compatibility
-- Cache ST mode flag for debug export
+- Mark synced items with `markStSynced()` after successful selection
 
-- [ ] Step 1: Add import for getStrategy
+- [ ] Step 1: Add import for getStrategy and sync helpers
 
-At the top of `src/retrieval/scoring.js`, add to imports:
+At the top of `src/retrieval/scoring.js`, update imports:
 
 ```javascript
 import { getStrategy, getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
+import { markStSynced } from '../utils/embedding-codec.js';
 ```
 
 - [ ] Step 2: Add ST branch at start of selectRelevantMemories
 
-At the beginning of `selectRelevantMemories()` function (after the early returns for empty memories), add:
+Find the `selectRelevantMemories()` function and add the ST branch after the early return for empty memories:
 
 ```javascript
 export async function selectRelevantMemories(memories, ctx) {
@@ -803,15 +923,17 @@ export async function selectRelevantMemories(memories, ctx) {
     const strategy = getStrategy(source);
 
     if (strategy.usesExternalStorage()) {
-        // Use ST's vector search
+        // Use ST's vector search with user's threshold
         const queryText = ctx.userMessages || ctx.recentContext?.slice(-500);
-        const results = await strategy.searchItems(queryText, 100, 0.0);
+        const threshold = settings.vectorSimilarityThreshold;
+        const results = await strategy.searchItems(queryText, 100, threshold);
 
         if (!results || results.length === 0) {
             cacheRetrievalDebug({
                 stVectorMode: true,
                 stResultsCount: 0,
                 selectedCount: 0,
+                threshold,
             });
             return [];
         }
@@ -821,6 +943,11 @@ export async function selectRelevantMemories(memories, ctx) {
         const selectedMemories = memories
             .filter((m) => idSet.has(m.id))
             .slice(0, Math.ceil(ctx.finalTokens / 50));
+
+        // Mark as synced to prevent re-sync
+        for (const memory of selectedMemories) {
+            markStSynced(memory);
+        }
 
         // Mock scoredResults for debug cache compatibility
         const scoredResults = selectedMemories.map((m, i) => ({
@@ -852,6 +979,7 @@ export async function selectRelevantMemories(memories, ctx) {
             stVectorMode: true,
             stResultsCount: results.length,
             selectedCount: selectedMemories.length,
+            threshold,
             tokenBudget: {
                 budget: ctx.finalTokens,
                 scoredCount: results.length,
@@ -874,7 +1002,7 @@ export async function selectRelevantMemories(memories, ctx) {
         }
 
         logDebug(
-            `ST Vector Retrieval: ${results.length} results -> ${selectedMemories.length} memories selected`
+            `ST Vector Retrieval: ${results.length} results -> ${selectedMemories.length} memories selected (threshold: ${threshold})`
         );
         return selectedMemories;
     }
@@ -898,28 +1026,27 @@ git add -A && git commit -m "feat(retrieval): integrate StVectorStrategy with me
 
 ---
 
-### Task 6: Add World Context Support
+### Task 7: Add World Context Support
 
 **Files:**
 - Modify: `src/retrieval/world-context.js`
 
-**Purpose:** Support ST Vector Storage for community retrieval.
+**Purpose:** Support ST Vector Storage for community retrieval with user's threshold.
 
-**Common Pitfalls:**
-- ST returns numeric hashes that need mapping back to community IDs
-- Handle case where world context is disabled
+- [ ] Step 1: Add imports
 
-- [ ] Step 1: Add import for getStrategy
+Update imports at the top:
 
 ```javascript
 import { getStrategy, isEmbeddingsEnabled } from '../embeddings.js';
 import { extensionName } from '../constants.js';
 import { getDeps } from '../deps.js';
+import { hashStringToNumber, extractIdFromText } from '../embeddings.js';
 ```
 
 - [ ] Step 2: Update retrieveWorldContext function
 
-Modify the function to handle ST Vector Storage:
+Add ST Vector Storage branch:
 
 ```javascript
 export async function retrieveWorldContext(communities, globalState, userMessagesString, queryEmbedding, tokenBudget = 2000) {
@@ -938,43 +1065,38 @@ export async function retrieveWorldContext(communities, globalState, userMessage
     const strategy = getStrategy(source);
 
     if (strategy.usesExternalStorage()) {
-        // Use ST's search for communities
+        // Use ST's search for communities with user's threshold
         const queryText = userMessagesString || '';
         if (!queryText) {
             return { text: '', communityIds: [], isMacroIntent: false };
         }
 
-        const results = await strategy.searchItems(queryText, 10, 0.0);
-        const communityResults = results.filter((r) => {
-            // Filter to community IDs (stored with numeric hashes)
-            const communityKeys = Object.keys(communities || {});
-            return communityKeys.some((key) => hashToNumber(key) === Number(r.id) || key === r.id);
-        });
+        const threshold = settings.vectorSimilarityThreshold;
+        const results = await strategy.searchItems(queryText, 10, threshold);
+
+        if (!results || results.length === 0) {
+            return { text: '', communityIds: [], isMacroIntent: false };
+        }
+
+        // Community IDs are stored as "C0", "C1", etc.
+        const communityResults = results.filter((r) => r.id.startsWith('C'));
 
         if (communityResults.length === 0) {
             return { text: '', communityIds: [], isMacroIntent: false };
         }
 
-        // Map numeric IDs back to community keys
-        const communityKeys = Object.keys(communities || {});
-        const selectedCommunities = communityResults
-            .map((r) => {
-                const key = communityKeys.find(
-                    (k) => hashToNumber(k) === Number(r.id) || k === r.id
-                );
-                return key ? { id: key, community: communities[key] } : null;
-            })
-            .filter(Boolean);
-
-        // Apply token budget
+        // Map IDs back to community objects
         const selected = [];
         let usedTokens = 0;
 
-        for (const { id, community } of selectedCommunities) {
+        for (const result of communityResults) {
+            const community = communities?.[result.id];
+            if (!community) continue;
+
             const entry = formatCommunityEntry(community);
             const tokens = countTokens(entry);
             if (usedTokens + tokens > tokenBudget) break;
-            selected.push({ id, entry });
+            selected.push({ id: result.id, entry });
             usedTokens += tokens;
         }
 
@@ -1000,20 +1122,12 @@ export async function retrieveWorldContext(communities, globalState, userMessage
 }
 ```
 
-- [ ] Step 3: Import hashToNumber
-
-Add to imports:
-
-```javascript
-import { hashToNumber } from '../embeddings.js';
-```
-
-- [ ] Step 4: Run tests
+- [ ] Step 3: Run tests
 
 Run: `npm run test:run`
 Expected: All tests pass
 
-- [ ] Step 5: Commit
+- [ ] Step 4: Commit
 
 ```bash
 git add -A && git commit -m "feat(world-context): add ST Vector Storage support for communities"
@@ -1021,35 +1135,36 @@ git add -A && git commit -m "feat(world-context): add ST Vector Storage support 
 
 ---
 
-### Task 7: Add Memory Sync Hooks
+### Task 8: Add Sync Helpers in data.js
 
 **Files:**
-- Modify: `src/extraction/extract.js`
-- Modify: `src/reflection/reflect.js`
 - Modify: `src/utils/data.js`
 
-**Purpose:** Sync memories to ST Vector Storage when created/deleted.
+**Purpose:** Add helper functions for syncing items to ST Vector Storage.
 
-**Common Pitfalls:**
-- Only sync when strategy uses external storage
-- Don't block the main operation on sync failure
-- Use the strategy from current settings, not cached
-- Sync in batches, not one-by-one
+- [ ] Step 1: Add imports
 
-- [ ] Step 1: Add sync helper function in `src/utils/data.js`
+Add to imports at the top:
+
+```javascript
+import { getStrategy } from '../embeddings.js';
+import { extensionName } from '../constants.js';
+import { markStSynced, clearStSynced } from './embedding-codec.js';
+```
+
+- [ ] Step 2: Add sync helper functions
 
 Add after the imports section:
 
 ```javascript
-import { getStrategy, isEmbeddingsEnabled } from '../embeddings.js';
-import { extensionName } from '../constants.js';
-
 /**
  * Check if ST Vector Storage is active and sync items
  * @param {Object[]} items - Items to sync [{ id, summary }]
+ * @param {Object} options - Options
+ * @param {Object} options.targetObjects - Objects to mark as synced (parallel to items)
  * @returns {Promise<boolean>} True if synced or skipped
  */
-export async function syncItemsToStStorage(items) {
+export async function syncItemsToStStorage(items, { targetObjects } = {}) {
     try {
         const deps = getDeps();
         const settings = deps.getExtensionSettings()?.[extensionName];
@@ -1061,6 +1176,12 @@ export async function syncItemsToStStorage(items) {
         if (!items || items.length === 0) return true;
 
         const result = await strategy.insertItems(items);
+        if (result && targetObjects) {
+            // Mark the target objects as synced
+            for (const obj of targetObjects) {
+                markStSynced(obj);
+            }
+        }
         if (!result) {
             logWarn(`ST Vector sync failed for ${items.length} items`);
         }
@@ -1115,37 +1236,9 @@ export async function purgeStVectorCollection() {
 }
 ```
 
-- [ ] Step 2: Add sync call in `src/extraction/extract.js` after Phase 1 commit
+- [ ] Step 3: Update deleteMemory function
 
-Find the location where events are saved (after `data[MEMORIES_KEY].push(...events)`) and add:
-
-```javascript
-// After: data[MEMORIES_KEY].push(...events);
-// Add:
-if (events.length > 0) {
-    // Sync to ST Vector Storage
-    const { syncItemsToStStorage } = await import('../utils/data.js');
-    await syncItemsToStStorage(
-        events.map((e) => ({ id: e.id, summary: e.summary }))
-    );
-}
-```
-
-- [ ] Step 3: Add sync call in `src/reflection/reflect.js` after generating reflections
-
-Find where reflections are added to memories and add:
-
-```javascript
-// After reflections are generated and added
-if (toAdd.length > 0) {
-    const { syncItemsToStStorage } = await import('../utils/data.js');
-    await syncItemsToStStorage(
-        toAdd.map((r) => ({ id: r.id, summary: r.summary }))
-    );
-}
-```
-
-- [ ] Step 4: Add delete call in `src/utils/data.js` deleteMemory function
+Find `deleteMemory` and update:
 
 ```javascript
 export async function deleteMemory(id) {
@@ -1161,9 +1254,11 @@ export async function deleteMemory(id) {
         return false;
     }
 
+    const memory = data[MEMORIES_KEY][idx];
     data[MEMORIES_KEY].splice(idx, 1);
 
-    // Delete from ST Vector Storage
+    // Clear sync flag and delete from ST Vector Storage
+    clearStSynced(memory);
     await deleteItemsFromStStorage([id]);
 
     await getDeps().saveChatConditional();
@@ -1172,7 +1267,9 @@ export async function deleteMemory(id) {
 }
 ```
 
-- [ ] Step 5: Add purge call in `src/utils/data.js` deleteCurrentChatData function
+- [ ] Step 4: Update deleteCurrentChatData function
+
+Find `deleteCurrentChatData` and update:
 
 ```javascript
 export async function deleteCurrentChatData() {
@@ -1193,30 +1290,207 @@ export async function deleteCurrentChatData() {
 }
 ```
 
-- [ ] Step 6: Run all tests
+- [ ] Step 5: Run tests
 
 Run: `npm run test:run`
 Expected: All tests pass
 
-- [ ] Step 7: Commit
+- [ ] Step 6: Commit
 
 ```bash
-git add -A && git commit -m "feat(events): add sync hooks for ST Vector Storage"
+git add -A && git commit -m "feat(data): add sync helpers for ST Vector Storage"
 ```
 
 ---
 
-### Task 8: Update backfillAllEmbeddings
+### Task 9: Add Sync Hooks for Events and Graph Nodes in extract.js
+
+**Files:**
+- Modify: `src/extraction/extract.js`
+
+**Purpose:** Add sync hooks for events after Phase 1 commit and for graph nodes during entity merge.
+
+- [ ] Step 1: Add sync hook for events after Phase 1 commit
+
+Find where events are committed (after `data[MEMORIES_KEY].push(...events)`) and add:
+
+```javascript
+// After: data[MEMORIES_KEY].push(...events);
+// Add:
+if (events.length > 0) {
+    // Sync to ST Vector Storage
+    const { syncItemsToStStorage } = await import('../utils/data.js');
+    await syncItemsToStStorage(
+        events.map((e) => ({ id: e.id, summary: e.summary })),
+        { targetObjects: events }
+    );
+}
+```
+
+- [ ] Step 2: Add sync hook for graph nodes in the entity loop
+
+This requires modifying `src/graph/graph.js` to return the node key, then syncing in extract.js. However, a simpler approach is to sync in `mergeOrInsertEntity` itself when a new node is created.
+
+- [ ] Step 3: Commit
+
+```bash
+git add -A && git commit -m "feat(extract): add sync hook for events to ST Vector Storage"
+```
+
+---
+
+### Task 10: Add Sync Support in Graph Operations
+
+**Files:**
+- Modify: `src/graph/graph.js`
+
+**Purpose:** Add sync support in `mergeOrInsertEntity` for new nodes and in `consolidateEdges` for consolidated edges.
+
+- [ ] Step 1: Add sync call in mergeOrInsertEntity for new nodes
+
+Find the end of `mergeOrInsertEntity` where a new node is created and add sync:
+
+```javascript
+// At the end of mergeOrInsertEntity, after creating a new node:
+// Find this pattern:
+// graphData.nodes[key] = { name, type, description, mentions: 1 };
+
+// Add after node creation:
+// Sync new node to ST Vector Storage
+const { syncItemsToStStorage } = await import('../utils/data.js');
+await syncItemsToStStorage(
+    [{ id: key, summary: `${type}: ${name} - ${description}` }],
+    { targetObjects: [graphData.nodes[key]] }
+);
+```
+
+- [ ] Step 2: Handle consolidateEdges for ST Vector Storage
+
+In `consolidateEdges`, the current code calls `getDocumentEmbedding` and `setEmbedding` for consolidated edges. For ST Vector Storage, we should instead sync the updated edge:
+
+```javascript
+// In consolidateEdges, find the re-embed section:
+// if (isEmbeddingsEnabled()) {
+//     const newEmbedding = await getDocumentEmbedding(...);
+//     setEmbedding(edge, newEmbedding);
+// }
+
+// Replace with:
+if (isEmbeddingsEnabled()) {
+    const strategy = getStrategy(settings.embeddingSource);
+    if (strategy.usesExternalStorage()) {
+        // Sync updated edge to ST Vector Storage
+        const { syncItemsToStStorage } = await import('../utils/data.js');
+        const edgeId = `edge_${edge.source}_${edge.target}`;
+        await syncItemsToStStorage(
+            [{ id: edgeId, summary: `relationship: ${edge.source} - ${edge.target}: ${edge.description}` }],
+            { targetObjects: [edge] }
+        );
+    } else {
+        const newEmbedding = await getDocumentEmbedding(
+            `relationship: ${edge.source} - ${edge.target}: ${edge.description}`
+        );
+        setEmbedding(edge, newEmbedding);
+    }
+}
+```
+
+- [ ] Step 3: Add required imports
+
+Add at the top of `src/graph/graph.js`:
+
+```javascript
+import { getStrategy, isEmbeddingsEnabled } from '../embeddings.js';
+```
+
+- [ ] Step 4: Run tests
+
+Run: `npm run test:run`
+Expected: All tests pass
+
+- [ ] Step 5: Commit
+
+```bash
+git add -A && git commit -m "feat(graph): add sync support for nodes and edges to ST Vector Storage"
+```
+
+---
+
+### Task 11: Add Sync Support in Communities
+
+**Files:**
+- Modify: `src/graph/communities.js`
+
+**Purpose:** Add sync support in `updateCommunitySummaries` for newly summarized communities.
+
+- [ ] Step 1: Add sync call after community summarization
+
+In `updateCommunitySummaries`, find where communities are stored and add sync:
+
+```javascript
+// After: updatedCommunities[key] = community;
+// Add sync for ST Vector Storage
+const { syncItemsToStStorage } = await import('../utils/data.js');
+await syncItemsToStStorage(
+    [{ id: key, summary: community.summary }],
+    { targetObjects: [community] }
+);
+```
+
+- [ ] Step 2: Run tests
+
+Run: `npm run test:run`
+Expected: All tests pass
+
+- [ ] Step 3: Commit
+
+```bash
+git add -A && git commit -m "feat(communities): add sync support to ST Vector Storage"
+```
+
+---
+
+### Task 12: Add Sync Hook in Reflection Generation
+
+**Files:**
+- Modify: `src/reflection/reflect.js`
+
+**Purpose:** Add sync hook after reflection generation.
+
+- [ ] Step 1: Add sync hook after reflections are generated
+
+Find where reflections are added to memories and add:
+
+```javascript
+// After reflections are generated and added to data[MEMORIES_KEY]
+if (reflections.length > 0) {
+    const { syncItemsToStStorage } = await import('../utils/data.js');
+    await syncItemsToStStorage(
+        reflections.map((r) => ({ id: r.id, summary: r.summary })),
+        { targetObjects: reflections }
+    );
+}
+```
+
+- [ ] Step 2: Run tests
+
+Run: `npm run test:run`
+Expected: All tests pass
+
+- [ ] Step 3: Commit
+
+```bash
+git add -A && git commit -m "feat(reflect): add sync hook for reflections to ST Vector Storage"
+```
+
+---
+
+### Task 13: Update backfillAllEmbeddings
 
 **Files:**
 - Modify: `src/embeddings.js`
 
-**Purpose:** Handle external storage strategies in the backfill function.
-
-**Common Pitfalls:**
-- Don't call `getDocumentEmbedding()` for external storage - use `insertItems()` directly
-- Include all entity types (memories, nodes, communities)
-- Return correct counts
+**Purpose:** Handle external storage strategies in the backfill function, using the `_st_synced` flag.
 
 - [ ] Step 1: Update backfillAllEmbeddings function
 
@@ -1231,6 +1505,7 @@ export async function backfillAllEmbeddings({ signal, silent = false } = {}) {
     const { getOpenVaultData, saveOpenVaultData } = await import('./utils/data.js');
     const { setStatus } = await import('./ui/status.js');
     const { showToast } = await import('./utils/dom.js');
+    const { markStSynced } = await import('./utils/embedding-codec.js');
 
     if (!isEmbeddingsEnabled()) {
         if (!silent) showToast('warning', 'Configure embedding source first');
@@ -1243,22 +1518,22 @@ export async function backfillAllEmbeddings({ signal, silent = false } = {}) {
         return { memories: 0, nodes: 0, communities: 0, total: 0, skipped: false };
     }
 
-    // Count what needs embedding
-    const memories = (data[MEMORIES_KEY] || []).filter((m) => m.summary && !hasEmbedding(m));
-    const nodes = Object.values(data.graph?.nodes || {}).filter((n) => !hasEmbedding(n));
-    const communities = Object.values(data.communities || {}).filter((c) => c.summary && !hasEmbedding(c));
-    const totalNeeded = memories.length + nodes.length + communities.length;
-
-    if (totalNeeded === 0) {
-        return { memories: 0, nodes: 0, communities: 0, total: 0, skipped: true };
-    }
-
     const settings = getDeps().getExtensionSettings()[extensionName];
     const source = settings.embeddingSource;
     const strategy = getStrategy(source);
 
     // Handle external storage strategies (ST Vector Storage)
     if (strategy.usesExternalStorage()) {
+        // Filter to items that need syncing (not already marked with _st_synced)
+        const memories = (data[MEMORIES_KEY] || []).filter((m) => m.summary && !hasEmbedding(m));
+        const nodes = Object.values(data.graph?.nodes || {}).filter((n) => !hasEmbedding(n));
+        const communities = Object.values(data.communities || {}).filter((c) => c.summary && !hasEmbedding(c));
+        const totalNeeded = memories.length + nodes.length + communities.length;
+
+        if (totalNeeded === 0) {
+            return { memories: 0, nodes: 0, communities: 0, total: 0, skipped: true };
+        }
+
         if (!silent) showToast('info', `Syncing ${totalNeeded} items to ST Vector Storage...`);
         setStatus('extracting');
 
@@ -1266,23 +1541,34 @@ export async function backfillAllEmbeddings({ signal, silent = false } = {}) {
             const memoryItems = memories.map((m) => ({
                 id: m.id,
                 summary: m.summary,
+                targetObject: m,
             }));
 
             const nodeItems = nodes.map((n) => ({
                 id: n.name,
                 summary: `${n.type}: ${n.name} - ${n.description}`,
+                targetObject: n,
             }));
 
-            const communityItems = communities.map((c, i) => ({
-                id: c.id || `comm_${Date.now()}_${i}`,
-                summary: c.summary,
-            }));
+            const communityItems = Object.entries(data.communities || {})
+                .filter(([_, c]) => c.summary && !hasEmbedding(c))
+                .map(([key, c]) => ({
+                    id: key,
+                    summary: c.summary,
+                    targetObject: c,
+                }));
 
             const allItems = [...memoryItems, ...nodeItems, ...communityItems];
 
             if (allItems.length > 0) {
-                const success = await strategy.insertItems(allItems, { signal });
+                const success = await strategy.insertItems(
+                    allItems.map((item) => ({ id: item.id, summary: item.summary }))
+                );
                 if (success) {
+                    // Mark all items as synced
+                    for (const item of allItems) {
+                        markStSynced(item.targetObject);
+                    }
                     await saveOpenVaultData();
                     logInfo(
                         `ST Vector sync complete: ${memoryItems.length} memories, ${nodeItems.length} nodes, ${communityItems.length} communities`
@@ -1325,7 +1611,7 @@ git add -A && git commit -m "feat(embeddings): add ST Vector Storage support to 
 
 ---
 
-### Task 9: Update getOptimalChunkSize for st-vectors
+### Task 14: Update getOptimalChunkSize for st-vectors
 
 **Files:**
 - Modify: `src/embeddings.js`
@@ -1374,7 +1660,7 @@ git add -A && git commit -m "feat(embeddings): add chunk size for st-vectors str
 
 ---
 
-### Task 10: Run Full Test Suite and Manual Verification
+### Task 15: Run Full Test Suite and Manual Verification
 
 - [ ] Step 1: Run full test suite
 
@@ -1387,15 +1673,16 @@ Expected: All tests pass
 2. Select `st-vectors` as embedding source in OpenVault settings
 3. Add memories in OpenVault
 4. Verify vectors in `data/vectors/{source}/openvault-{chatId}-{source}/`
-5. Search via OpenVault UI
+5. Search via OpenVault UI with threshold 0.5
 6. Delete memory, verify removal from ST
 7. Restart ST, verify persistence
 8. Switch chats, verify isolation (no cross-chat results)
+9. Run backfill twice - second run should skip already-synced items
 
 - [ ] Step 3: Final commit
 
 ```bash
-git add -A && git commit -m "feat: complete ST Vector Storage integration v2"
+git add -A && git commit -m "feat: complete ST Vector Storage integration v3"
 ```
 
 ---
@@ -1404,13 +1691,18 @@ git add -A && git commit -m "feat: complete ST Vector Storage integration v2"
 
 | Task | Description | Files |
 |------|-------------|-------|
-| 1 | Extend EmbeddingStrategy base class | `src/embeddings.js` |
-| 2 | Add hash mapping utility | `src/embeddings.js` |
-| 3 | Write tests for StVectorStrategy | `tests/embeddings.test.js` |
-| 4 | Implement StVectorStrategy | `src/embeddings.js` |
-| 5 | Integrate with retrieval system | `src/retrieval/scoring.js` |
-| 6 | Add world context support | `src/retrieval/world-context.js` |
-| 7 | Add memory sync hooks | `src/extraction/extract.js`, `src/reflection/reflect.js`, `src/utils/data.js` |
-| 8 | Update backfillAllEmbeddings | `src/embeddings.js` |
-| 9 | Update getOptimalChunkSize | `src/embeddings.js` |
-| 10 | Full test and verification | All files |
+| 1 | Update hasEmbedding for ST synced items | `src/utils/embedding-codec.js` |
+| 2 | Add storage methods to EmbeddingStrategy | `src/embeddings.js` |
+| 3 | Add ID prefix utility functions | `src/embeddings.js` |
+| 4 | Write tests for StVectorStrategy | `tests/embeddings.test.js` |
+| 5 | Implement StVectorStrategy | `src/embeddings.js` |
+| 6 | Integrate with retrieval system | `src/retrieval/scoring.js` |
+| 7 | Add world context support | `src/retrieval/world-context.js` |
+| 8 | Add sync helpers in data.js | `src/utils/data.js` |
+| 9 | Add sync hooks for events in extract.js | `src/extraction/extract.js` |
+| 10 | Add sync support in graph operations | `src/graph/graph.js` |
+| 11 | Add sync support in communities | `src/graph/communities.js` |
+| 12 | Add sync hook in reflection generation | `src/reflection/reflect.js` |
+| 13 | Update backfillAllEmbeddings | `src/embeddings.js` |
+| 14 | Update getOptimalChunkSize | `src/embeddings.js` |
+| 15 | Full test and verification | All files |
