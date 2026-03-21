@@ -9,7 +9,7 @@ import { extensionName } from './constants.js';
 import { getDeps } from './deps.js';
 import { record } from './perf/store.js';
 import { getSessionSignal } from './state.js';
-import { hasEmbedding, setEmbedding } from './utils/embedding-codec.js';
+import { hasEmbedding, setEmbedding, markStSynced } from './utils/embedding-codec.js';
 import { logDebug, logError, logInfo } from './utils/logging.js';
 
 // =============================================================================
@@ -1021,6 +1021,99 @@ export async function backfillAllEmbeddings({ signal, silent = false } = {}) {
         return { memories: 0, nodes: 0, communities: 0, total: 0, skipped: false };
     }
 
+    const settings = getDeps().getExtensionSettings()[extensionName];
+    const source = settings.embeddingSource;
+    const strategy = getStrategy(source);
+
+    // Handle external storage strategies (ST Vector Storage)
+    if (strategy.usesExternalStorage()) {
+        // Filter to items that need syncing (not already marked with _st_synced)
+        const memories = (data[MEMORIES_KEY] || []).filter((m) => m.summary && !hasEmbedding(m));
+        const nodes = Object.values(data.graph?.nodes || {}).filter((n) => !hasEmbedding(n));
+        const communities = Object.values(data.communities || {}).filter((c) => c.summary && !hasEmbedding(c));
+        const totalNeeded = memories.length + nodes.length + communities.length;
+
+        if (totalNeeded === 0) {
+            return { memories: 0, nodes: 0, communities: 0, total: 0, skipped: true };
+        }
+
+        if (!silent) showToast('info', `Syncing ${totalNeeded} items to ST Vector Storage...`);
+        setStatus('extracting');
+
+        try {
+            const memoryItems = memories.map((m) => ({
+                id: m.id,
+                summary: m.summary,
+                targetObject: m,
+            }));
+
+            const nodeItems = nodes.map((n) => ({
+                id: n.name,
+                summary: `${n.type}: ${n.name} - ${n.description}`,
+                targetObject: n,
+            }));
+
+            const communityItems = Object.entries(data.communities || {})
+                .filter(([_, c]) => c.summary && !hasEmbedding(c))
+                .map(([key, c]) => ({
+                    id: key,
+                    summary: c.summary,
+                    targetObject: c,
+                }));
+
+            const allItems = [...memoryItems, ...nodeItems, ...communityItems];
+
+            // CRITICAL: Batch inserts to prevent network timeouts
+            // Use batch size of 100 (conservative for API limits)
+            const BATCH_SIZE = 100;
+            let successCount = 0;
+
+            for (let i = 0; i < allItems.length; i += BATCH_SIZE) {
+                const batch = allItems.slice(i, i + BATCH_SIZE);
+                const success = await strategy.insertItems(
+                    batch.map((item) => ({ id: item.id, summary: item.summary }))
+                );
+
+                if (success) {
+                    // Mark batch items as synced
+                    for (const item of batch) {
+                        markStSynced(item.targetObject);
+                    }
+                    successCount += batch.length;
+                }
+
+                // Yield to main thread between batches
+                if (i + BATCH_SIZE < allItems.length) {
+                    await new Promise((resolve) => setTimeout(resolve, 0));
+                }
+            }
+
+            if (successCount > 0) {
+                await saveOpenVaultData();
+                logInfo(
+                    `ST Vector sync complete: ${successCount} items synced in ${Math.ceil(allItems.length / BATCH_SIZE)} batches`
+                );
+            }
+
+            return {
+                memories: memoryItems.length,
+                nodes: nodeItems.length,
+                communities: communityItems.length,
+                total: successCount,
+                skipped: false,
+            };
+        } catch (error) {
+            if (error.name === 'AbortError') throw error;
+            logError('ST Vector sync error', error);
+            if (!silent) showToast('error', `ST Vector sync failed: ${error.message}`);
+            return { memories: 0, nodes: 0, communities: 0, total: 0, skipped: false };
+        } finally {
+            setStatus('ready');
+        }
+    }
+
+    // Local embedding strategies (Transformers, Ollama)
+
     // Count what needs embedding
     const memories = (data[MEMORIES_KEY] || []).filter((m) => m.summary && !hasEmbedding(m));
     const nodes = Object.values(data.graph?.nodes || {}).filter((n) => !hasEmbedding(n));
@@ -1041,10 +1134,6 @@ export async function backfillAllEmbeddings({ signal, silent = false } = {}) {
         // 2. Graph node embeddings
         let nodeCount = 0;
         if (nodes.length > 0) {
-            const settings = getDeps().getExtensionSettings()[extensionName];
-            const source = settings.embeddingSource;
-            const strategy = getStrategy(source);
-
             const nodeEmbeddings = await processInBatches(nodes, 5, async (n) => {
                 return strategy.getDocumentEmbedding(`${n.type}: ${n.name} - ${n.description}`, { signal });
             });
