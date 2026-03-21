@@ -278,6 +278,12 @@ export async function updateCommunitySummaries(
                     }
                     updatedCommunities[key] = community;
                     updatedCount++;
+                    // Sync to ST Vector Storage
+                    const { syncItemsToStStorage } = await import('../utils/data.js');
+                    await syncItemsToStStorage(
+                        [{ id: key, summary: community.summary }],
+                        { targetObjects: [community] }
+                    );
                     logDebug(`Community ${key}: "${parsed.title}" (${group.nodeKeys.length} nodes)`);
                 })
                 .catch((error) => {
