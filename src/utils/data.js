@@ -6,6 +6,165 @@ import { deleteEmbedding, hasEmbedding } from './embedding-codec.js';
 import { logDebug, logError, logInfo, logWarn } from './logging.js';
 
 /**
+ * Get the ST Vector Storage collection ID for the current chat.
+ * Includes chat ID to prevent cross-chat data leakage.
+ * @param {string} chatId - Current chat ID
+ * @returns {string} Collection ID
+ */
+function getSTCollectionId(chatId) {
+    const source = getDeps().getExtensionSettings()?.openvault?.embeddingSource || 'openvault';
+    return `openvault-${chatId || 'default'}-${source}`;
+}
+
+/**
+ * Extract OpenVault ID from ST text field with OV_ID prefix.
+ * @param {string} text - Text like "[OV_ID:event_123] The actual text..."
+ * @returns {string|null} Extracted ID or null
+ */
+function extractOvId(text) {
+    if (!text) return null;
+    const match = text.match(/^\[OV_ID:([^\]]+)\]/);
+    return match ? match[1] : null;
+}
+
+/**
+ * Check if the current embedding source is ST Vector Storage.
+ * @returns {boolean}
+ */
+export function isStVectorSource() {
+    const settings = getDeps().getExtensionSettings()?.openvault;
+    return settings?.embeddingSource === 'st_vector';
+}
+
+/**
+ * Sync items to ST Vector Storage via /api/vector/insert.
+ * @param {Array<{hash: number, text: string}>} items - Items to insert
+ * @param {string} chatId - Current chat ID
+ * @returns {Promise<boolean>} True if successful
+ */
+export async function syncItemsToST(items, chatId) {
+    if (!items || items.length === 0) return true;
+
+    try {
+        const collectionId = getSTCollectionId(chatId);
+        const response = await getDeps().fetch('/api/vector/insert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                collectionId,
+                items,
+                source: 'openvault',
+            }),
+        });
+        if (!response.ok) {
+            logWarn(`ST Vector insert failed: ${response.status}`);
+            return false;
+        }
+        return true;
+    } catch (error) {
+        logError('ST Vector insert error', error);
+        return false;
+    }
+}
+
+/**
+ * Delete items from ST Vector Storage via /api/vector/delete.
+ * @param {number[]} hashes - Cyrb53 hashes to delete
+ * @param {string} chatId - Current chat ID
+ * @returns {Promise<boolean>} True if successful
+ */
+export async function deleteItemsFromST(hashes, chatId) {
+    if (!hashes || hashes.length === 0) return true;
+
+    try {
+        const collectionId = getSTCollectionId(chatId);
+        const response = await getDeps().fetch('/api/vector/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                collectionId,
+                hashes,
+                source: 'openvault',
+            }),
+        });
+        if (!response.ok) {
+            logWarn(`ST Vector delete failed: ${response.status}`);
+            return false;
+        }
+        return true;
+    } catch (error) {
+        logError('ST Vector delete error', error);
+        return false;
+    }
+}
+
+/**
+ * Purge entire ST Vector Storage collection.
+ * @param {string} chatId - Current chat ID
+ * @returns {Promise<boolean>} True if successful
+ */
+export async function purgeSTCollection(chatId) {
+    try {
+        const collectionId = getSTCollectionId(chatId);
+        const response = await getDeps().fetch('/api/vector/purge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ collectionId }),
+        });
+        if (!response.ok) {
+            logWarn(`ST Vector purge failed: ${response.status}`);
+            return false;
+        }
+        return true;
+    } catch (error) {
+        logError('ST Vector purge error', error);
+        return false;
+    }
+}
+
+/**
+ * Query ST Vector Storage for similar items.
+ * @param {string} searchText - Query text
+ * @param {number} topK - Number of results
+ * @param {number} threshold - Similarity threshold
+ * @param {string} chatId - Current chat ID
+ * @returns {Promise<Array<{id: string, hash: number, text: string}>>} Results with extracted OV IDs
+ */
+export async function querySTVector(searchText, topK, threshold, chatId) {
+    try {
+        const collectionId = getSTCollectionId(chatId);
+        const response = await getDeps().fetch('/api/vector/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                collectionId,
+                searchText,
+                topK,
+                threshold,
+                source: 'openvault',
+            }),
+        });
+
+        if (!response.ok) {
+            logWarn(`ST Vector query failed: ${response.status}`);
+            return [];
+        }
+
+        const data = await response.json();
+        if (!data?.metadata || !Array.isArray(data.metadata)) return [];
+
+        return data.metadata.map((item) => ({
+            id: extractOvId(item.text) || String(item.hash),
+            hash: item.hash,
+            text: item.text,
+        }));
+    } catch (error) {
+        logError('ST Vector query error', error);
+        return [];
+    }
+}
+
+/**
  * Get OpenVault data from chat metadata
  * @returns {Object|null} Returns null if context is not available
  */
