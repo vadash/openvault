@@ -205,3 +205,57 @@ describe('ST storage helpers', () => {
         expect(results).toEqual([]);
     });
 });
+
+describe('StVectorStrategy', () => {
+    let depsModule;
+
+    beforeEach(async () => {
+        depsModule = await import('../src/deps.js');
+        vi.spyOn(depsModule, 'getDeps').mockReturnValue({
+            fetch: vi.fn().mockResolvedValue({ ok: true }),
+            getContext: () => ({ chatId: 'chat_123' }),
+            getExtensionSettings: () => ({
+                openvault: {
+                    embeddingSource: 'st_vector',
+                    vectorSimilarityThreshold: 0.5,
+                },
+            }),
+        });
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('getId returns "st_vector"', async () => {
+        const { getStrategy } = await import('../src/embeddings.js');
+        const strategy = getStrategy('st_vector');
+        expect(strategy.getId()).toBe('st_vector');
+    });
+
+    it('usesExternalStorage returns true', async () => {
+        const { getStrategy } = await import('../src/embeddings.js');
+        const strategy = getStrategy('st_vector');
+        expect(strategy.usesExternalStorage()).toBe(true);
+    });
+
+    it('isEnabled returns true (ST is always considered available)', async () => {
+        const { getStrategy } = await import('../src/embeddings.js');
+        const strategy = getStrategy('st_vector');
+        expect(strategy.isEnabled()).toBe(true);
+    });
+
+    it('getQueryEmbedding returns null (no local embeddings)', async () => {
+        const { getStrategy } = await import('../src/embeddings.js');
+        const strategy = getStrategy('st_vector');
+        const result = await strategy.getQueryEmbedding('test');
+        expect(result).toBeNull();
+    });
+
+    it('getDocumentEmbedding returns null (no local embeddings)', async () => {
+        const { getStrategy } = await import('../src/embeddings.js');
+        const strategy = getStrategy('st_vector');
+        const result = await strategy.getDocumentEmbedding('test');
+        expect(result).toBeNull();
+    });
+});

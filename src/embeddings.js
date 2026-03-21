@@ -451,6 +451,66 @@ class OllamaStrategy extends EmbeddingStrategy {
 }
 
 // =============================================================================
+// ST Vector Storage Strategy
+// =============================================================================
+
+class StVectorStrategy extends EmbeddingStrategy {
+    getId() {
+        return 'st_vector';
+    }
+
+    isEnabled() {
+        // ST Vector Storage is always considered available if selected
+        return true;
+    }
+
+    getStatus() {
+        return 'ST Vector Storage';
+    }
+
+    // No local embeddings — ST handles embedding generation
+    async getQueryEmbedding(_text, _options = {}) {
+        return null;
+    }
+
+    async getDocumentEmbedding(_text, _options = {}) {
+        return null;
+    }
+
+    usesExternalStorage() {
+        return true;
+    }
+
+    async insertItems(items, _options = {}) {
+        const { syncItemsToST } = await import('./utils/data.js');
+        const { getCurrentChatId } = await import('./utils/data.js');
+        const chatId = getCurrentChatId() || 'default';
+        return syncItemsToST(items, chatId);
+    }
+
+    async searchItems(query, topK, threshold, _options = {}) {
+        const { querySTVector } = await import('./utils/data.js');
+        const { getCurrentChatId } = await import('./utils/data.js');
+        const chatId = getCurrentChatId() || 'default';
+        return querySTVector(query, topK, threshold, chatId);
+    }
+
+    async deleteItems(hashes, _options = {}) {
+        const { deleteItemsFromST } = await import('./utils/data.js');
+        const { getCurrentChatId } = await import('./utils/data.js');
+        const chatId = getCurrentChatId() || 'default';
+        return deleteItemsFromST(hashes, chatId);
+    }
+
+    async purgeCollection(_options = {}) {
+        const { purgeSTCollection } = await import('./utils/data.js');
+        const { getCurrentChatId } = await import('./utils/data.js');
+        const chatId = getCurrentChatId() || 'default';
+        return purgeSTCollection(chatId);
+    }
+}
+
+// =============================================================================
 // Strategy Registry
 // =============================================================================
 
@@ -459,6 +519,7 @@ const strategies = {
     'bge-small-en-v1.5': new TransformersStrategy(),
     'embeddinggemma-300m': new TransformersStrategy(),
     ollama: new OllamaStrategy(),
+    st_vector: new StVectorStrategy(),
 };
 
 // Configure model-specific transformers strategies
