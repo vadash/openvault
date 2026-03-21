@@ -28,6 +28,73 @@ function extractOvId(text) {
 }
 
 /**
+ * Get the ST Vector Storage source from ST settings.
+ * @returns {string} The configured source (e.g., 'openrouter', 'openai', 'ollama')
+ */
+function getSTVectorSource() {
+    const extSettings = getDeps().getExtensionSettings();
+    // ST stores vector source in extension_settings.vectors.source
+    return extSettings?.vectors?.source || 'transformers';
+}
+
+/**
+ * Get additional request body parameters based on the source.
+ * Mirrors ST's getVectorsRequestBody function.
+ * @param {string} source - The vector source
+ * @returns {Object} Additional parameters for the request body
+ */
+function getSTVectorRequestBody(source) {
+    const extSettings = getDeps().getExtensionSettings();
+    const body = {};
+
+    switch (source) {
+        case 'extras':
+            body.extrasUrl = extSettings?.apiUrl;
+            body.extrasKey = extSettings?.apiKey;
+            break;
+        case 'electronhub':
+            body.model = extSettings?.vectors?.electronhub_model;
+            break;
+        case 'openrouter':
+            body.model = extSettings?.vectors?.openrouter_model;
+            break;
+        case 'togetherai':
+            body.model = extSettings?.vectors?.togetherai_model;
+            break;
+        case 'cohere':
+            body.model = extSettings?.vectors?.cohere_model;
+            break;
+        case 'ollama':
+            body.apiUrl = extSettings?.vectors?.ollama_url;
+            body.model = extSettings?.vectors?.ollama_model;
+            body.keep = extSettings?.vectors?.ollama_keep;
+            break;
+        case 'llamacpp':
+            body.apiUrl = extSettings?.vectors?.llamacpp_url;
+            break;
+        case 'vllm':
+            body.apiUrl = extSettings?.vectors?.vllm_url;
+            body.model = extSettings?.vectors?.vllm_model;
+            break;
+        case 'mistral':
+            body.model = 'mistral-embed';
+            break;
+        case 'nomicai':
+            body.model = 'nomic-embed-text-v1.5';
+            break;
+        case 'openai':
+            body.model = extSettings?.vectors?.openai_model;
+            break;
+        case 'transformers':
+        default:
+            // No additional params needed
+            break;
+    }
+
+    return body;
+}
+
+/**
  * Check if the current embedding source is ST Vector Storage.
  * @returns {boolean}
  */
@@ -47,14 +114,18 @@ export async function syncItemsToST(items, chatId) {
 
     try {
         const collectionId = getSTCollectionId(chatId);
+        const source = getSTVectorSource();
+        const body = {
+            collectionId,
+            items,
+            source,
+            ...getSTVectorRequestBody(source),
+        };
+
         const response = await getDeps().fetch('/api/vector/insert', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                collectionId,
-                items,
-                source: 'openvault',
-            }),
+            body: JSON.stringify(body),
         });
         if (!response.ok) {
             logWarn(`ST Vector insert failed: ${response.status}`);
@@ -78,14 +149,18 @@ export async function deleteItemsFromST(hashes, chatId) {
 
     try {
         const collectionId = getSTCollectionId(chatId);
+        const source = getSTVectorSource();
+        const body = {
+            collectionId,
+            hashes,
+            source,
+            ...getSTVectorRequestBody(source),
+        };
+
         const response = await getDeps().fetch('/api/vector/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                collectionId,
-                hashes,
-                source: 'openvault',
-            }),
+            body: JSON.stringify(body),
         });
         if (!response.ok) {
             logWarn(`ST Vector delete failed: ${response.status}`);
@@ -133,16 +208,20 @@ export async function purgeSTCollection(chatId) {
 export async function querySTVector(searchText, topK, threshold, chatId) {
     try {
         const collectionId = getSTCollectionId(chatId);
+        const source = getSTVectorSource();
+        const body = {
+            collectionId,
+            searchText,
+            topK,
+            threshold,
+            source,
+            ...getSTVectorRequestBody(source),
+        };
+
         const response = await getDeps().fetch('/api/vector/query', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                collectionId,
-                searchText,
-                topK,
-                threshold,
-                source: 'openvault',
-            }),
+            body: JSON.stringify(body),
         });
 
         if (!response.ok) {
