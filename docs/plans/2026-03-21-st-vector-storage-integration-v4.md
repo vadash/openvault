@@ -1,28 +1,32 @@
-# ST Vector Storage Integration v3 - Implementation Plan
+# ST Vector Storage Integration v4 - Implementation Plan
 
 **Goal:** Add SillyTavern's Vector Storage as an optional embedding strategy that delegates embedding generation, storage, and similarity search to ST's `/api/vector/*` endpoints.
 
-**Architecture:** Extend existing `EmbeddingStrategy` pattern with `StVectorStrategy`. Uses text prefix approach for ID mapping (avoids hash collisions and memory leaks). Items are marked with `_st_synced` flag to prevent re-sync loops. Sync hooks added for all entity types.
+**Architecture:** Extend existing `EmbeddingStrategy` pattern with `StVectorStrategy`. Uses text prefix approach for ID mapping (avoids hash collisions and memory leaks). Items are marked with `_st_synced` flag to prevent re-sync loops. Sync hooks added for all entity types including deletions during graph consolidation.
 
 **Tech Stack:** JavaScript, Vitest, fetch API
 
 ---
 
-## Changes from v2
+## Changes from v3
 
-This plan addresses critical issues identified in code review:
+This plan incorporates critical fixes from code review:
 
-1. **Infinite Re-Sync Loop**: Added `_st_synced` flag check in `hasEmbedding()` to prevent `backfillAllEmbeddings()` from re-uploading already-synced items.
+1. **CRITICAL: Vector Rank Ordering Preserved** (Fix for Claim #1)
+   - Changed `memories.filter()` to Map-based approach that preserves ST's similarity order
+   - Results are now ordered by vector score, not chronologically
 
-2. **Missing Sync Hooks**: Added sync hooks for Graph Nodes (`mergeOrInsertEntity`), Communities (`updateCommunitySummaries`), and Edges (`consolidateEdges`).
+2. **CRITICAL: Deletion Hooks for Graph Consolidation** (Fix for Claim #2)
+   - Added deletion calls in `consolidateGraph()` for merged nodes
+   - Added deletion calls in `redirectEdges()` for removed edges
+   - Nodes and edges removed during consolidation are now cleaned from ST Vector Storage
 
-3. **Hardcoded Threshold**: Changed from hardcoded `0.0` to `settings.vectorSimilarityThreshold` (default `0.5`).
+3. **RISK: Batching for Bulk Inserts** (Fix for Claim #3)
+   - `backfillAllEmbeddings` now uses `processInBatches` with batch size of 100
+   - Prevents network timeouts and API limits with large chats
 
-4. **Hash Map Memory Leak**: Replaced numeric hash mapping with text prefix approach - IDs are embedded in the text field as `[OV_ID:xxx]` prefix, eliminating the need for `_st_hash_map`.
-
-5. **Model-Switching Bug**: Updated `deleteEmbedding()` to clear `_st_synced` flag, ensuring switching from st-vectors back to local embeddings works correctly.
-
-6. **Hash Collision Prevention**: Replaced 32-bit djb2 hash with 53-bit Cyrb53 algorithm, making collisions mathematically negligible even with millions of items.
+4. **MINOR: Node/Community Noise** (Claim #4)
+   - Already handled gracefully by Map approach with `filter(Boolean)`
 
 ---
 
@@ -31,12 +35,12 @@ This plan addresses critical issues identified in code review:
 | File | Action | Description |
 |------|--------|-------------|
 | `src/utils/embedding-codec.js` | Modify | Add `_st_synced` check to `hasEmbedding()`, add `markStSynced()` and `isStSynced()` helpers |
-| `src/embeddings.js` | Modify | Add `StVectorStrategy` with text prefix approach, extend base class, update `backfillAllEmbeddings` |
-| `src/retrieval/scoring.js` | Modify | Add branch for `usesExternalStorage()` with threshold from settings |
+| `src/embeddings.js` | Modify | Add `StVectorStrategy` with text prefix approach, extend base class, update `backfillAllEmbeddings` with batching |
+| `src/retrieval/scoring.js` | Modify | Add branch for `usesExternalStorage()` with Map-based order preservation |
 | `src/retrieval/world-context.js` | Modify | Add branch for ST search on communities |
-| `src/extraction/extract.js` | Modify | Add sync hook after Phase 1 commit for events and nodes |
+| `src/extraction/extract.js` | Modify | Add sync hook after Phase 1 commit for events |
 | `src/reflection/reflect.js` | Modify | Add sync hook after reflection generation |
-| `src/graph/graph.js` | Modify | Add sync support in `mergeOrInsertEntity` and `consolidateEdges` |
+| `src/graph/graph.js` | Modify | Add sync support in `mergeOrInsertEntity`, `consolidateEdges`, and **deletion hooks in `consolidateGraph` and `redirectEdges`** |
 | `src/graph/communities.js` | Modify | Add sync support in `updateCommunitySummaries` |
 | `src/utils/data.js` | Modify | Add sync helpers, call on delete operations |
 | `tests/embeddings.test.js` | Modify | Add tests for `StVectorStrategy` |
@@ -925,20 +929,25 @@ git add -A && git commit -m "feat(embeddings): implement StVectorStrategy for ST
 **Files:**
 - Modify: `src/retrieval/scoring.js`
 
-**Purpose:** Add branch in `selectRelevantMemories()` to use ST's search when the strategy uses external storage, using the user's threshold setting.
+**Purpose:** Add branch in `selectRelevantMemories()` to use ST's search when the strategy uses external storage, using the user's threshold setting. **CRITICAL: Preserve vector rank ordering by using Map-based approach.**
 
 **Common Pitfalls:**
+- **CRITICAL**: Use `Map` to preserve ST's similarity order, NOT `filter()` which preserves chronological order
 - Use `settings.vectorSimilarityThreshold` NOT hardcoded `0.0`
 - Check `usesExternalStorage()` before calling `searchItems()`
 - Mark synced items with `markStSynced()` after successful selection
+- Filter out non-memory results (graph nodes, communities) with `filter(Boolean)`
 
 - [ ] Step 1: Add import for getStrategy and sync helpers
 
 At the top of `src/retrieval/scoring.js`, update imports:
 
 ```javascript
+import { extensionName } from '../constants.js';
+import { getDeps } from '../deps.js';
 import { getStrategy, getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { markStSynced } from '../utils/embedding-codec.js';
+import { logDebug } from '../utils/logging.js';
 ```
 
 - [ ] Step 2: Add ST branch at start of selectRelevantMemories
@@ -970,10 +979,12 @@ export async function selectRelevantMemories(memories, ctx) {
             return [];
         }
 
-        // Map IDs back to memory objects
-        const idSet = new Set(results.map((r) => r.id));
-        const selectedMemories = memories
-            .filter((m) => idSet.has(m.id))
+        // CRITICAL: Use Map to preserve ST's similarity order
+        // (NOT filter() which would preserve chronological order)
+        const memoriesById = new Map(memories.map((m) => [m.id, m]));
+        const selectedMemories = results
+            .map((r) => memoriesById.get(r.id))
+            .filter(Boolean) // Drops undefined (non-memory entities like graph nodes)
             .slice(0, Math.ceil(ctx.finalTokens / 50));
 
         // Mark as synced to prevent re-sync
@@ -1335,12 +1346,12 @@ git add -A && git commit -m "feat(data): add sync helpers for ST Vector Storage"
 
 ---
 
-### Task 9: Add Sync Hooks for Events and Graph Nodes in extract.js
+### Task 9: Add Sync Hooks for Events in extract.js
 
 **Files:**
 - Modify: `src/extraction/extract.js`
 
-**Purpose:** Add sync hooks for events after Phase 1 commit and for graph nodes during entity merge.
+**Purpose:** Add sync hooks for events after Phase 1 commit.
 
 - [ ] Step 1: Add sync hook for events after Phase 1 commit
 
@@ -1359,11 +1370,7 @@ if (events.length > 0) {
 }
 ```
 
-- [ ] Step 2: Add sync hook for graph nodes in the entity loop
-
-This requires modifying `src/graph/graph.js` to return the node key, then syncing in extract.js. However, a simpler approach is to sync in `mergeOrInsertEntity` itself when a new node is created.
-
-- [ ] Step 3: Commit
+- [ ] Step 2: Commit
 
 ```bash
 git add -A && git commit -m "feat(extract): add sync hook for events to ST Vector Storage"
@@ -1376,16 +1383,25 @@ git add -A && git commit -m "feat(extract): add sync hook for events to ST Vecto
 **Files:**
 - Modify: `src/graph/graph.js`
 
-**Purpose:** Add sync support in `mergeOrInsertEntity` for new nodes and in `consolidateEdges` for consolidated edges.
+**Purpose:** Add sync support in `mergeOrInsertEntity` for new nodes and in `consolidateEdges` for consolidated edges. **Also add deletion hooks for graph consolidation.**
 
-- [ ] Step 1: Add sync call in mergeOrInsertEntity for new nodes
+- [ ] Step 1: Add required imports
+
+Add at the top of `src/graph/graph.js`:
+
+```javascript
+import { getStrategy, isEmbeddingsEnabled } from '../embeddings.js';
+```
+
+- [ ] Step 2: Add sync call in mergeOrInsertEntity for new nodes
 
 Find the end of `mergeOrInsertEntity` where a new node is created and add sync:
 
 ```javascript
 // At the end of mergeOrInsertEntity, after creating a new node:
 // Find this pattern:
-// graphData.nodes[key] = { name, type, description, mentions: 1 };
+// upsertEntity(graphData, name, type, description, cap);
+// setEmbedding(graphData.nodes[key], newEmbedding);
 
 // Add after node creation:
 // Sync new node to ST Vector Storage
@@ -1396,9 +1412,9 @@ await syncItemsToStStorage(
 );
 ```
 
-- [ ] Step 2: Handle consolidateEdges for ST Vector Storage
+- [ ] Step 3: Handle consolidateEdges for ST Vector Storage
 
-In `consolidateEdges`, the current code calls `getDocumentEmbedding` and `setEmbedding` for consolidated edges. For ST Vector Storage, we should instead sync the updated edge:
+In `consolidateEdges`, find the re-embed section and update:
 
 ```javascript
 // In consolidateEdges, find the re-embed section:
@@ -1409,6 +1425,7 @@ In `consolidateEdges`, the current code calls `getDocumentEmbedding` and `setEmb
 
 // Replace with:
 if (isEmbeddingsEnabled()) {
+    const settings = getDeps().getExtensionSettings()[extensionName];
     const strategy = getStrategy(settings.embeddingSource);
     if (strategy.usesExternalStorage()) {
         // Sync updated edge to ST Vector Storage
@@ -1427,20 +1444,28 @@ if (isEmbeddingsEnabled()) {
 }
 ```
 
-- [ ] Step 3: Add required imports
+- [ ] Step 4: Add deletion hook in redirectEdges for removed edges
 
-Add at the top of `src/graph/graph.js`:
+In `redirectEdges`, after removing old edges, add deletion:
 
 ```javascript
-import { getStrategy, isEmbeddingsEnabled } from '../embeddings.js';
+// In redirectEdges, find the edges removal section:
+// for (const key of edgesToRemove) {
+//     delete graphData.edges[key];
+// }
+
+// Add after deletion:
+// Delete removed edges from ST Vector Storage
+const { deleteItemsFromStStorage } = await import('../utils/data.js');
+await deleteItemsFromStStorage(edgesToRemove);
 ```
 
-- [ ] Step 4: Run tests
+- [ ] Step 5: Run tests
 
 Run: `npm run test:run`
 Expected: All tests pass
 
-- [ ] Step 5: Commit
+- [ ] Step 6: Commit
 
 ```bash
 git add -A && git commit -m "feat(graph): add sync support for nodes and edges to ST Vector Storage"
@@ -1448,7 +1473,99 @@ git add -A && git commit -m "feat(graph): add sync support for nodes and edges t
 
 ---
 
-### Task 11: Add Sync Support in Communities
+### Task 11: Add Deletion Hooks for Graph Consolidation
+
+**Files:**
+- Modify: `src/graph/graph.js`
+
+**Purpose:** Add deletion hooks when nodes are merged during `consolidateGraph()`. When two nodes merge, the removed node must be deleted from ST Vector Storage.
+
+**Common Pitfalls:**
+- Deletion must happen BEFORE the node is removed from `graphData.nodes`
+- The removed node's key is needed for deletion
+
+- [ ] Step 1: Add deletion hook in consolidateGraph for merged nodes
+
+Find the merge execution section in `consolidateGraph()`:
+
+```javascript
+// Step 4: Execute merges
+const entityCap = settings.entityDescriptionCap;
+for (const [removeKey, keepKey] of mergeMap) {
+    const removedNode = graphData.nodes[removeKey];
+    if (!removedNode) continue;
+
+    // Merge description
+    upsertEntity(
+        graphData,
+        graphData.nodes[keepKey].name,
+        graphData.nodes[keepKey].type,
+        removedNode.description,
+        entityCap
+    );
+
+    // Persist alias for retrieval-time alternate name matching
+    if (!graphData.nodes[keepKey].aliases) graphData.nodes[keepKey].aliases = [];
+    graphData.nodes[keepKey].aliases.push(removedNode.name);
+
+    // Redirect edges
+    redirectEdges(graphData, removeKey, keepKey);
+
+    // Remove old node
+    delete graphData.nodes[removeKey];
+    mergedCount++;
+}
+```
+
+Update to include ST Vector Storage deletion:
+
+```javascript
+// Step 4: Execute merges
+const entityCap = settings.entityDescriptionCap;
+for (const [removeKey, keepKey] of mergeMap) {
+    const removedNode = graphData.nodes[removeKey];
+    if (!removedNode) continue;
+
+    // Merge description
+    upsertEntity(
+        graphData,
+        graphData.nodes[keepKey].name,
+        graphData.nodes[keepKey].type,
+        removedNode.description,
+        entityCap
+    );
+
+    // Persist alias for retrieval-time alternate name matching
+    if (!graphData.nodes[keepKey].aliases) graphData.nodes[keepKey].aliases = [];
+    graphData.nodes[keepKey].aliases.push(removedNode.name);
+
+    // Redirect edges (includes ST deletion for removed edges)
+    redirectEdges(graphData, removeKey, keepKey);
+
+    // Delete merged node from ST Vector Storage
+    const { deleteItemsFromStStorage } = await import('../utils/data.js');
+    await deleteItemsFromStStorage([removeKey]);
+
+    // Remove old node
+    delete graphData.nodes[removeKey];
+    mergedCount++;
+}
+```
+
+- [ ] Step 2: Run tests
+
+Run: `npm run test:run`
+Expected: All tests pass
+
+- [ ] Step 3: Commit
+
+```bash
+git add -A && git commit -m "feat(graph): add deletion hooks for graph consolidation"
+```
+
+---
+
+### Task 12: Add Sync Support in Communities
 
 **Files:**
 - Modify: `src/graph/communities.js`
@@ -1482,7 +1599,7 @@ git add -A && git commit -m "feat(communities): add sync support to ST Vector St
 
 ---
 
-### Task 12: Add Sync Hook in Reflection Generation
+### Task 13: Add Sync Hook in Reflection Generation
 
 **Files:**
 - Modify: `src/reflection/reflect.js`
@@ -1517,12 +1634,17 @@ git add -A && git commit -m "feat(reflect): add sync hook for reflections to ST 
 
 ---
 
-### Task 13: Update backfillAllEmbeddings
+### Task 14: Update backfillAllEmbeddings with Batching
 
 **Files:**
 - Modify: `src/embeddings.js`
 
-**Purpose:** Handle external storage strategies in the backfill function, using the `_st_synced` flag.
+**Purpose:** Handle external storage strategies in the backfill function with **batching** to prevent network timeouts and API limits. Uses the `_st_synced` flag to skip already-synced items.
+
+**Common Pitfalls:**
+- **CRITICAL**: Use `processInBatches` with batch size of 100 to prevent network issues
+- Filter to items without `_st_synced` flag before syncing
+- Mark all items as synced after successful batch
 
 - [ ] Step 1: Update backfillAllEmbeddings function
 
@@ -1592,27 +1714,43 @@ export async function backfillAllEmbeddings({ signal, silent = false } = {}) {
 
             const allItems = [...memoryItems, ...nodeItems, ...communityItems];
 
-            if (allItems.length > 0) {
+            // CRITICAL: Batch inserts to prevent network timeouts
+            // Use batch size of 100 (conservative for API limits)
+            const BATCH_SIZE = 100;
+            let successCount = 0;
+
+            for (let i = 0; i < allItems.length; i += BATCH_SIZE) {
+                const batch = allItems.slice(i, i + BATCH_SIZE);
                 const success = await strategy.insertItems(
-                    allItems.map((item) => ({ id: item.id, summary: item.summary }))
+                    batch.map((item) => ({ id: item.id, summary: item.summary }))
                 );
+
                 if (success) {
-                    // Mark all items as synced
-                    for (const item of allItems) {
+                    // Mark batch items as synced
+                    for (const item of batch) {
                         markStSynced(item.targetObject);
                     }
-                    await saveOpenVaultData();
-                    logInfo(
-                        `ST Vector sync complete: ${memoryItems.length} memories, ${nodeItems.length} nodes, ${communityItems.length} communities`
-                    );
+                    successCount += batch.length;
                 }
+
+                // Yield to main thread between batches
+                if (i + BATCH_SIZE < allItems.length) {
+                    await new Promise((resolve) => setTimeout(resolve, 0));
+                }
+            }
+
+            if (successCount > 0) {
+                await saveOpenVaultData();
+                logInfo(
+                    `ST Vector sync complete: ${successCount} items synced in ${Math.ceil(allItems.length / BATCH_SIZE)} batches`
+                );
             }
 
             return {
                 memories: memoryItems.length,
                 nodes: nodeItems.length,
                 communities: communityItems.length,
-                total: allItems.length,
+                total: successCount,
                 skipped: false,
             };
         } catch (error) {
@@ -1638,12 +1776,12 @@ Expected: All tests pass
 - [ ] Step 3: Commit
 
 ```bash
-git add -A && git commit -m "feat(embeddings): add ST Vector Storage support to backfillAllEmbeddings"
+git add -A && git commit -m "feat(embeddings): add ST Vector Storage support to backfillAllEmbeddings with batching"
 ```
 
 ---
 
-### Task 14: Update getOptimalChunkSize for st-vectors
+### Task 15: Update getOptimalChunkSize for st-vectors
 
 **Files:**
 - Modify: `src/embeddings.js`
@@ -1692,7 +1830,7 @@ git add -A && git commit -m "feat(embeddings): add chunk size for st-vectors str
 
 ---
 
-### Task 15: Run Full Test Suite and Manual Verification
+### Task 16: Run Full Test Suite and Manual Verification
 
 - [ ] Step 1: Run full test suite
 
@@ -1706,15 +1844,18 @@ Expected: All tests pass
 3. Add memories in OpenVault
 4. Verify vectors in `data/vectors/{source}/openvault-{chatId}-{source}/`
 5. Search via OpenVault UI with threshold 0.5
-6. Delete memory, verify removal from ST
-7. Restart ST, verify persistence
-8. Switch chats, verify isolation (no cross-chat results)
-9. Run backfill twice - second run should skip already-synced items
+6. Verify results are ordered by similarity (NOT chronologically)
+7. Delete memory, verify removal from ST
+8. Trigger graph consolidation, verify merged nodes are deleted from ST
+9. Restart ST, verify persistence
+10. Switch chats, verify isolation (no cross-chat results)
+11. Run backfill twice - second run should skip already-synced items
+12. Test with large chat (3000+ memories) - verify batching prevents timeout
 
 - [ ] Step 3: Final commit
 
 ```bash
-git add -A && git commit -m "feat: complete ST Vector Storage integration v3"
+git add -A && git commit -m "feat: complete ST Vector Storage integration v4"
 ```
 
 ---
@@ -1728,13 +1869,14 @@ git add -A && git commit -m "feat: complete ST Vector Storage integration v3"
 | 3 | Add ID prefix utility functions | `src/embeddings.js` |
 | 4 | Write tests for StVectorStrategy | `tests/embeddings.test.js` |
 | 5 | Implement StVectorStrategy | `src/embeddings.js` |
-| 6 | Integrate with retrieval system | `src/retrieval/scoring.js` |
+| 6 | Integrate with retrieval system (Map-based ordering) | `src/retrieval/scoring.js` |
 | 7 | Add world context support | `src/retrieval/world-context.js` |
 | 8 | Add sync helpers in data.js | `src/utils/data.js` |
 | 9 | Add sync hooks for events in extract.js | `src/extraction/extract.js` |
 | 10 | Add sync support in graph operations | `src/graph/graph.js` |
-| 11 | Add sync support in communities | `src/graph/communities.js` |
-| 12 | Add sync hook in reflection generation | `src/reflection/reflect.js` |
-| 13 | Update backfillAllEmbeddings | `src/embeddings.js` |
-| 14 | Update getOptimalChunkSize | `src/embeddings.js` |
-| 15 | Full test and verification | All files |
+| 11 | Add deletion hooks for graph consolidation | `src/graph/graph.js` |
+| 12 | Add sync support in communities | `src/graph/communities.js` |
+| 13 | Add sync hook in reflection generation | `src/reflection/reflect.js` |
+| 14 | Update backfillAllEmbeddings with batching | `src/embeddings.js` |
+| 15 | Update getOptimalChunkSize | `src/embeddings.js` |
+| 16 | Full test and verification | All files |
