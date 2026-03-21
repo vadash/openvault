@@ -20,6 +20,10 @@ This plan addresses critical issues identified in code review:
 
 4. **Hash Map Memory Leak**: Replaced numeric hash mapping with text prefix approach - IDs are embedded in the text field as `[OV_ID:xxx]` prefix, eliminating the need for `_st_hash_map`.
 
+5. **Model-Switching Bug**: Updated `deleteEmbedding()` to clear `_st_synced` flag, ensuring switching from st-vectors back to local embeddings works correctly.
+
+6. **Hash Collision Prevention**: Replaced 32-bit djb2 hash with 53-bit Cyrb53 algorithm, making collisions mathematically negligible even with millions of items.
+
 ---
 
 ## File Structure
@@ -44,15 +48,33 @@ This plan addresses critical issues identified in code review:
 **Files:**
 - Modify: `src/utils/embedding-codec.js`
 
-**Purpose:** Prevent infinite re-sync loops by recognizing items that have been synced to ST Vector Storage.
+**Purpose:** Prevent infinite re-sync loops by recognizing items that have been synced to ST Vector Storage. Also ensure `deleteEmbedding()` clears the flag so switching back to local embeddings works correctly.
 
 **Common Pitfalls:**
 - The `_st_synced` flag must be checked BEFORE the `embedding_b64` check
 - This flag is set when `insertItems()` succeeds, NOT when the strategy is enabled
+- **CRITICAL**: `deleteEmbedding()` MUST clear `_st_synced` - otherwise switching from st-vectors to a local strategy will leave the flag, causing `hasEmbedding()` to return true even though there's no actual embedding, breaking local RAG
 
-- [ ] Step 1: Add `isStSynced`, `markStSynced`, and `clearStSynced` functions
+- [ ] Step 1: Update `deleteEmbedding` to clear `_st_synced`
 
-Add after the `deleteEmbedding` function (around line 72):
+Update the `deleteEmbedding` function:
+
+```javascript
+/**
+ * Remove embedding from an object (both formats and ST sync flag).
+ * @param {Object} obj - Object to clean (mutated)
+ */
+export function deleteEmbedding(obj) {
+    if (!obj) return;
+    delete obj.embedding;
+    delete obj.embedding_b64;
+    delete obj._st_synced;
+}
+```
+
+- [ ] Step 2: Add `isStSynced`, `markStSynced`, and `clearStSynced` functions
+
+Add after the `deleteEmbedding` function:
 
 ```javascript
 /**
@@ -83,7 +105,7 @@ export function clearStSynced(obj) {
 }
 ```
 
-- [ ] Step 2: Update `hasEmbedding` to check `_st_synced`
+- [ ] Step 3: Update `hasEmbedding` to check `_st_synced`
 
 Replace the `hasEmbedding` function:
 
@@ -103,12 +125,12 @@ export function hasEmbedding(obj) {
 }
 ```
 
-- [ ] Step 3: Run existing tests to verify no regression
+- [ ] Step 4: Run existing tests to verify no regression
 
 Run: `npm run test:run tests/embeddings.test.js`
 Expected: All existing tests pass
 
-- [ ] Step 4: Commit
+- [ ] Step 5: Commit
 
 ```bash
 git add -A && git commit -m "feat(embedding-codec): add _st_synced flag to prevent re-sync loops"
@@ -247,17 +269,27 @@ function extractIdFromText(text) {
 }
 
 /**
- * Generate a numeric hash from string for ST Vector hash field.
- * ST requires numeric hashes, so we use a stable hash function.
+ * Generate a 53-bit numeric hash from string for ST Vector hash field.
+ * Uses Cyrb53 algorithm to avoid collisions - with 53-bit output, collision
+ * probability is negligible even with millions of items (unlike djb2's 32-bit).
+ * ST requires numeric hashes for its Vectra backend.
  * @param {string} str - String to hash
- * @returns {number} Numeric hash
+ * @param {number} [seed=0] - Optional seed for different hash sequences
+ * @returns {number} 53-bit numeric hash (safe JavaScript integer)
  */
-function hashStringToNumber(str) {
-    let hash = 5381;
-    for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) + hash) + str.charCodeAt(i);
+function hashStringToNumber(str, seed = 0) {
+    let h1 = 0xdeadbeef ^ seed,
+        h2 = 0x41c6ce57 ^ seed;
+    for (let i = 0, ch; i < str.length; i++) {
+        ch = str.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
     }
-    return Math.abs(hash);
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+    h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+    h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return Math.abs(4294967296 * (2097151 & h2) + (h1 >>> 0));
 }
 ```
 

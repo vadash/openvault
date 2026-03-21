@@ -85,6 +85,43 @@ const { id, text } = extractIdFromText(result.text);
 
 This eliminates the need for `_st_hash_map` entirely.
 
+### 5. Model-Switching Bug Fix
+
+**Problem:** `deleteEmbedding()` was not updated to clear the `_st_synced` flag. When users switch from st-vectors back to a local strategy, `invalidateStaleEmbeddings()` calls `deleteEmbedding()`, but the flag remained, causing `hasEmbedding()` to return `true` even though there's no actual embedding.
+
+**Solution:** Update `deleteEmbedding()` to clear all embedding-related flags:
+
+```javascript
+export function deleteEmbedding(obj) {
+    if (!obj) return;
+    delete obj.embedding;
+    delete obj.embedding_b64;
+    delete obj._st_synced;  // NEW: Clear sync flag
+}
+```
+
+### 6. Hash Collision Prevention
+
+**Problem:** The djb2 hash produces 32-bit integers. With ~5,000 entities, there's ~0.3% chance of collision, which would silently overwrite vectors in ST's database.
+
+**Solution:** Use Cyrb53 algorithm for 53-bit hashes, making collisions mathematically negligible:
+
+```javascript
+function hashStringToNumber(str, seed = 0) {
+    let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+    for (let i = 0, ch; i < str.length; i++) {
+        ch = str.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+    h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+    h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return Math.abs(4294967296 * (2097151 & h2) + (h1 >>> 0));
+}
+```
+
 ## Architecture
 
 ### Strategy Pattern Extension
@@ -227,12 +264,18 @@ function extractIdFromText(text) {
     return { id, text: cleanText };
 }
 
-function hashStringToNumber(str) {
-    let hash = 5381;
-    for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) + hash) + str.charCodeAt(i);
+function hashStringToNumber(str, seed = 0) {
+    let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+    for (let i = 0, ch; i < str.length; i++) {
+        ch = str.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
     }
-    return Math.abs(hash);
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+    h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+    h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return Math.abs(4294967296 * (2097151 & h2) + (h1 >>> 0));
 }
 
 class StVectorStrategy extends EmbeddingStrategy {
