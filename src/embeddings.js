@@ -762,6 +762,11 @@ function getOptimalChunkSize() {
         return 800;
     }
 
+    // For ST Vector Storage, use safe default (delegates to ST's model)
+    if (source === 'st-vectors') {
+        return 1000;
+    }
+
     // Fallback default
     return 1000;
 }
