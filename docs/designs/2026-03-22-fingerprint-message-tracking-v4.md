@@ -197,7 +197,16 @@ Map existing indices to fingerprints using the current chat array. This avoids r
 
 Includes a temporal safety check: if an index now points at a message that was sent *after* the newest memory was created, that index has shifted onto a new message — skip it to prevent data loss.
 
+ST's `send_date` can be ISO 8601 (`"2023-10-01T12:00:00.000Z"`), a localized string (`"October 1, 2023 12:00 PM"`), a numeric string (`"1710928374823"`), or an actual Number. A helper handles all formats:
+
 ```js
+/** Parse ST's send_date (ISO, localized, numeric string, or Number) into ms. */
+function parseSendDate(sendDate) {
+    const val = String(sendDate);
+    if (/^\d+$/.test(val)) return parseInt(val, 10);
+    return Date.parse(val) || 0;
+}
+
 export function migrateProcessedMessages(chat, data) {
     const processed = data[PROCESSED_MESSAGES_KEY];
     if (!processed?.length || typeof processed[0] !== 'number') return false;
@@ -214,7 +223,7 @@ export function migrateProcessedMessages(chat, data) {
         // Safety: if this message was sent after our last memory, the index
         // has shifted onto a NEW message. Skip it to force extraction.
         if (lastMemoryTime > 0 && msg.send_date) {
-            const sendTime = Date.parse(msg.send_date);  // ISO 8601 → ms
+            const sendTime = parseSendDate(msg.send_date);
             if (sendTime && sendTime > lastMemoryTime) continue;
         }
         fps.add(getFingerprint(msg));
@@ -226,7 +235,7 @@ export function migrateProcessedMessages(chat, data) {
             const msg = chat[idx];
             if (!msg) continue;
             if (lastMemoryTime > 0 && msg.send_date) {
-                const sendTime = Date.parse(msg.send_date);
+                const sendTime = parseSendDate(msg.send_date);
                 if (sendTime && sendTime > lastMemoryTime) continue;
             }
             fps.add(getFingerprint(msg));
@@ -238,8 +247,6 @@ export function migrateProcessedMessages(chat, data) {
     return true;
 }
 ```
-
-**Why `Date.parse` not `parseInt`**: ST's `send_date` is ISO 8601 format (from `getMessageTimeStamp()` which calls `new Date().toISOString()`). `parseInt` would return the year, not a timestamp.
 
 **User notification**: Show a toast so the user understands any one-time re-processing:
 
