@@ -5,6 +5,66 @@ import { showToast } from './dom.js';
 import { clearStSynced, deleteEmbedding, hasEmbedding, isStSynced } from './embedding-codec.js';
 import { logDebug, logError, logInfo, logWarn } from './logging.js';
 
+// Cache of validated chats for this session (module-level state)
+const validatedChats = new Set();
+
+/**
+ * Clear the validated chats cache. Used for testing.
+ */
+export function _clearValidatedChatsCache() {
+    validatedChats.clear();
+}
+
+/**
+ * Check if a chat still exists in ST
+ * @param {string} chatId
+ * @returns {Promise<boolean>}
+ */
+async function chatExists(chatId) {
+    try {
+        const { getContext, getRequestHeaders } = getDeps();
+        const context = getContext();
+
+        // Get character ID for individual chats
+        const characterId = context.characterId;
+        if (characterId !== undefined) {
+            const response = await getDeps().fetch('/api/characters/chats', {
+                method: 'POST',
+                headers: getRequestHeaders(),
+                body: JSON.stringify({ character_id: characterId }),
+            });
+            if (!response.ok) {
+                logWarn('Failed to fetch character chats list', { status: response.status });
+                return true; // Fail-safe: assume exists on error
+            }
+            const chats = await response.json();
+            return chats.some(chat => chat.file_name.replace('.jsonl', '') === chatId);
+        }
+
+        // For group chats - check group data
+        const groupId = context.groupId;
+        if (groupId) {
+            const response = await getDeps().fetch('/api/groups/get', {
+                method: 'POST',
+                headers: getRequestHeaders(),
+                body: JSON.stringify({ id: groupId }),
+            });
+            if (!response.ok) {
+                logWarn('Failed to fetch group data', { status: response.status });
+                return true; // Fail-safe: assume exists on error
+            }
+            const group = await response.json();
+            return group?.chats?.includes(chatId);
+        }
+
+        // Neither character nor group context - assume exists
+        return true;
+    } catch (err) {
+        logWarn('Failed to validate chat existence', err);
+        return true; // Assume exists on error to avoid false cleanup
+    }
+}
+
 /**
  * Get the ST Vector Storage collection ID for the current chat.
  * Includes chat ID to prevent cross-chat data leakage.
@@ -242,6 +302,18 @@ export async function purgeSTCollection(chatId) {
  * @returns {Promise<Array<{id: string, hash: number, text: string}>>} Results with extracted OV IDs
  */
 export async function querySTVector(searchText, topK, threshold, chatId) {
+    // Check for orphans (with session cache)
+    if (!validatedChats.has(chatId)) {
+        const exists = await chatExists(chatId);
+        if (!exists) {
+            logWarn(`Detected orphaned ST collection for deleted chat: ${chatId}`);
+            await purgeSTCollection(chatId);
+            showToast('info', 'Cleaned up orphaned vector storage for deleted chat');
+            return [];
+        }
+        validatedChats.add(chatId);
+    }
+
     try {
         const collectionId = getSTCollectionId(chatId);
         const source = getSTVectorSource();
