@@ -82,14 +82,13 @@ describe('extractMemories pipeline', () => {
         mockData = {
             memories: [],
             character_states: {},
-            last_processed_message_id: -1,
             processed_message_ids: [],
         };
 
         mockContext = {
             chat: [
-                { mes: 'Hello', is_user: true, name: 'User' },
-                { mes: 'Welcome to the Castle', is_user: false, name: 'King Aldric' },
+                { mes: 'Hello', is_user: true, name: 'User', send_date: '1000000' },
+                { mes: 'Welcome to the Castle', is_user: false, name: 'King Aldric', send_date: '1000001' },
             ],
             name1: 'User',
             name2: 'King Aldric',

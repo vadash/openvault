@@ -8,7 +8,6 @@
 import {
     CHARACTERS_KEY,
     extensionName,
-    LAST_PROCESSED_KEY,
     MEMORIES_KEY,
     PROCESSED_MESSAGES_KEY,
 } from '../constants.js';
@@ -87,7 +86,7 @@ import { isExtensionEnabled, safeSetExtensionPrompt, yieldToMain } from '../util
 import { jaccardSimilarity, sliceToTokenBudget, sortMemoriesBySequence } from '../utils/text.js';
 import { countTokens, getMessageTokenCount } from '../utils/tokens.js';
 import { resolveCharacterName, transliterateCyrToLat } from '../utils/transliterate.js';
-import { getBackfillMessageIds, getExtractedMessageIds, getNextBatch } from './scheduler.js';
+import { getBackfillMessageIds, getNextBatch, getFingerprint, getProcessedFingerprints } from './scheduler.js';
 import { parseEventExtractionResponse, parseGraphExtractionResponse } from './structured.js';
 
 /**
@@ -463,27 +462,16 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
     // Stage 1: Message Selection
     let messagesToExtract = [];
 
-    if (messageIds && messageIds.length > 0) {
-        // Targeted mode: When specific IDs are provided (e.g., backfill)
-        messagesToExtract = messageIds.map((id) => ({ id, ...chat[id] })).filter((m) => m != null);
-    } else {
-        // Incremental mode: Extract last few unprocessed messages using token budget
-        const lastProcessedId = data[LAST_PROCESSED_KEY] || -1;
-        const tokenBudget = settings.extractionTokenBudget;
-        const candidates = chat
-            .map((m, idx) => ({ id: idx, ...m }))
-            .filter((m) => !m.is_system && m.id > lastProcessedId);
-
-        // Take from the end (newest), accumulate until budget
-        let accumulated = 0;
-        let startIdx = candidates.length;
-        for (let i = candidates.length - 1; i >= 0; i--) {
-            const tokens = getMessageTokenCount(chat, candidates[i].id);
-            if (accumulated + tokens > tokenBudget && startIdx < candidates.length) break;
-            accumulated += tokens;
-            startIdx = i;
+    if (!messageIds || messageIds.length === 0) {
+        // Defensive: use scheduler to get next batch if no IDs provided
+        const batch = getNextBatch(chat, data, settings?.extractionTokenBudget || 2000);
+        if (!batch) {
+            console.log('[extract] No messages to extract (scheduler returned empty batch)');
+            return { status: 'skipped', reason: 'no_new_messages' };
         }
-        messagesToExtract = candidates.slice(startIdx);
+        messagesToExtract = batch.map(id => ({ id, ...chat[id] }));
+    } else {
+        messagesToExtract = messageIds.map(id => ({ id, ...chat[id] })).filter(m => m != null);
     }
 
     if (messagesToExtract.length === 0) {
@@ -662,8 +650,6 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         delete data.graph._mergeRedirects;
 
         // ===== PHASE 1 COMMIT: Events + Graph are done =====
-        const maxId = processedIds.length > 0 ? Math.max(...processedIds) : 0;
-
         if (events.length > 0) {
             // Canonicalize cross-script character names before downstream consumption
             canonicalizeEventCharNames(events, [characterName, userName], data.graph?.nodes);
@@ -673,10 +659,10 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         }
 
         // Mark processed AFTER events are committed to memories
+        const processedFps = messages.map(m => getFingerprint(m));
         data[PROCESSED_MESSAGES_KEY] = data[PROCESSED_MESSAGES_KEY] || [];
-        data[PROCESSED_MESSAGES_KEY].push(...processedIds);
-        data[LAST_PROCESSED_KEY] = Math.max(data[LAST_PROCESSED_KEY] || -1, maxId);
-        logDebug(`Phase 1 complete: ${events.length} events, ${processedIds.length} messages processed`);
+        data[PROCESSED_MESSAGES_KEY].push(...processedFps);
+        logDebug(`Phase 1 complete: ${events.length} events, ${processedFps.length} messages processed`);
 
         // Update IDF cache after Phase 1 commit — corpus has changed
         updateIDFCache(data, data.graph?.nodes);
@@ -967,17 +953,17 @@ export async function extractAllMessages(updateEventListenersFn) {
         data,
         tokenBudget
     );
-    const alreadyExtractedIds = getExtractedMessageIds(data);
+    const processedFps = getProcessedFingerprints(data);
 
-    if (alreadyExtractedIds.size > 0) {
-        logDebug(`Backfill: Skipping ${alreadyExtractedIds.size} already-extracted messages`);
+    if (processedFps.size > 0) {
+        logDebug(`Backfill: Skipping ${processedFps.size} already-extracted messages`);
     }
 
     if (initialMessageIds.length === 0) {
-        if (alreadyExtractedIds.size > 0) {
+        if (processedFps.size > 0) {
             showToast(
                 'info',
-                `All eligible messages already extracted (${alreadyExtractedIds.size} messages have memories)`
+                `All eligible messages already extracted (${processedFps.size} messages have memories)`
             );
         } else {
             showToast('warning', `Not enough messages for a complete batch (need token budget met)`);
