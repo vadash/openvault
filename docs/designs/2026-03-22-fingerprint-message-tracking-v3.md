@@ -1,7 +1,7 @@
 # Fingerprint-Based Message Tracking
 
 **Date**: 2026-03-22
-**Status**: Draft → v2
+**Status**: Draft → v2 → v3
 **Scope**: `src/extraction/scheduler.js`, `src/extraction/extract.js`, `src/events.js`, `src/constants.js`
 
 ## Problem
@@ -48,14 +48,18 @@ Replace array indices with **message fingerprints** as identifiers. A fingerprin
 ### Fingerprint Function
 
 ```js
+import { cyrb53 } from '../utils/embedding-codec.js';
+
 export function getFingerprint(msg) {
-    return msg.send_date || '';
+    if (msg.send_date) return String(msg.send_date);
+    // Fallback: content hash for imported chats without send_date
+    return `hash_${cyrb53((msg.name || '') + (msg.mes || ''))}`;
 }
 ```
 
 SillyTavern sets `send_date` on every message at creation time (millisecond-precision timestamp string). It never changes when the array is spliced. It's unique per message within a chat.
 
-Fallback to empty string for edge-case messages without `send_date` (shouldn't happen in practice — all user/character messages have it).
+Fallback uses `cyrb53` (already in the codebase at `utils/embedding-codec.js`) to hash sender + content. This prevents imported chats (Character.ai, TavernAI, plain JSON) from collapsing all `send_date`-less messages into one fingerprint.
 
 ### Changes
 
@@ -170,28 +174,40 @@ These just need import name updates (`getExtractedMessageIds` → `getProcessedF
 
 ### Migration
 
-Auto-detect old index-based format and clear:
+Map existing indices to fingerprints using the current chat array. This avoids re-extracting the entire chat through the LLM (which would burn API credits before dedup catches duplicates in Phase 4).
 
 ```js
-// In scheduler.js or extract.js, on data access:
-export function migrateProcessedMessages(data) {
+export function migrateProcessedMessages(chat, data) {
     const processed = data[PROCESSED_MESSAGES_KEY];
-    if (processed?.length > 0 && typeof processed[0] === 'number') {
-        data[PROCESSED_MESSAGES_KEY] = [];
-        delete data[LAST_PROCESSED_KEY];
-        return true; // migrated
+    if (!processed?.length || typeof processed[0] !== 'number') return false;
+
+    const fps = new Set();
+
+    // 1. Map PROCESSED_MESSAGES_KEY indices to fingerprints
+    for (const idx of processed) {
+        if (chat[idx]) fps.add(getFingerprint(chat[idx]));
     }
-    return false;
+
+    // 2. Map memory.message_ids indices as safety net
+    for (const memory of data[MEMORIES_KEY] || []) {
+        for (const idx of memory.message_ids || []) {
+            if (chat[idx]) fps.add(getFingerprint(chat[idx]));
+        }
+    }
+
+    data[PROCESSED_MESSAGES_KEY] = Array.from(fps);
+    delete data[LAST_PROCESSED_KEY];
+    return true;
 }
 ```
 
-**Cost**: Some messages re-extracted on first run after upgrade. `filterSimilarEvents` (cosine + Jaccard dedup) prevents duplicate memories. One-time, automatic.
+**Trade-off**: If InlineSummary already shifted indices, some mapped fingerprints will point at the "wrong" (shifted) messages. Those become harmless dead entries in the Set — the unmapped messages will be picked up as unextracted. This is infinitely cheaper than re-extracting the entire chat.
 
-**User notification**: Show a toast during migration so the user understands why the worker is suddenly reprocessing their chat:
+**User notification**: Show a toast so the user understands any one-time re-processing:
 
 ```js
-if (migrateProcessedMessages(data)) {
-    getDeps().showToast('info', 'OpenVault upgraded tracking format. Some messages may be re-processed (duplicates are filtered automatically).', 'Data Migration');
+if (migrateProcessedMessages(chat, data)) {
+    getDeps().showToast('info', 'OpenVault upgraded tracking format.', 'Data Migration');
     await saveOpenVaultData();
 }
 ```
@@ -240,15 +256,15 @@ One path. One source of truth. No watermark.
 | Extension deletes messages | Fingerprints of deleted messages stay in Set (dead entries, harmless). No incorrect skipping of other messages. |
 | Two messages with identical `send_date` | Extremely unlikely (ms precision in ST). If it happens, second message is skipped. Acceptable risk. |
 | Message content edited by user | `send_date` unchanged → stays "processed". Same behavior as before. Correct — the message identity didn't change. |
-| Old data with index-based format | Auto-detected (`typeof [0] === 'number'`), cleared. Re-extraction with dedup. One-time cost. |
-| `send_date` missing on a message | `getFingerprint` returns `''` → all such messages share a fingerprint → only one gets processed. Edge case for system/injected messages, not user content. |
+| Old data with index-based format | Indices mapped to fingerprints via current chat. Shifted indices produce harmless dead entries. No full re-extraction. |
+| `send_date` missing on a message | Content-hash fallback (`cyrb53(name + mes)`) guarantees unique fingerprints per distinct message. Handles imported chats from Character.ai, TavernAI, etc. |
 
 ## Testing Strategy
 
-- **Unit**: `getFingerprint` — returns `send_date`, handles missing
+- **Unit**: `getFingerprint` — returns `send_date` when present, content hash when missing
 - **Unit**: `getProcessedFingerprints` — builds Set from stored fingerprints
 - **Unit**: `getUnextractedMessageIds` — fingerprint checking, `is_system` filtering
-- **Unit**: `migrateProcessedMessages` — detects old format, clears indices
+- **Unit**: `migrateProcessedMessages(chat, data)` — maps old indices to fingerprints, handles shifted indices, handles out-of-bounds indices
 - **Unit**: `getNextBatch` / `isBatchReady` / `getBackfillStats` — work with fingerprints
 - **Integration**: Simulate chat modified by extension (spliced array), verify correct messages identified as unextracted
 - **Regression**: Existing scheduler and extract tests updated for new function signatures
