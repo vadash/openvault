@@ -22,6 +22,66 @@ export function getFingerprint(msg) {
 }
 
 /**
+ * Parse ST's send_date (ISO, localized, numeric string, or Number) into ms.
+ * @param {string|number} sendDate
+ * @returns {number}
+ */
+function parseSendDate(sendDate) {
+    const val = String(sendDate);
+    if (/^\d+$/.test(val)) return parseInt(val, 10);
+    return Date.parse(val) || 0;
+}
+
+/**
+ * Migrate index-based processed messages to fingerprint-based.
+ * Called once per chat when old format is detected.
+ * Includes temporal guard to skip indices that point to messages
+ * sent after the last memory was created (indicates index shift).
+ * @param {Array} chat - Chat array
+ * @param {Object} data - OpenVault data object
+ * @returns {boolean} True if migration occurred
+ */
+export function migrateProcessedMessages(chat, data) {
+    const processed = data[PROCESSED_MESSAGES_KEY];
+    if (!processed?.length || typeof processed[0] !== 'number') return false;
+
+    const fps = new Set();
+
+    // Temporal boundary: messages sent after our last extraction are definitely new
+    const lastMemoryTime = Math.max(0, ...(data[MEMORIES_KEY] || []).map(m => m.created_at || 0));
+
+    // 1. Map PROCESSED_MESSAGES_KEY indices to fingerprints
+    for (const idx of processed) {
+        const msg = chat[idx];
+        if (!msg) continue;
+        // Safety: if this message was sent after our last memory, the index
+        // has shifted onto a NEW message. Skip it to force extraction.
+        if (lastMemoryTime > 0 && msg.send_date) {
+            const sendTime = parseSendDate(msg.send_date);
+            if (sendTime && sendTime > lastMemoryTime) continue;
+        }
+        fps.add(getFingerprint(msg));
+    }
+
+    // 2. Map memory.message_ids indices as safety net (same temporal guard)
+    for (const memory of data[MEMORIES_KEY] || []) {
+        for (const idx of memory.message_ids || []) {
+            const msg = chat[idx];
+            if (!msg) continue;
+            if (lastMemoryTime > 0 && msg.send_date) {
+                const sendTime = parseSendDate(msg.send_date);
+                if (sendTime && sendTime > lastMemoryTime) continue;
+            }
+            fps.add(getFingerprint(msg));
+        }
+    }
+
+    data[PROCESSED_MESSAGES_KEY] = Array.from(fps);
+    delete data['last_processed_message_id'];
+    return true;
+}
+
+/**
  * Get set of message IDs that have been processed (extracted or attempted)
  * @param {Object} data - OpenVault data object
  * @returns {Set<number>} Set of processed message IDs

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PROCESSED_MESSAGES_KEY } from '../src/constants.js';
-import { getBackfillMessageIds, getBackfillStats, getNextBatch, isBatchReady, getFingerprint } from '../src/extraction/scheduler.js';
+import { PROCESSED_MESSAGES_KEY, MEMORIES_KEY } from '../src/constants.js';
+import { getBackfillMessageIds, getBackfillStats, getNextBatch, isBatchReady, getFingerprint, migrateProcessedMessages } from '../src/extraction/scheduler.js';
 
 // Timestamp counter for test messages
 let testTimestamp = 1000000;
@@ -50,6 +50,107 @@ describe('getFingerprint', () => {
         const msg1 = makeMessage(true, 'Hello', { send_date: undefined, name: 'User1' });
         const msg2 = makeMessage(true, 'Hello', { send_date: undefined, name: 'User2' });
         expect(getFingerprint(msg1)).not.toBe(getFingerprint(msg2));
+    });
+});
+
+describe('migrateProcessedMessages', () => {
+    let chat;
+    let data;
+
+    beforeEach(() => {
+        testTimestamp = 1000000;  // Reset timestamp counter
+        chat = [
+            makeMessage(true, 'Hello', { send_date: '1000000', name: 'User1' }),
+            makeMessage(false, 'Hi there', { send_date: '1000001', name: 'Bot' }),
+            makeMessage(true, 'How are you?', { send_date: '1000002', name: 'User1' }),
+            makeMessage(false, 'Doing well!', { send_date: '1000003', name: 'Bot' }),
+        ];
+        data = {
+            [PROCESSED_MESSAGES_KEY]: [0, 2],  // Old format: indices
+            [MEMORIES_KEY]: [
+                { created_at: 1000002, message_ids: [0] },
+                { created_at: 1000003, message_ids: [2] },
+            ],
+        };
+    });
+
+    it('returns false when already migrated (fingerprints)', () => {
+        data[PROCESSED_MESSAGES_KEY] = ['1000000', '1000002'];
+        const result = migrateProcessedMessages(chat, data);
+        expect(result).toBe(false);
+    });
+
+    it('returns false when no processed messages exist', () => {
+        data[PROCESSED_MESSAGES_KEY] = [];
+        const result = migrateProcessedMessages(chat, data);
+        expect(result).toBe(false);
+    });
+
+    it('migrates indices to fingerprints', () => {
+        const result = migrateProcessedMessages(chat, data);
+        expect(result).toBe(true);
+        expect(data[PROCESSED_MESSAGES_KEY]).toContain('1000000');
+        expect(data[PROCESSED_MESSAGES_KEY]).toContain('1000002');
+        expect(data[PROCESSED_MESSAGES_KEY]).not.toContain(0);
+        expect(data[PROCESSED_MESSAGES_KEY]).not.toContain(2);
+    });
+
+    it('includes fingerprints from memory.message_ids', () => {
+        const result = migrateProcessedMessages(chat, data);
+        expect(result).toBe(true);
+        // Should include both processed indices and memory indices
+        expect(data[PROCESSED_MESSAGES_KEY]).toContain('1000000');
+        expect(data[PROCESSED_MESSAGES_KEY]).toContain('1000002');
+    });
+
+    it('handles out-of-bounds indices gracefully', () => {
+        data[PROCESSED_MESSAGES_KEY] = [0, 5, 10];  // 5 and 10 out of bounds
+        data[MEMORIES_KEY] = [{ created_at: 1000002, message_ids: [0] }];  // Only index 0 valid
+        const result = migrateProcessedMessages(chat, data);
+        expect(result).toBe(true);
+        expect(data[PROCESSED_MESSAGES_KEY]).toContain('1000000');
+        expect(data[PROCESSED_MESSAGES_KEY].length).toBe(1);
+    });
+
+    it('applies temporal guard - skips messages sent after last memory', () => {
+        // Message at index 3 was sent at 1000003, but last memory was at 1000002
+        data[PROCESSED_MESSAGES_KEY] = [0, 3];  // 3 should be skipped due to temporal guard
+        data[MEMORIES_KEY] = [{ created_at: 1000002, message_ids: [0] }];  // Last memory at 1000002
+        const result = migrateProcessedMessages(chat, data);
+        expect(result).toBe(true);
+        expect(data[PROCESSED_MESSAGES_KEY]).toContain('1000000');
+        expect(data[PROCESSED_MESSAGES_KEY]).not.toContain('1000003');
+    });
+
+    it('deletes last_processed_message_id key', () => {
+        data['last_processed_message_id'] = 2;
+        migrateProcessedMessages(chat, data);
+        expect(data['last_processed_message_id']).toBeUndefined();
+    });
+
+    it('handles messages without send_date using hash fallback', () => {
+        chat[0].send_date = undefined;
+        const expectedHash = getFingerprint(chat[0]);
+        const result = migrateProcessedMessages(chat, data);
+        expect(result).toBe(true);
+        expect(data[PROCESSED_MESSAGES_KEY]).toContain(expectedHash);
+    });
+
+    it('handles empty memories array', () => {
+        data[MEMORIES_KEY] = [];
+        const result = migrateProcessedMessages(chat, data);
+        expect(result).toBe(true);
+        // Should still migrate processed indices
+        expect(data[PROCESSED_MESSAGES_KEY]).toContain('1000000');
+        expect(data[PROCESSED_MESSAGES_KEY]).toContain('1000002');
+    });
+
+    it('handles memories without message_ids', () => {
+        data[MEMORIES_KEY] = [{ created_at: 1000002 }];
+        const result = migrateProcessedMessages(chat, data);
+        expect(result).toBe(true);
+        expect(data[PROCESSED_MESSAGES_KEY]).toContain('1000000');
+        expect(data[PROCESSED_MESSAGES_KEY]).toContain('1000002');
     });
 });
 
