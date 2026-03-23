@@ -357,6 +357,7 @@ describe('hideExtractedMessages', () => {
         vi.spyOn(await import('../../src/deps.js'), 'getDeps').mockReturnValue({
             getContext: () => mockContext,
             saveChatConditional: mockSaveChatConditional,
+            console: global.console,
         });
 
         const count = await hideExtractedMessages();
@@ -391,6 +392,7 @@ describe('hideExtractedMessages', () => {
         vi.spyOn(await import('../../src/deps.js'), 'getDeps').mockReturnValue({
             getContext: () => mockContext,
             saveChatConditional: mockSaveChatConditional,
+            console: global.console,
         });
 
         const count = await hideExtractedMessages();
