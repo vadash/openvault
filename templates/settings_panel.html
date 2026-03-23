@@ -116,10 +116,16 @@
                         </div>
                         <span class="openvault-batch-progress-label" id="openvault_batch_progress_label">No chat</span>
                     </div>
-                    <div class="openvault-button-row">
+                    <div class="openvault-button-row openvault-button-stack">
                         <button id="openvault_extract_all_btn" class="menu_button">
                             <i class="fa-solid fa-layer-group"></i> Backfill History
                         </button>
+                        <button id="openvault_emergency_cut_btn" class="menu_button danger"
+                                title="Extract all unprocessed messages and hide chat history to break repetition loops.">
+                            <i class="fa-solid fa-scissors"></i> Emergency Cut
+                        </button>
+                    </div>
+                    <div class="openvault-button-row" style="margin-top: 8px;">
                         <button id="openvault_backfill_embeddings_btn" class="menu_button">
                             <i class="fa-solid fa-vector-square"></i> Generate Embeddings
                         </button>
@@ -675,6 +681,22 @@
                     </table>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Emergency Cut Progress Modal -->
+    <div id="openvault_emergency_cut_modal" class="openvault-modal hidden">
+        <div class="openvault-modal-content">
+            <h3><i class="fa-solid fa-scissors"></i> Emergency Cut in Progress</h3>
+            <p id="openvault_emergency_phase">Extracting and hiding messages...</p>
+            <p class="openvault-modal-hint">Note: You can manually unhide messages later using ST's built-in message visibility tools.</p>
+            <div class="openvault-batch-progress">
+                <div class="openvault-batch-progress-bar">
+                    <div class="openvault-batch-progress-fill" id="openvault_emergency_fill"></div>
+                </div>
+                <span class="openvault-batch-progress-label" id="openvault_emergency_label">Starting...</span>
+            </div>
+            <button id="openvault_emergency_cancel" class="menu_button">Cancel</button>
         </div>
     </div>
 </div>

@@ -41,4 +41,32 @@ describe('Dashboard Tab Structure', () => {
         expect(dashboardHtml).toContain('<details');
         expect(dashboardHtml).toContain('Connection Settings');
     });
+
+    it('has Emergency Cut button in Extraction Progress card', () => {
+        const progressMatch = dashboardHtml.match(
+            /Extraction Progress[\s\S]*?<div class="openvault-button-row[^"]*">([\s\S]*?)<\/div>\s*<\/div>/
+        );
+        expect(progressMatch).toBeTruthy();
+
+        const buttonHtml = progressMatch[1];
+
+        // Emergency Cut button exists
+        expect(buttonHtml).toContain('id="openvault_emergency_cut_btn"');
+        expect(buttonHtml).toContain('fa-scissors');
+        expect(buttonHtml).toContain('Emergency Cut');
+
+        // Has danger styling
+        expect(buttonHtml).toContain('danger');
+
+        // Has tooltip explaining purpose
+        expect(buttonHtml).toContain('title=');
+        expect(buttonHtml).toContain('repetition');
+    });
+
+    it('has Emergency Cut modal at correct location', () => {
+        // Modal should exist in the HTML
+        expect(html).toContain('id="openvault_emergency_cut_modal"');
+        expect(html).toContain('openvault-modal-content');
+        expect(html).toContain('id="openvault_emergency_cancel"');
+    });
 });
