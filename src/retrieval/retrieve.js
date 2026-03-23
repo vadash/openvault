@@ -19,7 +19,7 @@
  * @property {Object[]} allAvailableMemories - All memories for expanded IDF corpus
  */
 
-import { CHARACTERS_KEY, extensionName, MEMORIES_KEY } from '../constants.js';
+import { CHARACTERS_KEY, COMBINED_BOOST_WEIGHT, extensionName, IMPORTANCE_5_FLOOR, MEMORIES_KEY, REFLECTION_DECAY_THRESHOLD } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { cachedContent } from '../injection/macros.js';
@@ -114,11 +114,11 @@ export function buildRetrievalContext(opts = {}) {
 
     const scoringConfig = {
         forgetfulnessBaseLambda: settings.forgetfulnessBaseLambda,
-        forgetfulnessImportance5Floor: settings.forgetfulnessImportance5Floor,
-        reflectionDecayThreshold: settings.reflectionDecayThreshold,
+        forgetfulnessImportance5Floor: IMPORTANCE_5_FLOOR,
+        reflectionDecayThreshold: REFLECTION_DECAY_THRESHOLD,
         vectorSimilarityThreshold: settings.vectorSimilarityThreshold,
         alpha: settings.alpha,
-        combinedBoostWeight: settings.combinedBoostWeight,
+        combinedBoostWeight: COMBINED_BOOST_WEIGHT,
         embeddingSource: settings.embeddingSource,
     };
 

@@ -15,7 +15,7 @@ import { setChatLoadingCooldown } from './src/state.js';
 import { refreshAllUI } from './src/ui/render.js';
 import { loadSettings } from './src/ui/settings.js';
 import { setStatus } from './src/ui/status.js';
-import { getOpenVaultData } from './src/utils/data.js';
+import { getOpenVaultData } from './src/store/chat-data.js';
 import { showToast } from './src/utils/dom.js';
 import { logDebug, logError, logInfo } from './src/utils/logging.js';
 

@@ -5,7 +5,7 @@
  * Previously: ExtractionPipeline class + 5 separate stage files.
  */
 
-import { CHARACTERS_KEY, extensionName, MEMORIES_KEY } from '../constants.js';
+import { CHARACTERS_KEY, COMMUNITY_STALENESS_THRESHOLD, EDGE_DESCRIPTION_CAP, ENTITY_DESCRIPTION_CAP, extensionName, MEMORIES_KEY } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { enrichEventsWithEmbeddings } from '../embeddings.js';
 import { buildCommunityGroups, detectCommunities, updateCommunitySummaries } from '../graph/communities.js';
@@ -642,7 +642,7 @@ async function synthesizeCommunities(data, settings, characterName, userName) {
             }
 
             const groups = buildCommunityGroups(data.graph, communityResult.communities);
-            const stalenessThreshold = settings.communityStalenessThreshold;
+            const stalenessThreshold = COMMUNITY_STALENESS_THRESHOLD;
             const isSingleCommunity = communityResult.count === 1;
             const communityUpdateResult = await updateCommunitySummaries(
                 data.graph,
@@ -794,7 +794,7 @@ async function processGraphUpdates(graphData, entities, relationships, settings)
     const graphSyncChanges = { toSync: [], toDelete: [] };
 
     if (entities?.length) {
-        const entityCap = settings.entityDescriptionCap;
+        const entityCap = ENTITY_DESCRIPTION_CAP;
         const t0Merge = performance.now();
         const existingNodeCount = Object.keys(graphData.nodes).length;
         for (const entity of entities) {
@@ -814,7 +814,7 @@ async function processGraphUpdates(graphData, entities, relationships, settings)
     }
 
     if (relationships?.length) {
-        const edgeCap = settings.edgeDescriptionCap;
+        const edgeCap = EDGE_DESCRIPTION_CAP;
         for (const rel of relationships) {
             if (rel.source === 'Unknown' || rel.target === 'Unknown') continue;
             upsertRelationship(graphData, rel.source, rel.target, rel.description, edgeCap);

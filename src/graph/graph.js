@@ -5,7 +5,7 @@
  * All data stored in chatMetadata.openvault.graph as { nodes, edges }.
  */
 
-import { CONSOLIDATION, extensionName } from '../constants.js';
+import { CONSOLIDATION, ENTITY_MERGE_THRESHOLD, extensionName } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { getDocumentEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { parseConsolidationResponse } from '../extraction/structured.js';
@@ -458,7 +458,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
         return { key, stChanges };
     }
 
-    const threshold = settings.entityMergeSimilarityThreshold;
+    const threshold = ENTITY_MERGE_THRESHOLD;
     let bestMatch = null;
     let bestScore = 0;
 

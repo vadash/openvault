@@ -13,7 +13,7 @@
  *   align with existing insights (>85%).
  */
 
-import { extensionName, REFLECTION_CANDIDATE_LIMIT } from '../constants.js';
+import { extensionName, REFLECTION_CANDIDATE_LIMIT, REFLECTION_DEDUP_REJECT_THRESHOLD, REFLECTION_DEDUP_REPLACE_THRESHOLD } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { enrichEventsWithEmbeddings } from '../embeddings.js';
 import { parseUnifiedReflectionResponse } from '../extraction/structured.js';
@@ -297,8 +297,8 @@ export async function generateReflections(characterName, allMemories, characterS
     await enrichEventsWithEmbeddings(newReflections);
 
     // Dedup: 3-tier filter (reject/replace/add) reflections based on similarity
-    const reflectionDedupThreshold = settings.reflectionDedupThreshold;
-    const replaceThreshold = reflectionDedupThreshold - 0.1; // 0.80 when default is 0.90
+    const reflectionDedupThreshold = REFLECTION_DEDUP_REJECT_THRESHOLD;
+    const replaceThreshold = REFLECTION_DEDUP_REPLACE_THRESHOLD;
     const { toAdd, toArchiveIds } = filterDuplicateReflections(
         newReflections,
         allMemories,
