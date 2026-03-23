@@ -787,6 +787,55 @@ async function enrichAndDedupEvents(rawEvents, messageIdsArray, batchId, existin
 }
 
 /**
+ * Stage 4: Upsert entities and relationships into the graph, collect ST sync changes.
+ *
+ * @param {Object} graphData - Graph data object (mutated in-place)
+ * @param {Array} entities - Entities from graph extraction
+ * @param {Array} relationships - Relationships from graph extraction
+ * @param {Object} settings - Extension settings
+ * @returns {Promise<{graphSyncChanges: {toSync: Array, toDelete: Array}}>}
+ */
+async function processGraphUpdates(graphData, entities, relationships, settings) {
+    const graphSyncChanges = { toSync: [], toDelete: [] };
+
+    if (entities?.length) {
+        const entityCap = settings.entityDescriptionCap;
+        const t0Merge = performance.now();
+        const existingNodeCount = Object.keys(graphData.nodes).length;
+        for (const entity of entities) {
+            if (entity.name === 'Unknown') continue;
+            const { stChanges: entityChanges } = await mergeOrInsertEntity(
+                graphData,
+                entity.name,
+                entity.type,
+                entity.description,
+                entityCap,
+                settings
+            );
+            graphSyncChanges.toSync.push(...entityChanges.toSync);
+            graphSyncChanges.toDelete.push(...entityChanges.toDelete);
+        }
+        record(
+            'entity_merge',
+            performance.now() - t0Merge,
+            `${entities.length}×${existingNodeCount} nodes`
+        );
+    }
+
+    if (relationships?.length) {
+        const edgeCap = settings.edgeDescriptionCap;
+        for (const rel of relationships) {
+            if (rel.source === 'Unknown' || rel.target === 'Unknown') continue;
+            upsertRelationship(graphData, rel.source, rel.target, rel.description, edgeCap);
+        }
+    }
+
+    // Clean up runtime-only merge redirects (don't persist to storage)
+    delete graphData._mergeRedirects;
+    return { graphSyncChanges };
+}
+
+/**
  * Extract events from chat messages
  *
  * @param {number[]} [messageIds=null] - Optional specific message IDs for targeted extraction
