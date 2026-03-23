@@ -17,8 +17,7 @@ import {
     resolveOutputLanguage,
 } from '../prompts/index.js';
 import { cosineSimilarity } from '../retrieval/math.js';
-import { getCurrentChatId, isStVectorSource, syncItemsToST } from '../utils/data.js';
-import { cyrb53, getEmbedding, hasEmbedding, markStSynced, setEmbedding } from '../utils/embedding-codec.js';
+import { cyrb53, getEmbedding, hasEmbedding, setEmbedding } from '../utils/embedding-codec.js';
 import { logDebug, logError } from '../utils/logging.js';
 import { createLadderQueue } from '../utils/queue.js';
 import { stemWord } from '../utils/stemmer.js';
@@ -524,9 +523,10 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
  */
 export async function consolidateEdges(graphData, _settings) {
     if (!graphData._edgesNeedingConsolidation?.length) {
-        return 0;
+        return { count: 0, stChanges: { toSync: [] } };
     }
 
+    const stChanges = { toSync: [] };
     const toProcess = graphData._edgesNeedingConsolidation.slice(0, CONSOLIDATION.MAX_CONSOLIDATION_BATCH);
 
     const deps = getDeps();
@@ -560,14 +560,10 @@ export async function consolidateEdges(graphData, _settings) {
                             setEmbedding(edge, newEmbedding);
                         }
 
-                        // Sync consolidated edge to ST Vector Storage
-                        if (isStVectorSource()) {
-                            const chatId = getCurrentChatId();
-                            const edgeId = `edge_${edge.source}_${edge.target}`;
-                            const text = `[OV_ID:${edgeId}] ${edge.description}`;
-                            await syncItemsToST([{ hash: cyrb53(text), text, index: 0 }], chatId);
-                            markStSynced(edge);
-                        }
+                        // Return edge for ST sync (orchestrator handles bulk I/O)
+                        const edgeId = `edge_${edge.source}_${edge.target}`;
+                        const text = `[OV_ID:${edgeId}] ${edge.description}`;
+                        stChanges.toSync.push({ hash: cyrb53(text), text, item: edge });
 
                         return edgeKey;
                     }
@@ -587,5 +583,5 @@ export async function consolidateEdges(graphData, _settings) {
         (key) => !successfulKeys.includes(key)
     );
 
-    return successfulKeys.length;
+    return { count: successfulKeys.length, stChanges };
 }

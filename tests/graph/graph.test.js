@@ -857,13 +857,17 @@ describe('consolidateEdges', () => {
 
         const mockSettings = { consolidationTokenThreshold: 500 };
 
-        const result = await consolidateEdges(graph, mockSettings);
-        expect(result).toBe(1);
+        const { count, stChanges } = await consolidateEdges(graph, mockSettings);
+        expect(count).toBe(1);
         expect(graph.edges.alice__bob.description).toBe('From strangers to battle allies');
         expect(graph._edgesNeedingConsolidation).toHaveLength(0);
+        // stChanges contains the consolidated edge for ST sync
+        expect(stChanges.toSync).toHaveLength(1);
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:edge_alice_bob] From strangers to battle allies');
+        expect(stChanges.toSync[0].item).toBe(graph.edges.alice__bob);
     });
 
-    it('returns 0 when no edges need consolidation', async () => {
+    it('returns 0 count and empty stChanges when no edges need consolidation', async () => {
         const graph = {
             nodes: {
                 alice: { name: 'Alice', type: 'PERSON', description: 'test', mentions: 1 },
@@ -881,8 +885,9 @@ describe('consolidateEdges', () => {
             _edgesNeedingConsolidation: [],
         };
 
-        const result = await consolidateEdges(graph, {});
-        expect(result).toBe(0);
+        const { count, stChanges } = await consolidateEdges(graph, {});
+        expect(count).toBe(0);
+        expect(stChanges.toSync).toHaveLength(0);
     });
 
     it('respects MAX_CONSOLIDATION_BATCH limit', async () => {
@@ -914,10 +919,11 @@ describe('consolidateEdges', () => {
             graph._edgesNeedingConsolidation.push(`${src}__${tgt}`);
         }
 
-        const result = await consolidateEdges(graph, {});
+        const { count, stChanges } = await consolidateEdges(graph, {});
         // Should only process 10 (MAX_CONSOLIDATION_BATCH), 5 should remain
-        expect(result).toBe(10);
+        expect(count).toBe(10);
         expect(graph._edgesNeedingConsolidation).toHaveLength(5);
+        expect(stChanges.toSync).toHaveLength(10);
     });
 });
 

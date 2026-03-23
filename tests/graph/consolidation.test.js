@@ -51,10 +51,11 @@ describe('Edge Consolidation (BM25-only mode)', () => {
         };
         graph._edgesNeedingConsolidation = ['alice__bob'];
 
-        const result = await consolidateEdges(graph, {});
-        expect(result).toBe(1);
+        const { count, stChanges } = await consolidateEdges(graph, {});
+        expect(count).toBe(1);
         expect(graph.edges.alice__bob.description).toBe('Consolidated relationship');
         expect(graph._edgesNeedingConsolidation).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1);
     });
 
     it('consolidates multiple edges in parallel with maxConcurrency > 1', async () => {
@@ -82,10 +83,11 @@ describe('Edge Consolidation (BM25-only mode)', () => {
         };
         graph._edgesNeedingConsolidation = ['alice__bob', 'alice__carol'];
 
-        const result = await consolidateEdges(graph, {});
-        expect(result).toBe(2);
+        const { count, stChanges } = await consolidateEdges(graph, {});
+        expect(count).toBe(2);
         expect(graph.edges.alice__bob.description).toBe('Relationship A');
         expect(graph.edges.alice__carol.description).toBe('Relationship B');
         expect(graph._edgesNeedingConsolidation).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(2);
     });
 });
