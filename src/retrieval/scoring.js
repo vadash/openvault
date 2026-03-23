@@ -5,8 +5,7 @@
  * Uses forgetfulness curve (exponential decay) and optional vector similarity.
  */
 
-import { extensionName, OVER_FETCH_MULTIPLIER } from '../constants.js';
-import { getDeps } from '../deps.js';
+import { OVER_FETCH_MULTIPLIER } from '../constants.js';
 import { getQueryEmbedding, getStrategy, isEmbeddingsEnabled } from '../embeddings.js';
 import { logDebug } from '../utils/logging.js';
 import { assignMemoriesToBuckets, getMemoryPosition } from '../utils/text.js';
@@ -20,26 +19,6 @@ import {
     extractQueryContext,
     parseRecentMessages,
 } from './query-context.js';
-
-/**
- * Build scoring parameters from extension settings
- * @returns {{constants: Object, settings: Object}}
- */
-export function getScoringParams() {
-    const settings = getDeps().getExtensionSettings()[extensionName];
-    return {
-        constants: {
-            BASE_LAMBDA: settings.forgetfulnessBaseLambda,
-            IMPORTANCE_5_FLOOR: settings.forgetfulnessImportance5Floor,
-            reflectionDecayThreshold: settings.reflectionDecayThreshold,
-        },
-        settings: {
-            vectorSimilarityThreshold: settings.vectorSimilarityThreshold,
-            alpha: settings.alpha,
-            combinedBoostWeight: settings.combinedBoostWeight,
-        },
-    };
-}
 
 /**
  * Score memories (main-thread, async to allow yielding).
@@ -61,9 +40,20 @@ async function scoreMemoriesDirect(
     queryTokens,
     characterNames = [],
     hiddenMemories = [],
-    idfCache = null
+    idfCache = null,
+    scoringConfig
 ) {
-    const { constants, settings } = getScoringParams();
+    // Destructure flat scoringConfig into the {constants, settings} shape math.js expects
+    const constants = {
+        BASE_LAMBDA: scoringConfig.forgetfulnessBaseLambda,
+        IMPORTANCE_5_FLOOR: scoringConfig.forgetfulnessImportance5Floor,
+        reflectionDecayThreshold: scoringConfig.reflectionDecayThreshold,
+    };
+    const settings = {
+        vectorSimilarityThreshold: scoringConfig.vectorSimilarityThreshold,
+        alpha: scoringConfig.alpha,
+        combinedBoostWeight: scoringConfig.combinedBoostWeight,
+    };
     const scored = await scoreMemories(
         memories,
         contextEmbedding,
@@ -96,11 +86,10 @@ async function scoreMemoriesDirect(
  * @returns {Promise<{memories: Object[], scoredResults: Array<{memory: Object, score: number, breakdown: Object}>}>}
  */
 async function selectRelevantMemoriesSimple(memories, ctx, limit, allHiddenMemories = [], idfCache = null) {
-    const { recentContext, userMessages, activeCharacters, chatLength } = ctx;
+    const { recentContext, userMessages, activeCharacters, chatLength, scoringConfig, queryConfig } = ctx;
 
     // Check if using ST Vector Storage (external storage strategy)
-    const settings = getDeps().getExtensionSettings()[extensionName];
-    const source = settings.embeddingSource;
+    const source = scoringConfig.embeddingSource;
     const strategy = getStrategy(source);
 
     if (strategy.usesExternalStorage()) {
@@ -109,12 +98,12 @@ async function selectRelevantMemoriesSimple(memories, ctx, limit, allHiddenMemor
 
     // Extract context from recent messages for enriched queries
     const recentMessages = parseRecentMessages(recentContext, 10);
-    const queryContext = extractQueryContext(recentMessages, activeCharacters, ctx.graphNodes || {});
+    const queryContext = extractQueryContext(recentMessages, activeCharacters, ctx.graphNodes || {}, queryConfig);
 
     // Build enriched queries
     // Use user messages only for embedding (intent matching)
     const userMessagesForEmbedding = parseRecentMessages(userMessages, 3);
-    const embeddingQuery = buildEmbeddingQuery(userMessagesForEmbedding, queryContext);
+    const embeddingQuery = buildEmbeddingQuery(userMessagesForEmbedding, queryContext, queryConfig);
 
     // Event gate: skip BM25 pipeline when no events in candidates
     const hasEvents = memories.some((m) => m.type === 'event');
@@ -123,7 +112,7 @@ async function selectRelevantMemoriesSimple(memories, ctx, limit, allHiddenMemor
     const bm25Meta = {};
     if (hasEvents) {
         const corpusVocab = buildCorpusVocab(memories, allHiddenMemories, ctx.graphNodes || {}, ctx.graphEdges || {});
-        bm25Tokens = buildBM25Tokens(userMessages, queryContext, corpusVocab, bm25Meta);
+        bm25Tokens = buildBM25Tokens(userMessages, queryContext, corpusVocab, bm25Meta, queryConfig);
     }
 
     // Cache query context for debug export
@@ -163,7 +152,8 @@ async function selectRelevantMemoriesSimple(memories, ctx, limit, allHiddenMemor
         bm25Tokens,
         activeCharacters || [],
         allHiddenMemories,
-        idfCache
+        idfCache,
+        scoringConfig
     );
 }
 
@@ -172,15 +162,14 @@ async function selectRelevantMemoriesSimple(memories, ctx, limit, allHiddenMemor
  * Over-fetches from ST, assigns rank-position proxy scores, then feeds into scoreMemories.
  */
 async function selectRelevantMemoriesWithST(memories, ctx, limit, allHiddenMemories, idfCache, strategy) {
-    const { recentContext, userMessages, activeCharacters, chatLength } = ctx;
-    const settings = getDeps().getExtensionSettings()[extensionName];
+    const { recentContext, userMessages, activeCharacters, chatLength, scoringConfig, queryConfig } = ctx;
 
     // Over-fetch from ST for reranking headroom
     const stTopK = limit * OVER_FETCH_MULTIPLIER;
     const stResults = await strategy.searchItems(
         userMessages || recentContext?.slice(-500) || '',
         stTopK,
-        settings.vectorSimilarityThreshold
+        scoringConfig.vectorSimilarityThreshold
     );
 
     // Build candidates with proxy scores
@@ -198,7 +187,7 @@ async function selectRelevantMemoriesWithST(memories, ctx, limit, allHiddenMemor
         if (candidates.length > 0) {
             // Build BM25 tokens (same as local path)
             const recentMessages = parseRecentMessages(recentContext, 10);
-            const queryContext = extractQueryContext(recentMessages, activeCharacters, ctx.graphNodes || {});
+            const queryContext = extractQueryContext(recentMessages, activeCharacters, ctx.graphNodes || {}, queryConfig);
 
             const hasEvents = candidates.some((m) => m.type === 'event');
             let bm25Tokens = [];
@@ -209,11 +198,21 @@ async function selectRelevantMemoriesWithST(memories, ctx, limit, allHiddenMemor
                     ctx.graphNodes || {},
                     ctx.graphEdges || {}
                 );
-                bm25Tokens = buildBM25Tokens(userMessages, queryContext, corpusVocab);
+                bm25Tokens = buildBM25Tokens(userMessages, queryContext, corpusVocab, null, queryConfig);
             }
 
             // Score with proxy vector scores + BM25 + forgetfulness
-            const { constants, settings: scoringSettings } = getScoringParams();
+            // Destructure for math.js
+            const constants = {
+                BASE_LAMBDA: scoringConfig.forgetfulnessBaseLambda,
+                IMPORTANCE_5_FLOOR: scoringConfig.forgetfulnessImportance5Floor,
+                reflectionDecayThreshold: scoringConfig.reflectionDecayThreshold,
+            };
+            const scoringSettings = {
+                vectorSimilarityThreshold: scoringConfig.vectorSimilarityThreshold,
+                alpha: scoringConfig.alpha,
+                combinedBoostWeight: scoringConfig.combinedBoostWeight,
+            };
             const scored = await scoreMemories(
                 candidates,
                 null, // No context embedding — proxy scores are on memories
@@ -242,12 +241,12 @@ async function selectRelevantMemoriesWithST(memories, ctx, limit, allHiddenMemor
 
     // Graceful degradation: ST returned 0 candidates, fall through to BM25-only
     const recentMessages = parseRecentMessages(recentContext, 10);
-    const queryContext = extractQueryContext(recentMessages, activeCharacters, ctx.graphNodes || {});
+    const queryContext = extractQueryContext(recentMessages, activeCharacters, ctx.graphNodes || {}, queryConfig);
     const hasEvents = memories.some((m) => m.type === 'event');
     let bm25Tokens = [];
     if (hasEvents) {
         const corpusVocab = buildCorpusVocab(memories, allHiddenMemories, ctx.graphNodes || {}, ctx.graphEdges || {});
-        bm25Tokens = buildBM25Tokens(userMessages, queryContext, corpusVocab);
+        bm25Tokens = buildBM25Tokens(userMessages, queryContext, corpusVocab, null, queryConfig);
     }
 
     return scoreMemoriesDirect(
@@ -258,7 +257,8 @@ async function selectRelevantMemoriesWithST(memories, ctx, limit, allHiddenMemor
         bm25Tokens,
         activeCharacters || [],
         allHiddenMemories,
-        idfCache
+        idfCache,
+        scoringConfig
     );
 }
 
