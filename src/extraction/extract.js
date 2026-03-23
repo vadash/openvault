@@ -30,8 +30,6 @@ import {
 import { accumulateImportance, generateReflections, shouldReflect } from '../reflection/reflect.js';
 import { calculateIDF, cosineSimilarity, tokenize } from '../retrieval/math.js';
 import { clearAllLocks, isWorkerRunning, operationState } from '../state.js';
-import { refreshAllUI } from '../ui/render.js';
-import { setStatus } from '../ui/status.js';
 import { deleteItemsFromST, isStVectorSource, syncItemsToST } from '../services/st-vector.js';
 import { addMemories, getCurrentChatId, getOpenVaultData, incrementGraphMessageCount, markMessagesProcessed, saveOpenVaultData } from '../store/chat-data.js';
 import { showToast } from '../utils/dom.js';

@@ -32,7 +32,7 @@ import { logError, logInfo, logWarn } from '../utils/logging.js';
 import { exportToClipboard } from './export-debug.js';
 import { validateRPM } from './helpers.js';
 import { initBrowser, nextPage, prevPage, refreshAllUI, resetAndRender } from './render.js';
-import { updateEmbeddingStatusDisplay } from './status.js';
+import { setStatus, updateEmbeddingStatusDisplay } from './status.js';
 
 // =============================================================================
 // Emergency Cut Modal Helpers
@@ -357,9 +357,50 @@ function syncPrefillSelector() {
 
 async function handleExtractAll() {
     const { extractAllMessages } = await import('../extraction/extract.js');
-    // v6: Use options object signature
-    // Guard: extractAllMessages handles isWorkerRunning() check internally
-    await extractAllMessages({ onComplete: updateEventListeners });
+    await extractAllMessages({
+        onComplete: updateEventListeners,
+        onStart: (batchCount) => {
+            setStatus('extracting');
+            toastr?.info(`Backfill: 0/${batchCount} batches (0%)`, 'OpenVault - Extracting', {
+                timeOut: 0,
+                extendedTimeOut: 0,
+                tapToDismiss: false,
+                toastClass: 'toast openvault-backfill-toast',
+            });
+        },
+        onProgress: (batchNum, totalBatches, _eventsCreated, retryText) => {
+            const progress = Math.round((batchNum / totalBatches) * 100);
+            $('.openvault-backfill-toast .toast-message').text(
+                `Backfill: ${batchNum}/${totalBatches} batches (${Math.min(progress, 100)}%) - Processing...${retryText}`
+            );
+        },
+        onBatchRetryWait: (batchNum, totalBatches, backoffSeconds, retryCount) => {
+            $('.openvault-backfill-toast .toast-message').text(
+                `Backfill: ${batchNum}/${totalBatches} batches - Waiting ${backoffSeconds}s before retry ${retryCount}...`
+            );
+        },
+        onPhase2Start: () => {
+            $('.openvault-backfill-toast .toast-message').text(
+                'Backfill: 100% - Synthesizing world state and reflections. This may take a minute...'
+            );
+        },
+        onFinish: ({ messagesProcessed, eventsCreated }) => {
+            $('.openvault-backfill-toast').remove();
+            showToast('success', `Extracted ${eventsCreated} events from ${messagesProcessed} messages`);
+            refreshAllUI();
+            setStatus('ready');
+        },
+        onAbort: () => {
+            $('.openvault-backfill-toast').remove();
+            showToast('warning', 'Backfill aborted: chat changed', 'OpenVault');
+            setStatus('ready');
+        },
+        onError: (error) => {
+            $('.openvault-backfill-toast').remove();
+            showToast('warning', error.message, 'OpenVault');
+            setStatus('ready');
+        },
+    });
 }
 
 async function handleDeleteChatData() {
