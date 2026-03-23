@@ -27,8 +27,8 @@ import {
     resolveOutputLanguage,
 } from '../prompts/index.js';
 import { cosineSimilarity, tokenize } from '../retrieval/math.js';
-import { generateId, getCurrentChatId, isStVectorSource, syncItemsToST } from '../utils/data.js';
-import { cyrb53, getEmbedding, hasEmbedding, isStSynced, markStSynced } from '../utils/embedding-codec.js';
+import { generateId } from '../utils/data.js';
+import { cyrb53, getEmbedding, hasEmbedding } from '../utils/embedding-codec.js';
 import { logDebug } from '../utils/logging.js';
 import { sortMemoriesBySequence } from '../utils/text.js';
 
@@ -226,7 +226,7 @@ export async function generateReflections(characterName, allMemories, characterS
 
     if (recentMemories.length < 3) {
         logDebug(`Reflection: ${characterName} has too few accessible memories (${recentMemories.length}), skipping`);
-        return [];
+        return { reflections: [], stChanges: { toSync: [] } };
     }
 
     // Get existing reflections for this character
@@ -247,7 +247,7 @@ export async function generateReflections(characterName, allMemories, characterS
     if (shouldSkip) {
         logDebug(`Reflection: ${skipReason} for ${characterName}`);
         // Note: Caller should reset importance_sum for this character
-        return [];
+        return { reflections: [], stChanges: { toSync: [] } };
     }
 
     // Single unified reflection call (replaces Step 1 + Step 2)
@@ -320,23 +320,12 @@ export async function generateReflections(characterName, allMemories, characterS
         `Reflection: Generated ${toAdd.length} reflections for ${characterName} (${newReflections.length - toAdd.length} filtered)`
     );
 
-    // Sync reflections to ST Vector Storage if enabled
-    if (isStVectorSource()) {
-        const chatId = getCurrentChatId();
-        const unsyncedReflections = toAdd.filter((r) => !isStSynced(r));
-        if (unsyncedReflections.length > 0) {
-            const items = unsyncedReflections.map((r) => ({
-                hash: cyrb53(`[OV_ID:${r.id}] ${r.summary}`),
-                text: `[OV_ID:${r.id}] ${r.summary}`,
-                index: 0,
-            }));
-            const success = await syncItemsToST(items, chatId);
-            if (success) {
-                for (const r of unsyncedReflections) markStSynced(r);
-            }
-        }
+    const stChanges = { toSync: [] };
+    for (const r of toAdd) {
+        const text = `[OV_ID:${r.id}] ${r.summary}`;
+        stChanges.toSync.push({ hash: cyrb53(text), text, item: r });
     }
 
     record('llm_reflection', performance.now() - t0);
-    return toAdd;
+    return { reflections: toAdd, stChanges };
 }

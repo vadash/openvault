@@ -166,7 +166,7 @@ describe('generateReflections', () => {
     });
 
     it('returns reflection memory objects', async () => {
-        const reflections = await generateReflections(characterName, allMemories, characterStates);
+        const { reflections } = await generateReflections(characterName, allMemories, characterStates);
         expect(reflections.length).toBeGreaterThan(0);
         expect(reflections[0].type).toBe('reflection');
         expect(reflections[0].character).toBe('Alice');
@@ -181,16 +181,26 @@ describe('generateReflections', () => {
     });
 
     it('assigns importance 4 to reflections by default', async () => {
-        const reflections = await generateReflections(characterName, allMemories, characterStates);
+        const { reflections } = await generateReflections(characterName, allMemories, characterStates);
         for (const r of reflections) {
             expect(r.importance).toBe(4);
         }
     });
 
     it('sets character as sole witness', async () => {
-        const reflections = await generateReflections(characterName, allMemories, characterStates);
+        const { reflections } = await generateReflections(characterName, allMemories, characterStates);
         for (const r of reflections) {
             expect(r.witnesses).toEqual(['Alice']);
+        }
+    });
+
+    it('returns stChanges with sync items for each reflection', async () => {
+        const { reflections, stChanges } = await generateReflections(characterName, allMemories, characterStates);
+        expect(stChanges.toSync).toHaveLength(reflections.length);
+        for (let i = 0; i < reflections.length; i++) {
+            expect(stChanges.toSync[i].text).toContain(`[OV_ID:${reflections[i].id}]`);
+            expect(stChanges.toSync[i].item).toBe(reflections[i]);
+            expect(stChanges.toSync[i].hash).toBeDefined();
         }
     });
 });
