@@ -1,94 +1,138 @@
-Your PR 1 was a textbook execution of pushing side-effects and global state (`getDeps()`) to the outer boundaries (the orchestrators). That is exactly the right path to tame a vanilla JS app of this size. 
+You have executed a textbook, systematic rescue of a tightly-coupled vanilla JS codebase. By pushing dependencies (`getDeps()`) and side-effects (`fetch`, ST Vector syncing) to the orchestrator edges, you are successfully implementing the **Hexagonal Architecture (Ports and Adapters)** pattern. 
 
-Looking at the current codebase, your complexity pain points are stemming from **Layer Violations**. Deep domain logic (like graph math) is triggering network requests, and UI files are orchestrating massive background LLM jobs.
+As you noted, the remaining complexity is concentrated in a few "God functions" and "Junk drawer" files that violate the Single Responsibility Principle (SRP). 
 
-To get this app back into a comfortable, maintainable state, we need to continue applying the **Hexagonal Architecture** principle: Core logic stays pure, and all I/O (Storage, LLM calls, UI) happens at the orchestrator edges.
-
-Here is the roadmap for your next refactoring phases, followed by a detailed design doc for PR 2.
+Here is the high-level roadmap for the next three phases, followed by the detailed design document for **PR 4**.
 
 ---
 
 ### Refactoring Roadmap
 
-*   **Phase 2 (Next): Decouple Storage & Side-Effects from Domain Logic.** Remove ST Vector API syncs (`syncItemsToST`, `deleteItemsFromST`) out of deep graph/community mathematical functions. Let the domain return what *changed*, and let the orchestrator sync it.
-*   **Phase 3: Untangle UI from Business Logic.** `settings.js` currently contains `handleEmergencyCut` and `hideExtractedMessages`. The UI should only dispatch intents and render progress; the actual data manipulation belongs in the domain.
-*   **Phase 4: Deconstruct the Extraction God-Function.** `extract.js:extractMemories` does way too much (batching, API delays, event parsing, graph upserts, saving). It needs to be broken into smaller pipeline steps orchestrated by a master function.
+*   **Phase 4 (Next): Deconstruct the Extraction God-Function.** `extract.js:extractMemories` is a ~200-line procedural script that interleaves LLM network calls, JSON parsing, data enrichment, deduplication math, graph mutations, and storage syncing. It needs to be shattered into cohesive, testable pipeline stages.
+*   **Phase 5: Nuke the `data.js` Junk Drawer.** `data.js` currently mixes local JSON storage manipulation (`getOpenVaultData`, `updateMemory`) with external REST API wrappers (`querySTVector`, `syncItemsToST`). The REST wrappers belong in a dedicated `services/st-vector-api.js` adapter.
+*   **Phase 6: Unify State Management.** Concurrency locks are split. `worker.js` tracks `isRunning`, while `state.js` tracks `operationState.extractionInProgress`. Consolidating this into a single State Machine will prevent race conditions between background extraction and UI-triggered Emergency Cuts.
 
 ---
 
-Here is the actionable design document for PR 2, matching your style.
+Here is the actionable design document for PR 4.
 
-# PR 2: Dependency Injection — Purging Network I/O from Domain Logic
+# PR 4: Deconstruct the Extraction God-Function
 
 ## Goal
-Remove SillyTavern Vector Storage network requests (`syncItemsToST`, `deleteItemsFromST`, `markStSynced`) from deep domain files (`graph.js`, `communities.js`, `embeddings.js`). Shift these side-effects up to the orchestrators (`extract.js`, `retrieve.js`). 
+Break down the monolithic `extract.js:extractMemories` function into discrete pipeline stages. Transform `extract.js` from a dense procedural script into a clean, high-level orchestrator. 
 
-**Non-goals:** No changes to the actual API payload structures. No changes to the Louvain algorithm or graph consolidation logic. No UI changes. 
+**Non-goals:** No changes to extraction prompts, LLM parameters, deduplication math, or graph logic. The actual business rules remain identical; we are purely reorganizing the code blocks into pure(r) functions. No new files required (keep it within `extract.js`).
 
 ## Design Decisions
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Scope | `graph.js`, `communities.js`, `data.js`, `extract.js` | These files currently mix graph mathematical transformations with HTTP POST requests. |
-| Sync mechanism | Return "dirty" lists | Instead of `mergeOrInsertEntity` directly making a network call, it should return the modified entities. The orchestrator (`extract.js`) collects these and does one bulk network call at the end of the phase. |
-| Test impact | Massive win | You will be able to test `consolidateGraph` and `updateCommunitySummaries` entirely synchronously without mocking `fetch` or `getDeps()`. |
+| Pipeline Pattern | Extract 4 internal functions | Separates LLM I/O from local data enrichment and deduplication. Makes each stage independently unit-testable. |
+| Scope | `extract.js` only | Avoids creating a sprawling `pipeline/` directory structure. Internal functions are perfectly fine for this phase. |
+| Error Handling | Bubble up to Orchestrator | The orchestrator (`extractMemories`) retains the `try/catch` blocks to manage the `status: 'failed'` vs `status: 'success'` lifecycle. |
+| Test Impact | Unlocks pure unit testing | You will be able to test event enrichment, ID stamping, and Graph processing without mocking `callLLM` or `fetch`. |
 
 ## File-by-File Changes
 
-### 1. `src/graph/graph.js`
-**Remove** imports for `isStVectorSource`, `syncItemsToST`, `deleteItemsFromST`, `getCurrentChatId`.
+### 1. `src/extraction/extract.js`
 
-**Signature & Logic changes:**
-Functions that modify the graph currently do network I/O. We will change them to pure functions that modify the `graphData` object in-memory.
+We will create four new `async function` blocks above or below `extractMemories`. 
 
-*   `mergeOrInsertEntity()`: Delete the block starting with `if (isStVectorSource()) { ... syncItemsToST ... }`. It should purely modify `graphData.nodes[key]` and return the key.
-*   `redirectEdges()`: Delete the block that calls `deleteItemsFromST`. 
-*   `consolidateEdges()`: Remove `syncItemsToST`. Instead of just returning the number of consolidated edges, return a list of the modified `edge` objects (or their keys) so the caller knows what to sync.
-*   `consolidateGraph()`: Remove `deleteItemsFromST`. Return the list of deleted node keys alongside `mergedCount`.
-
-### 2. `src/graph/communities.js`
-**Remove** imports for `isStVectorSource`, `syncItemsToST`, `getCurrentChatId`.
-
-**Signature & Logic changes:**
-*   `updateCommunitySummaries()`: Delete the block at the bottom that checks `if (isStVectorSource()) { syncItemsToST(...) }`. The function already returns `{ communities: updatedCommunities }`. That is enough for the caller to know what needs syncing.
-
-### 3. `src/extraction/extract.js` (The Orchestrator)
-This file becomes responsible for the side-effects we just removed from the domain.
-
-**Logic changes:**
-At the end of **Phase 1** (around line ~250), right before calling `saveOpenVaultData(targetChatId)`, you will add a new block:
+#### Stage 1: `fetchEventsFromLLM`
+**Responsibility:** Pure LLM I/O and Parsing.
+**Signature:**
 ```javascript
-// Sync Graph Nodes and Edges to ST Vector Storage if needed
-if (isStVectorSource()) {
-    const chatId = getCurrentChatId();
+async function fetchEventsFromLLM(messagesText, contextParams, settings, abortSignal)
+// Returns: { events }
+```
+*   Moves `buildEventExtractionPrompt`, `callLLM`, and `parseEventExtractionResponse`.
+
+#### Stage 2: `fetchGraphFromLLM`
+**Responsibility:** Pure LLM I/O and Parsing.
+**Signature:**
+```javascript
+async function fetchGraphFromLLM(messagesText, formattedEvents, contextParams, settings, abortSignal)
+// Returns: { entities, relationships }
+// Internal: Wraps its own try/catch to swallow graph errors (graceful degradation), returning empty arrays on fail.
+```
+
+#### Stage 3: `processAndDedupEvents`
+**Responsibility:** Data enrichment, ID stamping, Embedding generation, and Deduplication.
+**Signature:**
+```javascript
+async function processAndDedupEvents(rawEvents, messageIdsArray, batchId, existingMemories, settings, abortSignal)
+// Returns: { processedEvents }
+```
+*   Moves the `event.map(...)` block (adding `id`, `sequence`, `created_at`, `tokens`).
+*   Moves the `enrichEventsWithEmbeddings` call.
+*   Moves the `filterSimilarEvents` (dedup) call.
+
+#### Stage 4: `processGraphUpdates`
+**Responsibility:** Iterating over entities/relationships, applying them to the graph, and collecting sync payloads.
+**Signature:**
+```javascript
+async function processGraphUpdates(graphData, entities, relationships, settings)
+// Returns: { graphSyncChanges: { toSync: [], toDelete: [] } }
+```
+*   Moves the `mergeOrInsertEntity` and `upsertRelationship` loops.
+
+#### The Orchestrator: `extractMemories`
+With the heavy lifting extracted, `extractMemories` becomes a beautiful, readable orchestrator:
+
+```javascript
+export async function extractMemories(messageIds = null, targetChatId = null, options = {}) {
+    // ... initial guards and batch setup ...
     
-    // 1. Find all unsynced entities in data.graph.nodes
-    // 2. Find all unsynced edges in data.graph.edges
-    // 3. Find all unsynced events in data.memories (already doing this)
-    // 4. Batch them into a single `syncItemsToST` call
-    // 5. Apply `markStSynced` to the successful items
+    try {
+        // 1. Fetch Events
+        const { events: rawEvents } = await fetchEventsFromLLM(messagesText, contextParams, settings, abortSignal);
+        
+        // 2. Fetch Graph (only if events found)
+        let rawGraph = { entities: [], relationships: [] };
+        if (rawEvents.length > 0) {
+            await rpmDelay(settings, 'Inter-call rate limit');
+            const formattedEvents = rawEvents.map((e, i) => `${i + 1}. [${e.importance}★] ${e.summary}`);
+            rawGraph = await fetchGraphFromLLM(messagesText, formattedEvents, contextParams, settings, abortSignal);
+        }
+
+        // 3. Process & Dedup Events
+        const finalEvents = await processAndDedupEvents(rawEvents, messageIdsArray, batchId, data.memories, settings, abortSignal);
+        
+        // 4. Process Graph Updates
+        let graphSyncChanges = { toSync: [], toDelete: [] };
+        if (finalEvents.length > 0) {
+            // Only update graph if we actually kept events after dedup
+            graphSyncChanges = await processGraphUpdates(data.graph, rawGraph.entities, rawGraph.relationships, settings);
+            data.graph_message_count = (data.graph_message_count || 0) + messages.length;
+            delete data.graph._mergeRedirects;
+        }
+
+        // 5. Phase 1 Commit (Memory push, processed IDs push, ST Sync)
+        // ... (Commit logic stays here, it's short and orchestrator-focused) ...
+
+        // 6. Phase 2 (Reflections & Communities)
+        // ... (Already cleanly separated into runPhase2Enrichment) ...
+        
+        return { status: 'success', events_created: finalEvents.length, messages_processed: messages.length };
+        
+    } catch (error) {
+        // ... error handling ...
+    }
 }
 ```
-At the end of **Phase 2** (inside `runPhase2Enrichment` and the Phase 2 block of `extractMemories`), do the same for communities and reflections.
-
-### 4. `src/utils/data.js`
-Currently, `data.js` is a "junk drawer". Let's clean up the ST Vector logic.
-
-*   Move `isStVectorSource()`, `syncItemsToST()`, `deleteItemsFromST()`, `purgeSTCollection()`, and `querySTVector()` into a new file: `src/embeddings/st-storage.js` (or just leave them in `data.js` for PR 2, but isolate them visually).
-*   *Why?* `data.js` should only be about reading/writing `chatMetadata.openvault`. Network requests to `/api/vector/*` belong in an external service layer.
 
 ## Execution Order
 
-| Step | File | Risk | Test change |
-|------|------|------|-------------|
-| 1 | `graph.js` | Medium | Remove `fetch` mocks from `graph.test.js`. Tests become synchronous pure-data assertions. |
-| 2 | `communities.js` | Low | Remove `fetch` and `data.js` mocks from `communities.test.js`. |
-| 3 | `extract.js` | Medium | Add `syncItemsToST` spy to integration tests to ensure orchestrator fires the sync once per batch. |
-| 4 | `embeddings.js` (Backfill) | Low | `backfillAllEmbeddings` already does batch syncing cleanly, just ensure it imports from the right place if you move ST logic. |
+| Step | Action | Risk | Test Impact |
+|------|--------|------|-------------|
+| 1 | Extract `processGraphUpdates` | Low | Move graph loops out. Update `extract.test.js` to ensure graph nodes still populate. |
+| 2 | Extract `processAndDedupEvents` | Medium | Move ID stamping, `enrichEventsWithEmbeddings`, and `filterSimilarEvents`. Verify properties like `batch_id` and `sequence` are still assigned correctly. |
+| 3 | Extract `fetchEventsFromLLM` & `fetchGraphFromLLM` | Low | Pure code movement of prompt building and `callLLM`. |
+| 4 | Refactor `extractMemories` | Medium | Rewire the function to call the 4 new steps. Tests should pass immediately if steps 1-3 were done correctly. |
 
 ## Verification
-- Run `npm run test:graph` and `npm run test:extract`.
-- Verify in SillyTavern UI (with ST Vector Storage enabled) that new memories, entities, and communities still appear in the Vectra DB (using ST's Data Bank UI).
-- Ensure no `getDeps().fetch` calls exist in `graph.js` or `communities.js`.
 
----
+- `npm run test:extract` stays green throughout.
+- The `extractMemories` function shrinks from ~200 lines to ~50 lines of highly readable orchestration logic.
+- Graceful degradation remains intact (if `fetchGraphFromLLM` throws, it catches internally and returns empty arrays, allowing `extractMemories` to proceed with just the events).
+- `AbortError` propagation remains intact (mid-request cancellations from Emergency Cut still bubble up correctly).
