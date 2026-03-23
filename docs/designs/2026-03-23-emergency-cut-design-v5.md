@@ -1,6 +1,6 @@
 # Design: Emergency Cut Feature
 
-**Status:** Draft v4 (Reviewed & Approved)
+**Status:** Draft v5 (Final)
 **Date:** 2026-03-23
 **Scope:** UI dashboard button to extract all unprocessed messages and hide them, breaking LLM repetition loops.
 
@@ -24,7 +24,7 @@ Emergency Cut allows users to immediately extract all unprocessed chat messages 
    [Cancel] [Extract and Hide]
    ↓
 3. Progress modal shows: "Emergency Cut: batch 2 of 8..."
-   Chat sending is blocked during this time
+   Chat sending is blocked during this time (mouse + keyboard)
    ↓
 4. Extraction completes (reuses existing backfill logic)
    ↓
@@ -86,7 +86,7 @@ New modal overlay, reuses existing batch progress bar:
 
 ### 4.1 Reuse Existing Flag (src/state.js)
 
-**CRITICAL (v4 fix):** Do NOT add a new flag. Reuse `extractionInProgress` which the background worker already respects.
+Reuse `extractionInProgress` which the background worker already respects.
 
 ```javascript
 // In handleEmergencyCut():
@@ -100,16 +100,53 @@ This ensures:
 
 ### 4.2 Blocking Mechanism
 
-**Primary:** Modal overlay with `z-index: 9999` covers all ST UI elements
-**Secondary:** `$('#send_textarea').prop('disabled', true)` blocks keyboard sending
+**Layer 1 (DOM):** Modal overlay with `z-index: 9999` covers all ST UI elements
+**Layer 2 (Input):** `$('#send_textarea').prop('disabled', true)` blocks keyboard sending
+**Layer 3 (Hotkeys - CRITICAL v5):** Global keydown trap prevents ST hotkeys (Ctrl+Enter, etc.)
 
-No changes needed to `src/events.js`. The DOM shield is sufficient.
+```javascript
+// In showEmergencyCutModal():
+$(document).on('keydown.emergencyCut', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+});
+
+// In hideEmergencyCutModal():
+$(document).off('keydown.emergencyCut');
+```
+
+**Why needed:** The DOM shield blocks mouse clicks, but ST's keyboard hotkeys (Ctrl+Enter for Regenerate, Ctrl+Right for Swipe, Enter for send) can still trigger generation while extraction is mutating the chat array.
 
 ---
 
 ## 5. Handler Implementation (src/ui/settings.js)
 
-### 5.1 handleEmergencyCut() - v4
+### 5.1 Modal Helpers
+
+```javascript
+function showEmergencyCutModal() {
+    $('#openvault_emergency_cut_modal').removeClass('hidden');
+    // CRITICAL (v5): Trap all keyboard input to prevent ST hotkeys
+    $(document).on('keydown.emergencyCut', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+}
+
+function hideEmergencyCutModal() {
+    $('#openvault_emergency_cut_modal').addClass('hidden');
+    // CRITICAL (v5): Release keyboard trap
+    $(document).off('keydown.emergencyCut');
+}
+
+function updateEmergencyCutProgress(batchNum, totalBatches, eventsCreated) {
+    const progress = Math.round((batchNum / totalBatches) * 100);
+    $('#openvault_emergency_fill').css('width', `${progress}%`);
+    $('#openvault_emergency_label').text(`Batch ${batchNum}/${totalBatches} - ${eventsCreated} memories created`);
+}
+```
+
+### 5.2 handleEmergencyCut()
 
 ```javascript
 let emergencyCutAbortController = null;
@@ -120,7 +157,7 @@ async function handleEmergencyCut() {
     const { operationState } = await import('../state.js');
     const { isWorkerRunning } = await import('../extraction/worker.js');
 
-    // CRITICAL: Check for worker conflict
+    // Check for worker conflict
     if (isWorkerRunning()) {
         showToast('warning', 'Background extraction in progress. Please wait a moment.');
         return;
@@ -134,12 +171,10 @@ async function handleEmergencyCut() {
     const stats = getBackfillStats(chat, data);
 
     // Handle "Zero Unextracted" case
-    // User may want to hide already-extracted messages to break a loop
     let shouldExtract = true;
     let confirmMessage = '';
 
     if (stats.unextractedCount === 0) {
-        // All messages already extracted - just offer to hide them
         const processedFps = getProcessedFingerprints(data);
         const hideableCount = chat.filter(m =>
             !m.is_system && processedFps.has(getFingerprint(m))
@@ -158,7 +193,6 @@ async function handleEmergencyCut() {
             `The LLM will only see: preset, char card, lorebooks, and OpenVault memories.`;
     }
 
-    // Confirmation dialog
     const confirmed = confirm(confirmMessage);
     if (!confirmed) return;
 
@@ -171,7 +205,6 @@ async function handleEmergencyCut() {
     }
 
     // Block chat sending
-    // CRITICAL (v4): Use extractionInProgress - worker already respects this flag
     operationState.extractionInProgress = true;
     $('#send_textarea').prop('disabled', true);
     emergencyCutAbortController = new AbortController();
@@ -179,7 +212,6 @@ async function handleEmergencyCut() {
     showEmergencyCutModal();
 
     try {
-        // Reuse existing backfill function with UI override
         const { extractAllMessages } = await import('../extraction/extract.js');
         const result = await extractAllMessages({
             isEmergencyCut: true,
@@ -187,7 +219,6 @@ async function handleEmergencyCut() {
             abortSignal: emergencyCutAbortController.signal,
         });
 
-        // Hide ALL extracted messages (historical + new)
         await hideExtractedMessages();
 
         showToast('success',
@@ -197,7 +228,6 @@ async function handleEmergencyCut() {
         refreshAllUI();
 
     } catch (err) {
-        // Extraction failed - nothing was hidden (rule enforced)
         logError('Emergency Cut failed', err);
         const isCancel = err.name === 'AbortError';
         const message = isCancel
@@ -213,9 +243,7 @@ async function handleEmergencyCut() {
 }
 ```
 
-### 5.2 hideExtractedMessages()
-
-**Critical:** Hide ALL historically extracted messages, not just the new batch.
+### 5.3 hideExtractedMessages()
 
 ```javascript
 async function hideExtractedMessages() {
@@ -226,14 +254,11 @@ async function hideExtractedMessages() {
     const chat = context.chat || [];
     const data = getOpenVaultData();
 
-    // Get ALL historically processed fingerprints, not just this run
     const processedFps = getProcessedFingerprints(data);
 
     let hiddenCount = 0;
     for (const msg of chat) {
         const fp = getFingerprint(msg);
-        // Hide ALL messages that were ever extracted (not just this run)
-        // Check !msg.is_system to avoid double-counting already-hidden messages
         if (processedFps.has(fp) && !msg.is_system) {
             msg.is_system = true;
             hiddenCount++;
@@ -257,10 +282,8 @@ async function hideExtractedMessages() {
 |-----------|----------|-------|
 | `extractAllMessages()` | `src/extraction/extract.js` | Full extraction pipeline (Phase 1 + Phase 2) |
 | `getBackfillStats()` | `src/extraction/scheduler.js` | Count messages for confirmation |
-| `getUnextractedMessageIds()` | `src/extraction/scheduler.js` | Identify what to extract |
 | `getProcessedFingerprints()` | `src/extraction/scheduler.js` | Track successfully extracted |
 | `getFingerprint()` | `src/extraction/scheduler.js` | Message fingerprinting |
-| Batch progress bar | `templates/settings_panel.html` | Progress visualization |
 | `showToast()` | `src/utils/dom.js` | User feedback |
 | `refreshAllUI()` | `src/ui/render.js` | Update dashboard |
 
@@ -270,11 +293,11 @@ async function hideExtractedMessages() {
 
 | Scenario | Behavior |
 |----------|----------|
-| **Extraction fails** | Immediately abort. Toast error. **No messages hidden.** |
-| User cancels | Stop after current batch. Toast "Cancelled - nothing hidden." |
-| Chat switch | Abort (AbortError thrown), cleanup, unblock chat. |
+| **Extraction fails** | Throw error. Handler catches. Toast error. **No messages hidden.** |
+| **Max backoff reached** | Throw error. Handler catches. Toast error. **No messages hidden.** |
+| User cancels | AbortError thrown. Handler catches. Toast "Cancelled - nothing hidden." |
+| Chat switch | AbortError thrown. Handler catches. Cleanup, unblock chat. |
 | Zero unextracted | Offer to hide already-extracted messages instead. |
-| Partial batch (last) | Only hide successfully extracted from complete batches. |
 
 ---
 
@@ -302,7 +325,6 @@ async function hideExtractedMessages() {
 |------|------|-------------|
 | Emergency Cut button exists | `tests/ui/dashboard-structure.test.js` | ID, class, icon, tooltip |
 | Progress modal exists | `tests/ui/dashboard-structure.test.js` | Modal HTML structure |
-| Buttons stacked vertically | `tests/ui/dashboard-structure.test.js` | CSS class verification |
 
 ---
 
@@ -332,10 +354,11 @@ async function hideExtractedMessages() {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px); /* v5: Match ST's native modal style */
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 9999; /* CRITICAL (v4): Must cover ST's top-level navigation */
+    z-index: 9999;
 }
 
 .openvault-modal.hidden {
@@ -359,19 +382,11 @@ async function hideExtractedMessages() {
 
 ---
 
-## 10. Migration Notes
+## 10. Required Changes to Existing Code
 
-- No data migration needed
-- No settings migration needed
-- New feature, purely additive
+### 10.1 src/extraction/extract.js - extractAllMessages()
 
----
-
-## 11. Required Changes to Existing Code
-
-### 11.1 src/extraction/extract.js - extractAllMessages()
-
-**CRITICAL (v4):** Fix AbortError swallow bug and add options parameter.
+Add options parameter, fix AbortError and max-backoff bugs.
 
 ```javascript
 export async function extractAllMessages(options = {}) {
@@ -379,7 +394,7 @@ export async function extractAllMessages(options = {}) {
         isEmergencyCut = false,
         progressCallback = null,
         abortSignal = null,
-        onComplete = null, // Replaces positional argument
+        onComplete = null,
     } = options;
 
     // Support legacy call signature: extractAllMessages(callbackFn)
@@ -389,21 +404,18 @@ export async function extractAllMessages(options = {}) {
 
     let toast = null;
     if (!isEmergencyCut) {
-        // Only show toast for normal backfill
         toast = toastr.info('...', 'Backfill', { ... });
     }
 
     // ... existing code ...
 
     while (true) {
-        // CRITICAL: Check abort signal
         if (abortSignal?.aborted) {
             throw new DOMException('Emergency Cut Cancelled', 'AbortError');
         }
 
         // ... process batch ...
 
-        // CRITICAL: Wrap toast updates
         if (!isEmergencyCut) {
             if (toast) {
                 toast.find('.toastr-progress').text(`Batch ${batchNum}/${initialBatchCount}`);
@@ -421,26 +433,22 @@ export async function extractAllMessages(options = {}) {
         toastr.clear(toast);
     }
 
-    // Call completion callback if provided
     if (updateEventListenersFn) {
         updateEventListenersFn(true);
     }
 
-    // Return stats for Emergency Cut
     return { messagesProcessed: totalMessages, eventsCreated: totalEvents };
 }
 ```
 
-### 11.2 src/extraction/extract.js - AbortError Catch Block
+### 10.2 src/extraction/extract.js - AbortError Catch Block
 
-**CRITICAL (v4):** Fix AbortError swallow bug at line ~1048.
+Fix at line ~1048.
 
 ```javascript
 } catch (error) {
-    // AbortError = chat switched (same as existing chat-change detection)
     if (error.name === 'AbortError' || error.message === 'Chat changed during extraction') {
-        // CRITICAL (v4): For Emergency Cut, MUST throw to let handler catch it
-        // Otherwise handler would hide messages on the WRONG chat after a switch
+        // For Emergency Cut, MUST throw to let handler catch it
         if (isEmergencyCut) throw error;
 
         logDebug('Chat changed during backfill, aborting');
@@ -454,14 +462,34 @@ export async function extractAllMessages(options = {}) {
 }
 ```
 
-**Why this matters:** Without this fix, if the user switches chats during Emergency Cut:
-1. `extractAllMessages` catches AbortError and returns (resolves)
-2. `handleEmergencyCut` continues to `hideExtractedMessages()`
-3. Messages on the NEW chat get hidden - wrong chat!
+### 10.3 src/extraction/extract.js - Max Backoff Catch Block
 
-With the fix, the error bubbles up to the handler's catch block, which shows the error toast without hiding anything.
+**CRITICAL (v5):** Fix at line ~1070. When max backoff is reached, throw for Emergency Cut instead of breaking.
 
-### 11.3 src/ui/settings.js - Update handleExtractAll
+```javascript
+if (cumulativeBackoffMs >= MAX_BACKOFF_TOTAL_MS) {
+    // CRITICAL (v5): For Emergency Cut, MUST throw - breaking would silently succeed
+    // with partial extraction, leading to hiding incomplete data
+    if (isEmergencyCut) {
+        throw new Error(`Extraction failed after ${Math.round(cumulativeBackoffMs / 1000)}s of API errors. No messages were hidden.`);
+    }
+
+    logDebug(`Batch ${batchesProcessed + 1} failed: cumulative backoff reached ${Math.round(cumulativeBackoffMs / 1000)}s...`);
+    logError('Extraction stopped after exceeding backoff limit', error);
+    showToast('error', `Extraction stopped: API errors persisted...`, 'OpenVault');
+    break;
+}
+```
+
+**Why this matters:** Without this fix, if the API completely fails:
+1. `extractAllMessages` breaks the loop after 15 min of retries
+2. Proceeds to Phase 2, finishes, resolves successfully
+3. `handleEmergencyCut` thinks it succeeded → hides partial messages
+4. User loses chat history but only got partial memories extracted
+
+With the fix, the error bubbles to handler's catch block, showing error toast with no hiding.
+
+### 10.4 src/ui/settings.js - Update handleExtractAll
 
 ```javascript
 async function handleExtractAll() {
@@ -477,16 +505,19 @@ async function handleExtractAll() {
 
 ---
 
-## 12. Implementation Checklist
+## 11. Implementation Checklist
 
 - [ ] Add buttons to `templates/settings_panel.html`
 - [ ] Add modal HTML to `templates/settings_panel.html`
 - [ ] Add CSS to `css/dashboard.css`
+- [ ] Implement `showEmergencyCutModal()` with keydown trap
+- [ ] Implement `hideEmergencyCutModal()` with keydown cleanup
 - [ ] Implement `handleEmergencyCut()` in `src/ui/settings.js`
 - [ ] Implement `hideExtractedMessages()` in `src/ui/settings.js`
 - [ ] Bind button click in `bindUIElements()`
 - [ ] Update `extractAllMessages()` to accept options object
-- [ ] Fix AbortError swallow bug in `extractAllMessages()` catch block
+- [ ] Fix AbortError swallow bug in catch block
+- [ ] Fix max-backoff silent success bug in catch block
 - [ ] Update `handleExtractAll()` to use new options signature
 - [ ] Add unit tests
 - [ ] Add integration tests
@@ -494,22 +525,21 @@ async function handleExtractAll() {
 
 ---
 
-## 13. Design Review Notes (v4)
+## 12. Design Review Notes
 
-### Critical Issues Fixed
+### v4 Fixes
+1. **AbortError Swallow Bug** - Throw if `isEmergencyCut: true`
+2. **Background Worker Collision** - Reuse `extractionInProgress` flag
+3. **Modal z-index** - 9999 to cover ST's top navigation
 
-1. **AbortError Swallow Bug** - `extractAllMessages()` was catching `AbortError` and returning instead of throwing. Fixed: throw if `isEmergencyCut: true`.
+### v5 Fixes (Final)
+1. **Max Backoff Silent Success Bug** - Throw instead of break when backoff limit reached during Emergency Cut. Prevents hiding partial data on API outage.
 
-2. **Background Worker Collision** - Used existing `extractionInProgress` flag instead of adding new one. Worker already checks this flag at line 101 of `worker.js`.
+2. **Keyboard Hotkey Bypass** - Add `keydown.emergencyCut` event trap while modal is open. Prevents Ctrl+Enter, Enter, etc. from triggering ST generation.
 
-3. **Modal z-index** - Bumped from 1000 to 9999 to ensure it covers ST's top-level navigation.
-
-4. **State Management Simplified** - No new flag needed. Reuse `extractionInProgress`.
+3. **UI Polish** - Added `backdrop-filter: blur(2px)` to match ST's native modal style.
 
 ### Open Questions (Answered)
-
-1. **Keyboard shortcut?** - No. Too destructive for accidental trigger. Button + confirmation is the right friction level.
-
-2. **Clear Memories reset?** - Not needed. ST has built-in "Show Hidden Messages" toggle. Added hint in modal.
-
-3. **Perf metrics?** - No. Underlying operations (`llm_events`, `chat_save`, etc.) already tracked.
+1. **Keyboard shortcut?** - No. Button + confirmation is the right friction.
+2. **Clear Memories reset?** - Not needed. ST has built-in tools.
+3. **Perf metrics?** - No. Already tracked at operation level.
