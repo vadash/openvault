@@ -125,17 +125,38 @@ export async function hideExtractedMessages() {
 
     const processedFps = getProcessedFingerprints(data);
 
+    // DEBUG: Log detailed state
+    logInfo(`[Emergency Cut Debug] Total chat messages: ${chat.length}`);
+    logInfo(`[Emergency Cut Debug] Processed fingerprints count: ${processedFps.size}`);
+
     let hiddenCount = 0;
-    for (const msg of chat) {
+    let processedCount = 0;
+    let alreadyHiddenCount = 0;
+    let notProcessedCount = 0;
+
+    for (let i = 0; i < chat.length; i++) {
+        const msg = chat[i];
         const fp = getFingerprint(msg);
-        if (processedFps.has(fp) && !msg.is_system) {
+        const isProcessed = processedFps.has(fp);
+        const isSystem = msg.is_system;
+
+        if (isProcessed) processedCount++;
+        if (isSystem) alreadyHiddenCount++;
+        if (!isProcessed && !isSystem) notProcessedCount++;
+
+        if (isProcessed && !isSystem) {
             msg.is_system = true;
             hiddenCount++;
+            logInfo(`[Emergency Cut Debug] Hiding message ${i}: fp=${fp}, is_user=${msg.is_user}, preview="${(msg.mes || '').substring(0, 50)}..."`);
         }
     }
 
+    logInfo(`[Emergency Cut Debug] Analysis: ${processedCount} processed, ${alreadyHiddenCount} already hidden, ${notProcessedCount} unprocessed, ${hiddenCount} to hide`);
+
     if (hiddenCount > 0) {
+        logInfo(`[Emergency Cut Debug] Calling saveChatConditional...`);
         await getDeps().saveChatConditional();
+        logInfo(`[Emergency Cut Debug] saveChatConditional completed`);
         logInfo(`Emergency Cut: hid ${hiddenCount} messages (all extracted)`);
     }
 
@@ -147,6 +168,8 @@ export async function hideExtractedMessages() {
  * Extracts all unprocessed messages and hides them from LLM context.
  */
 export async function handleEmergencyCut() {
+    logInfo('[Emergency Cut Debug] === EMERGENCY CUT STARTED ===');
+
     const { getBackfillStats, getProcessedFingerprints, getFingerprint } = await import('../extraction/scheduler.js');
     const { operationState } = await import('../state.js');
     const { isWorkerRunning } = await import('../extraction/worker.js');
@@ -161,7 +184,10 @@ export async function handleEmergencyCut() {
     const chat = context.chat || [];
     const data = getOpenVaultData();
 
+    logInfo(`[Emergency Cut Debug] Chat length: ${chat.length}, Data memories: ${(data.memories || []).length}`);
+
     const stats = getBackfillStats(chat, data);
+    logInfo(`[Emergency Cut Debug] Backfill stats: totalMessages=${stats.totalMessages}, extractedCount=${stats.extractedCount}, unextractedCount=${stats.unextractedCount}`);
 
     let shouldExtract = true;
     let confirmMessage = '';
@@ -171,6 +197,8 @@ export async function handleEmergencyCut() {
         const hideableCount = chat.filter(m =>
             !m.is_system && processedFps.has(getFingerprint(m))
         ).length;
+
+        logInfo(`[Emergency Cut Debug] No unextracted messages. processedFps.size=${processedFps.size}, hideableCount=${hideableCount}`);
 
         if (hideableCount === 0) {
             showToast('info', 'No messages to hide');
@@ -188,12 +216,14 @@ export async function handleEmergencyCut() {
     if (!confirm(confirmMessage)) return;
 
     if (!shouldExtract) {
+        logInfo('[Emergency Cut Debug] Skipping extraction - only hiding already-extracted messages');
         const hiddenCount = await hideExtractedMessages();
         showToast('success', `Emergency Cut complete. ${hiddenCount} messages hidden from context.`);
         refreshAllUI();
         return;
     }
 
+    logInfo('[Emergency Cut Debug] Starting extraction phase...');
     operationState.extractionInProgress = true;
     $('#send_textarea').prop('disabled', true);
     emergencyCutAbortController = new AbortController();
@@ -202,12 +232,14 @@ export async function handleEmergencyCut() {
 
     try {
         const { extractAllMessages } = await import('../extraction/extract.js');
+        logInfo('[Emergency Cut Debug] Calling extractAllMessages...');
         const result = await extractAllMessages({
             isEmergencyCut: true,
             progressCallback: updateEmergencyCutProgress,
             abortSignal: emergencyCutAbortController.signal,
             onPhase2Start: disableEmergencyCutCancel,
         });
+        logInfo(`[Emergency Cut Debug] Extraction complete: ${result.messagesProcessed} messages processed, ${result.eventsCreated} events created`);
 
         await hideExtractedMessages();
 
@@ -229,6 +261,7 @@ export async function handleEmergencyCut() {
         $('#send_textarea').prop('disabled', false);
         hideEmergencyCutModal();
         emergencyCutAbortController = null;
+        logInfo('[Emergency Cut Debug] === EMERGENCY CUT FINISHED ===');
     }
 }
 
