@@ -1000,7 +1000,8 @@ export async function extractAllMessages(optionsOrCallback) {
     const { messageIds: initialMessageIds, batchCount: initialBatchCount } = getBackfillMessageIds(
         chat,
         data,
-        tokenBudget
+        tokenBudget,
+        isEmergencyCut  // Bypass token budget check for Emergency Cut
     );
     const processedFps = getProcessedFingerprints(data);
 
@@ -1066,7 +1067,8 @@ export async function extractAllMessages(optionsOrCallback) {
             const { messageIds: freshIds, batchCount: remainingBatches } = getBackfillMessageIds(
                 freshChat,
                 freshData,
-                tokenBudget
+                tokenBudget,
+                isEmergencyCut  // Bypass token budget check for Emergency Cut
             );
 
             logDebug(
@@ -1074,7 +1076,7 @@ export async function extractAllMessages(optionsOrCallback) {
             );
 
             // Get next batch using token budget
-            currentBatch = getNextBatch(freshChat, freshData, tokenBudget);
+            currentBatch = getNextBatch(freshChat, freshData, tokenBudget, isEmergencyCut);
             if (!currentBatch) {
                 logDebug('Backfill: No more complete batches available');
                 break;

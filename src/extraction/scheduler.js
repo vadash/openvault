@@ -128,18 +128,20 @@ export function isBatchReady(chat, data, tokenBudget) {
  * @param {Object[]} chat - Chat messages array
  * @param {Object} data - OpenVault data object
  * @param {number} tokenBudget - Token budget for extraction
+ * @param {boolean} [isEmergencyCut=false] - If true, bypass token budget and extract all unextracted messages
  * @returns {number[]|null} Array of message IDs for next batch, or null if no complete batch ready
  */
-export function getNextBatch(chat, data, tokenBudget) {
+export function getNextBatch(chat, data, tokenBudget, isEmergencyCut = false) {
     const processedFps = getProcessedFingerprints(data);
     const unextractedIds = getUnextractedMessageIds(chat, processedFps);
 
     const totalTokens = getTokenSum(chat, unextractedIds);
-    if (totalTokens < tokenBudget) {
+    // Emergency Cut bypasses token budget - extract all unextracted messages
+    if (!isEmergencyCut && totalTokens < tokenBudget) {
         return null;
     }
 
-    // Accumulate oldest messages until token budget met
+    // Accumulate oldest messages until token budget met (or all messages if Emergency Cut)
     const accumulated = [];
     let currentSum = 0;
 
@@ -147,7 +149,7 @@ export function getNextBatch(chat, data, tokenBudget) {
         accumulated.push(id);
         currentSum += getMessageTokenCount(chat, id);
 
-        if (currentSum >= tokenBudget) {
+        if (!isEmergencyCut && currentSum >= tokenBudget) {
             break;
         }
     }
@@ -207,14 +209,16 @@ export function getBackfillStats(chat, data, _tokenBudget) {
  * @param {Object[]} chat - Chat messages array
  * @param {Object} data - OpenVault data object
  * @param {number} tokenBudget - Token budget for extraction
+ * @param {boolean} [isEmergencyCut=false] - If true, bypass token budget and extract all unextracted messages
  * @returns {{messageIds: number[], batchCount: number}}
  */
-export function getBackfillMessageIds(chat, data, tokenBudget) {
+export function getBackfillMessageIds(chat, data, tokenBudget, isEmergencyCut = false) {
     const processedFps = getProcessedFingerprints(data);
     const allUnextracted = getUnextractedMessageIds(chat, processedFps);
     const totalTokens = getTokenSum(chat, allUnextracted);
 
-    if (totalTokens < tokenBudget) {
+    // Emergency Cut bypasses token budget - extract all unextracted messages
+    if (!isEmergencyCut && totalTokens < tokenBudget) {
         return { messageIds: [], batchCount: 0 };
     }
 
