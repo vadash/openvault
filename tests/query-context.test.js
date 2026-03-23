@@ -1,13 +1,13 @@
 /**
  * Tests for src/retrieval/query-context.js
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { resetDeps } from '../src/deps.js';
+import { describe, expect, it, vi } from 'vitest';
 
-// Mock getOptimalChunkSize
-vi.mock('../src/embeddings/strategies.js', () => ({
-    getOptimalChunkSize: () => 500,
-}));
+// Mock getOptimalChunkSize — embeddings.js still calls getDeps internally
+vi.mock('../src/embeddings.js', async (importOriginal) => {
+    const actual = await importOriginal();
+    return { ...actual, getOptimalChunkSize: () => 500 };
+});
 
 // Import after mocks
 import {
@@ -18,16 +18,13 @@ import {
 } from '../src/retrieval/query-context.js';
 
 describe('query-context', () => {
-    beforeEach(() => {
-        setupTestContext({
-            deps: { saveSettingsDebounced: vi.fn() },
-        });
-    });
-
-    afterEach(() => {
-        resetDeps();
-        vi.clearAllMocks();
-    });
+    const queryConfig = {
+        entityWindowSize: 10,
+        embeddingWindowSize: 5,
+        recencyDecayFactor: 0.09,
+        topEntitiesCount: 5,
+        entityBoostWeight: 5.0,
+    };
 
     describe('extractQueryContext — graph-anchored', () => {
         describe('entity detection from graph nodes', () => {
@@ -42,7 +39,7 @@ describe('query-context', () => {
                     cabin: { name: 'Cabin', type: 'PLACE' },
                     marcus: { name: 'Marcus', type: 'PERSON' },
                 };
-                const result = extractQueryContext(messages, [], graphNodes);
+                const result = extractQueryContext(messages, [], graphNodes, queryConfig);
                 expect(result.entities).toContain('Sarah');
                 expect(result.entities).toContain('Cabin');
                 expect(result.entities).toContain('Marcus');
@@ -57,7 +54,7 @@ describe('query-context', () => {
                 const graphNodes = {
                     sarah: { name: 'Sarah', type: 'PERSON' },
                 };
-                const result = extractQueryContext(messages, [], graphNodes);
+                const result = extractQueryContext(messages, [], graphNodes, queryConfig);
                 expect(result.entities).not.toContain('Запомни');
                 expect(result.entities).not.toContain('Держись');
                 expect(result.entities).not.toContain('The');
@@ -68,7 +65,7 @@ describe('query-context', () => {
                 const graphNodes = {
                     елена: { name: 'Елена', type: 'PERSON' },
                 };
-                const result = extractQueryContext(messages, [], graphNodes);
+                const result = extractQueryContext(messages, [], graphNodes, queryConfig);
                 expect(result.entities).toContain('Елена');
             });
 
@@ -81,7 +78,7 @@ describe('query-context', () => {
                 const graphNodes = {
                     vova: { name: 'Vova', type: 'PERSON', aliases: ['Vova (aka Lily)'] },
                 };
-                const result = extractQueryContext(messages, [], graphNodes);
+                const result = extractQueryContext(messages, [], graphNodes, queryConfig);
                 expect(result.entities).toContain('Vova');
             });
         });
@@ -93,7 +90,7 @@ describe('query-context', () => {
                     { mes: 'It was quiet outside.' },
                     { mes: 'Nothing else happened.' },
                 ];
-                const result = extractQueryContext(messages, ['Elena', 'Viktor'], {});
+                const result = extractQueryContext(messages, ['Elena', 'Viktor'], {}, queryConfig);
                 expect(result.entities).toContain('Elena');
                 expect(result.entities).toContain('Viktor');
             });
@@ -112,7 +109,7 @@ describe('query-context', () => {
                     bob: { name: 'Bob', type: 'PERSON' },
                     charlie: { name: 'Charlie', type: 'PERSON' },
                 };
-                const result = extractQueryContext(messages, [], graphNodes);
+                const result = extractQueryContext(messages, [], graphNodes, queryConfig);
                 expect(result.entities).not.toContain('Alice');
                 expect(result.entities).toContain('Bob');
                 expect(result.entities).toContain('Charlie');
@@ -134,20 +131,20 @@ describe('query-context', () => {
                     bob: { name: 'Bob', type: 'PERSON' },
                     charlie: { name: 'Charlie', type: 'PERSON' },
                 };
-                const result = extractQueryContext(messages, [], graphNodes);
+                const result = extractQueryContext(messages, [], graphNodes, queryConfig);
                 expect(result.weights.Marcus).toBeGreaterThan(result.weights.Sarah);
             });
         });
 
         describe('edge cases', () => {
             it('returns empty for null messages', () => {
-                const result = extractQueryContext(null);
+                const result = extractQueryContext(null, [], {}, queryConfig);
                 expect(result.entities).toEqual([]);
                 expect(result.weights).toEqual({});
             });
 
             it('returns empty for empty array', () => {
-                const result = extractQueryContext([]);
+                const result = extractQueryContext([], [], {}, queryConfig);
                 expect(result.entities).toEqual([]);
                 expect(result.weights).toEqual({});
             });
@@ -158,7 +155,7 @@ describe('query-context', () => {
                     { mes: 'more words' },
                     { mes: 'nothing special' },
                 ];
-                const result = extractQueryContext(messages, [], {});
+                const result = extractQueryContext(messages, [], {}, queryConfig);
                 expect(result.entities).toEqual([]);
             });
         });
@@ -168,7 +165,7 @@ describe('query-context', () => {
         it('concatenates messages without duplication', () => {
             const messages = [{ mes: 'newest message' }, { mes: 'second message' }, { mes: 'third message' }];
             const entities = { entities: [], weights: {} };
-            const query = buildEmbeddingQuery(messages, entities);
+            const query = buildEmbeddingQuery(messages, entities, queryConfig);
 
             // Messages should appear once each, in order
             expect(query).toContain('newest message');
@@ -184,7 +181,7 @@ describe('query-context', () => {
                 entities: ['Alice', 'Cabin', 'Secret'],
                 weights: { Alice: 2.0, Cabin: 1.5, Secret: 1.0 },
             };
-            const query = buildEmbeddingQuery(messages, entities);
+            const query = buildEmbeddingQuery(messages, entities, queryConfig);
 
             expect(query).toContain('Alice');
             expect(query).toContain('Cabin');
@@ -195,20 +192,20 @@ describe('query-context', () => {
             const longMessage = 'word '.repeat(500);
             const messages = [{ mes: longMessage }, { mes: longMessage }, { mes: longMessage }];
             const entities = { entities: ['Entity'], weights: { Entity: 1 } };
-            const query = buildEmbeddingQuery(messages, entities);
+            const query = buildEmbeddingQuery(messages, entities, queryConfig);
 
             // Should be capped at optimal chunk size (500 in mock)
             expect(query.length).toBeLessThanOrEqual(500);
         });
 
         it('handles empty messages', () => {
-            const query = buildEmbeddingQuery([], { entities: [], weights: {} });
+            const query = buildEmbeddingQuery([], { entities: [], weights: {} }, queryConfig);
             expect(query).toBe('');
         });
 
         it('handles null entities', () => {
             const messages = [{ mes: 'some text' }];
-            const query = buildEmbeddingQuery(messages, null);
+            const query = buildEmbeddingQuery(messages, null, queryConfig);
             expect(query).toContain('some text');
         });
     });
@@ -216,7 +213,7 @@ describe('query-context', () => {
     describe('buildBM25Tokens', () => {
         it('filters post-stem runt tokens (< 3 chars after stemming)', () => {
             // "боюсь" (5 chars) stems to "бо" (2 chars) via Russian Snowball
-            const tokens = buildBM25Tokens('боюсь страшно', null);
+            const tokens = buildBM25Tokens('боюсь страшно', null, null, null, queryConfig);
             // "бо" should be filtered out, "страшн" (stem of страшно) should remain
             for (const t of tokens) {
                 expect(t.length).toBeGreaterThanOrEqual(3);
@@ -226,7 +223,7 @@ describe('query-context', () => {
         it('includes original user message tokens (stemmed)', () => {
             const userMessage = 'Where is Alice now?';
             const entities = { entities: [], weights: {} };
-            const tokens = buildBM25Tokens(userMessage, entities);
+            const tokens = buildBM25Tokens(userMessage, entities, null, null, queryConfig);
 
             expect(tokens).toContain('alic'); // 'alice' stemmed by English Snowball
             // 'where' and 'is' are stop words, should be filtered
@@ -240,7 +237,7 @@ describe('query-context', () => {
                 entities: ['Sasha'],
                 weights: { Sasha: 2.0 },
             };
-            const tokens = buildBM25Tokens(userMessage, entities);
+            const tokens = buildBM25Tokens(userMessage, entities, null, null, queryConfig);
 
             // Weight 2.0 * default boost 5.0 = 10.0, ceil = 10 repeats
             const sashaCount = tokens.filter((t) => t === 'sasha').length;
@@ -252,14 +249,14 @@ describe('query-context', () => {
                 entities: ['Alice'],
                 weights: { Alice: 1.5 },
             };
-            const tokens = buildBM25Tokens('', entities);
+            const tokens = buildBM25Tokens('', entities, null, null, queryConfig);
 
             // Should still have entity tokens (stemmed)
             expect(tokens).toContain('alic'); // 'Alice' stemmed
         });
 
         it('handles null entities', () => {
-            const tokens = buildBM25Tokens('test query', null);
+            const tokens = buildBM25Tokens('test query', null, null, null, queryConfig);
             expect(tokens).toContain('test');
             expect(tokens).toContain('queri'); // 'query' stemmed by English Snowball
         });
