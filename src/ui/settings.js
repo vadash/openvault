@@ -834,6 +834,9 @@ function bindUIElements() {
     $('#openvault_backfill_embeddings_btn').on('click', backfillEmbeddings);
     $('#openvault_extract_all_btn').on('click', handleExtractAll);
 
+    // Emergency Cut button
+    $('#openvault_emergency_cut_btn').on('click', handleEmergencyCut);
+
     // Danger zone buttons
     $('#openvault_reset_settings_btn').on('click', handleResetSettings);
     $('#openvault_delete_chat_btn').on('click', handleDeleteChatData);
