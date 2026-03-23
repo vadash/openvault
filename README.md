@@ -149,3 +149,5 @@ OpenVault implements ideas from two papers:
 13.00 - support all ST vectorization sources, CSRF fix
 
 13.50 - add compatability with other chat altering extentions like Inline Summary
+
+14.00 - Emergency Cut button. Good when switching preset/changing model, mouse over it
