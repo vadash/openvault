@@ -902,7 +902,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
     logDebug(`Extracting ${messages.length} messages`);
 
     try {
-        // Stage 2: Prompt Building
+        // Build context params once
         const characterName = context.name2;
         const userName = context.name1;
 
@@ -913,167 +913,50 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             })
             .join('\n\n');
 
-        const existingMemories = selectMemoriesForExtraction(data, settings);
         const characterDescription = context.characters?.[context.characterId]?.description || '';
         const personaDescription = context.powerUserSettings?.persona_description || '';
-
-        const preamble = resolveExtractionPreamble(settings);
-        const prefill = resolveExtractionPrefill(settings);
-        const outputLanguage = resolveOutputLanguage(settings);
-        const prompt = buildEventExtractionPrompt({
-            messages: messagesText,
+        const contextParams = {
+            messagesText,
             names: { char: characterName, user: userName },
-            context: {
-                memories: existingMemories,
-                charDesc: characterDescription,
-                personaDesc: personaDescription,
-            },
-            preamble,
-            prefill,
-            outputLanguage,
-        });
-
-        // Stage 3A: Event Extraction (LLM Call 1)
-        const t0Events = performance.now();
-        const eventJson = await callLLM(prompt, LLM_CONFIGS.extraction_events, {
-            structured: true,
-            signal: abortSignal, // v6: Enables mid-request cancellation
-        });
-        record('llm_events', performance.now() - t0Events);
-        const eventResult = parseEventExtractionResponse(eventJson);
-        let events = eventResult.events;
-
-        // Stage 3B: Graph Extraction (LLM Call 2) — skip if no events
-        // Wrapped in try-catch: graph failure degrades gracefully (events are still saved).
-        // Without this, a persistent graph parse failure (model refusal, truncation, non-JSON)
-        // would throw the entire batch, discard successfully extracted events, leave messages
-        // unprocessed, and cause the worker to retry the same batch indefinitely.
-        let graphResult = { entities: [], relationships: [] };
-        if (events.length > 0) {
-            try {
-                await rpmDelay(settings, 'Inter-call rate limit');
-                const formattedEvents = events.map((e, i) => `${i + 1}. [${e.importance}★] ${e.summary}`);
-                const graphPrompt = buildGraphExtractionPrompt({
-                    messages: messagesText,
-                    names: { char: characterName, user: userName },
-                    extractedEvents: formattedEvents,
-                    context: {
-                        charDesc: characterDescription,
-                        personaDesc: personaDescription,
-                    },
-                    preamble,
-                    prefill,
-                    outputLanguage,
-                });
-
-                const t0Graph = performance.now();
-                const graphJson = await callLLM(graphPrompt, LLM_CONFIGS.extraction_graph, {
-                    structured: true,
-                    signal: abortSignal, // v6: Enables mid-request cancellation
-                });
-                record('llm_graph', performance.now() - t0Graph);
-                graphResult = parseGraphExtractionResponse(graphJson);
-            } catch (graphError) {
-                // AbortError = session cancel (chat switch) — must propagate
-                if (graphError.name === 'AbortError') throw graphError;
-                logError('Graph extraction failed, continuing with events only', graphError);
-            }
-        }
-
-        // Merge into unified validated object for downstream stages
-        const validated = {
-            events,
-            entities: graphResult.entities,
-            relationships: graphResult.relationships,
+            charDesc: characterDescription,
+            personaDesc: personaDescription,
+            preamble: resolveExtractionPreamble(settings),
+            prefill: resolveExtractionPrefill(settings),
+            outputLanguage: resolveOutputLanguage(settings),
         };
 
-        // Enrich with metadata
+        // Stage 1: Event extraction (LLM call)
+        const existingMemories = selectMemoriesForExtraction(data, settings);
+        const { events: rawEvents } = await fetchEventsFromLLM(contextParams, existingMemories, abortSignal);
+
+        // Stage 2: Graph extraction (LLM call, skip if no events)
+        let graphResult = { entities: [], relationships: [] };
+        if (rawEvents.length > 0) {
+            await rpmDelay(settings, 'Inter-call rate limit');
+            const formattedEvents = rawEvents.map((e, i) => `${i + 1}. [${e.importance}★] ${e.summary}`);
+            graphResult = await fetchGraphFromLLM(contextParams, formattedEvents, abortSignal);
+        }
+
+        // Stage 3: Enrich & dedup events
         const messageIdsArray = messages.map((m) => m.id);
-        const minMessageId = Math.min(...messageIdsArray);
+        logDebug(`LLM returned ${rawEvents.length} events from ${messages.length} messages`);
+        const { events } = await enrichAndDedupEvents(rawEvents, messageIdsArray, batchId, data.memories || [], settings);
 
-        events = events.map((event, index) => ({
-            id: `event_${Date.now()}_${index}`,
-            type: 'event',
-            ...event,
-            tokens: tokenize(event.summary || ''),
-            message_ids: messageIdsArray,
-            sequence: minMessageId * 1000 + index,
-            created_at: Date.now(),
-            batch_id: batchId,
-            characters_involved: event.characters_involved || [],
-            witnesses: event.witnesses || event.characters_involved || [],
-            location: event.location || null,
-            is_secret: event.is_secret || false,
-            importance: event.importance || 3,
-            emotional_impact: event.emotional_impact || {},
-            relationship_impact: event.relationship_impact || {},
-        }));
-
-        logDebug(`LLM returned ${events.length} events from ${messages.length} messages`);
-
-        // Track processed message IDs (will be committed in Phase 1)
-        const _processedIds = messages.map((m) => m.id);
-
-        // Stage 4: Event Processing (embedding + deduplication)
-        if (events.length > 0) {
-            await enrichEventsWithEmbeddings(events);
-
-            // Stamp embedding model ID on first successful embedding generation
-            // Prevents invalidateStaleEmbeddings from treating this chat as "legacy" on next open
-            if (!data.embedding_model_id && events.some((e) => hasEmbedding(e))) {
-                data.embedding_model_id = settings.embeddingSource;
-                if (settings.embeddingSource === 'st_vector') {
-                    const { stampStVectorFingerprint } = await import('../utils/data.js');
-                    stampStVectorFingerprint(data);
-                }
-            }
-
-            const dedupThreshold = settings.dedupSimilarityThreshold;
-            const jaccardThreshold = settings.dedupJaccardThreshold;
-            const existingMemoriesList = data.memories || [];
-            events = await filterSimilarEvents(events, existingMemoriesList, dedupThreshold, jaccardThreshold);
-
-            if (events.length < validated.events.length) {
-                logDebug(`Dedup: Filtered ${validated.events.length - events.length} similar events`);
+        // Stamp embedding model ID on first successful embedding generation
+        if (events.length > 0 && !data.embedding_model_id && events.some((e) => hasEmbedding(e))) {
+            data.embedding_model_id = settings.embeddingSource;
+            if (settings.embeddingSource === 'st_vector') {
+                const { stampStVectorFingerprint } = await import('../utils/data.js');
+                stampStVectorFingerprint(data);
             }
         }
 
-        // Stage 4.5: Graph Update — upsert entities and relationships
+        // Stage 4: Graph updates
         initGraphState(data);
-        const entityCap = settings.entityDescriptionCap;
-        const graphSyncChanges = { toSync: [], toDelete: [] };
-        if (validated.entities) {
-            const t0Merge = performance.now();
-            const existingNodeCount = Object.keys(data.graph.nodes).length;
-            for (const entity of validated.entities) {
-                if (entity.name === 'Unknown') continue;
-                const { stChanges: entityChanges } = await mergeOrInsertEntity(
-                    data.graph,
-                    entity.name,
-                    entity.type,
-                    entity.description,
-                    entityCap,
-                    settings
-                );
-                graphSyncChanges.toSync.push(...entityChanges.toSync);
-                graphSyncChanges.toDelete.push(...entityChanges.toDelete);
-            }
-            record(
-                'entity_merge',
-                performance.now() - t0Merge,
-                `${validated.entities.length}×${existingNodeCount} nodes`
-            );
-        }
-        const edgeCap = settings.edgeDescriptionCap;
-        if (validated.relationships) {
-            for (const rel of validated.relationships) {
-                if (rel.source === 'Unknown' || rel.target === 'Unknown') continue;
-                upsertRelationship(data.graph, rel.source, rel.target, rel.description, edgeCap);
-            }
-        }
+        const { graphSyncChanges } = await processGraphUpdates(
+            data.graph, graphResult.entities, graphResult.relationships, settings
+        );
         data.graph_message_count = (data.graph_message_count || 0) + messages.length;
-        // Clean up runtime-only merge redirects (don't persist to storage)
-        delete data.graph._mergeRedirects;
 
         // ===== PHASE 1 COMMIT: Events + Graph are done =====
         if (events.length > 0) {
@@ -1099,24 +982,16 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             throw new Error('Chat changed during extraction');
         }
 
-        // Sync to ST Vector Storage if enabled
-        if (isStVectorSource()) {
-            const chatId = getCurrentChatId();
-            const unsyncedEvents = events.filter((e) => !isStSynced(e));
-            if (unsyncedEvents.length > 0) {
-                const items = unsyncedEvents.map((e) => ({
-                    hash: cyrb53(`[OV_ID:${e.id}] ${e.summary}`),
-                    text: `[OV_ID:${e.id}] ${e.summary}`,
-                    index: 0,
-                }));
-                const success = await syncItemsToST(items, chatId);
-                if (success) {
-                    for (const e of unsyncedEvents) markStSynced(e);
-                }
-            }
-            // Sync graph nodes to ST Vector Storage
-            await applySyncChanges(graphSyncChanges);
+        // Sync events + graph to ST Vector Storage (single applySyncChanges call)
+        const eventSyncChanges = { toSync: [], toDelete: [] };
+        for (const e of events.filter((e) => !isStSynced(e))) {
+            const text = `[OV_ID:${e.id}] ${e.summary}`;
+            eventSyncChanges.toSync.push({ hash: cyrb53(text), text, item: e });
         }
+        await applySyncChanges({
+            toSync: [...eventSyncChanges.toSync, ...graphSyncChanges.toSync],
+            toDelete: [...graphSyncChanges.toDelete],
+        });
 
         // ===== PHASE 2: Enrichment (non-critical) =====
         try {
