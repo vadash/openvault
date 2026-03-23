@@ -404,11 +404,12 @@ export function shouldMergeEntities(cosine, threshold, tokensA, keyA, keyB) {
 
 export async function mergeOrInsertEntity(graphData, name, type, description, cap, settings) {
     const key = normalizeKey(name);
+    const stChanges = { toSync: [], toDelete: [] };
 
     // Fast path: exact key match
     if (graphData.nodes[key]) {
         upsertEntity(graphData, name, type, description, cap);
-        return key;
+        return { key, stChanges };
     }
 
     // Universal cross-script merge: if this is a PERSON entity, check all existing
@@ -441,7 +442,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
                 if (key !== existingKey) {
                     graphData._mergeRedirects[key] = existingKey;
                 }
-                return existingKey;
+                return { key: existingKey, stChanges };
             }
         }
     }
@@ -456,7 +457,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
 
     if (!newEmbedding) {
         upsertEntity(graphData, name, type, description, cap);
-        return key;
+        return { key, stChanges };
     }
 
     const threshold = settings.entityMergeSimilarityThreshold;
@@ -498,23 +499,18 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
         if (key !== bestMatch) {
             graphData._mergeRedirects[key] = bestMatch;
         }
-        return bestMatch;
+        return { key: bestMatch, stChanges };
     }
 
     // No match: create new node with embedding
     upsertEntity(graphData, name, type, description, cap);
     setEmbedding(graphData.nodes[key], newEmbedding);
 
-    // Sync graph node to ST Vector Storage
-    if (isStVectorSource()) {
-        const chatId = getCurrentChatId();
-        const node = graphData.nodes[key];
-        const text = `[OV_ID:${key}] ${node.description}`;
-        await syncItemsToST([{ hash: cyrb53(text), text }], chatId);
-        markStSynced(node);
-    }
+    const node = graphData.nodes[key];
+    const text = `[OV_ID:${key}] ${node.description}`;
+    stChanges.toSync.push({ hash: cyrb53(text), text, item: node });
 
-    return key;
+    return { key, stChanges };
 }
 
 
