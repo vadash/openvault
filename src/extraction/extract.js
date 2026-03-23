@@ -670,6 +670,76 @@ async function synthesizeCommunities(data, settings, characterName, userName) {
 }
 
 /**
+ * Stage 1: Call LLM for event extraction and parse the response.
+ *
+ * @param {Object} contextParams - Shared context (messagesText, names, charDesc, personaDesc, preamble, prefill, outputLanguage)
+ * @param {Array} existingMemories - Curated memory subset for prompt context
+ * @param {AbortSignal} [abortSignal] - Abort signal for mid-request cancellation
+ * @returns {Promise<{events: Array}>}
+ */
+async function fetchEventsFromLLM(contextParams, existingMemories, abortSignal) {
+    const prompt = buildEventExtractionPrompt({
+        messages: contextParams.messagesText,
+        names: contextParams.names,
+        context: {
+            memories: existingMemories,
+            charDesc: contextParams.charDesc,
+            personaDesc: contextParams.personaDesc,
+        },
+        preamble: contextParams.preamble,
+        prefill: contextParams.prefill,
+        outputLanguage: contextParams.outputLanguage,
+    });
+
+    const t0 = performance.now();
+    const eventJson = await callLLM(prompt, LLM_CONFIGS.extraction_events, {
+        structured: true,
+        signal: abortSignal,
+    });
+    record('llm_events', performance.now() - t0);
+    return parseEventExtractionResponse(eventJson);
+}
+
+/**
+ * Stage 2: Call LLM for graph extraction and parse the response.
+ * Graceful degradation — catches non-AbortError and returns empty arrays.
+ *
+ * @param {Object} contextParams - Shared context
+ * @param {string[]} formattedEvents - Pre-formatted event strings for the prompt
+ * @param {AbortSignal} [abortSignal] - Abort signal for mid-request cancellation
+ * @returns {Promise<{entities: Array, relationships: Array}>}
+ */
+async function fetchGraphFromLLM(contextParams, formattedEvents, abortSignal) {
+    try {
+        const prompt = buildGraphExtractionPrompt({
+            messages: contextParams.messagesText,
+            names: contextParams.names,
+            extractedEvents: formattedEvents,
+            context: {
+                charDesc: contextParams.charDesc,
+                personaDesc: contextParams.personaDesc,
+            },
+            preamble: contextParams.preamble,
+            prefill: contextParams.prefill,
+            outputLanguage: contextParams.outputLanguage,
+        });
+
+        const t0 = performance.now();
+        const graphJson = await callLLM(prompt, LLM_CONFIGS.extraction_graph, {
+            structured: true,
+            signal: abortSignal,
+        });
+        record('llm_graph', performance.now() - t0);
+        return parseGraphExtractionResponse(graphJson);
+    } catch (error) {
+        // AbortError = session cancel (chat switch) — must propagate
+        if (error.name === 'AbortError') throw error;
+        logError('Graph extraction failed, continuing with events only', error);
+        return { entities: [], relationships: [] };
+    }
+}
+
+/**
  * Extract events from chat messages
  *
  * @param {number[]} [messageIds=null] - Optional specific message IDs for targeted extraction
