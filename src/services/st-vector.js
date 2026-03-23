@@ -88,7 +88,7 @@ function extractOvId(text) {
  * Get the ST Vector Storage source from ST settings.
  * @returns {string} The configured source (e.g., 'openrouter', 'openai', 'ollama')
  */
-function getSTVectorSource() {
+export function getSTVectorSource() {
     const extSettings = getDeps().getExtensionSettings();
     // ST stores vector source in extension_settings.vectors.source
     return extSettings?.vectors?.source || 'transformers';
@@ -115,7 +115,7 @@ function getSourceApiUrl(sourceType) {
  * @param {string} source - The vector source
  * @returns {Object} Additional parameters for the request body
  */
-function getSTVectorRequestBody(source) {
+export function getSTVectorRequestBody(source) {
     const extSettings = getDeps().getExtensionSettings();
     const body = {};
 
