@@ -138,6 +138,96 @@ export async function hideExtractedMessages() {
 }
 
 /**
+ * Execute an Emergency Cut — extract all unprocessed messages and hide them.
+ * Domain orchestrator with callback injection for UI updates.
+ *
+ * @param {Object} options
+ * @param {function(string): void} [options.onWarning] - Called for non-fatal warnings
+ * @param {function(string): boolean} [options.onConfirmPrompt] - Called for user confirmation; return false to cancel
+ * @param {function(): void} [options.onStart] - Called when extraction phase begins
+ * @param {function(number, number, number): void} [options.onProgress] - Called per batch (batchNum, totalBatches, eventsCreated)
+ * @param {function(): void} [options.onPhase2Start] - Called when Phase 2 begins (uncancellable)
+ * @param {function({messagesProcessed: number, eventsCreated: number, hiddenCount: number}): void} [options.onComplete] - Called on success
+ * @param {function(Error, boolean): void} [options.onError] - Called on failure (error, isCancel)
+ * @param {AbortSignal} [options.abortSignal] - For cancellation
+ */
+export async function executeEmergencyCut(options = {}) {
+    const {
+        onWarning,
+        onConfirmPrompt,
+        onStart,
+        onProgress,
+        onPhase2Start,
+        onComplete,
+        onError,
+        abortSignal,
+    } = options;
+
+    if (isWorkerRunning()) {
+        onWarning?.('Background extraction in progress. Please wait a moment.');
+        return;
+    }
+
+    const context = getDeps().getContext();
+    const chat = context.chat || [];
+    const data = getOpenVaultData();
+    const stats = getBackfillStats(chat, data);
+
+    let shouldExtract = true;
+
+    if (stats.unextractedCount === 0) {
+        const processedFps = getProcessedFingerprints(data);
+        const hideableCount = chat.filter((m) =>
+            !m.is_system && processedFps.has(getFingerprint(m)),
+        ).length;
+
+        if (hideableCount === 0) {
+            onWarning?.('No messages to hide');
+            return;
+        }
+
+        const msg = `All messages are already extracted. Hide ${hideableCount} messages from the LLM to break the loop?\n\n` +
+            'The LLM will only see: preset, char card, lorebooks, and OpenVault memories.';
+        if (!onConfirmPrompt?.(msg)) return;
+        shouldExtract = false;
+    } else {
+        const msg = `Extract and hide ${stats.unextractedCount} unprocessed messages?\n\n` +
+            'The LLM will only see: preset, char card, lorebooks, and OpenVault memories.';
+        if (!onConfirmPrompt?.(msg)) return;
+    }
+
+    if (!shouldExtract) {
+        const hiddenCount = await hideExtractedMessages();
+        onComplete?.({ messagesProcessed: 0, eventsCreated: 0, hiddenCount });
+        return;
+    }
+
+    onStart?.();
+    operationState.extractionInProgress = true;
+
+    try {
+        const result = await extractAllMessages({
+            isEmergencyCut: true,
+            progressCallback: onProgress,
+            abortSignal,
+            onPhase2Start,
+        });
+
+        const hiddenCount = await hideExtractedMessages();
+
+        onComplete?.({
+            messagesProcessed: result.messagesProcessed,
+            eventsCreated: result.eventsCreated,
+            hiddenCount,
+        });
+    } catch (err) {
+        onError?.(err, err.name === 'AbortError');
+    } finally {
+        operationState.extractionInProgress = false;
+    }
+}
+
+/**
  * Canonicalize character names in extracted events by resolving cross-script
  * variants (e.g., Cyrillic "Мина" → English "Mina") against known canonical names.
  * Mutates events in place.

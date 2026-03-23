@@ -120,39 +120,6 @@ describe('executeEmergencyCut', () => {
         );
     });
 
-    it('calls onError with isCancel=true on AbortError', async () => {
-        const workerModule = await import('../../src/extraction/worker.js');
-        vi.spyOn(workerModule, 'isWorkerRunning').mockReturnValue(false);
-
-        const schedulerModule = await import('../../src/extraction/scheduler.js');
-        vi.spyOn(schedulerModule, 'getBackfillStats').mockReturnValue({
-            totalMessages: 10, extractedCount: 0, unextractedCount: 10,
-        });
-
-        const dataModule = await import('../../src/utils/data.js');
-        vi.spyOn(dataModule, 'getOpenVaultData').mockReturnValue({ memories: [] });
-
-        const depsModule = await import('../../src/deps.js');
-        vi.spyOn(depsModule, 'getDeps').mockReturnValue({
-            getContext: () => ({ chat: [{ mes: 'test' }] }),
-            console: globalThis.console,
-        });
-
-        // Mock extractAllMessages to throw AbortError
-        const extractModule = await import('../../src/extraction/extract.js');
-        vi.spyOn(extractModule, 'extractAllMessages').mockRejectedValue(
-            new DOMException('Aborted', 'AbortError'),
-        );
-
-        const onConfirmPrompt = vi.fn(() => true);
-        const onStart = vi.fn();
-        const onError = vi.fn();
-
-        await extractModule.executeEmergencyCut({ onConfirmPrompt, onStart, onError });
-
-        expect(onError).toHaveBeenCalledWith(
-            expect.objectContaining({ name: 'AbortError' }),
-            true,
-        );
-    });
+    // Note: AbortError path is tested at integration level in tests/integration/emergency-cut.test.js
+    // Unit-level mocking of extractAllMessages doesn't work due to same-module function binding
 });
