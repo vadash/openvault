@@ -38,11 +38,27 @@ describe('store/chat-data', () => {
     afterEach(() => resetDeps());
 
     describe('getOpenVaultData', () => {
+        it('creates complete v2 schema for new chats', () => {
+            const data = getOpenVaultData();
+            expect(data.schema_version).toBe(2);
+            expect(data.memories).toEqual([]);
+            expect(data.character_states).toEqual({});
+            expect(data.graph).toBeDefined();
+            expect(data.communities).toEqual({});
+            expect(data.graph_message_count).toBe(0);
+            expect(data.processed_message_ids).toEqual([]);
+        });
+
         it('creates empty data structure if none exists', () => {
             const data = getOpenVaultData();
             expect(data).toEqual({
+                schema_version: 2,
                 [MEMORIES_KEY]: [],
                 [CHARACTERS_KEY]: {},
+                processed_message_ids: [],
+                graph: expect.any(Object),
+                communities: {},
+                graph_message_count: 0,
             });
         });
 

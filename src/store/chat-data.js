@@ -1,5 +1,6 @@
 import { CHARACTERS_KEY, MEMORIES_KEY, METADATA_KEY, PROCESSED_MESSAGES_KEY } from '../constants.js';
 import { getDeps } from '../deps.js';
+import { createEmptyGraph } from '../graph/graph.js';
 import { record } from '../perf/store.js';
 import { purgeSTCollection } from '../services/st-vector.js';
 import { showToast } from '../utils/dom.js';
@@ -21,8 +22,13 @@ export function getOpenVaultData() {
     }
     if (!context.chatMetadata[METADATA_KEY]) {
         context.chatMetadata[METADATA_KEY] = {
+            schema_version: 2,
             [MEMORIES_KEY]: [],
             [CHARACTERS_KEY]: {},
+            [PROCESSED_MESSAGES_KEY]: [],
+            graph: createEmptyGraph(),
+            communities: {},
+            graph_message_count: 0,
         };
     }
     const data = context.chatMetadata[METADATA_KEY];
