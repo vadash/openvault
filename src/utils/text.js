@@ -128,6 +128,31 @@ export function stripThinkingTags(text) {
 }
 
 /**
+ * Strip markdown code fences from content.
+ * Handles both ``` and ~~~ fences, with or without language specifier.
+ *
+ * @param {string} text - Text that may contain markdown fences
+ * @returns {string} Text with fences stripped
+ */
+export function stripMarkdownFences(text) {
+    if (!text || typeof text !== 'string') return text;
+
+    const trimmed = text.trim();
+
+    // Complete fences: ```json ... ``` or ~~~json ... ~~~
+    const fenceMatch = trimmed.match(/^(?:```|~~~)(?:json)?\s*([\s\S]*?)\s*(?:```|~~~)$/i);
+    if (fenceMatch) return fenceMatch[1].trim();
+
+    let result = trimmed;
+    // Unclosed opening fence: ```json\n{...}
+    result = result.replace(/^(?:```|~~~)(?:json)?\s*/i, '');
+    // Orphan closing fence: {...}\n```
+    result = result.replace(/\s*(?:```|~~~)\s*$/i, '');
+
+    return result.trim();
+}
+
+/**
  * Extract the LAST balanced JSON object or array from a string.
  * Scans all balanced blocks and returns the final one found.
  *

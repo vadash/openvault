@@ -6,6 +6,7 @@ import {
     sortMemoriesBySequence,
     stripThinkingTags,
     normalizeText,
+    stripMarkdownFences,
 } from '../../src/utils/text.js';
 
 describe('text', () => {
@@ -387,6 +388,44 @@ describe('text', () => {
 
         it('handles empty string', () => {
             expect(normalizeText('')).toBe('');
+        });
+    });
+
+    describe('stripMarkdownFences', () => {
+        it('strips complete ```json fence', () => {
+            expect(stripMarkdownFences('```json\n{"key": "value"}\n```')).toBe('{"key": "value"}');
+        });
+
+        it('strips complete ``` fence without language', () => {
+            expect(stripMarkdownFences('```\n{"key": "value"}\n```')).toBe('{"key": "value"}');
+        });
+
+        it('strips unclosed opening fence', () => {
+            expect(stripMarkdownFences('```json\n{"key": "value"}')).toBe('{"key": "value"}');
+        });
+
+        it('strips orphan closing fence', () => {
+            expect(stripMarkdownFences('{"key": "value"}\n```')).toBe('{"key": "value"}');
+        });
+
+        it('handles fence with uppercase JSON', () => {
+            expect(stripMarkdownFences('```JSON\n{"key": "value"}\n```')).toBe('{"key": "value"}');
+        });
+
+        it('handles fence with leading/trailing whitespace', () => {
+            expect(stripMarkdownFences('  ```json  \n  {"key": "value"}  \n  ```  ')).toBe('{"key": "value"}');
+        });
+
+        it('returns unchanged text without fences', () => {
+            expect(stripMarkdownFences('{"key": "value"}')).toBe('{"key": "value"}');
+        });
+
+        it('handles tilde fences (~~~)', () => {
+            expect(stripMarkdownFences('~~~json\n{"key": "value"}\n~~~')).toBe('{"key": "value"}');
+        });
+
+        it('handles empty string', () => {
+            expect(stripMarkdownFences('')).toBe('');
         });
     });
 });
