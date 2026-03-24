@@ -6,6 +6,29 @@ import { logError, logWarn } from './logging.js';
 import { countTokens } from './tokens.js';
 
 /**
+ * Normalize text by fixing invisible characters and typographical anomalies.
+ * - Strips unescaped control characters (\x00-\x1F), preserving \n, \r, \t
+ * - Replaces smart/curly quotes with standard quotes
+ * - Strips Unicode line/paragraph separators (\u2028, \u2029)
+ *
+ * @param {string} text - Input text to normalize
+ * @returns {string} Normalized text
+ */
+export function normalizeText(text) {
+    if (!text || typeof text !== 'string') return text;
+
+    return text
+        // Replace smart double quotes
+        .replace(/[""]/g, '"')
+        // Replace smart single quotes
+        .replace(/['']/g, "'")
+        // Strip Unicode line/paragraph separators
+        .replace(/[\u2028\u2029]/g, '')
+        // Strip unescaped control characters (preserve \n \r \t)
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+}
+
+/**
  * Calculate Jaccard similarity between two token sets.
  * Returns ratio of intersection / union (0.0 to 1.0).
  *

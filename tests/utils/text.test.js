@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resetDeps } from '../../src/deps.js';
-import { safeParseJSON, sliceToTokenBudget, sortMemoriesBySequence, stripThinkingTags } from '../../src/utils/text.js';
+import {
+    safeParseJSON,
+    sliceToTokenBudget,
+    sortMemoriesBySequence,
+    stripThinkingTags,
+    normalizeText,
+} from '../../src/utils/text.js';
 
 describe('text', () => {
     afterEach(() => resetDeps());
@@ -347,6 +353,40 @@ describe('text', () => {
             const { getMemoryPosition } = await import('../../src/utils/text.js');
             const memory = { sequence };
             expect(getMemoryPosition(memory)).toBe(expected);
+        });
+    });
+
+    describe('normalizeText', () => {
+        it('returns unchanged valid text', () => {
+            expect(normalizeText('{"key": "value"}')).toBe('{"key": "value"}');
+        });
+
+        it('replaces smart double quotes with standard quotes', () => {
+            expect(normalizeText('{"key": "value"}')).toBe('{"key": "value"}');
+        });
+
+        it('replaces smart single quotes with standard single quotes', () => {
+            expect(normalizeText("{'key': 'value'}")).toBe("{'key': 'value'}");
+        });
+
+        it('strips Unicode line separator (U+2028)', () => {
+            expect(normalizeText('{"key": "value\u2028more"}')).toBe('{"key": "valuemore"}');
+        });
+
+        it('strips Unicode paragraph separator (U+2029)', () => {
+            expect(normalizeText('{"key": "value\u2029more"}')).toBe('{"key": "valuemore"}');
+        });
+
+        it('preserves valid escape sequences (\\n, \\r, \\t)', () => {
+            expect(normalizeText('{"key": "line1\\nline2"}')).toBe('{"key": "line1\\nline2"}');
+        });
+
+        it('strips unescaped control characters (\\x00-\\x1F) except \\n \\r \\t', () => {
+            expect(normalizeText('{"key": "value\x00\x01\x02"}')).toBe('{"key": "value"}');
+        });
+
+        it('handles empty string', () => {
+            expect(normalizeText('')).toBe('');
         });
     });
 });
