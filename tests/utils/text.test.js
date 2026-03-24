@@ -7,6 +7,7 @@ import {
     stripThinkingTags,
     normalizeText,
     stripMarkdownFences,
+    extractJsonBlocks,
 } from '../../src/utils/text.js';
 
 describe('text', () => {
@@ -426,6 +427,74 @@ describe('text', () => {
 
         it('handles empty string', () => {
             expect(stripMarkdownFences('')).toBe('');
+        });
+    });
+
+    describe('extractJsonBlocks', () => {
+        it('extracts single object block', () => {
+            const blocks = extractJsonBlocks('{"key": "value"}');
+            expect(blocks).toHaveLength(1);
+            expect(blocks[0].text).toBe('{"key": "value"}');
+            expect(blocks[0].isObject).toBe(true);
+        });
+
+        it('extracts single array block', () => {
+            const blocks = extractJsonBlocks('[1, 2, 3]');
+            expect(blocks).toHaveLength(1);
+            expect(blocks[0].text).toBe('[1, 2, 3]');
+            expect(blocks[0].isObject).toBe(false);
+        });
+
+        it('extracts multiple blocks', () => {
+            const blocks = extractJsonBlocks('{"a": 1} text {"b": 2}');
+            expect(blocks).toHaveLength(2);
+            expect(blocks[0].text).toBe('{"a": 1}');
+            expect(blocks[1].text).toBe('{"b": 2}');
+        });
+
+        it('handles nested brackets', () => {
+            const blocks = extractJsonBlocks('{"outer": {"inner": [1, 2, 3]}}');
+            expect(blocks).toHaveLength(1);
+            expect(blocks[0].text).toBe('{"outer": {"inner": [1, 2, 3]}}');
+        });
+
+        it('ignores brackets inside double-quoted strings', () => {
+            const blocks = extractJsonBlocks('{"key": "value with {brackets}"}');
+            expect(blocks).toHaveLength(1);
+            expect(blocks[0].text).toBe('{"key": "value with {brackets}"}');
+        });
+
+        it('ignores brackets inside single-quoted strings', () => {
+            const blocks = extractJsonBlocks("{'key': 'value with {brackets}'}");
+            expect(blocks).toHaveLength(1);
+            expect(blocks[0].text).toBe("{'key': 'value with {brackets}'}");
+        });
+
+        it('handles escaped quotes correctly', () => {
+            const blocks = extractJsonBlocks('{"key": "value \\"with\\" quotes"}');
+            expect(blocks).toHaveLength(1);
+            expect(blocks[0].text).toBe('{"key": "value \\"with\\" quotes"}');
+        });
+
+        it('handles escaped backslash before quote (\\\\")', () => {
+            // \\" means escaped backslash followed by quote (string terminator)
+            const blocks = extractJsonBlocks('{"key": "path\\\\", "next": "value"}');
+            expect(blocks).toHaveLength(1);
+            expect(blocks[0].text).toBe('{"key": "path\\\\", "next": "value"}');
+        });
+
+        it('returns empty array for no blocks', () => {
+            expect(extractJsonBlocks('no json here')).toEqual([]);
+        });
+
+        it('handles empty string', () => {
+            expect(extractJsonBlocks('')).toEqual([]);
+        });
+
+        it('tracks start and end positions', () => {
+            const blocks = extractJsonBlocks('prefix {"key": "value"} suffix');
+            expect(blocks[0].start).toBe(7);
+            expect(blocks[0].end).toBe(22);
         });
     });
 });

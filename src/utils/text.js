@@ -29,6 +29,104 @@ export function normalizeText(text) {
 }
 
 /**
+ * Extract all balanced JSON blocks from a string.
+ * Correctly handles strings, escape sequences, and nested structures.
+ *
+ * @param {string} text - Input text potentially containing JSON
+ * @param {Object} options - Options
+ * @param {number} options.minSize - Minimum block size (default: 0)
+ * @returns {Array<{start: number, end: number, text: string, isObject: boolean}>}
+ */
+export function extractJsonBlocks(text, options = {}) {
+    if (!text || typeof text !== 'string') return [];
+
+    const blocks = [];
+    let i = 0;
+
+    while (i < text.length) {
+        // Find opening bracket
+        if (text[i] !== '{' && text[i] !== '[') {
+            i++;
+            continue;
+        }
+
+        const startIdx = i;
+        const openChar = text[i];
+        const closeChar = openChar === '{' ? '}' : ']';
+        let depth = 0;
+        let inString = false;
+        let stringDelim = null;
+        let isEscaped = false;
+        let foundEnd = false;
+
+        while (i < text.length) {
+            const ch = text[i];
+
+            if (isEscaped) {
+                isEscaped = false;
+                i++;
+                continue;
+            }
+
+            if (ch === '\\' && inString) {
+                isEscaped = true;
+                i++;
+                continue;
+            }
+
+            // String delimiter handling
+            if ((ch === '"' || ch === "'") && !inString) {
+                inString = true;
+                stringDelim = ch;
+                i++;
+                continue;
+            }
+
+            if (ch === stringDelim && inString) {
+                inString = false;
+                stringDelim = null;
+                i++;
+                continue;
+            }
+
+            if (inString) {
+                i++;
+                continue;
+            }
+
+            // Bracket counting
+            if (ch === openChar) {
+                depth++;
+            } else if (ch === closeChar) {
+                depth--;
+                if (depth === 0) {
+                    foundEnd = true;
+                    break;
+                }
+            }
+
+            i++;
+        }
+
+        if (foundEnd) {
+            const blockText = text.slice(startIdx, i + 1);
+            blocks.push({
+                start: startIdx,
+                end: i,
+                text: blockText,
+                isObject: openChar === '{',
+            });
+            i++;
+        } else {
+            // Unbalanced - move past opening bracket and continue
+            i = startIdx + 1;
+        }
+    }
+
+    return blocks;
+}
+
+/**
  * Calculate Jaccard similarity between two token sets.
  * Returns ratio of intersection / union (0.0 to 1.0).
  *
