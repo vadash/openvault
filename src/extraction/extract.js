@@ -757,7 +757,7 @@ async function enrichAndDedupEvents(rawEvents, messageIdsArray, batchId, existin
         created_at: Date.now(),
         batch_id: batchId,
         characters_involved: event.characters_involved || [],
-        witnesses: event.witnesses || event.characters_involved || [],
+        witnesses: (event.witnesses?.length > 0 ? event.witnesses : event.characters_involved) || [],
         location: event.location || null,
         is_secret: event.is_secret || false,
         importance: event.importance || 3,
