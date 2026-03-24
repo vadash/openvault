@@ -281,151 +281,142 @@ export function stripMarkdownFences(text) {
 }
 
 /**
- * Extract the LAST balanced JSON object or array from a string.
- * Scans all balanced blocks and returns the final one found.
+ * Safely parse JSON with progressive fallback waterfall.
+ * Returns Zod-style result object for maximum reusability.
  *
- * Why "Last"? LLMs output reasoning and hallucinated <tool_call> snippets
- * BEFORE the actual payload. The real JSON is always the last complete block.
+ * Flow:
+ *   Input Validation → stripThinkingTags → Strip Fences → Tier 1 (JSON.parse) → Tier 2 (jsonrepair)
+ *   → Tier 3 (Normalize + Extract) → Tier 4 (Scrub) → Tier 5 (Failure)
  *
- * @param {string} str - Input string potentially containing JSON
- * @returns {string|null} Extracted JSON substring or null
+ * @param {*} input - Raw input (string, object, array, or primitive)
+ * @param {Object} options - Options
+ * @param {number} options.minimumBlockSize - Minimum block size for extraction (default: 50)
+ * @param {Function} options.onError - Error callback: (context) => void
+ * @returns {{success: boolean, data?: any, error?: Error, errorContext?: Object}}
  */
-function extractBalancedJSON(str) {
-    let lastMatch = null;
-    let searchFrom = 0;
+export function safeParseJSON(input, options = {}) {
+    const { minimumBlockSize = 50, onError } = options;
+    const originalLength = typeof input === 'string' ? input.length : 0;
 
-    while (searchFrom < str.length) {
-        // Find next opening bracket
-        let startIdx = -1;
-        for (let i = searchFrom; i < str.length; i++) {
-            if (str[i] === '{' || str[i] === '[') {
-                startIdx = i;
-                break;
-            }
-        }
-
-        if (startIdx === -1) break;
-
-        const open = str[startIdx];
-        const close = open === '{' ? '}' : ']';
-        let depth = 0;
-        let inString = false;
-        let isEscaped = false;
-        let endIdx = -1;
-
-        for (let i = startIdx; i < str.length; i++) {
-            const ch = str[i];
-
-            if (isEscaped) {
-                isEscaped = false;
-                continue;
-            }
-            if (ch === '\\' && inString) {
-                isEscaped = true;
-                continue;
-            }
-            if (ch === '"') {
-                inString = !inString;
-                continue;
-            }
-
-            if (inString) continue;
-
-            if (ch === open) {
-                depth++;
-            } else if (ch === close) {
-                depth--;
-                if (depth === 0) {
-                    endIdx = i;
-                    break;
-                }
-            }
-        }
-
-        if (endIdx !== -1) {
-            lastMatch = str.slice(startIdx, endIdx + 1);
-            searchFrom = endIdx + 1; // Continue searching for later blocks
-        } else {
-            // Unbalanced — skip past this opening bracket and try again
-            searchFrom = startIdx + 1;
-        }
+    // === Tier 0: Input Validation ===
+    if (input === null || input === undefined) {
+        const error = new Error('Input is null or undefined');
+        const context = { tier: 0, originalLength, error };
+        onError?.(context);
+        return { success: false, error, errorContext: context };
     }
 
-    return lastMatch;
-}
+    // Already an object/array - return as-is
+    if (typeof input === 'object') {
+        return { success: true, data: input };
+    }
 
-/**
- * Safely parse JSON, handling markdown code blocks and malformed LLM syntax
- * @param {string} input - Raw JSON string potentially wrapped in markdown
- * @returns {any} Parsed JSON object/array, or null on failure
- */
-export function safeParseJSON(input) {
+    // Coerce primitives to string
+    let text = String(input);
+
+    // Empty string check
+    if (text.trim().length === 0) {
+        const error = new Error('Input is empty or whitespace-only');
+        const context = { tier: 0, originalLength, error };
+        onError?.(context);
+        return { success: false, error, errorContext: context };
+    }
+
+    // Strip thinking tags FIRST (before any parsing)
+    text = stripThinkingTags(text);
+
+    // Strip markdown fences EARLY (hoisted from Tier 3)
+    // Mid-tier LLMs output valid JSON wrapped in fences 90% of the time
+    text = stripMarkdownFences(text);
+
+    // === Tier 1: Native Parse ===
     try {
-        let cleanedInput = stripThinkingTags(input);
+        const parsed = JSON.parse(text);
+        return { success: true, data: parsed };
+    } catch {
+        // Continue to Tier 2
+    }
 
-        // Strip markdown code fences
-        const codeBlockMatch = cleanedInput.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-        if (codeBlockMatch) {
-            cleanedInput = codeBlockMatch[1].trim();
+    // === Tier 2: Extract + JsonRepair ===
+    // Extract JSON blocks first to avoid jsonrepair synthesizing arrays from conversational text
+    try {
+        const blocks = extractJsonBlocks(text);
+
+        if (blocks.length > 0) {
+            // Select last substantial block
+            const substantialBlocks = blocks.filter((b) => b.text.length >= minimumBlockSize);
+            const selectedBlock =
+                substantialBlocks.length > 0
+                    ? substantialBlocks[substantialBlocks.length - 1]
+                    : blocks[blocks.length - 1];
+
+            const repaired = jsonrepair(selectedBlock.text);
+            const parsed = JSON.parse(repaired);
+            return { success: true, data: parsed };
         }
 
-        // Extract the LAST balanced block to dodge tool_call hallucinations
-        const extracted = extractBalancedJSON(cleanedInput);
-        if (extracted) {
-            cleanedInput = extracted;
-        }
-
-        // --- LLM SYNTAX HALLUCINATION SANITIZER ---
-        // Negative lookbehinds (?<!\\) ensure we don't accidentally remove escaped quotes inside valid strings.
-        // Matches both standard (+) and full-width (＋) Chinese plus signs.
-
-        // 1. Mid-string concatenation across newlines: "text" +\n "more" -> "textmore"
-        cleanedInput = cleanedInput.replace(/(?<!\\)(["'])\s*[+＋]\s*(?:\r?\n)?\s*(?<!\\)(["'])/g, '');
-
-        // 1.5 NEW: Catch rogue '+' symbols stranded across multiple newlines
-        cleanedInput = cleanedInput.replace(/(["'])\s*(?:\r?\n)+\s*[+＋]\s*(?:\r?\n)+\s*(["'])/g, '$1$2');
-        cleanedInput = cleanedInput.replace(/(["'])\s*(?:\r?\n)+\s*[+＋]\s*(["'])/g, '$1$2');
-
-        // 2. Dangling plus before punctuation/newlines: "text" + , -> "text" ,
-        cleanedInput = cleanedInput.replace(/(?<!\\)(["'])\s*[+＋]\s*(?:\r?\n)?\s*([,}\]])/g, '$1$2');
-
-        // 3. Cut-off dangling plus at EOF or followed by whitespace/EOF: "text" + \n -> "text"
-        cleanedInput = cleanedInput.replace(/(?<!\\)(["'])\s*[+＋]\s*(?:\r?\n)?\s*$/g, '$1');
-
-        // 4. Pad truncated outputs: odd number of unescaped " means an unclosed string
-        const withoutEscapedQuotes = cleanedInput.replace(/\\"/g, '');
-        const unescapedQuoteCount = (withoutEscapedQuotes.match(/"/g) || []).length;
-        if (unescapedQuoteCount % 2 !== 0) {
-            cleanedInput = cleanedInput + '"]}]}'; // Pad brackets, jsonrepair will untangle
-        }
-
-        // Pass sanitized string to repair library
-        const repaired = jsonrepair(cleanedInput);
+        // No blocks found - apply jsonrepair to whole text (for cases like unquoted keys)
+        const repaired = jsonrepair(text);
         const parsed = JSON.parse(repaired);
+        return { success: true, data: parsed };
+    } catch {
+        // Continue to Tier 3
+    }
 
-        if (parsed === null || typeof parsed !== 'object') {
-            logError('JSON parse returned non-object/array', null, {
-                type: typeof parsed,
-                rawInput: input.slice(0, 500),
-            });
-            return null;
+    // === Tier 3: Normalize + Extract ===
+    try {
+        const normalized = normalizeText(text);
+        const blocks = extractJsonBlocks(normalized);
+
+        if (blocks.length === 0) {
+            throw new Error('No JSON blocks found');
         }
 
-        // Graceful array recovery - if LLM returned a bare array of events
-        if (Array.isArray(parsed)) {
-            logWarn('LLM returned array instead of object, applying recovery wrapper');
-            return {
-                events: parsed,
-                entities: [],
-                relationships: [],
-                reasoning: null,
-            };
+        // Select last substantial block
+        const substantialBlocks = blocks.filter((b) => b.text.length >= minimumBlockSize);
+        const selectedBlock =
+            substantialBlocks.length > 0
+                ? substantialBlocks[substantialBlocks.length - 1]
+                : blocks[blocks.length - 1]; // Fallback to last (or largest if only tiny blocks)
+
+        const repaired = jsonrepair(selectedBlock.text);
+        const parsed = JSON.parse(repaired);
+        return { success: true, data: parsed };
+    } catch {
+        // Continue to Tier 4
+    }
+
+    // === Tier 4: Aggressive Scrub ===
+    try {
+        const normalized = normalizeText(text);
+        const blocks = extractJsonBlocks(normalized);
+
+        if (blocks.length === 0) {
+            throw new Error('No JSON blocks found');
         }
 
-        return parsed;
+        const substantialBlocks = blocks.filter((b) => b.text.length >= minimumBlockSize);
+        const selectedBlock =
+            substantialBlocks.length > 0
+                ? substantialBlocks[substantialBlocks.length - 1]
+                : blocks[blocks.length - 1];
+
+        // Apply aggressive scrubbing
+        const scrubbed = scrubConcatenation(selectedBlock.text);
+        const repaired = jsonrepair(scrubbed);
+        const parsed = JSON.parse(repaired);
+        return { success: true, data: parsed };
     } catch (e) {
-        logError('JSON parse failed', e, { rawInput: input.slice(0, 2000) });
-        return null;
+        // === Tier 5: Fatal Failure ===
+        const error = new Error(`JSON parse failed at all tiers: ${e.message}`);
+        const context = {
+            tier: 5,
+            originalLength,
+            sanitizedString: text.slice(0, 500),
+            error,
+        };
+        onError?.(context);
+        return { success: false, error, errorContext: context };
     }
 }
 
