@@ -130,7 +130,6 @@ export async function refreshStats() {
     $('#openvault_stat_reflections').text(reflectionCount);
     $('#openvault_stat_entities').text(nodes.length);
     $('#openvault_stat_communities').text(communities.length);
-    $('#openvault_stat_graph_nodes').text(nodes.length);
     $('#openvault_stat_graph_edges').text(edges.length);
 
     // Calculate batch progress (token-based)
