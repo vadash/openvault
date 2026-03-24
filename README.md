@@ -155,3 +155,5 @@ OpenVault implements ideas from two papers:
 15.00 - big refactoring, fixed lots of small bugs
 
 15.50 - added version to data we store inside ST chat (v2 atm). So easier to migrate later
+
+16.00 - improved parsing LLM answers
