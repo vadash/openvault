@@ -127,6 +127,36 @@ export function extractJsonBlocks(text, options = {}) {
 }
 
 /**
+ * Fix string concatenation hallucinations from LLMs.
+ * Only runs at Tier 4 (desperation) - applies strict patterns to avoid
+ * damaging valid content like mathematical expressions.
+ *
+ * @param {string} text - JSON string with potential concatenation issues
+ * @returns {string} Text with concatenation fixed
+ */
+export function scrubConcatenation(text) {
+    if (!text || typeof text !== 'string') return text;
+
+    let result = text;
+
+    // 1. Mid-string concatenation: "text" + "more" -> "textmore"
+    // Match both standard (+) and full-width (＋) plus signs
+    result = result.replace(/(?<!\\)(["'])\s*[+＋]\s*(?:\r?\n)?\s*(?<!\\)(["'])/g, '');
+
+    // 2. Multi-line concatenation: "text"\n+\n"more"
+    result = result.replace(/(["'])\s*(?:\r?\n)+\s*[+＋]\s*(?:\r?\n)+\s*(["'])/g, '$1$2');
+    result = result.replace(/(["'])\s*(?:\r?\n)+\s*[+＋]\s*(["'])/g, '$1$2');
+
+    // 3. Dangling plus before punctuation: "text" + , -> "text" ,
+    result = result.replace(/(?<!\\)(["'])\s*[+＋]\s*(?:\r?\n)?\s*([,}\]])/g, '$1$2');
+
+    // 4. Trailing dangling plus: "text" + -> "text"
+    result = result.replace(/(?<!\\)(["'])\s*[+＋]\s*(?:\r?\n)?\s*$/g, '$1');
+
+    return result;
+}
+
+/**
  * Calculate Jaccard similarity between two token sets.
  * Returns ratio of intersection / union (0.0 to 1.0).
  *

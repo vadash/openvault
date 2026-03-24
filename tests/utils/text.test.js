@@ -8,6 +8,7 @@ import {
     normalizeText,
     stripMarkdownFences,
     extractJsonBlocks,
+    scrubConcatenation,
 } from '../../src/utils/text.js';
 
 describe('text', () => {
@@ -495,6 +496,53 @@ describe('text', () => {
             const blocks = extractJsonBlocks('prefix {"key": "value"} suffix');
             expect(blocks[0].start).toBe(7);
             expect(blocks[0].end).toBe(22);
+        });
+    });
+
+    describe('scrubConcatenation', () => {
+        it('fixes simple string concatenation', () => {
+            expect(scrubConcatenation('{"a": "hello" + "world"}')).toBe('{"a": "helloworld"}');
+        });
+
+        it('fixes concatenation with spaces', () => {
+            expect(scrubConcatenation('{"a": "hello" + "world"}')).toBe('{"a": "helloworld"}');
+        });
+
+        it('fixes concatenation across newlines', () => {
+            expect(scrubConcatenation('{"a": "hello"\n+\n"world"}')).toBe('{"a": "helloworld"}');
+        });
+
+        it('fixes concatenation with CRLF', () => {
+            expect(scrubConcatenation('{"a": "hello"\r\n+\r\n"world"}')).toBe('{"a": "helloworld"}');
+        });
+
+        it('fixes dangling plus before punctuation', () => {
+            expect(scrubConcatenation('{"a": "text" + , "b": 1}')).toBe('{"a": "text", "b": 1}');
+        });
+
+        it('fixes dangling plus at EOF', () => {
+            expect(scrubConcatenation('{"a": "text" +')).toBe('{"a": "text"');
+        });
+
+        it('fixes full-width plus (＋)', () => {
+            expect(scrubConcatenation('{"a": "hello"＋"world"}')).toBe('{"a": "helloworld"}');
+        });
+
+        it('preserves plus signs inside strings', () => {
+            expect(scrubConcatenation('{"math": "1 + 2 = 3"}')).toBe('{"math": "1 + 2 = 3"}');
+        });
+
+        it('handles multiple concatenations', () => {
+            expect(scrubConcatenation('{"a": "x" + "y", "b": "p" + "q"}')).toBe('{"a": "xy", "b": "pq"}');
+        });
+
+        it('handles empty string', () => {
+            expect(scrubConcatenation('')).toBe('');
+        });
+
+        it('does not match variable interpolations', () => {
+            // Variable interpolations should NOT be fixed - they're a different error
+            expect(scrubConcatenation('{"a": "hello" + var + "world"}')).toBe('{"a": "hello" + var + "world"}');
         });
     });
 });
