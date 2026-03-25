@@ -235,7 +235,7 @@ export function rankToProxyScore(rank, totalResults) {
 /**
  * Calculate memory score based on forgetfulness curve, vector similarity, and BM25
  * @param {Memory} memory - Memory object with message_ids, importance, embedding
- * @param {Float32Array|null} contextEmbedding - Context embedding for similarity
+ * @param {Float32Array|number[]|null} contextEmbedding - Context embedding for similarity
  * @param {number} chatLength - Current chat length
  * @param {ForgetfulnessConstants} constants - Scoring constants
  * @param {ScoringSettings} settings - Scoring settings
@@ -244,7 +244,7 @@ export function rankToProxyScore(rank, totalResults) {
  */
 export function calculateScore(
     /** @type {Memory} */ memory,
-    /** @type {Float32Array|null} */ contextEmbedding,
+    /** @type {Float32Array|number[]|null} */ contextEmbedding,
     /** @type {number} */ chatLength,
     /** @type {ForgetfulnessConstants} */ constants,
     /** @type {ScoringSettings} */ settings,
@@ -353,7 +353,7 @@ export function calculateScore(
 /**
  * Score and sort memories using forgetfulness curve + vector similarity + BM25
  * @param {Memory[]} memories - Memories to score
- * @param {Float32Array|null} contextEmbedding - Context embedding
+ * @param {Float32Array|number[]|null} contextEmbedding - Context embedding
  * @param {number} chatLength - Current chat length
  * @param {ForgetfulnessConstants} constants - Scoring constants
  * @param {ScoringSettings} settings - Scoring settings
@@ -365,7 +365,7 @@ export function calculateScore(
  */
 export async function scoreMemories(
     /** @type {Memory[]} */ memories,
-    /** @type {Float32Array|null} */ contextEmbedding,
+    /** @type {Float32Array|number[]|null} */ contextEmbedding,
     /** @type {number} */ chatLength,
     /** @type {ForgetfulnessConstants} */ constants,
     /** @type {ScoringSettings} */ settings,

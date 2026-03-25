@@ -395,9 +395,9 @@ export function shouldMergeEntities(cosine, threshold, tokensA, keyA, keyB, type
  * @param {string} type - Entity type
  * @param {string} description - Entity description
  * @param {number} cap - Description segment cap
- * @param {Object} settings - Extension settings
+ * @param {Object} _settings - Extension settings
  * @param {string[]} [mainCharacterNames=[]] - Known main character names for cross-script merge
- * @returns {Promise<string>} The key of the node (existing or new)
+ * @returns {Promise<{key: string, stChanges: import('../../types.js').StSyncChanges}>} The key of the node and ST sync changes
  */
 export async function mergeOrInsertEntity(graphData, name, type, description, cap, _settings) {
     const key = normalizeKey(name);
@@ -526,8 +526,8 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
  * Consolidate graph edges that have exceeded token budget.
  * Runs during community detection phase.
  * @param {Object} graphData - The graph object
- * @param {Object} settings - Extension settings
- * @returns {Promise<number>} Number of edges consolidated
+ * @param {Object} _settings - Extension settings
+ * @returns {Promise<{count: number, stChanges: import('../types.js').StSyncChanges}>} Consolidation result
  */
 export async function consolidateEdges(graphData, _settings) {
     if (!graphData._edgesNeedingConsolidation?.length) {

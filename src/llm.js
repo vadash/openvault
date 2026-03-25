@@ -93,7 +93,9 @@ export const LLM_CONFIGS = {
  * @param {Array<{role: string, content: string}>} messages - Array of message objects
  * @param {Object} config - Request configuration from LLM_CONFIGS
  * @param {Object} options - Optional parameters
- * @param {boolean} options.structured - Enable structured output with jsonSchema
+ * @param {boolean} [options.structured] - Enable structured output with jsonSchema
+ * @param {Object} [options.signal] - AbortSignal for cancellation
+ * @param {string} [options.profileId] - Override profile ID
  * @returns {Promise<string>} The LLM response content
  * @throws {Error} If the LLM call fails or no profile is available
  */

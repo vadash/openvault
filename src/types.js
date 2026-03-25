@@ -27,7 +27,8 @@
  * @property {string} key - Normalized unique key (lowercase, no possessives)
  * @property {string} name - Display name
  * @property {string} [description] - LLM-generated description
- * @property {string} [entityType] - 'character' | 'object' | 'location' | 'abstract'
+ * @property {string} [type] - 'character' | 'object' | 'location' | 'abstract'
+ * @property {string} [entityType] - Alias for type (used in graph operations)
  * @property {number} [firstSeen] - Message ID where first extracted
  * @property {number} [lastSeen] - Message ID where last mentioned
  * @property {string[]} [aliases] - Alternative names
@@ -162,7 +163,7 @@
  * @property {boolean} [isBackfill] - Skip Phase 2 enrichment
  * @property {boolean} [isEmergencyCut] - Enable cancellation
  * @property {boolean} [silent] - Suppress toast notifications
- * @property {AbortSignal} [abortSignal] - Cancellation signal
+ * @property {Object} [abortSignal] - Cancellation signal (AbortSignal)
  * @property {function(number, number, number): void} [progressCallback] - Progress handler (batchNum, totalBatches, eventsCreated)
  * @property {function(): void} [onPhase2Start] - Phase 2 start callback
  */
@@ -173,6 +174,39 @@
  * @property {number} memoryCount - Corpus size when cache was built
  * @property {Object.<string, number>} idfMap - Serialized term -> IDF mapping
  * @property {number} avgDL - Average document length
+ */
+
+/**
+ * Context parameters for LLM extraction calls
+ * @typedef {Object} ExtractionContextParams
+ * @property {string} messagesText - Concatenated message text
+ * @property {string[]} names - Character names
+ * @property {string} charDesc - Character description
+ * @property {string} personaDesc - Persona description
+ * @property {string} preamble - System prompt preamble
+ * @property {string} prefill - Assistant prefill text
+ * @property {string} outputLanguage - Output language ('en' | 'ru')
+ */
+
+/**
+ * LLM call options for structured extraction
+ * @typedef {Object} ExtractionLLMOptions
+ * @property {boolean} structured - Enable structured output
+ * @property {Object} [signal] - AbortSignal for cancellation
+ */
+
+/**
+ * Return value from generateReflections
+ * @typedef {Object} GenerateReflectionsResult
+ * @property {Memory[]} reflections - New reflection memories
+ * @property {StSyncChanges} stChanges - ST Vector sync changes
+ */
+
+/**
+ * Return value from consolidateEdges
+ * @typedef {Object} ConsolidateEdgesResult
+ * @property {number} count - Number of edges consolidated
+ * @property {StSyncChanges} stChanges - ST Vector sync changes
  */
 
 // Empty export to make this file a module for JSDoc imports

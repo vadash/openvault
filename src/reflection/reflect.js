@@ -194,7 +194,7 @@ export function shouldSkipReflectionGeneration(recentMemories, existingReflectio
  * @param {string} characterName
  * @param {Array} allMemories - Full memory stream
  * @param {Object} characterStates - For POV filtering
- * @returns {Promise<Array>} New reflection memory objects
+ * @returns {Promise<{reflections: Array, stChanges: import('../types.js').StSyncChanges}>} Reflections and ST sync changes
  */
 export async function generateReflections(characterName, allMemories, characterStates) {
     const t0 = performance.now();

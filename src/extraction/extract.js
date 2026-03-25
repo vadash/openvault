@@ -7,6 +7,10 @@
 /** @typedef {import('../types.js').GraphExtraction} GraphExtraction */
 /** @typedef {import('../types.js').StSyncChanges} StSyncChanges */
 /** @typedef {import('../types.js').ExtractionOptions} ExtractionOptions */
+/** @typedef {import('../types.js').ExtractionContextParams} ExtractionContextParams */
+/** @typedef {import('../types.js').ExtractionLLMOptions} ExtractionLLMOptions */
+/** @typedef {import('../types.js').GenerateReflectionsResult} GenerateReflectionsResult */
+/** @typedef {import('../types.js').ConsolidateEdgesResult} ConsolidateEdgesResult */
 
 /**
  * OpenVault Extraction - Simplified Procedural Interface
@@ -423,7 +427,7 @@ export function cleanupCharacterStates(data, validCharNames = []) {
  * Called after Phase 1 commit when memories are added.
  * IDF only changes when corpus changes (new memories extracted), not during retrieval.
  * @param {Object} data - OpenVault data object
- * @param {Object} graphNodes - Graph nodes keyed by normalized name
+ * @param {Object} _graphNodes - Graph nodes keyed by normalized name (unused, for API compatibility)
  */
 export function updateIDFCache(data, _graphNodes = {}) {
     const memories = data[MEMORIES_KEY] || [];
@@ -686,6 +690,9 @@ async function synthesizeCommunities(data, settings, characterName, userName) {
  * Stage 1: Fetch events from LLM.
  * @param {Object} contextParams - Context parameters
  * @param {string} contextParams.messagesText
+ * @param {{char: string, user: string}} contextParams.names - Character names
+ * @param {string} contextParams.charDesc
+ * @param {string} contextParams.personaDesc
  * @param {string} contextParams.preamble
  * @param {string} contextParams.prefill
  * @param {string} contextParams.outputLanguage
@@ -719,6 +726,13 @@ async function fetchEventsFromLLM(contextParams, existingMemories, abortSignal) 
 /**
  * Stage 2: Fetch graph entities and relationships from LLM.
  * @param {Object} contextParams - Context parameters
+ * @param {string} contextParams.messagesText
+ * @param {{char: string, user: string}} contextParams.names - Character names
+ * @param {string} contextParams.charDesc
+ * @param {string} contextParams.personaDesc
+ * @param {string} contextParams.preamble
+ * @param {string} contextParams.prefill
+ * @param {string} contextParams.outputLanguage
  * @param {string[]} formattedEvents - Pre-formatted event strings for the prompt
  * @param {AbortSignal} [abortSignal] - Abort signal for mid-request cancellation
  * @returns {Promise<GraphExtraction>}

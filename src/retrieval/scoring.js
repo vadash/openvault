@@ -33,14 +33,14 @@ import {
 /**
  * Score memories (main-thread, async to allow yielding).
  * @param {Memory[]} memories - Memories to score
- * @param {number[]|null} contextEmbedding - Context embedding
+ * @param {Float32Array|number[]|null} contextEmbedding - Context embedding
  * @param {number} chatLength - Current chat length
  * @param {number} limit - Maximum results
  * @param {string|string[]} queryTokens - Query text or pre-tokenized array for BM25
  * @param {string[]} [characterNames] - Main character names to filter from query tokens
  * @param {Memory[]} [hiddenMemories] - Hidden memories for expanded corpus IDF
  * @param {IDFCache|null} [idfCache] - Pre-computed IDF cache
- * @param {ScoringConfig} scoringConfig - Flat scoring configuration from settings
+ * @param {Partial<ScoringConfig>} [scoringConfig] - Flat scoring configuration from settings
  * @returns {Promise<{memories: Memory[], scoredResults: ScoredMemory[]}>}
  */
 async function scoreMemoriesDirect(
@@ -52,7 +52,7 @@ async function scoreMemoriesDirect(
     characterNames = [],
     hiddenMemories = [],
     idfCache = null,
-    scoringConfig = {}
+    scoringConfig = /** @type {Partial<ScoringConfig>} */ ({})
 ) {
     // Destructure flat scoringConfig into the {constants, settings} shape math.js expects
     const constants = {
