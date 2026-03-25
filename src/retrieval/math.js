@@ -7,12 +7,12 @@
  * Extracted for testability and reuse in both main thread and worker.
  */
 
-/** @typedef {import('../types.js').Memory} Memory */
-/** @typedef {import('../types.js').ScoredMemory} ScoredMemory */
-/** @typedef {import('../types.js').BM25Context} BM25Context */
-/** @typedef {import('../types.js').ForgetfulnessConstants} ForgetfulnessConstants */
-/** @typedef {import('../types.js').ScoringSettings} ScoringSettings */
-/** @typedef {import('../types.js').IDFCache} IDFCache */
+/** @typedef {import('../types').Memory} Memory */
+/** @typedef {import('../types').ScoredMemory} ScoredMemory */
+/** @typedef {import('../types').BM25Context} BM25Context */
+/** @typedef {import('../types').ForgetfulnessConstants} ForgetfulnessConstants */
+/** @typedef {import('../types').ScoringSettings} ScoringSettings */
+/** @typedef {import('../types').IDFCache} IDFCache */
 
 import { VECTOR_PASS_LIMIT } from '../constants.js';
 import { record } from '../perf/store.js';
