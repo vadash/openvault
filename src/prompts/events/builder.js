@@ -2,11 +2,9 @@
  * Event extraction prompt builder (Stage A).
  */
 
-// @ts-check
-
-/** @typedef {import('../../types.js').BasePromptParams} BasePromptParams */
-/** @typedef {import('../../types.js').LLMMessages} LLMMessages */
-/** @typedef {import('../../types.js').PromptContext} PromptContext */
+/** @typedef {import('../../types.d.ts').BasePromptParams} BasePromptParams */
+/** @typedef {import('../../types.d.ts').LLMMessages} LLMMessages */
+/** @typedef {import('../../types.d.ts').PromptContext} PromptContext */
 
 import {
     assembleSystemPrompt,
