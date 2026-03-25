@@ -1,12 +1,10 @@
-// @ts-check
-
 /**
  * Unified reflection prompt builder.
  */
 
-/** @typedef {import('../../types.js').ReflectionPromptParams} ReflectionPromptParams */
-/** @typedef {import('../../types.js').LLMMessages} LLMMessages */
-/** @typedef {import('../../types.js').Memory} Memory */
+/** @typedef {import('../../types.d.ts').ReflectionPromptParams} ReflectionPromptParams */
+/** @typedef {import('../../types.d.ts').LLMMessages} LLMMessages */
+/** @typedef {import('../../types.d.ts').Memory} Memory */
 
 import {
     assembleSystemPrompt,
