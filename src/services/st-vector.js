@@ -3,8 +3,8 @@ import { getDeps } from '../deps.js';
 import { showToast } from '../utils/dom.js';
 import { logError, logWarn } from '../utils/logging.js';
 
-/** @typedef {import('../types.js').StVectorItem} StVectorItem */
-/** @typedef {import('../types.js').StVectorQueryResult} StVectorQueryResult */
+/** @typedef {import('../types.d.ts').StVectorItem} StVectorItem */
+/** @typedef {import('../types.d.ts').StVectorQueryResult} StVectorQueryResult */
 
 // Cache of validated chats for this session (module-level state)
 const validatedChats = new Set();
