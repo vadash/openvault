@@ -1,5 +1,8 @@
 import { cdnImport } from './cdn.js';
 
+// @ts-check
+
+// @ts-expect-error - No types available for CDN import
 const { default: snowball } = await cdnImport('snowball-stemmers');
 const ruStemmer = snowball.newStemmer('russian');
 const enStemmer = snowball.newStemmer('english');
@@ -14,6 +17,8 @@ const LATIN_RE = /\p{Script=Latin}/u;
  * Includes an over-stem guard for Cyrillic: if Snowball's multi-pass stripping
  * removes more than 3 chars (e.g. елена → ел), falls back to removing just the
  * final character — structurally correct for Russian nominative -а/-я endings.
+ * @param {string} word - Word to stem
+ * @returns {string} Stemmed word
  */
 export function stemWord(word) {
     if (CYRILLIC_RE.test(word)) {
