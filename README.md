@@ -1,8 +1,8 @@
 # OpenVault: Long-Term Memory for SillyTavern
 
-Long roleplays fall apart because context windows fill up. Characters forget plot points. Manual lorebooks become a chore. And vector databases make characters weirdly omniscient-they somehow know secrets from conversations they were never part of.
+Long roleplays fall apart because context windows fill up. Characters forget plot points. Manual lorebooks become a chore. And vector databases make characters weirdly omniscient-they somehow know secrets from conversations they were never part of
 
-OpenVault fixes this. It runs in the background while you chat, tracking what actually happened, who was there, and how relationships evolve. No external databases. No Docker. No Python servers. Everything lives inside SillyTavern's native chat storage. Can be used with free models.
+OpenVault fixes this. It runs in the background while you chat, tracking what actually happened, who was there, and how relationships evolve. No external databases. No Docker. No Python servers. Everything lives inside SillyTaverns native chat storage. Can be used with free models
 
 ---
 
@@ -20,28 +20,28 @@ OpenVault fixes this. It runs in the background while you chat, tracking what ac
 
 ## The POV Problem (and the Fix)
 
-Here's what breaks with most memory systems: you have a secret conversation with Character A. Later you're alone with Character B. You ask "what should we do about that secret?" and Character B responds like they were there.
+Heres what breaks with most memory systems: you have a secret conversation with Character A. Later you're alone with Character B. You ask "what should we do about that secret?" and Character B responds like they were there
 
-That's not how memory works.
+Thats not how memory works
 
-OpenVault tracks witnesses. Every extracted event records who was present. Characters only recall what they actually experienced, were told directly, or overheard. No more accidental omniscience.
+OpenVault tracks witnesses. Every extracted event records who was present. Characters only recall what they actually experienced, were told directly, or overheard. No more accidental omniscience
 
 ## What It Actually Does
 
-**Event Extraction.** As you chat, OpenVault identifies what happened-actions, emotional shifts, revelations. Each event gets an importance rating (1-5 stars) and a witness list.
+**Event Extraction.** As you chat, OpenVault identifies what happened-actions, emotional shifts, revelations. Each event gets an importance rating (1-5 stars) and a witness list
 
-**Knowledge Graph.** People, places, factions, objects, and concepts get tracked as nodes. Relationships between them are edges that update over time. When two characters go from enemies to allies, the graph knows.
+**Knowledge Graph.** People, places, factions, objects, and concepts get tracked as nodes. Relationships between them are edges that update over time. When two characters go from enemies to allies, the graph knows
 
-**Reflections.** After enough significant events pile up for a character, OpenVault pauses to reflect. It synthesizes raw memories into psychological insights-shifting motivations, subconscious drives, evolving relationship dynamics. These are *internal* truths, not things the character says out loud.
+**Reflections.** After enough significant events pile up for a character, OpenVault pauses to reflect. It synthesizes raw memories into psychological insights-shifting motivations, subconscious drives, evolving relationship dynamics. These are *internal* truths, not things the character says out loud
 
-**GraphRAG Communities.** Every 50 messages, it analyzes the relationship web to detect social circles and factions. This produces a running "world state" summary so macro-level plots don't get lost.
+**GraphRAG Communities.** Every 50 messages, it analyzes the relationship web to detect social circles and factions. This produces a running "world state" summary so macro-level plots don't get lost
 
 **Smart Retrieval.** Before the AI generates a response, OpenVault scores all candidate memories using a blend of:
 - Exponential forgetfulness (old trivial stuff fades, critical memories stick)
 - BM25 keyword matching
 - Vector similarity against recent context
 
-Memories get injected into the prompt in chronological buckets: *The Story So Far*, *Leading Up To This Moment*, *Current Scene*, and hidden *Subconscious Drives* that influence behavior without being spoken.
+Memories get injected into the prompt in chronological buckets: *The Story So Far*, *Leading Up To This Moment*, *Current Scene*, and hidden *Subconscious Drives* that influence behavior without being spoken
 
 ## Setup
 
@@ -49,23 +49,23 @@ Memories get injected into the prompt in chronological buckets: *The Story So Fa
 - SillyTavern 1.13.0+
 - An extraction-capable LLM (mid-tier models work fine)
 
-**Embeddings:** By default, OpenVault downloads a lightweight multilingual model (`multilingual-e5-small`) that runs in your browser via WebGPU/WASM. Or point it at your local Ollama instance.
+**Embeddings:** By default, OpenVault downloads a lightweight multilingual model (`multilingual-e5-small`) that runs in your browser via WebGPU/WASM. Or point it at your local Ollama instance
 
-That's it. No ChromaDB. No Docker. No cloud vector service.
+Thats it. No ChromaDB. No Docker. No cloud vector service
 
 ## How the Interface Works
 
-OpenVault adds a panel to SillyTavern's Extensions menu. The layout is intentionally progressive-common stuff up front, tuning buried in collapsible sections.
+OpenVault adds a panel to SillyTaverns Extensions menu. The layout is intentionally progressive-common stuff up front, tuning buried in collapsible sections
 
-**Dashboard.** Status, health, and a live Payload Calculator showing exactly how many tokens your extraction model needs.
+**Dashboard.** Status, health, and a live Payload Calculator showing exactly how many tokens your extraction model needs
 
-**Memories.** Searchable memory bank. Filter events vs reflections. Edit importance or summaries manually. View character emotional states.
+**Memories.** Searchable memory bank. Filter events vs reflections. Edit importance or summaries manually. View character emotional states
 
-**World.** Read-only viewer for the knowledge graph. Browse communities, factions, and tracked entities.
+**World.** Read-only viewer for the knowledge graph. Browse communities, factions, and tracked entities
 
-**Advanced.** Tuning knobs: alpha-blend weights, decay rates, similarity thresholds. Most users should leave these alone.
+**Advanced.** Tuning knobs: alpha-blend weights, decay rates, similarity thresholds. Most users should leave these alone
 
-**Perf.** Real-time metrics so you know if background processing is bottlenecking your browser.
+**Perf.** Real-time metrics so you know if background processing is bottlenecking your browser
 
 ## Injection Positions
 
@@ -75,8 +75,8 @@ You control where memories appear in the prompt:
 |----------|---------------|
 | ↑Char | Before character card |
 | ↓Char | After character card (default, recommended) |
-| ↑AN | Top of author's note |
-| ↓AN | Bottom of author's note |
+| ↑AN | Top of authors note |
+| ↓AN | Bottom of authors note |
 | In-chat | At specific message depth |
 | Custom | Manual placement via macros |
 
@@ -84,15 +84,15 @@ You control where memories appear in the prompt:
 - `{{openvault_memory}}` - Memory context
 - `{{openvault_world}}` - World/faction context
 
-The main panel shows current positions as badges like `[↓Char | ↑AN]`. Click a macro badge to copy it.
+The main panel shows current positions as badges like `[↓Char | ↑AN]`. Click a macro badge to copy it
 
 ## Multilingual Support
 
-OpenVault handles non-English roleplay without mangling JSON. It detects script (Latin, Cyrillic, etc.), uses appropriate stemming, and deduplicates characters across scripts (so "Vova" and "Вова" are the same person in the graph).
+OpenVault handles non-English roleplay without mangling JSON. It detects script (Latin, Cyrillic, etc.), uses appropriate stemming, and deduplicates characters across scripts
 
 ## Privacy
 
-Everything stays on your machine. The in-browser embedding model means no text goes to third-party services. The only network calls are to your configured LLM endpoint (local or API-your choice).
+Everything stays on your machine. The in-browser embedding model means no text goes to third-party services. The only network calls are to your configured LLM endpoint (local or API-your choice)
 
 ## Research Credits
 
