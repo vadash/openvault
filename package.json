@@ -40,7 +40,8 @@
         "repomix": "^0.3.2",
         "snowball-stemmers": "^0.6.0",
         "typescript": "^6.0.2",
-        "vitest": "^4.0.16"
+        "vitest": "^4.0.16",
+        "zod-to-ts": "^2.0.0"
     },
     "dependencies": {
         "cyrillic-to-translit-js": "^3.2.1",
