@@ -1,12 +1,10 @@
-// @ts-check
-
 /**
  * Community summarization and global synthesis prompt builders.
  */
 
-/** @typedef {import('../../types.js').CommunitySummaryParams} CommunitySummaryParams */
-/** @typedef {import('../../types.js').GlobalSynthesisParams} GlobalSynthesisParams */
-/** @typedef {import('../../types.js').LLMMessages} LLMMessages */
+/** @typedef {import('../../types.d.ts').CommunitySummaryParams} CommunitySummaryParams */
+/** @typedef {import('../../types.d.ts').GlobalSynthesisParams} GlobalSynthesisParams */
+/** @typedef {import('../../types.d.ts').LLMMessages} LLMMessages */
 
 import {
     assembleSystemPrompt,
@@ -63,7 +61,7 @@ ${constraints}`;
 
 /**
  * Build the global world state synthesis prompt.
- * @param {import('../../types.js').CommunitySummary[]} communities - Community summaries to synthesize
+ * @param {import('../../types.d.ts').CommunitySummary[]} communities - Community summaries to synthesize
  * @param {string} preamble - System prompt preamble
  * @param {'auto'|'en'|'ru'} outputLanguage - Output language (default: 'auto')
  * @param {string} prefill - Assistant prefill text (required)
