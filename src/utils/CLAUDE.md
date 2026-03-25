@@ -31,7 +31,15 @@
 
 ### `tokens.js` (gpt-tokenizer)
 - Exact token counting replacing old heuristic estimators.
+- **Top-level await**: Loads `gpt-tokenizer` from CDN via `cdnImport()`.
+- **Test overrides**: In tests, CDN imports are mocked via `_setTestOverride()` stored on `globalThis.__openvault_cdn_test_overrides` to survive `vi.resetModules()`.
 - **Turn-Boundary Snapping** (`snapToTurnBoundary`): Trims message index arrays backward until it finds a valid `Bot -> User` transition or End-of-Chat. **CRITICAL**: Prevents auto-hide or batching from splitting a User message from its Bot response.
+
+### `cdn.js`
+CDN import retry with mirror fallback (esm.sh → skypack → esm.run → unpkg).
+- `_setTestOverride(spec, module)`: Test-only hook to mock CDN imports with local `node_modules/` packages.
+- Test overrides stored on `globalThis.__openvault_cdn_test_overrides` to survive `vi.resetModules()`.
+- **Why**: `vi.resetModules()` resets module-level state; global storage ensures overrides persist across test runs.
 
 ### `text.js`
 - `normalizeText()`: Fixes invisible chars - strips control chars (preserves 
