@@ -1,3 +1,4 @@
+// @ts-check
 import { cdnImport } from './cdn.js';
 
 const { countTokens: _countTokens } = await cdnImport('gpt-tokenizer/encoding/o200k_base');
@@ -5,12 +6,18 @@ const { countTokens: _countTokens } = await cdnImport('gpt-tokenizer/encoding/o2
 const MAX_CACHE_SIZE = 2000;
 const tokenCache = new Map();
 
+/**
+ * Count tokens in a text string using gpt-tokenizer.
+ * @param {string} text - Input text
+ * @returns {number} Token count
+ */
 export function countTokens(text) {
     return (text || '').length === 0 ? 0 : _countTokens(text);
 }
 
 /**
  * Clear the token cache. Call on CHAT_CHANGED.
+ * @returns {void}
  */
 export function clearTokenCache() {
     tokenCache.clear();
@@ -18,7 +25,7 @@ export function clearTokenCache() {
 
 /**
  * Get token count for a single message. Uses in-memory LRU cache.
- * @param {Object[]} chat - Chat array
+ * @param {Array<{mes?: string}>} chat - Chat array
  * @param {number} index - Message index
  * @returns {number} Token count
  */
@@ -45,7 +52,7 @@ export function getMessageTokenCount(chat, index) {
 
 /**
  * Sum token counts for a list of message indices.
- * @param {Object[]} chat - Chat array
+ * @param {Array<{mes?: string}>} chat - Chat array
  * @param {number[]} indices - Message indices
  * @returns {number} Total tokens
  */
@@ -62,7 +69,7 @@ export function getTokenSum(chat, indices) {
  * A split is valid when the last message is from Bot and the next message is from User,
  * or at end-of-chat. This prevents orphaning User messages from their Bot responses.
  * Trims backward until a valid boundary is found. Returns [] if none found.
- * @param {Object[]} chat - Full chat array
+ * @param {Array<{is_user?: boolean}>} chat - Full chat array
  * @param {number[]} messageIds - Ordered message indices to snap
  * @returns {number[]} Snapped message indices
  */
