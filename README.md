@@ -1,159 +1,126 @@
-# OpenVault: Agentic Memory for SillyTavern
+# OpenVault: Long-Term Memory for SillyTavern
 
-Long-term roleplays inevitably hit a wall. Context windows fill up, manual lorebooks become tedious to maintain, and characters start forgetting critical plot points. Worse, when you try to use standard vector databases, characters suddenly become omniscient—knowing secrets they were never present for simply because the text was retrieved into the prompt.
+Long roleplays fall apart because context windows fill up. Characters forget plot points. Manual lorebooks become a chore. And vector databases make characters weirdly omniscient-they somehow know secrets from conversations they were never part of.
 
-OpenVault is an autonomous, POV-aware memory extension for SillyTavern. It runs in the background while you chat, extracting events, mapping relationships, and generating psychological insights, all without requiring any external databases or complex local server setups.
+OpenVault fixes this. It runs in the background while you chat, tracking what actually happened, who was there, and how relationships evolve. No external databases. No Docker. No Python servers. Everything lives inside SillyTavern's native chat storage. Can be used with free models.
 
-## Images
+---
 
 <p align="center">
-  <img width="80%" alt="OpenVault Infographic" src="docs/images/Infographic.webp" />
+  <img width="80%" alt="OpenVault architecture overview" src="docs/images/Infographic.webp" />
 </p>
 
 <p align="center">
-  <img width="32%" alt="Screenshot 2026-03-08 160107" src="https://github.com/user-attachments/assets/ae81565e-8745-4d86-b6d1-5b73d65d355a" />
-  <img width="32%" alt="Screenshot 2026-03-08 160132" src="https://github.com/user-attachments/assets/34427dcf-1e5b-4342-a2c2-269faec722e8" />
-  <img width="32%" alt="Screenshot 2026-03-08 160145" src="https://github.com/user-attachments/assets/792826e8-2855-44c5-853c-de9c614fb38f" />
+  <img width="32%" alt="Dashboard view" src="https://github.com/user-attachments/assets/ae81565e-8745-4d86-b6d1-5b73d65d355a" />
+  <img width="32%" alt="Memory browser" src="https://github.com/user-attachments/assets/34427dcf-1e5b-4342-a2c2-269faec722e8" />
+  <img width="32%" alt="World graph view" src="https://github.com/user-attachments/assets/7928261f-2855-44c5-853c-de9c614fb38f" />
 </p>
 
-## Core Features for Roleplayers
+---
 
-*   **Strict Point-of-View (POV):** Characters only remember what they witnessed, participated in, or were explicitly told. A secret conversation between you and character A will not be retrieved when you are talking alone with character B.
-*   **Autonomous World Building:** OpenVault continuously extracts entities (People, Places, Organizations, Objects, Concepts) and the evolving relationships between them. It replaces the need to manually update lorebooks.
-*   **Agentic Reflection Engine:** Inspired by the Stanford "Smallville" Generative Agents paper. When enough events happen to a character, OpenVault pauses to reflect, synthesizing raw memories into high-level psychological insights, subconscious drives, and shifting relationship dynamics.
-*   **GraphRAG Communities:** The system periodically analyzes the relationship web, detecting social circles and summarizing the global state of the world to keep macro-level plots moving forward.
-*   **Zero External Databases:** No ChromaDB, no Docker containers, no Python scripts. Everything is stored directly inside SillyTavern's native `chatMetadata`. Your data stays with your chat.
-*   **100% Local Embeddings:** Semantic search is powered entirely in your browser via WebGPU/WASM (Transformers.js) or routed through your local Ollama instance.
+## The POV Problem (and the Fix)
 
-## How It Works in Practice
+Here's what breaks with most memory systems: you have a secret conversation with Character A. Later you're alone with Character B. You ask "what should we do about that secret?" and Character B responds like they were there.
 
-OpenVault operates asynchronously. When you send a message, the extension doesn't freeze your UI. Instead, a background worker processes the chat history in batches:
+That's not how memory works.
 
-1.  **Event Extraction:** Identifies specific actions, emotional shifts, and revelations. It rates their narrative importance (1 to 5 stars) and tracks exact witnesses.
-2.  **Knowledge Graph:** Updates the state of the world. If two characters go from enemies to allies, the relationship edge is updated and consolidated.
-3.  **Smart Retrieval:** Before the AI generates a response, OpenVault scores all memories using a custom algorithm. It blends an exponential forgetfulness curve (old trivial memories fade, critical memories stick), BM25 keyword matching, and Vector Similarity.
-4.  **Context Injection:** Memories are woven seamlessly into the prompt context, chronologically sorted into:
-    *   *The Story So Far*
-    *   *Leading Up To This Moment*
-    *   *Current Scene* (including present characters and current emotional states)
-    *   *Subconscious Drives* (Hidden psychological truths that influence the character without them explicitly speaking about it).
+OpenVault tracks witnesses. Every extracted event records who was present. Characters only recall what they actually experienced, were told directly, or overheard. No more accidental omniscience.
 
-## Interface & Controls
+## What It Actually Does
 
-OpenVault integrates directly into the SillyTavern extensions menu with a clean, progressive UI designed around user intent rather than technical jargon.
+**Event Extraction.** As you chat, OpenVault identifies what happened-actions, emotional shifts, revelations. Each event gets an importance rating (1-5 stars) and a witness list.
 
-*   **Dashboard:** Your control center. View extraction progress, system health, and a live Payload Calculator that tells you exactly how many tokens your background extraction model needs.
-*   **Memories:** A fully searchable memory bank. View character states, filter events vs. reflections, and manually edit the importance or summary of any extracted memory.
-*   **World:** A read-only viewer for your Knowledge Graph. Browse automatically detected communities, factions, and all extracted entities currently tracked in your roleplay.
-*   **Advanced:** Expert tuning for the retrieval math. Adjust the Alpha-blend (vector vs. keyword bias), decay rates, and deduplication thresholds. 
-*   **Perf:** Real-time performance metrics to ensure background extractions aren't bottlenecking your browser.
+**Knowledge Graph.** People, places, factions, objects, and concepts get tracked as nodes. Relationships between them are edges that update over time. When two characters go from enemies to allies, the graph knows.
+
+**Reflections.** After enough significant events pile up for a character, OpenVault pauses to reflect. It synthesizes raw memories into psychological insights-shifting motivations, subconscious drives, evolving relationship dynamics. These are *internal* truths, not things the character says out loud.
+
+**GraphRAG Communities.** Every 50 messages, it analyzes the relationship web to detect social circles and factions. This produces a running "world state" summary so macro-level plots don't get lost.
+
+**Smart Retrieval.** Before the AI generates a response, OpenVault scores all candidate memories using a blend of:
+- Exponential forgetfulness (old trivial stuff fades, critical memories stick)
+- BM25 keyword matching
+- Vector similarity against recent context
+
+Memories get injected into the prompt in chronological buckets: *The Story So Far*, *Leading Up To This Moment*, *Current Scene*, and hidden *Subconscious Drives* that influence behavior without being spoken.
+
+## Setup
+
+**Requirements:**
+- SillyTavern 1.13.0+
+- An extraction-capable LLM (mid-tier models work fine)
+
+**Embeddings:** By default, OpenVault downloads a lightweight multilingual model (`multilingual-e5-small`) that runs in your browser via WebGPU/WASM. Or point it at your local Ollama instance.
+
+That's it. No ChromaDB. No Docker. No cloud vector service.
+
+## How the Interface Works
+
+OpenVault adds a panel to SillyTavern's Extensions menu. The layout is intentionally progressive-common stuff up front, tuning buried in collapsible sections.
+
+**Dashboard.** Status, health, and a live Payload Calculator showing exactly how many tokens your extraction model needs.
+
+**Memories.** Searchable memory bank. Filter events vs reflections. Edit importance or summaries manually. View character emotional states.
+
+**World.** Read-only viewer for the knowledge graph. Browse communities, factions, and tracked entities.
+
+**Advanced.** Tuning knobs: alpha-blend weights, decay rates, similarity thresholds. Most users should leave these alone.
+
+**Perf.** Real-time metrics so you know if background processing is bottlenecking your browser.
 
 ## Injection Positions
 
-OpenVault allows you to customize where retrieved memories and world info are injected into the prompt. This is useful for controlling how the AI prioritizes different context sources.
+You control where memories appear in the prompt:
 
-### Configuring Positions
+| Position | Where it goes |
+|----------|---------------|
+| ↑Char | Before character card |
+| ↓Char | After character card (default, recommended) |
+| ↑AN | Top of author's note |
+| ↓AN | Bottom of author's note |
+| In-chat | At specific message depth |
+| Custom | Manual placement via macros |
 
-1. Open SillyTavern Settings → Extensions → OpenVault
-2. Scroll to the "Injection Positions" section
-3. Choose a position for each content type:
-   - **Memory Position**: Where retrieved memories are injected
-   - **World Info Position**: Where world context is injected
+**Manual macros** (when set to Custom):
+- `{{openvault_memory}}` - Memory context
+- `{{openvault_world}}` - World/faction context
 
-### Available Positions
-
-| Position | Label | Description |
-|----------|-------|-------------|
-| ↑Char | Before character definitions | Injected before the character card |
-| ↓Char | After character definitions | Injected after the character card (recommended) |
-| ↑AN | Before author's note | Injected at the top of the author's note |
-| ↓AN | After author's note | Injected at the bottom of the author's note |
-| In-chat | At message depth | Injected at a specific message depth |
-| **Custom** | Use macro manually | No auto-injection; use macros below |
-
-### Custom Position (Manual Macros)
-
-When "Custom" is selected, content is **not automatically injected**. Instead, you can manually place macros anywhere in your prompt:
-
-- `{{openvault_memory}}` — Retrieves the memory context
-- `{{openvault_world}}` — Retrieves the world context
-
-**Example usage in character card or prompt:**
-```
-{{openvault_memory}}
-
-[Your custom instructions here]
-
-{{openvault_world}}
-```
-
-### Inline Position Display
-
-The main OpenVault panel shows current injection positions as badges:
-- `[↓Char | ↑AN]` — Memory at ↓Char, World at ↑AN
-- `[📋 {{openvault_memory}} | ↓Char]` — Memory uses custom macro, World at ↓Char
-
-Click on a macro badge to copy it to your clipboard.
-
-### Default Behavior
-
-By default, both memory and world content are injected at **↓Char** (after character definitions), which is the recommended setting for most use cases.
-
-## Requirements & Setup
-
-*   **SillyTavern 1.13.0+**
-*   **Main RP Model:** Any model with a decent context window (handling the injected memories).
-*   **Extraction Model:** You need an LLM to process the background memories. Mid-tier models work exceptionally well. OpenVault is optimized for structured JSON output and uses specific "prefills" to force compliance.
-*   **Embeddings:** By default, OpenVault downloads a lightweight, multilingual embedding model (`multilingual-e5-small`) that runs directly in your browser. Alternatively, you can point it to a local Ollama embedding model.
+The main panel shows current positions as badges like `[↓Char | ↑AN]`. Click a macro badge to copy it.
 
 ## Multilingual Support
 
-OpenVault is built from the ground up to support non-English roleplay without breaking JSON extraction. It features heuristic script detection, custom stemming algorithms, and cross-script character deduplication (automatically recognizing that a character's name written in different alphabets refers to the same entity in the Knowledge Graph). 
+OpenVault handles non-English roleplay without mangling JSON. It detects script (Latin, Cyrillic, etc.), uses appropriate stemming, and deduplicates characters across scripts (so "Vova" and "Вова" are the same person in the graph).
 
-## Note on Privacy
+## Privacy
 
-Because OpenVault relies on your SillyTavern client and optionally your local Ollama instance, your roleplay data remains entirely on your machine unless you explicitly configure the extraction profile to use a cloud API. The in-browser vector database ensures no text is ever sent to third-party embedding services.
+Everything stays on your machine. The in-browser embedding model means no text goes to third-party services. The only network calls are to your configured LLM endpoint (local or API-your choice).
+
+## Research Credits
+
+- **GraphRAG** - Community detection and hierarchical summarization. Park et al., *"From Local to Global: A Graph RAG Approach to Query-Focused Summarization"* ([arXiv:2404.16130](https://arxiv.org/abs/2404.16130))
+
+- **Generative Agents** - Importance-weighted memory, reflection triggers, observation loops. Park et al., *"Generative Agents: Interactive Simulacra of Human Behavior"* ([arXiv:2304.03442](https://arxiv.org/abs/2304.03442))
+
+## Version History
+
+- **16.00** - Improved LLM answer parsing
+- **15.50** - Added data schema versioning for easier migrations
+- **15.00** - Major refactoring, bug fixes
+- **14.00** - Emergency Cut button (prune chat history while keeping key events)
+- **13.50** - Compatibility with other chat-altering extensions
+- **13.00** - Support for all ST vectorization sources
+- **12.50** - Customizable injection positions
+- **12.00** - UI revamp (protecting users from over-tuning)
+- **11.50** - Fixed memory balance distribution
+- **11.00** - Test refactoring, prep for additional languages
+- **10.50** - Fixed hairball cluster bug
+- **10.00** - Parallel request support
+- **9.50** - Group play PoV fixes
+- **9.00** - Stable single-character RP release
+
+## Free models
+
+Check my other project https://github.com/vadash/litellm_loader Its a bit Do It Yourself but should provide nice start. You can setup complex fallbacks. For example, try (Kimi K2 and Kimi K2 0905 at Nvidia NIM), if both down then use long cat chat
 
 ## License
 
 GNU AGPL v3.0
-
-## Research Foundations
-
-OpenVault implements ideas from two papers:
-
-- **GraphRAG** — Community detection and hierarchical summarization for query-focused retrieval.
-  Park et al., *"From Local to Global: A Graph RAG Approach to Query-Focused Summarization"* ([arXiv:2404.16130](https://arxiv.org/abs/2404.16130))
-
-- **Generative Agents** — Importance-weighted memory streams, reflection triggers, and the observation → reflection → retrieval loop.
-  Park et al., *"Generative Agents: Interactive Simulacra of Human Behavior"* ([arXiv:2304.03442](https://arxiv.org/abs/2304.03442))
-
-## History
-
-9.00 - good stable for single char RP
-
-9.50 - fixing rewrite prompt structure for CN models + fix of group play (PoV)
-
-10.00 - || requests (optional)
-
-10.50 - fixed hairball cluster bug (ie 3 communities goes down to 1)
-
-11.00 - refactored tests (easier to maintain), prep for more lang
-
-11.50 - fixed memory balance (old / mid / new memories distribution), faster graph generation, less delay after send before llm answers 
-
-12.00 - UI revamp, need to protect users from themselves. I can see oneguy changes the Jaccard threshold to 0.1, their graph will turn to mush, and they will submit a bug report saying "your extension sucks."
-
-12.50 - customize injection position
-
-13.00 - support all ST vectorization sources, CSRF fix
-
-13.50 - add compatability with other chat altering extentions like Inline Summary
-
-14.00 - add Emergency Cut button. Useful when switching presets or models (since the new LLM can get confused by the previous model chat style), or when the LLM starts repeating itself (a sign the context is too cluttered). Think of it like pruning a tree: it cuts away the bulk to keep things healthy, but saves the key events that matter for your story.
-
-15.00 - big refactoring, fixed lots of small bugs
-
-15.50 - added version to data we store inside ST chat (v2 atm). So easier to migrate later
-
-16.00 - improved parsing LLM answers
