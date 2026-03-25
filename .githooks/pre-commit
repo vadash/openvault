@@ -30,3 +30,7 @@ fi
 # Check for double/orphaned JSDoc comments
 echo "Checking JSDoc..."
 node scripts/check-jsdoc.mjs || exit 1
+
+# TypeScript type checking (JSDoc)
+echo "Running TypeScript type check..."
+npm run typecheck || exit 1

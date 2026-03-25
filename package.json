@@ -18,6 +18,7 @@
         "test:ci": "vitest run --reporter=dot",
         "test:coverage": "vitest run --coverage",
         "test:ui": "vitest --ui",
+        "typecheck": "tsc --noEmit",
         "sync-version": "node scripts/sync-version.js",
         "check-css": "node scripts/check-css.js",
         "trim": "python scripts/trim-logs.py",
@@ -38,6 +39,7 @@
         "p-queue": "^8.0.0",
         "repomix": "^0.3.2",
         "snowball-stemmers": "^0.6.0",
+        "typescript": "^6.0.2",
         "vitest": "^4.0.16"
     },
     "dependencies": {
