@@ -2,13 +2,11 @@
  * Graph extraction and edge consolidation prompt builders.
  */
 
-// @ts-check
-
-/** @typedef {import('../../types.js').GraphPromptParams} GraphPromptParams */
-/** @typedef {import('../../types.js').EdgeConsolidationParams} EdgeConsolidationParams */
-/** @typedef {import('../../types.js').LLMMessages} LLMMessages */
-/** @typedef {import('../../types.js').GraphEdge} GraphEdge */
-/** @typedef {import('../../types.js').PromptContext} PromptContext */
+/** @typedef {import('../../types.d.ts').GraphPromptParams} GraphPromptParams */
+/** @typedef {import('../../types.d.ts').EdgeConsolidationParams} EdgeConsolidationParams */
+/** @typedef {import('../../types.d.ts').LLMMessages} LLMMessages */
+/** @typedef {import('../../types.d.ts').GraphEdge} GraphEdge */
+/** @typedef {import('../../types.d.ts').PromptContext} PromptContext */
 
 import {
     assembleSystemPrompt,
