@@ -307,7 +307,7 @@
 /**
  * @type {PromptContext}
  */
-const EMPTY_PROMPT_CONTEXT = {};
+const _EMPTY_PROMPT_CONTEXT = {};
 
 /**
  * Base prompt builder parameters
@@ -328,7 +328,7 @@ const EMPTY_PROMPT_CONTEXT = {};
  * @property {PromptContext} [context] - Additional context
  * @property {string} preamble - System prompt preamble
  * @property {string} prefill - Assistant prefill text (required)
- * @property {string} [outputLanguage] - Output language ('en' | 'ru' | 'auto')
+ * @property {'auto'|'en'|'ru'} [outputLanguage] - Output language
  * @property {string[]} [extractedEvents] - Previously extracted events for context
  */
 
@@ -338,7 +338,7 @@ const EMPTY_PROMPT_CONTEXT = {};
  * @property {GraphEdge} edgeData - Edge to consolidate
  * @property {string} preamble - System prompt preamble
  * @property {string} prefill - Assistant prefill text (required)
- * @property {string} [outputLanguage] - Output language
+ * @property {'auto'|'en'|'ru'} [outputLanguage] - Output language
  */
 
 /**
@@ -348,7 +348,7 @@ const EMPTY_PROMPT_CONTEXT = {};
  * @property {Memory[]} recentMemories - Recent memories for reflection
  * @property {string} preamble - System prompt preamble
  * @property {string} prefill - Assistant prefill text (required)
- * @property {string} [outputLanguage] - Output language
+ * @property {'auto'|'en'|'ru'} [outputLanguage] - Output language
  */
 
 /**
@@ -358,7 +358,7 @@ const EMPTY_PROMPT_CONTEXT = {};
  * @property {string[]} edgeLines - Formatted edge descriptions
  * @property {string} preamble - System prompt preamble
  * @property {string} prefill - Assistant prefill text (required)
- * @property {string} [outputLanguage] - Output language
+ * @property {'auto'|'en'|'ru'} [outputLanguage] - Output language
  */
 
 /**
@@ -367,7 +367,7 @@ const EMPTY_PROMPT_CONTEXT = {};
  * @property {CommunitySummary[]} communities - Community summaries to synthesize
  * @property {string} preamble - System prompt preamble
  * @property {string} prefill - Assistant prefill text (required)
- * @property {string} [outputLanguage] - Output language
+ * @property {'auto'|'en'|'ru'} [outputLanguage] - Output language
  */
 
 /**

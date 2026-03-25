@@ -162,8 +162,8 @@ export function scrubConcatenation(text) {
  * Calculate Jaccard similarity between two token sets.
  * Returns ratio of intersection / union (0.0 to 1.0).
  *
- * @param {Set<string>|string[]} setA - First token set (or string to tokenize)
- * @param {Set<string>|string[]} setB - Second token set (or string to tokenize)
+ * @param {Set<string>|string[]|string} setA - First token set (or string to tokenize)
+ * @param {Set<string>|string[]|string} setB - Second token set (or string to tokenize)
  * @param {Function|null} tokenizeFn - Optional tokenizer for string inputs
  * @returns {number} Jaccard similarity score (0.0 - 1.0)
  */
