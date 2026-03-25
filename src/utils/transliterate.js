@@ -1,5 +1,8 @@
 import { cdnImport } from './cdn.js';
 
+// @ts-check
+
+// @ts-expect-error - No types available for CDN import
 const CyrillicToTranslit = (await cdnImport('cyrillic-to-translit-js')).default;
 const translit = new CyrillicToTranslit({ preset: 'ru' });
 
