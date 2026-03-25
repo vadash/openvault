@@ -1,6 +1,12 @@
+// @ts-check
+
 /**
  * Unified reflection prompt builder.
  */
+
+/** @typedef {import('../../types.js').ReflectionPromptParams} ReflectionPromptParams */
+/** @typedef {import('../../types.js').LLMMessages} LLMMessages */
+/** @typedef {import('../../types.js').Memory} Memory */
 
 import {
     assembleSystemPrompt,
@@ -13,11 +19,21 @@ import { UNIFIED_REFLECTION_ROLE } from './role.js';
 import { UNIFIED_REFLECTION_RULES } from './rules.js';
 import { UNIFIED_REFLECTION_SCHEMA } from './schema.js';
 
+/**
+ * Build the unified reflection prompt.
+ * @param {string} characterName - Character name to reflect on
+ * @param {Memory[]} recentMemories - Recent memories for reflection
+ * @param {string} preamble - System prompt preamble
+ * @param {'auto'|'en'|'ru'} [outputLanguage] - Output language
+ * @param {string} prefill - Assistant prefill text (required)
+ * @returns {LLMMessages} Array of {role, content} message objects
+ */
 export function buildUnifiedReflectionPrompt(
     characterName,
     recentMemories,
     preamble,
     outputLanguage = 'auto',
+    // @ts-expect-error - TS1016: flat param list with default before required param is TS limitation
     prefill
 ) {
     if (!prefill) {
