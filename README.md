@@ -13,7 +13,7 @@ OpenVault fixes this. It runs in the background while you chat, tracking what ac
 <p align="center">
   <img width="32%" alt="Dashboard view" src="https://github.com/user-attachments/assets/ae81565e-8745-4d86-b6d1-5b73d65d355a" />
   <img width="32%" alt="Memory browser" src="https://github.com/user-attachments/assets/34427dcf-1e5b-4342-a2c2-269faec722e8" />
-  <img width="32%" alt="World graph view" src="https://github.com/user-attachments/assets/7928261f-2855-44c5-853c-de9c614fb38f" />
+  <img width="32%" alt="World graph view" src="https://github.com/user-attachments/assets/792826e8-2855-44c5-853c-de9c614fb38f" />
 </p>
 
 ---
