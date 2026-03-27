@@ -369,7 +369,7 @@ class TransformersStrategy extends EmbeddingStrategy {
 
 class OllamaStrategy extends EmbeddingStrategy {
     getId() {
-        return 'ollama';
+        return EMBEDDING_SOURCES.OLLAMA;
     }
 
     #getSettings() {
@@ -531,7 +531,7 @@ const strategies = {
     'multilingual-e5-small': new TransformersStrategy(),
     'bge-small-en-v1.5': new TransformersStrategy(),
     'embeddinggemma-300m': new TransformersStrategy(),
-    ollama: new OllamaStrategy(),
+    [EMBEDDING_SOURCES.OLLAMA]: new OllamaStrategy(),
     [EMBEDDING_SOURCES.ST_VECTOR]: new StVectorStrategy(),
 };
 
