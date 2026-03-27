@@ -1,4 +1,5 @@
 // @ts-check
+import { EMBEDDING_SOURCES, ST_API_ENDPOINTS } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { showToast } from '../utils/dom.js';
 import { logError, logWarn } from '../utils/logging.js';
@@ -198,7 +199,7 @@ export function getSTVectorRequestBody(source) {
  */
 export function isStVectorSource() {
     const settings = getDeps().getExtensionSettings()?.openvault;
-    return settings?.embeddingSource === 'st_vector';
+    return settings?.embeddingSource === EMBEDDING_SOURCES.ST_VECTOR;
 }
 
 /**
@@ -220,7 +221,7 @@ export async function syncItemsToST(items, chatId) {
             ...getSTVectorRequestBody(source),
         };
 
-        const response = await getDeps().fetch('/api/vector/insert', {
+        const response = await getDeps().fetch(ST_API_ENDPOINTS.INSERT, {
             method: 'POST',
             headers: getDeps().getRequestHeaders(),
             body: JSON.stringify(body),
@@ -255,7 +256,7 @@ export async function deleteItemsFromST(hashes, chatId) {
             ...getSTVectorRequestBody(source),
         };
 
-        const response = await getDeps().fetch('/api/vector/delete', {
+        const response = await getDeps().fetch(ST_API_ENDPOINTS.DELETE, {
             method: 'POST',
             headers: getDeps().getRequestHeaders(),
             body: JSON.stringify(body),
@@ -279,7 +280,7 @@ export async function deleteItemsFromST(hashes, chatId) {
 export async function purgeSTCollection(chatId) {
     try {
         const collectionId = getSTCollectionId(chatId);
-        const response = await getDeps().fetch('/api/vector/purge', {
+        const response = await getDeps().fetch(ST_API_ENDPOINTS.PURGE, {
             method: 'POST',
             headers: getDeps().getRequestHeaders(),
             body: JSON.stringify({ collectionId }),
@@ -328,7 +329,7 @@ export async function querySTVector(searchText, topK, threshold, chatId) {
             ...getSTVectorRequestBody(source),
         };
 
-        const response = await getDeps().fetch('/api/vector/query', {
+        const response = await getDeps().fetch(ST_API_ENDPOINTS.QUERY, {
             method: 'POST',
             headers: getDeps().getRequestHeaders(),
             body: JSON.stringify(body),
