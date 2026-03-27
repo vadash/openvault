@@ -42,6 +42,15 @@ export const POSITION_LABELS = Object.freeze([
     { value: -1, label: 'Custom', description: 'Use macro manually' },
 ]);
 
+// ============== Entity Types ==============
+export const ENTITY_TYPES = Object.freeze({
+  PERSON: 'PERSON',
+  PLACE: 'PLACE',
+  ORGANIZATION: 'ORGANIZATION',
+  OBJECT: 'OBJECT',
+  CONCEPT: 'CONCEPT',
+});
+
 // Default settings
 export const defaultSettings = {
     enabled: true,
@@ -125,6 +134,13 @@ export const embeddingModelPrefixes = {
     _default: { queryPrefix: 'query: ', docPrefix: 'passage: ' },
 };
 
+// ============== Embedding Sources ==============
+export const EMBEDDING_SOURCES = Object.freeze({
+  LOCAL: 'local',
+  OLLAMA: 'ollama',
+  ST_VECTOR: 'st_vector',
+});
+
 // Timeout constants
 export const RETRIEVAL_TIMEOUT_MS = 60000; // 60 seconds max for retrieval
 export const GENERATION_LOCK_TIMEOUT_MS = 120000; // 2 minutes safety timeout
@@ -203,6 +219,15 @@ export const IMPORTANCE_5_FLOOR = 5;
  * to prevent false merges when embeddings are inflated by shared context.
  */
 export const ENTITY_MERGE_THRESHOLD = 0.9;
+
+export const GRAPH_JACCARD_DUPLICATE_THRESHOLD = 0.6;
+export const ENTITY_TOKEN_OVERLAP_MIN_RATIO = 0.5;
+export const REFLECTION_SKIP_SIMILARITY = 0.85;
+export const REFLECTION_MIN_MEMORIES = 40;
+export const BM25_K1 = 1.2;
+export const BM25_B = 0.75;
+export const CORPUS_GROUNDED_BOOST_RATIO = 0.6;
+export const NON_GROUNDED_BOOST_RATIO = 0.4;
 
 // UI hint defaults - derived from defaultSettings and QUERY_CONTEXT_DEFAULTS
 // Used to populate "(default: X)" hints in settings_panel.html
@@ -301,3 +326,11 @@ export const GLOBAL_SYNTHESIS_CHUNK_SIZE = 10;
 // preventing object orphaning in hub-and-spoke topologies (closed-room RPs)
 // while still breaking hairball gravity in open-world RPs.
 export const MAIN_CHARACTER_ATTENUATION = 0.05;
+
+// ============== ST API Endpoints ==============
+export const ST_API_ENDPOINTS = Object.freeze({
+  INSERT: '/api/vector/insert',
+  DELETE: '/api/vector/delete',
+  PURGE: '/api/vector/purge',
+  QUERY: '/api/vector/query',
+});
