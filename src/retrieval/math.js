@@ -14,16 +14,13 @@
 /** @typedef {import('../types').ScoringSettings} ScoringSettings */
 /** @typedef {import('../types').IDFCache} IDFCache */
 
-import { VECTOR_PASS_LIMIT } from '../constants.js';
+import { BM25_B, BM25_K1, VECTOR_PASS_LIMIT } from '../constants.js';
 import { record } from '../perf/store.js';
 import { getEmbedding, hasEmbedding } from '../utils/embedding-codec.js';
 import { yieldToMain } from '../utils/st-helpers.js';
 import { stemWord } from '../utils/stemmer.js';
 import { ALL_STOPWORDS } from '../utils/stopwords.js';
 
-// BM25 parameters
-const BM25_K1 = 1.2;
-const BM25_B = 0.75;
 
 /**
  * Tokenize text into lowercase words, filtering stop words
