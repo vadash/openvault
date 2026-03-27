@@ -6,6 +6,7 @@ const { z } = await cdnImport('zod');
 import { BaseEntitySchema, BaseRelationshipSchema, EventExtractionSchema, EventSchema } from '../store/schemas.js';
 import { logError, logWarn } from '../utils/logging.js';
 import { safeParseJSON, stripMarkdownFences } from '../utils/text.js';
+import { ENTITY_TYPES } from '../constants.js';
 
 // --- Schemas Extended with .catch() Fallbacks for LLM Validation ---
 
@@ -27,7 +28,7 @@ export { EventSchema, EventExtractionSchema };
  */
 export const EntitySchema = z.object({
     name: BaseEntitySchema.shape.name.catch('Unknown').describe('Entity name, capitalized'),
-    type: BaseEntitySchema.shape.type.catch('OBJECT'),
+    type: BaseEntitySchema.shape.type.catch(ENTITY_TYPES.OBJECT),
     description: BaseEntitySchema.shape.description
         .catch('No description available')
         .describe('Comprehensive description of the entity'),
