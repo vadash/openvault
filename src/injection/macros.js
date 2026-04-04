@@ -15,7 +15,13 @@ export const cachedContent = {
  * Must be called after extension is loaded.
  */
 export function initMacros() {
-    const { registerMacro } = getDeps().getContext();
+    const context = getDeps().getContext();
+
+    // Use new registry API with fallback for backward compatibility
+    // SillyTavern deprecated top-level registerMacro in favor of macros.registry
+    const registerMacro =
+        context.macros?.registry?.registerMacro?.bind(context.macros.registry) ||
+        context.registerMacro;
 
     // Macros MUST be synchronous - no async/await
     // Do NOT wrap name in {{ }} - ST does that automatically
