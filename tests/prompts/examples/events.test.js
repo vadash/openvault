@@ -53,9 +53,9 @@ describe('EVENT_EXAMPLES', () => {
         }
     });
 
-    it('includes dedup edge cases with empty events arrays', () => {
+    it('includes dedup edge cases with importance 2 (progression within established scene)', () => {
         const dedupExamples = EVENT_EXAMPLES.filter(
-            (ex) => ex.output.includes('"events": []') || ex.output.includes('"events":[]')
+            (ex) => ex.label.includes('Dedup') && ex.output.includes('"importance": 2')
         );
         expect(dedupExamples.length).toBeGreaterThanOrEqual(1);
     });

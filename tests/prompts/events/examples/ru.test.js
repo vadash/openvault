@@ -9,8 +9,8 @@ describe('events/examples/ru', () => {
     it('should include conversational commitment example', () => {
         const commitmentExample = EXAMPLES.find((e) => e.label.includes('Conversational commitment'));
         expect(commitmentExample).toBeDefined();
-        expect(commitmentExample.input).toContain('вторникам');
-        expect(commitmentExample.input).toContain('Alice');
+        expect(commitmentExample.input).toContain('средам');
+        expect(commitmentExample.input).toContain('Глеб');
     });
 
     it('should have Russian input/output and English thinking', () => {

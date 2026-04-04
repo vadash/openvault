@@ -1,176 +1,202 @@
 /**
  * English event extraction few-shot examples.
- * 6 examples following SFW → kink gradient.
+ * 7 examples following SFW → kink gradient.
  */
 
 export const EXAMPLES = [
     {
         label: 'Discovery (EN/SFW)',
-        input: `*Kira pushes open the heavy stone door. Dust swirls in the torchlight as she steps into the chamber. Rows of crystalline vials line the walls, each glowing faintly blue.*
-"By the gods," she whispers, lifting one from its cradle. "These are Ashwood's preservation flasks. The guild has been searching for these for a century."`,
-        thinking: `Step 1: Extract data — Kira pushes stone door, enters chamber, finds crystalline vials, identifies Ashwood's preservation flasks. Guild searched for them for a century.
-Step 2: Cross-reference — No matches in established_memories.
-Step 3: Check progression — New discovery, not a continuation.
-Step 4: Format JSON — Importance: 3 (notable discovery). Summary: factual, preserves specifics.`,
+        input: `*Ranger Mireille crouches over the cold fire pit and presses her palm flat to the ash. Still warm. She sweeps her torch across the shelter — sleeping roll shoved aside, a pack left open, half-eaten rations scattered like someone left in a hurry.*
+"Someone was here within the hour," she says, pulling a scrap of cloth from the entrance post. The color matches the expedition uniform.`,
+        thinking: `Step 1: Extract data — Mireille found warm ash, disturbed sleeping roll, abandoned open pack, scattered rations, expedition-colored cloth on entrance post. Concluded presence within the last hour.
+Step 2: Cross-reference — No established memories of this shelter or the expedition's route.
+Step 3: Check progression — New discovery. First physical evidence the expedition reached this location.
+Step 4: Format JSON — Importance 3 (significant find, shifts the investigation's direction). Not transient — physical evidence persists.`,
         output: `{
   "events": [{
-    "summary": "Kira discovered a hidden chamber containing Ashwood's century-lost preservation flasks",
+    "summary": "Ranger Mireille found a recently abandoned shelter with warm ash, scattered rations, and an expedition-colored cloth — evidence someone was present within the last hour",
     "importance": 3,
     "temporal_anchor": null,
     "is_transient": false,
-    "characters_involved": ["Kira"],
-    "witnesses": ["Kira"],
-    "location": "Hidden chamber",
+    "characters_involved": ["Mireille"],
+    "witnesses": ["Mireille"],
+    "location": "Abandoned shelter",
     "is_secret": false,
-    "emotional_impact": { "Kira": "awe" },
+    "emotional_impact": { "Mireille": "urgency" },
     "relationship_impact": {}
   }]
 }`,
     },
     {
-        label: 'Combat (EN/Moderate)',
-        input: `*The shadow beast's claws raked across Kira's shoulder, tearing through her leather armor. She stumbled back, blood blooming on her tunic.*
-"Your blade!" shouted Marcus, parrying a second strike. "Use the enchanted blade!"
-Kira's hand went to the hilt — the crystal flared with light as she drew it.`,
-        thinking: `Step 1: Extract data — Shadow beast clawed Kira's shoulder, tore armor. Marcus parried, shouted about blade. Kira drew enchanted blade, crystal flared blue.
-Step 2: Cross-reference — No established memories of this combat.
-Step 3: Check progression — New event type (combat with injury).
-Step 4: Format JSON — Importance: 3 (combat injury, weapon introduced).`,
+        label: 'Combat injury (EN/Moderate)',
+        input: `The attacker came out of the alley fast — blade already drawn. Corin caught the first slash on his forearm and threw himself back against the wall. The second strike got him below the ribs.
+*Petra yanked him by the collar and hauled him around the corner before the man could follow.*
+"How deep?" she demanded, pressing her hand over the wound.
+"Keep moving," Corin said. His voice was steady. His legs weren't.`,
+        thinking: `Step 1: Extract data — Unknown attacker struck Corin twice: slash on forearm, stab below ribs. Petra pulled him to safety. Corin told her to keep moving; visibly weakened. Wound depth unknown.
+Step 2: Cross-reference — No established memories of this attacker or this confrontation.
+Step 3: Check progression — New event. First injury recorded for Corin; new threat introduced.
+Step 4: Format JSON — Importance 4 (significant physical injury, severity unknown). Relationship impact: Petra physically protected Corin under lethal threat.`,
         output: `{
   "events": [{
-    "summary": "A shadow beast injured Kira's shoulder with claw strikes before she drew her enchanted blade during combat",
-    "importance": 3,
+    "summary": "An unidentified attacker stabbed Corin below the ribs and slashed his forearm in an alley ambush before Petra pulled him to safety; wound depth is unknown",
+    "importance": 4,
     "temporal_anchor": null,
     "is_transient": false,
-    "characters_involved": ["Kira", "Marcus"],
-    "witnesses": ["Kira", "Marcus"],
-    "location": null,
+    "characters_involved": ["Corin", "Petra"],
+    "witnesses": ["Corin", "Petra"],
+    "location": "Alley",
     "is_secret": false,
-    "emotional_impact": { "Kira": "pain" },
-    "relationship_impact": {}
+    "emotional_impact": { "Corin": "pain", "Petra": "alarm" },
+    "relationship_impact": { "Petra→Corin": "physically protected Corin under lethal threat" }
   }]
 }`,
     },
     {
         label: 'First sexual contact (EN/Explicit)',
-        input: `She pulled his shirt over his head and pushed him onto the bed. "I've wanted this since the lake," she breathed against his neck. Her hand slid down his chest, fingers tracing the line of hair below his navel before wrapping around his cock.
-He groaned, hips bucking into her grip. She stroked him slowly, thumb circling the head, watching his face twist with pleasure.`,
-        thinking: `Step 1: Extract data — She undressed him, pushed onto bed. Referenced desire since the lake. Hand on his cock, slow stroking, thumb circling head.
-Step 2: Cross-reference — No established memories of sexual contact between them.
-Step 3: Check progression — New dynamic (first intimate contact, relationship escalation).
-Step 4: Format JSON — Importance: 4 (first sexual contact).`,
+        input: `Sabine pushed him down by the chest and climbed over him, knees bracketing his hips. She pulled her hair tie loose without looking away.
+"Tell me if you want me to stop," she said. Not a question.
+She rocked forward slowly, taking him in inch by inch, watching his mouth fall open. His hands came up to her hips — not to stop her, just to hold on. She set the pace, low and deliberate, learning what made his breath catch.`,
+        thinking: `Step 1: Extract data — Sabine pushed Theo down, removed her hair tie, issued explicit consent check. Began penetrative sex controlling pace and position. Theo's hands on her hips, responsive and compliant.
+Step 2: Cross-reference — No established memories of sexual contact between Sabine and Theo.
+Step 3: Check progression — New dynamic: first penetrative encounter; Sabine controlling pace, initiating the consent check herself.
+Step 4: Format JSON — Importance 4 (first sexual contact; relationship threshold). Sabine dominant in both initiation and pace.`,
         output: `{
   "events": [{
-    "summary": "She undressed him and stroked his cock for the first time, referencing desire since the lake",
+    "summary": "Sabine initiated penetrative sex with Theo for the first time, setting the pace from above and issuing an explicit consent check before proceeding",
     "importance": 4,
     "temporal_anchor": null,
     "is_transient": false,
-    "characters_involved": ["Lila", "Marcus"],
-    "witnesses": ["Lila", "Marcus"],
-    "location": "Bedroom",
+    "characters_involved": ["Sabine", "Theo"],
+    "witnesses": ["Sabine", "Theo"],
+    "location": null,
     "is_secret": false,
-    "emotional_impact": { "Lila": "desire", "Marcus": "pleasure" },
-    "relationship_impact": { "Lila→Marcus": "sexual relationship initiated" }
+    "emotional_impact": { "Sabine": "control", "Theo": "pleasure" },
+    "relationship_impact": { "Sabine→Theo": "sexual relationship initiated with Sabine directing pace and position" }
   }]
 }`,
     },
     {
-        label: 'BDSM (EN/Kink)',
-        input: `"Hands behind your back." Her voice was steel. He obeyed, and she cinched the leather cuffs around his wrists. "Color?" she asked, testing the tension.
-"Green." She smiled and brought the riding crop down across his inner thigh.
-He flinched, gasping. "Count them," she ordered. The second strike landed harder, leaving a pink welt. "Two," he managed, trembling.`,
-        thinking: `Step 1: Extract data — Leather cuffs on wrists, "Color?" check, green response. Riding crop strikes on inner thigh, pink welt, counting ordered.
-Step 2: Cross-reference — No established memories of bondage play.
-Step 3: Check progression — New dynamic (first bondage/impact play, safeword system).
-Step 4: Format JSON — Importance: 4 (new power dynamic, consent system established).`,
+        label: 'Restraint scene (EN/Kink)',
+        input: `"Wrists." Inara held up the silk cord and waited.
+*Rook extended both hands without hesitation. She looped and knotted in two passes — secure but not punishing — then tested the tension with a firm tug.*
+"Word?" she asked.
+"Copper."
+She walked slowly around behind him, let her fingers trail up the back of his neck. He didn't turn his head. "Good. Kneel."
+He went down. She felt the quality of his attention shift — the particular stillness that meant he was inside the scene now, fully.`,
+        thinking: `Step 1: Extract data — Inara bound Rook's wrists with silk cord. Safeword "copper" confirmed. Positional command (kneel) issued and obeyed. Inara noted Rook's attention shift into scene headspace.
+Step 2: Cross-reference — No established memories of any restraint or D/s dynamic between them.
+Step 3: Check progression — New dynamic: first physical restraint, consent infrastructure (safeword) established, first positional command.
+Step 4: Format JSON — Importance 4 (new power dynamic, safeword system on record). is_secret true.`,
         output: `{
   "events": [{
-    "summary": "She restrained him with leather cuffs and struck him with a riding crop after a green-light color check",
+    "summary": "Inara bound Rook's wrists with silk cord, confirmed safeword 'copper', and commanded him to kneel — establishing their first physical restraint scene",
     "importance": 4,
     "temporal_anchor": null,
     "is_transient": false,
-    "characters_involved": ["Vera", "Daniel"],
-    "witnesses": ["Vera", "Daniel"],
+    "characters_involved": ["Inara", "Rook"],
+    "witnesses": ["Inara", "Rook"],
     "location": null,
     "is_secret": true,
-    "emotional_impact": { "Vera": "control", "Daniel": "submission" },
-    "relationship_impact": { "Vera→Daniel": "dominant/submissive dynamic established" }
+    "emotional_impact": { "Inara": "control", "Rook": "submission" },
+    "relationship_impact": { "Inara→Rook": "dominant/submissive dynamic established; safeword 'copper' on record" }
   }]
 }`,
     },
     {
-        label: 'Dedup - progression extraction (EN/Edge)',
-        input: `The crop came down again — three, four, five. Daniel's thighs were crisscrossed with welts now. "Color?" Vera asked. "Green," he whispered, voice shaking.
-She traced a welt with her fingertip, watching him shiver.
+        label: 'Dedup - scene progression (EN/Edge)',
+        input: `Inara crouched in front of him and tilted his chin up with two fingers. His eyes were glassy — not distress, that softer thing.
+"Copper?" she asked quietly.
+"Green," he said. Voice noticeably thicker than before.
+She studied his face for a long moment, then stood and stepped back.
 
-<established_memories>
-[★★★★] Vera restrained Daniel with leather cuffs and struck him with a riding crop after a green-light color check
-</established_memories>`,
-        thinking: `Step 1: Extract data — More crop strikes (3-5), welts accumulating on Daniel, another color check, Vera tracing welt with fingertip.
-Step 2: Cross-reference — Existing: "Vera restrained Daniel with leather cuffs and struck with riding crop after green-light color check."
-Step 3: Check progression — Core action same (crop impact), but: voice shaking (emotional shift), welts accumulating (physical escalation). Genuine progression.
-Step 4: Format JSON — Importance: 2 (progression within established scene).`,
-        output: `{ "events": [{ "summary": "Daniel's thighs became crisscrossed with welts from repeated crop strikes; his voice shook during the color check", "importance": 2, "temporal_anchor": null, "is_transient": false, "characters_involved": ["Vera", "Daniel"], "witnesses": ["Vera", "Daniel"], "location": null, "is_secret": false, "emotional_impact": { "Daniel": "strained but consenting" }, "relationship_impact": {} }] }`,
+<established_memories>Inara bound Rook's wrists with silk cord, confirmed safeword 'copper', and commanded him to kneel — establishing their first physical restraint scene</established_memories>`,
+        thinking: `Step 1: Extract data — Inara issued welfare check mid-scene; Rook confirmed green. Voice noticeably thicker. Inara paused to assess his face before continuing. Still kneeling, wrists still bound.
+Step 2: Cross-reference — Existing: Inara restrained Rook, safeword confirmed, kneel commanded. Core action (restraint scene) same.
+Step 3: Check progression — Same dynamic, but: voice thicker = physiological shift toward subspace. Inara stopping to read his face = calibration behavior, not scripted. Genuine state change, not a repeat.
+Step 4: Format JSON — Importance 2 (progression within established scene). Subspace deepening worth recording at low weight.`,
+        output: `{
+  "events": [{
+    "summary": "Inara checked Rook mid-scene; he confirmed green with a noticeably thicker voice indicating subspace deepening",
+    "importance": 2,
+    "temporal_anchor": null,
+    "is_transient": false,
+    "characters_involved": ["Inara", "Rook"],
+    "witnesses": ["Inara", "Rook"],
+    "location": null,
+    "is_secret": false,
+    "emotional_impact": { "Rook": "deepening submission" },
+    "relationship_impact": {}
+  }]
+}`,
     },
     {
         label: 'Conversational commitment (EN/SFW)',
-        input: `"I can't do Tuesdays anymore," Alice said, sipping her tea. "My new shift starts next week."
-Bob nodded, adjusting his glasses. "Understood. Wednesdays then? Same place?"
-"Wednesdays work. But you have to promise you'll actually text me if you're running late this time."
-"I promise," Bob smiled, giving her a quick hug before walking out the door.`,
-        thinking: `Step 1: Extract data — Alice changed schedule (new shift, can't do Tuesdays). Meetups moved to Wednesdays. Alice demanded Bob text if late. Bob promised to do so. Bob hugged Alice and left.
-Step 2: Cross-reference — No matches in established_memories.
-Step 3: Check progression — New schedule and communication rule established.
-Step 4: Format JSON — The hug and sipping tea are momentary (skip). The schedule change and texting promise are durable — they matter for future interactions. Importance: 3.`,
+        input: `"I can't keep covering Tuesday shifts," Yolanda said, dropping into the chair across from Marcus. "It's been three months."
+Marcus looked up from his laptop. "You're right. I'll talk to Chen this week — I'll get you off the rotation."
+"I need that in writing. Last time you said 'this week' it took six weeks."
+"Fair." He pulled out his phone. "Logging it right now. Tuesday rotation, removed. Done."
+Yolanda watched him type. "Thank you."`,
+        thinking: `Step 1: Extract data — Yolanda raised three-month Tuesday shift grievance. Marcus committed to speaking with Chen this week. Yolanda demanded written documentation; Marcus immediately logged a calendar entry on the spot.
+Step 2: Cross-reference — No established memories of this shift arrangement or previous broken commitment.
+Step 3: Check progression — New commitment: Marcus has a logged item to resolve Yolanda's rotation. Concrete action taken (calendar entry) makes this durable. The prior broken promise is backstory but not an event to extract.
+Step 4: Format JSON — Importance 3. The chair-drop and thanks are transient. The logged commitment is durable — spans future actions across multiple days.`,
         output: `{
   "events": [{
-    "summary": "Alice and Bob agreed to move their meetups to Wednesdays, and Bob explicitly promised to text her if he runs late",
+    "summary": "Marcus committed to removing Yolanda from Tuesday shift rotation by speaking to Chen this week, and logged it in his calendar on the spot when she demanded documented follow-through",
     "importance": 3,
     "temporal_anchor": null,
     "is_transient": false,
-    "characters_involved": ["Alice", "Bob"],
-    "witnesses": ["Alice", "Bob"],
+    "characters_involved": ["Marcus", "Yolanda"],
+    "witnesses": ["Marcus", "Yolanda"],
     "location": null,
     "is_secret": false,
     "emotional_impact": {},
-    "relationship_impact": { "Alice↔Bob": "established new schedule and communication rule" }
+    "relationship_impact": { "Marcus→Yolanda": "explicit commitment to resolve three-month schedule grievance, calendar-logged" }
   }]
 }`,
     },
     {
-        label: 'Timestamp with transient and durable (EN/SFW)',
-        input: `[ 🕒 Time 3:40 PM | 🗓️ Friday, June 14, 2024 AD | 📍 Their Apartment - David Room | ☀️ Sunny, 84°F ]
-David checked his watch. "The movie starts at 7. We should leave by 6:30."
-Sarah grabbed her jacket. "I'll stop by the pharmacy on my way home from work tomorrow to pick up your prescription."
-"Thanks," David said, pulling her into a quick kiss. "Text me when you're on your way."`,
-        thinking: `Step 1: Extract data — Timestamp header present. David mentioned movie at 7 PM, leaving by 6:30. Sarah promised to pick up prescription tomorrow from pharmacy. David asked for a text when she's on her way. Quick kiss is momentary.
-Step 2: Cross-reference — No matches in established_memories.
-Step 3: Check progression — Two commitments made: tonight's movie plan (transient — specific time, will expire), prescription pickup promise (durable — spans multiple days).
-Step 4: Format JSON — Temporal anchor strips emojis, location, weather but preserves the user's date/time format: "Time 3:40 PM | Friday, June 14, 2024 AD". Movie plan is transient (expires after tonight). Prescription promise is durable (ongoing commitment).`,
+        label: 'Timestamp — transient and durable (EN/SFW)',
+        input: `Time: 8:45 AM — Thursday, March 6, 2025
+Kitchen — Nadia's Apartment — Overcast, 38°F
+
+Lev grabbed his jacket from the back of the chair. "I'll be at the studio until eight, maybe nine."
+"I'll save you dinner," Nadia said, not looking up from the stove.
+"You don't have to."
+"I know." She finally looked at him. "Also — I made the appointment. Couples counseling. First session is the 14th at six."
+Lev went still. "Okay," he said, after a moment. "I'll be there."`,
+        thinking: `Step 1: Extract data — Timestamp present. Lev announced studio until 8–9 PM tonight. Nadia offered to save dinner. Nadia revealed she booked couples counseling — first session March 14, 6 PM. Lev committed to attend after a visible pause.
+Step 2: Cross-reference — No established memories of either plan.
+Step 3: Check progression — Two commitments with different lifespans. Studio/dinner: tonight only (transient). Counseling appointment: durable — spans days, emotionally significant relationship threshold.
+Step 4: Format JSON — Two events. Temporal anchor: strip location and weather, preserve exact datetime format. Studio plan = importance 2, transient. Counseling = importance 4, durable, relationship impact.`,
         output: `{
-  "events": [{
-    "summary": "David and Sarah agreed to leave for a 7 PM movie by 6:30",
-    "importance": 3,
-    "temporal_anchor": "Time 3:40 PM | Friday, June 14, 2024 AD",
-    "is_transient": true,
-    "characters_involved": ["David", "Sarah"],
-    "witnesses": ["David", "Sarah"],
-    "location": "Their Apartment - David Room",
-    "is_secret": false,
-    "emotional_impact": {},
-    "relationship_impact": {}
-  }, {
-    "summary": "Sarah promised to pick up David's prescription from the pharmacy on her way home from work tomorrow",
-    "importance": 3,
-    "temporal_anchor": "Time 3:40 PM | Friday, June 14, 2024 AD",
-    "is_transient": false,
-    "characters_involved": ["Sarah", "David"],
-    "witnesses": ["Sarah", "David"],
-    "location": null,
-    "is_secret": false,
-    "emotional_impact": {},
-    "relationship_impact": { "Sarah→David": "commitment to handle prescription pickup" }
-  }]
+  "events": [
+    {
+      "summary": "Lev told Nadia he would be at the studio until 8 or 9 PM; she offered to save him dinner",
+      "importance": 2,
+      "temporal_anchor": "Time: 8:45 AM — Thursday, March 6, 2025",
+      "is_transient": true,
+      "characters_involved": ["Lev", "Nadia"],
+      "witnesses": ["Lev", "Nadia"],
+      "location": "Nadia's Apartment",
+      "is_secret": false,
+      "emotional_impact": {},
+      "relationship_impact": {}
+    },
+    {
+      "summary": "Nadia booked their first couples counseling session for March 14 at 6 PM; Lev committed to attend after a moment's pause",
+      "importance": 4,
+      "temporal_anchor": "Time: 8:45 AM — Thursday, March 6, 2025",
+      "is_transient": false,
+      "characters_involved": ["Nadia", "Lev"],
+      "witnesses": ["Nadia", "Lev"],
+      "location": null,
+      "is_secret": false,
+      "emotional_impact": { "Nadia": "resolve", "Lev": "guarded acceptance" },
+      "relationship_impact": { "Nadia→Lev": "initiated couples counseling; Lev agreed — first concrete step toward addressing the relationship" }
+    }
+  ]
 }`,
     },
 ];
