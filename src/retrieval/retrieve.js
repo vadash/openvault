@@ -127,6 +127,7 @@ export function buildRetrievalContext(opts = {}) {
         alpha: settings.alpha,
         combinedBoostWeight: COMBINED_BOOST_WEIGHT,
         embeddingSource: settings.embeddingSource,
+        transientDecayMultiplier: settings.transientDecayMultiplier,
     };
 
     return {

@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultSettings, extensionName } from '../../src/constants.js';
 import { resetDeps } from '../../src/deps.js';
-import { updateInjection } from '../../src/retrieval/retrieve.js';
+import { buildRetrievalContext, updateInjection } from '../../src/retrieval/retrieve.js';
 
 describe('retrieve pipeline', () => {
     let mockSetPrompt;
@@ -193,5 +193,20 @@ describe('retrieve pipeline', () => {
         expect(worldCall).toBeDefined();
         expect(worldCall[1]).toContain('world_context');
         expect(worldCall[1]).toContain('Test global state');
+    });
+});
+
+describe('buildRetrievalContext', () => {
+    beforeEach(() => {
+        setupTestContext();
+    });
+
+    afterEach(() => {
+        resetDeps();
+    });
+
+    it('should include transientDecayMultiplier in scoringConfig', () => {
+        const ctx = buildRetrievalContext();
+        expect(ctx.scoringConfig.transientDecayMultiplier).toBe(defaultSettings.transientDecayMultiplier);
     });
 });
