@@ -137,4 +137,40 @@ Step 4: Format JSON — The hug and sipping tea are momentary (skip). The schedu
   }]
 }`,
     },
+    {
+        label: 'Timestamp with transient and durable (EN/SFW)',
+        input: `[ 🕒 Time 3:40 PM | 🗓️ Friday, June 14, 2024 AD | 📍 Their Apartment - David Room | ☀️ Sunny, 84°F ]
+David checked his watch. "The movie starts at 7. We should leave by 6:30."
+Sarah grabbed her jacket. "I'll stop by the pharmacy on my way home from work tomorrow to pick up your prescription."
+"Thanks," David said, pulling her into a quick kiss. "Text me when you're on your way."`,
+        thinking: `Step 1: Extract data — Timestamp header present. David mentioned movie at 7 PM, leaving by 6:30. Sarah promised to pick up prescription tomorrow from pharmacy. David asked for a text when she's on her way. Quick kiss is momentary.
+Step 2: Cross-reference — No matches in established_memories.
+Step 3: Check progression — Two commitments made: tonight's movie plan (transient — specific time, will expire), prescription pickup promise (durable — spans multiple days).
+Step 4: Format JSON — Temporal anchor strips emojis, location, weather but preserves the user's date/time format: "Time 3:40 PM | Friday, June 14, 2024 AD". Movie plan is transient (expires after tonight). Prescription promise is durable (ongoing commitment).`,
+        output: `{
+  "events": [{
+    "summary": "David and Sarah agreed to leave for a 7 PM movie by 6:30",
+    "importance": 3,
+    "temporal_anchor": "Time 3:40 PM | Friday, June 14, 2024 AD",
+    "is_transient": true,
+    "characters_involved": ["David", "Sarah"],
+    "witnesses": ["David", "Sarah"],
+    "location": "Their Apartment - David Room",
+    "is_secret": false,
+    "emotional_impact": {},
+    "relationship_impact": {}
+  }, {
+    "summary": "Sarah promised to pick up David's prescription from the pharmacy on her way home from work tomorrow",
+    "importance": 3,
+    "temporal_anchor": "Time 3:40 PM | Friday, June 14, 2024 AD",
+    "is_transient": false,
+    "characters_involved": ["Sarah", "David"],
+    "witnesses": ["Sarah", "David"],
+    "location": null,
+    "is_secret": false,
+    "emotional_impact": {},
+    "relationship_impact": { "Sarah→David": "commitment to handle prescription pickup" }
+  }]
+}`,
+    },
 ];

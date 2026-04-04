@@ -140,4 +140,40 @@ Step 4: Format JSON — The hug and sipping tea are momentary (skip). The schedu
   }]
 }`,
     },
+    {
+        label: 'Timestamp with transient and durable (RU/SFW)',
+        input: `[ 🕒 Среда, 30 октября 2024. 4:43 PM | 🏠 Прихожая | 🌧️ Ливень ]
+Давид проверил часы. «Фильм начинается в 7. Нужно выйти к 6:30».
+Сара взяла куртку. «Зайду в аптеку завтра по пути домой с работы, заберу твой рецепт».
+«Спасибо,» — Давид подтянул её к себе на быстрый поцелуй. «Напиши, когда будешь в пути».`,
+        thinking: `Step 1: Extract data — Input has timestamp header. David mentioned movie at 7 PM, leaving by 6:30. Sarah promised to pick up prescription tomorrow from pharmacy. David asked for a text when she's on her way. Quick kiss is momentary.
+Step 2: Cross-reference — No matches in established_memories.
+Step 3: Check progression — Two commitments: tonight's movie plan (transient — expires after event), prescription promise (durable — spans days).
+Step 4: Format JSON — Temporal anchor strips emojis, location, weather but preserves the user's date/time format. Movie plan is transient. Prescription promise is durable. Values in Russian.`,
+        output: `{
+  "events": [{
+    "summary": "Давид и Сара договорились выйти к 6:30 на сеанс фильма в 7 вечера",
+    "importance": 3,
+    "temporal_anchor": "Среда, 30 октября 2024. 4:43 PM",
+    "is_transient": true,
+    "characters_involved": ["Давид", "Сара"],
+    "witnesses": ["Давид", "Сара"],
+    "location": "Прихожая",
+    "is_secret": false,
+    "emotional_impact": {},
+    "relationship_impact": {}
+  }, {
+    "summary": "Сара пообещала зайти в аптеку завтра по пути домой с работы и забрать рецепт Давида",
+    "importance": 3,
+    "temporal_anchor": "Среда, 30 октября 2024. 4:43 PM",
+    "is_transient": false,
+    "characters_involved": ["Сара", "Давид"],
+    "witnesses": ["Сара", "Давид"],
+    "location": null,
+    "is_secret": false,
+    "emotional_impact": {},
+    "relationship_impact": { "Сара→Давид": "взяла на себя обязательство забрать рецепт" }
+  }]
+}`,
+    },
 ];

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { EXAMPLES } from '../../../src/prompts/events/examples/en.js';
 
 describe('events/examples/en', () => {
-    it('should have 6 examples', () => {
-        expect(EXAMPLES).toHaveLength(6);
+    it('should have 7 examples', () => {
+        expect(EXAMPLES).toHaveLength(7);
     });
 
     it('should include conversational commitment example', () => {

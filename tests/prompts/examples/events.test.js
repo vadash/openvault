@@ -4,8 +4,8 @@ import { getExamples } from '../../../src/prompts/events/examples/index.js';
 const EVENT_EXAMPLES = getExamples('auto');
 
 describe('EVENT_EXAMPLES', () => {
-    it('exports exactly 12 examples', () => {
-        expect(EVENT_EXAMPLES).toHaveLength(12);
+    it('exports exactly 14 examples', () => {
+        expect(EVENT_EXAMPLES).toHaveLength(14);
     });
 
     it('each example has required fields: label, input, output', () => {
@@ -29,11 +29,11 @@ describe('EVENT_EXAMPLES', () => {
         }
     });
 
-    it('has 6 English and 6 Russian examples', () => {
+    it('has 7 English and 7 Russian examples', () => {
         const enExamples = EVENT_EXAMPLES.filter((ex) => ex.label.includes('EN'));
         const ruExamples = EVENT_EXAMPLES.filter((ex) => ex.label.includes('RU'));
-        expect(enExamples).toHaveLength(6);
-        expect(ruExamples).toHaveLength(6);
+        expect(enExamples).toHaveLength(7);
+        expect(ruExamples).toHaveLength(7);
     });
 
     it('Russian examples have Russian text in output', () => {
