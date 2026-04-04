@@ -16,6 +16,8 @@ Step 4: Format JSON — Importance: 3 (notable discovery). Summary: factual, pre
   "events": [{
     "summary": "Kira discovered a hidden chamber containing Ashwood's century-lost preservation flasks",
     "importance": 3,
+    "temporal_anchor": null,
+    "is_transient": false,
     "characters_involved": ["Kira"],
     "witnesses": ["Kira"],
     "location": "Hidden chamber",
@@ -38,6 +40,8 @@ Step 4: Format JSON — Importance: 3 (combat injury, weapon introduced).`,
   "events": [{
     "summary": "A shadow beast injured Kira's shoulder with claw strikes before she drew her enchanted blade during combat",
     "importance": 3,
+    "temporal_anchor": null,
+    "is_transient": false,
     "characters_involved": ["Kira", "Marcus"],
     "witnesses": ["Kira", "Marcus"],
     "location": null,
@@ -59,6 +63,8 @@ Step 4: Format JSON — Importance: 4 (first sexual contact).`,
   "events": [{
     "summary": "She undressed him and stroked his cock for the first time, referencing desire since the lake",
     "importance": 4,
+    "temporal_anchor": null,
+    "is_transient": false,
     "characters_involved": ["Lila", "Marcus"],
     "witnesses": ["Lila", "Marcus"],
     "location": "Bedroom",
@@ -81,6 +87,8 @@ Step 4: Format JSON — Importance: 4 (new power dynamic, consent system establi
   "events": [{
     "summary": "She restrained him with leather cuffs and struck him with a riding crop after a green-light color check",
     "importance": 4,
+    "temporal_anchor": null,
+    "is_transient": false,
     "characters_involved": ["Vera", "Daniel"],
     "witnesses": ["Vera", "Daniel"],
     "location": null,
@@ -102,7 +110,7 @@ She traced a welt with her fingertip, watching him shiver.
 Step 2: Cross-reference — Existing: "Vera restrained Daniel with leather cuffs and struck with riding crop after green-light color check."
 Step 3: Check progression — Core action same (crop impact), but: voice shaking (emotional shift), welts accumulating (physical escalation). Genuine progression.
 Step 4: Format JSON — Importance: 2 (progression within established scene).`,
-        output: `{ "events": [{ "summary": "Daniel's thighs became crisscrossed with welts from repeated crop strikes; his voice shook during the color check", "importance": 2, "characters_involved": ["Vera", "Daniel"], "witnesses": ["Vera", "Daniel"], "location": null, "is_secret": false, "emotional_impact": { "Daniel": "strained but consenting" }, "relationship_impact": {} }] }`,
+        output: `{ "events": [{ "summary": "Daniel's thighs became crisscrossed with welts from repeated crop strikes; his voice shook during the color check", "importance": 2, "temporal_anchor": null, "is_transient": false, "characters_involved": ["Vera", "Daniel"], "witnesses": ["Vera", "Daniel"], "location": null, "is_secret": false, "emotional_impact": { "Daniel": "strained but consenting" }, "relationship_impact": {} }] }`,
     },
     {
         label: 'Conversational commitment (EN/SFW)',
@@ -118,6 +126,8 @@ Step 4: Format JSON — The hug and sipping tea are momentary (skip). The schedu
   "events": [{
     "summary": "Alice and Bob agreed to move their meetups to Wednesdays, and Bob explicitly promised to text her if he runs late",
     "importance": 3,
+    "temporal_anchor": null,
+    "is_transient": false,
     "characters_involved": ["Alice", "Bob"],
     "witnesses": ["Alice", "Bob"],
     "location": null,
