@@ -247,7 +247,7 @@ describe('store/chat-data', () => {
             const result = await updateMemory('mem1', { temporal_anchor: 'Monday, Jan 1, 12:00 PM' });
             expect(result).toBe(true);
             expect(mockContext.chatMetadata[METADATA_KEY][MEMORIES_KEY][0].temporal_anchor).toBe(
-                'Monday, Jan 1, 12:00 PM',
+                'Monday, Jan 1, 12:00 PM'
             );
         });
 
