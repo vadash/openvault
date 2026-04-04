@@ -21,6 +21,11 @@ describe('defaultSettings', () => {
     it('has backupProfile in defaultSettings', () => {
         expect(defaultSettings.backupProfile).toBe('');
     });
+
+    it('should have transientDecayMultiplier defined', () => {
+        expect(defaultSettings.transientDecayMultiplier).toBeDefined();
+        expect(defaultSettings.transientDecayMultiplier).toBe(5.0);
+    });
 });
 
 describe('CONSOLIDATION', () => {

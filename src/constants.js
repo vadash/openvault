@@ -87,6 +87,7 @@ export const defaultSettings = {
     dedupJaccardThreshold: 0.6, // Token-overlap (Jaccard index) threshold for near-duplicate filtering
     // Forgetfulness curve settings (scoring)
     forgetfulnessBaseLambda: 0.05, // Base decay rate for exponential curve
+    transientDecayMultiplier: 5.0, // Multiplier for short-term (transient) memory decay
     // Reflection settings
     reflectionThreshold: 40,
     maxInsightsPerReflection: 3,
