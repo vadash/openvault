@@ -10,7 +10,7 @@ export const UNIFIED_REFLECTION_RULES = `1. Generate 1-3 salient high-level ques
 <thinking_process>
 Follow these steps IN ORDER. Write your work inside <think> tags BEFORE outputting the JSON:
 
-Step 1: Pattern scan — Identify recurring themes, emotional patterns, and behavioral clusters across the memories. Tag memory indices.
+Step 1: Pattern scan — Identify recurring themes, emotional patterns, and behavioral clusters. Note a MAXIMUM of 5 relevant memory IDs. Do NOT list every ID.
 Step 2: Causal chains — Trace cause-effect sequences linking memories together.
 Step 3: Synthesis — For each question, formulate a high-level insight that connects multiple memories.
 Step 4: Evidence — Assign specific memory IDs as evidence for each insight.
