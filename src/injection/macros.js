@@ -17,26 +17,16 @@ export const cachedContent = {
 export function initMacros() {
     const context = getDeps().getContext();
 
-    try {
-        const registry = context.macros?.registry;
-        if (registry && typeof registry.registerMacro === 'function') {
-            // ST 1.13+ format: registerMacro(name, optionsObject)
-            registry.registerMacro('openvault_memory', {
-                value: () => cachedContent.memory,
-                description: 'OpenVault Memory Context',
-            });
-            registry.registerMacro('openvault_world', {
-                value: () => cachedContent.world,
-                description: 'OpenVault World Context',
-            });
-        } else if (typeof context.registerMacro === 'function') {
-            // Legacy format: registerMacro(name, callback)
-            context.registerMacro('openvault_memory', () => cachedContent.memory);
-            context.registerMacro('openvault_world', () => cachedContent.world);
-        }
-    } catch (e) {
-        console.warn('[OpenVault] Macro registration failed. ST API may have changed.', e);
-    }
+    // Use new registry API with fallback for backward compatibility
+    // SillyTavern deprecated top-level registerMacro in favor of macros.registry
+    const registerMacro =
+        context.macros?.registry?.registerMacro?.bind(context.macros.registry) ||
+        context.registerMacro;
+
+    // Macros MUST be synchronous - no async/await
+    // Do NOT wrap name in {{ }} - ST does that automatically
+    registerMacro('openvault_memory', () => cachedContent.memory);
+    registerMacro('openvault_world', () => cachedContent.world);
 }
 
 // Auto-initialize on import
