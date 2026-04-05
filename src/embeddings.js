@@ -4,6 +4,7 @@ import { record } from './perf/store.js';
 import { getSessionSignal } from './state.js';
 import { hasEmbedding, setEmbedding } from './utils/embedding-codec.js';
 import { logDebug, logError, logInfo } from './utils/logging.js';
+import { cdnImport } from './utils/cdn.js';
 
 // =============================================================================
 // Strategy Classes (from src/embeddings/strategies.js)
@@ -284,7 +285,7 @@ class TransformersStrategy extends EmbeddingStrategy {
 
                 logDebug(`Loading ${modelKey} with ${device} (${dtype})`);
 
-                const { pipeline } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1');
+                const { pipeline } = await cdnImport('@huggingface/transformers');
 
                 let lastReportedPct = 0;
                 const pipe = await pipeline('feature-extraction', modelConfig.name, {

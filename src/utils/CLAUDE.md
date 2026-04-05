@@ -36,7 +36,8 @@
 - **Turn-Boundary Snapping** (`snapToTurnBoundary`): Trims message index arrays backward until it finds a valid `Bot -> User` transition or End-of-Chat. **CRITICAL**: Prevents auto-hide or batching from splitting a User message from its Bot response.
 
 ### `cdn.js`
-CDN import retry with mirror fallback (esm.sh → skypack → esm.run → unpkg).
+CDN import with version pinning, retry, and mirror fallback (esm.sh → skypack → esm.run → unpkg).
+- **Version Pinning**: `CDN_VERSIONS` frozen map pins all CDN packages (kept in sync with `package.json`). `resolveVersion()` maps bare specs (`'zod'` → `'zod@4.3.6'`) and sub-path specs (`'gpt-tokenizer/encoding/o200k_base'` → `'gpt-tokenizer@3.4.0/encoding/o200k_base'`). When updating a package version, update BOTH `package.json` and `CDN_VERSIONS`.
 - `_setTestOverride(spec, module)`: Test-only hook to mock CDN imports with local `node_modules/` packages.
 - Test overrides stored on `globalThis.__openvault_cdn_test_overrides` to survive `vi.resetModules()`.
 - **Why**: `vi.resetModules()` resets module-level state; global storage ensures overrides persist across test runs.

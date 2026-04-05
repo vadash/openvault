@@ -28,6 +28,40 @@
 
 /** @typedef {import('../types.d.ts').CdnMirrorFn} CdnMirrorFn */
 
+/**
+ * Pinned CDN package versions.
+ * Keeps browser runtime imports in sync with package.json versions.
+ * When updating package.json, update this map too.
+ *
+ * @type {Record<string, string>}
+ */
+const CDN_VERSIONS = Object.freeze({
+    '@huggingface/transformers': '3.5.1',
+    'graphology': '0.26.0',
+    'graphology-communities-louvain': '2.0.2',
+    'graphology-operators': '1.6.1',
+    'zod': '4.3.6',
+    'cyrillic-to-translit-js': '3.2.1',
+    'p-queue': '8.0.0',
+    'stopword': '3.1.5',
+    'snowball-stemmers': '0.6.0',
+    'jsonrepair': '3.13.2',
+    'gpt-tokenizer': '3.4.0',
+});
+
+/**
+ * Resolve a bare package spec to a pinned spec (e.g. 'zod' → 'zod@4.3.6').
+ * Sub-path imports (e.g. 'gpt-tokenizer/encoding/o200k_base') pin the base package.
+ * @param {string} packageSpec
+ * @returns {string}
+ */
+function resolveVersion(packageSpec) {
+    const base = packageSpec.split('/')[0];
+    const version = CDN_VERSIONS[base];
+    if (!version) return packageSpec;
+    return packageSpec === base ? `${base}@${version}` : `${base}@${version}/${packageSpec.slice(base.length + 1)}`;
+}
+
 /** @type {CdnMirrorFn[]} */
 const MIRRORS = [
     (pkg) => `https://esm.sh/${pkg}`,
@@ -79,11 +113,14 @@ export async function cdnImport(packageSpec) {
     // Application-level cache — same package spec never fetched twice
     if (cache.has(packageSpec)) return cache.get(packageSpec);
 
+    // Resolve pinned version for CDN URL, but cache/test-lookup uses bare spec
+    const pinnedSpec = resolveVersion(packageSpec);
+
     let lastError;
 
     for (let round = 0; round < MAX_ROUNDS; round++) {
         for (const mirror of MIRRORS) {
-            const url = mirror(packageSpec);
+            const url = mirror(pinnedSpec);
             try {
                 const mod = await import(/* webpackIgnore: true */ url);
                 cache.set(packageSpec, mod);

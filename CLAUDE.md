@@ -8,7 +8,7 @@ Agentic memory extension for SillyTavern providing POV-aware memory, witness tra
 
 ## CRITICAL RULES (HOW)
 - **ESM & No Bundler**: Runs directly in-browser. NO bare specifiers (`import { z } from 'zod'`).
-- **CDN Imports Only**: Use `https://esm.sh/...`. Never pin versions (`@version`). Do NOT add new dependencies without permission.
+- **CDN Imports Only**: All CDN imports go through `cdnImport()` (`src/utils/cdn.js`). Versions are pinned centrally in the `CDN_VERSIONS` map — when updating a package, update both `package.json` AND `CDN_VERSIONS`. Do NOT add new dependencies without permission.
 - **Test Aliasing**: If adding a CDN dependency, you MUST `npm install` it and map the URL to `node_modules/` in `vitest.config.js`.
 - **SillyTavern Globals**: NEVER access ST globals (`getContext`, `eventSource`) directly. Always use `getDeps()` from `src/deps.js`.
 - **Settings Access**: Use centralized API from `src/settings.js`:
@@ -45,6 +45,7 @@ Agentic memory extension for SillyTavern providing POV-aware memory, witness tra
 - **ST API CSRF**: All `fetch()` calls to ST endpoints (`/api/vector/*`) MUST use `getDeps().getRequestHeaders()` — never manual headers. ST requires `X-CSRF-Token` header on POST requests.
 - **Session Kill-Switch**: Use `isSessionDisabled()`/`setSessionDisabled()` in `state.js` for per-session failure states. NEVER mutate global settings to disable — affects all chats.
 - **Data Schema Completeness**: When adding fields to OpenVault data, update BOTH: (1) `getOpenVaultData()` in `store/chat-data.js` for new chats, (2) the migration backfill function (e.g., `initGraphState()` in `migrations/v2.js`) for existing chats, (3) tests in `tests/store/chat-data.test.js` and `tests/store/migrations.test.js`. Domain code assumes schema shape — no defensive `if (!data.field)` checks.
+- **Install Requires `--legacy-peer-deps`**: `zod-to-ts@2.0.0` has a stale `peerDependencies: typescript@^5.0.0` but we use TS 6. Run `npm install --legacy-peer-deps`. Do NOT downgrade TypeScript.
 
 ## ARCHITECTURE MAP (Lazy Loaded Context)
 - `src/deps.js` - Dependency injection for testability (SillyTavern globals, browser APIs)

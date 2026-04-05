@@ -33,22 +33,22 @@
     },
     "devDependencies": {
         "@biomejs/biome": "2.4.4",
-        "graphology": "^0.26.0",
-        "graphology-communities-louvain": "^2.0.2",
-        "graphology-operators": "^1.6.1",
-        "jsdom": "^27.4.0",
-        "jsonrepair": "^3.13.2",
-        "p-queue": "^8.0.0",
-        "repomix": "^0.3.2",
-        "snowball-stemmers": "^0.6.0",
-        "typescript": "^6.0.2",
-        "vitest": "^4.0.16",
-        "zod-to-ts": "^2.0.0"
+        "graphology": "0.26.0",
+        "graphology-communities-louvain": "2.0.2",
+        "graphology-operators": "1.6.1",
+        "jsdom": "27.4.0",
+        "jsonrepair": "3.13.2",
+        "p-queue": "8.0.0",
+        "repomix": "0.3.2",
+        "snowball-stemmers": "0.6.0",
+        "typescript": "6.0.2",
+        "vitest": "4.0.16",
+        "zod-to-ts": "2.0.0"
     },
     "dependencies": {
-        "cyrillic-to-translit-js": "^3.2.1",
-        "gpt-tokenizer": "^3.4.0",
-        "stopword": "^3.1.5",
-        "zod": "^4.3.6"
+        "cyrillic-to-translit-js": "3.2.1",
+        "gpt-tokenizer": "3.4.0",
+        "stopword": "3.1.5",
+        "zod": "4.3.6"
     }
 }
