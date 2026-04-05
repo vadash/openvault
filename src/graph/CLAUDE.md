@@ -42,6 +42,7 @@ Prevents duplicate nodes (e.g., "The King" vs "King Aldric"). Uses `shouldMergeE
 
 ## GOTCHAS & RULES
 - **Embedding Storage**: Embeddings are stored as Base64-encoded `Float32Array` strings (`embedding_b64`) via the codec in `src/utils/embedding-codec.js`. Legacy `number[]` format (`embedding`) is read transparently but never written.
+- **Preference Capture**: Durable character preferences (likes, dislikes, dietary restrictions) are stored as CONCEPT nodes with relationship edges (e.g., `Character -> CONCEPT: "Strongly dislikes"`). CONCEPT definition expanded beyond abilities/spells/diseases to include `dietary/lifestyle requirements` (e.g., "Peanut Allergy", "Veganism").
 - **Orphaned Edges**: `upsertRelationship` quietly skips if source/target nodes don't exist.
 - **CONSOLIDATION Constants**: `TOKEN_THRESHOLD: 150`, `MAX_CONSOLIDATION_BATCH: 10` defined in `src/constants.js`.
 - **ESM Libraries**: Relies on `https://esm.sh/graphology`. Mapped in `vitest.config.js`.

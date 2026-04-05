@@ -49,7 +49,7 @@ Agentic memory extension for SillyTavern providing POV-aware memory, witness tra
 ## ARCHITECTURE MAP (Lazy Loaded Context)
 - `src/deps.js` - Dependency injection for testability (SillyTavern globals, browser APIs)
 - `src/state.js` - Operation state machine, generation locks, chat loading cooldown, worker singleton
-- `src/store/chat-data.js` - Repository for local chat metadata mutations (CRUD, batch operations)
+- `src/store/chat-data.js` - Repository for local chat metadata mutations (CRUD, batch operations, temporal field updates)
 - `src/store/migrations/CLAUDE.md` - Schema versioning, migration patterns, rollback strategy.
 - `src/services/st-vector.js` - Network I/O boundary for ST Vector REST API (sync, delete, purge, query)
 - `src/embeddings/migration.js` - Embedding model mismatch detection, stale embedding cleanup, ST fingerprinting
@@ -57,7 +57,7 @@ Agentic memory extension for SillyTavern providing POV-aware memory, witness tra
 - `include/DATA_SCHEMA.md` - Data schema, retrieval math, semantic merge, GraphRAG, embedding protection.
 - `src/extraction/CLAUDE.md` - 2-phase async worker, 6-stage pipeline, callback injection, Zod schemas.
 - `src/prompts/CLAUDE.md` - Domain prompt structure, `thinking` tag convention, few-shot examples.
-- `src/retrieval/CLAUDE.md` - Alpha-Blend scoring, Forgetfulness curve.
+- `src/retrieval/CLAUDE.md` - Alpha-Blend scoring, Forgetfulness curve, Transient decay.
 - `src/graph/CLAUDE.md` - Flat JSON graph, Semantic Merge, GraphRAG Louvain communities.
 - `src/reflection/CLAUDE.md` - Per-character insight pipeline, 3-tier replacement.
 - `src/perf/CLAUDE.md` - Performance monitoring store, 12 metrics (2 sync, 10 async).

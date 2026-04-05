@@ -16,7 +16,7 @@ Repository pattern for local chat metadata mutations. Encapsulates all CRUD oper
 - `incrementGraphMessageCount(count)` - Increment the graph message count (PR6).
 
 ### CRUD Operations
-- `updateMemory(id, updates)` - Update a memory by ID. Allowed fields: summary, importance, tags, is_secret. Invalidates embedding if summary changed.
+- `updateMemory(id, updates)` - Update a memory by ID. Allowed fields: summary, importance, tags, is_secret, temporal_anchor, is_transient. Invalidates embedding if summary changed.
 - `deleteMemory(id)` - Delete a memory by ID.
 - `deleteCurrentChatData()` - Delete all OpenVault data for current chat. Unhides all hidden messages. Purges ST Vector collection if using st_vector.
 - `generateId()` - Generate a unique ID (timestamp + random).

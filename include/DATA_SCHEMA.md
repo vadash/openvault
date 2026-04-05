@@ -13,6 +13,8 @@ Reference document for data structures and non-obvious algorithm logic.
     id: string, type: "event"|"reflection", summary: string, importance: 1-5,
     tokens: string[], message_ids?: number[], source_ids?: string[], // source_ids for reflections
     level?: number, parent_ids?: string[], // Reflection hierarchy: level=1 (from events), level=2+ (from reflections)
+    temporal_anchor: string|null,  // Extracted timestamp (e.g., "Friday, June 14, 3:40 PM"), null when absent
+    is_transient: boolean,          // true for short-term intentions that decay ~5x faster
     characters_involved: string[], embedding_b64: string, _st_synced?: boolean, archived: boolean, mentions?: number
   }],
   graph: {
@@ -46,7 +48,7 @@ Reference document for data structures and non-obvious algorithm logic.
 Fast pass scores all memories with `Base + BM25` (cheap). Top `VECTOR_PASS_LIMIT` (200) candidates proceed to slow pass with cosine similarity. Reduces vector calculations 10x with 2000+ memories.
 
 ### Base Score (Forgetfulness)
-`Importance * e^(-Lambda * Distance)`. Lambda dampened by `hitDamping = max(0.5, 1/(1 + retrieval_hits × 0.1))` — frequently retrieved memories decay up to 50% slower. Imp 5 has soft floor of 1.0. Reflections > 750 msgs decay linearly to 0.25x. **Level Divisor**: Higher-level reflections decay 2x slower per level (`reflectionLevelMultiplier`).
+`Importance * e^(-Lambda * Distance)`. Lambda dampened by `hitDamping = max(0.5, 1/(1 + retrieval_hits × 0.1))` — frequently retrieved memories decay up to 50% slower. Imp 5 has soft floor of 1.0. Reflections > 750 msgs decay linearly to 0.25x. **Level Divisor**: Higher-level reflections decay 2x slower per level (`reflectionLevelMultiplier`). **Transient Decay**: When `is_transient: true`, lambda is multiplied by `transientDecayMultiplier` (default 5.0). Makes short-term memories fade ~5x faster.
 
 ### Frequency Factor
 `1 + ln(mentions) × 0.05`. Sublinear boost from event repetitions. 10 mentions ≈ +11.5%, 50 mentions ≈ +20%.
