@@ -8,8 +8,8 @@ export const GRAPH_RULES = `Extract named entities mentioned or clearly implied 
 - ${ENTITY_TYPES.PERSON}: Named characters, NPCs, people mentioned by name, and fictional identities presented as characters (includes personas, alter-egos, avatars)
 - ${ENTITY_TYPES.PLACE}: Named locations, buildings, rooms, cities, regions
 - ${ENTITY_TYPES.ORGANIZATION}: Named groups, factions, guilds, companies
-- ${ENTITY_TYPES.OBJECT}: Highly significant unique items, weapons, or plot devices. Do NOT extract mundane items, clothing, food, cups, phones, or daily objects UNLESS they are enchanted, unique, or become permanent fixtures of the story
-- ${ENTITY_TYPES.CONCEPT}: Named abilities, spells, diseases, prophecies, or strict dietary/lifestyle requirements (e.g., "Peanut Allergy", "Veganism").
+- ${ENTITY_TYPES.OBJECT}: Highly significant unique items, weapons, or plot devices. Do NOT extract mundane items, clothing, food, cups, phones, or daily objects UNLESS they are enchanted, unique, or become permanent fixtures of the story. Do NOT extract body parts, anatomical features, or bodily fluids.
+- ${ENTITY_TYPES.CONCEPT}: Named abilities, spells, diseases, prophecies, or strict dietary/lifestyle requirements (e.g., "Peanut Allergy", "Veganism"). Do NOT extract temporary physical states (e.g., "soreness", "arousal") as concepts.
 
 Also extract relationships between pairs of entities when the connection is stated or clearly implied. Do NOT re-describe existing static relationships unless a specific progression or change occurred in this batch.
 
@@ -31,10 +31,4 @@ export const EDGE_CONSOLIDATION_RULES = `1. Summarize the CURRENT dynamic, but p
 3. If the relationship has evolved significantly, capture that trajectory concisely.
 4. Keep the description under 100 tokens.
 5. Use EXACT entity names from the input data — do NOT transliterate, abbreviate, or translate names.
-
-<thinking_process>
-Follow these steps IN ORDER. Write your work inside <think tags BEFORE outputting the JSON:
-Step 1: Analyze the timeline segments.
-Step 2: Identify the core shift or evolution in the relationship.
-Step 3: Output the consolidated JSON.
-</thinking_process>`;
+6. Output JSON immediately — do NOT include reasoning or analysis before the JSON block.`;
