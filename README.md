@@ -102,6 +102,7 @@ Everything stays on your machine. The in-browser embedding model means no text g
 
 ## Version History
 
+- **20.00** - Entity editing, deletion, and alias management with tab restructure from "World" to "Entities" + "Communities"
 - **19.00** - Exclude the last N complete turns from extraction batches so hallucinated/swiped AI responses dont enter the memory
 - **18.50** - Rewrite examples with sonnet
 - **17.00** - Add commitment/preference to memory, add real time tracking. New type of memories - transient with faster decay
