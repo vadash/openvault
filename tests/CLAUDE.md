@@ -19,3 +19,8 @@
 - **Use Factory Builders.** Import `buildMockMemory()` and `buildMockGraphNode()` from `tests/factories.js`. Do not use messy inline objects for structural tests.
 - **Use inline objects for math tests.** When testing scoring logic, inline objects are preferred so the specific numbers being tested are overtly visible.
 - **Use `vi.useFakeTimers()`.** Never wait for real `setTimeout` delays in test suites.
+
+## STORE TESTS (chat-data)
+- **Always provide `saveChatConditional` in deps.** `setupTestContext({ deps: { saveChatConditional: vi.fn() } })` — updateEntity/deleteEntity call this.
+- **Reset graph data per test.** Set `data.graph = { nodes: {}, edges: {}, _mergeRedirects: {} }` in `beforeEach` to avoid cross-test leakage.
+- **Use `buildMockGraphNode()` for entity nodes.** Never use inline objects — the factory sets required fields consistently.

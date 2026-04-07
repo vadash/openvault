@@ -23,6 +23,12 @@
 - **Consolidate bloated edges.** Track `_descriptionTokens`. Trigger LLM consolidation when tokens `> 150`.
 - **Prevent Louvain hairballs.** Attenuate edges involving User/Char by 95% (`MAIN_CHARACTER_ATTENUATION`) to allow secondary clusters to form without breaking hub-and-spoke RP structures.
 
+## SWIPE PROTECTION
+- **Trim tail turns from extraction batches.** `trimTailTurns(chat, ids, N)` removes N complete User+Bot turns from the tail using the same Bot→User boundary logic as `snapToTurnBoundary()`.
+- **Emergency Cut bypasses trimming.** Pass `isEmergencyCut=true` to skip swipe protection — emergency extractions need all available data.
+- **Never trim to empty.** If trimming would empty the batch, return the original array (start-of-chat protection).
+- **Trim once on the full list for backfill.** In `getBackfillMessageIds()`, apply `trimTailTurns` after the incomplete-last-batch trim, then recalculate `batchCount`.
+
 ## REFLECTION ENGINE
 - **Trigger at importance >= 40.** Accumulate `importance_sum` per character from both `characters_involved` and `witnesses`.
 - **Gate reflections via similarity.** Skip generation if recent events overlap `> 85%` with existing reflections.

@@ -17,3 +17,14 @@
 
 ## SETTINGS MANAGEMENT
 - **Preserve connection settings on reset.** `handleResetSettings()` must cache `embeddingSource`, `ollamaUrl`, and API limits before restoring default math thresholds.
+
+## INLINE EDITING PATTERN
+- **Store edit state in a Map.** Use `entityEditState = new Map()` keyed by entity key to support cancel/revert.
+- **Replace card DOM with form.** Use `$card.replaceWith(editHtml)` to swap view ↔ edit mode; use `data-key` attributes for event delegation.
+- **Clean up edit state on delete.** Call `entityEditState.delete(key)` in the delete handler to prevent stale entries.
+- **Build aliases from chip DOM on save.** Iterate `.openvault-alias-chip` elements, strip the `×` character, collect text values.
+
+## ENTITY / COMMUNITY TABS
+- **Entities tab** (`data-tab="entities"`) has CRUD controls: search input, type filter dropdown, count badge.
+- **Communities tab** (`data-tab="communities"`) is read-only; moved from the old World tab.
+- **Entity type badge CSS** uses class-based selectors (`.person`, `.place`) defined in `world.css`. Do NOT use `data-type` attribute selectors.
