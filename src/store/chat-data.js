@@ -1,6 +1,14 @@
 // @ts-check
 
-import { CHARACTERS_KEY, EMBEDDING_SOURCES, MEMORIES_KEY, METADATA_KEY, PROCESSED_MESSAGES_KEY } from '../constants.js';
+import {
+    CHARACTERS_KEY,
+    CONSOLIDATION,
+    EMBEDDING_SOURCES,
+    GRAPH_JACCARD_DUPLICATE_THRESHOLD,
+    MEMORIES_KEY,
+    METADATA_KEY,
+    PROCESSED_MESSAGES_KEY,
+} from '../constants.js';
 import { getDeps } from '../deps.js';
 import { createEmptyGraph, normalizeKey } from '../graph/graph.js';
 import { record } from '../perf/store.js';
@@ -8,6 +16,8 @@ import { purgeSTCollection } from '../services/st-vector.js';
 import { showToast } from '../utils/dom.js';
 import { cyrb53, deleteEmbedding } from '../utils/embedding-codec.js';
 import { logDebug, logError, logInfo, logWarn } from '../utils/logging.js';
+import { mergeDescriptions } from '../utils/text.js';
+import { countTokens } from '../utils/tokens.js';
 
 /** @typedef {import('../types.d.ts').OpenVaultData} OpenVaultData */
 /** @typedef {import('../types.d.ts').Memory} Memory */
@@ -408,4 +418,145 @@ export function incrementGraphMessageCount(count) {
     const data = getOpenVaultData();
     if (!data) return;
     data.graph_message_count = (data.graph_message_count || 0) + count;
+}
+
+/**
+ * Merge source entity into target entity. Source is deleted.
+ * @param {string} sourceKey - Entity to absorb (will be deleted)
+ * @param {string} targetKey - Entity that survives
+ * @param {Object} graph - The graph object (defaults to current graph from deps)
+ * @returns {Promise<{ success: boolean, stChanges?: { toDelete: string[] } }>}
+ */
+export async function mergeEntities(sourceKey, targetKey, graph = null) {
+    const { saveChatConditional } = getDeps();
+    const ctx = getDeps().getContext();
+    const g = graph || ctx.chatMetadata?.openvault?.graph;
+
+    if (!g) {
+        return { success: false };
+    }
+
+    // Validation
+    if (sourceKey === targetKey) {
+        return { success: false };
+    }
+
+    const sourceNode = g.nodes[sourceKey];
+    const targetNode = g.nodes[targetKey];
+
+    if (!sourceNode || !targetNode) {
+        return { success: false };
+    }
+
+    const toDelete = [];
+
+    // 1. Combine node data onto target
+    targetNode.mentions += sourceNode.mentions;
+
+    // Merge aliases (source name becomes an alias)
+    const allAliases = [...(targetNode.aliases || []), ...(sourceNode.aliases || []), sourceNode.name];
+    targetNode.aliases = [...new Set(allAliases)];
+
+    // Merge descriptions using segmented Jaccard dedup
+    targetNode.description = mergeDescriptions(
+        targetNode.description,
+        sourceNode.description,
+        GRAPH_JACCARD_DUPLICATE_THRESHOLD
+    );
+
+    // 2. Set merge redirect and cascade
+    if (!g._mergeRedirects) {
+        g._mergeRedirects = {};
+    }
+    g._mergeRedirects[sourceKey] = targetKey;
+
+    // Cascade: update any redirects pointing to source
+    for (const [key, value] of Object.entries(g._mergeRedirects)) {
+        if (value === sourceKey && key !== sourceKey) {
+            g._mergeRedirects[key] = targetKey;
+        }
+    }
+
+    // 3. Rewrite and combine edges
+    const edgesToProcess = Object.entries(g.edges).filter(
+        ([_, edge]) => edge.source === sourceKey || edge.target === sourceKey
+    );
+
+    for (const [oldKey, edge] of edgesToProcess) {
+        const newSource = edge.source === sourceKey ? targetKey : edge.source;
+        const newTarget = edge.target === sourceKey ? targetKey : edge.target;
+        const newKey = `${newSource}__${newTarget}`;
+
+        // Self-loop check: delete if would be target->target
+        if (newSource === newTarget) {
+            if (edge._st_synced) {
+                toDelete.push(cyrb53(`[OV_ID:edge_${edge.source}_${edge.target}] ${edge.description}`).toString());
+            }
+            delete g.edges[oldKey];
+            continue;
+        }
+
+        // Collision check: target edge already exists
+        if (g.edges[newKey] && newKey !== oldKey) {
+            const existingEdge = g.edges[newKey];
+            existingEdge.weight += edge.weight;
+
+            // Merge descriptions
+            existingEdge.description = mergeDescriptions(
+                existingEdge.description,
+                edge.description,
+                GRAPH_JACCARD_DUPLICATE_THRESHOLD
+            );
+
+            // Recalculate tokens using proper token counter
+            if (existingEdge._descriptionTokens !== undefined) {
+                existingEdge._descriptionTokens = countTokens(existingEdge.description);
+            }
+
+            // Check consolidation threshold
+            if (existingEdge._descriptionTokens > CONSOLIDATION.TOKEN_THRESHOLD) {
+                if (!g._edgesNeedingConsolidation) {
+                    g._edgesNeedingConsolidation = [];
+                }
+                if (!g._edgesNeedingConsolidation.includes(newKey)) {
+                    g._edgesNeedingConsolidation.push(newKey);
+                }
+            }
+
+            // Invalidate embedding since description changed
+            deleteEmbedding(existingEdge);
+
+            // Collect hash for old edge deletion
+            if (edge._st_synced) {
+                toDelete.push(cyrb53(`[OV_ID:edge_${edge.source}_${edge.target}] ${edge.description}`).toString());
+            }
+
+            delete g.edges[oldKey];
+        } else if (newKey !== oldKey) {
+            // No collision: rewrite edge
+            edge.source = newSource;
+            edge.target = newTarget;
+            g.edges[newKey] = edge;
+            delete g.edges[oldKey];
+        }
+    }
+
+    // 4. Cleanup
+    // Collect hash for source node deletion
+    if (sourceNode._st_synced) {
+        toDelete.push(cyrb53(`[OV_ID:${sourceKey}] ${sourceNode.description}`).toString());
+    }
+
+    delete g.nodes[sourceKey];
+
+    // Invalidate target embedding since description changed
+    deleteEmbedding(targetNode);
+
+    // 5. Save
+    await saveChatConditional();
+
+    return {
+        success: true,
+        stChanges: { toDelete },
+    };
 }
