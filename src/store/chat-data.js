@@ -232,12 +232,20 @@ export async function updateEntity(key, updates) {
 
             if (needsRewrite) {
                 const newEdgeKey = `${newSource}__${newTarget}`;
+
+                // Queue old edge for ST Vector deletion if synced
+                if (edge._st_synced) {
+                    toDelete.push(cyrb53(`[OV_ID:edge_${edge.source}_${edge.target}] ${edge.description}`).toString());
+                }
+
                 delete graph.edges[edgeKey];
-                graph.edges[newEdgeKey] = {
+                const newEdge = {
                     ...edge,
                     source: newSource,
                     target: newTarget,
                 };
+                deleteEmbedding(newEdge);
+                graph.edges[newEdgeKey] = newEdge;
             }
         }
 
@@ -534,8 +542,12 @@ export async function mergeEntities(sourceKey, targetKey, graph = null) {
             delete g.edges[oldKey];
         } else if (newKey !== oldKey) {
             // No collision: rewrite edge
+            if (edge._st_synced) {
+                toDelete.push(cyrb53(`[OV_ID:edge_${edge.source}_${edge.target}] ${edge.description}`).toString());
+            }
             edge.source = newSource;
             edge.target = newTarget;
+            deleteEmbedding(edge);
             g.edges[newKey] = edge;
             delete g.edges[oldKey];
         }

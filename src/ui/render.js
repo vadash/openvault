@@ -545,7 +545,7 @@ async function saveEntityEdit(key, btn) {
         .get();
 
     // Capture any pending alias in the input field
-    const pendingAlias = $edit.find('.openvault-alias-input').val()?.toString().trim();
+    const pendingAlias = $edit.find('.openvault-alias-input').val()?.toString()?.trim();
     if (pendingAlias) {
         const existingLower = aliases.map((a) => a.toLowerCase());
         if (!existingLower.includes(pendingAlias.toLowerCase())) {
