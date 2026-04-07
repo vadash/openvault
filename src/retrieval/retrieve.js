@@ -72,7 +72,7 @@ function _getHiddenMemories(chat, memories) {
             }
             // Fingerprints exist but resolve to nothing — source messages were deleted.
             // They are no longer visible, so the memory is injectable.
-            return false;
+            return true;
         }
         // Fall back to message_ids ONLY when fingerprints are absent (unmigrated v2 data)
         if (!m.message_ids?.length) return false;
