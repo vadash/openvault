@@ -29,7 +29,7 @@ describe('deleteEntity', () => {
 
     it('should delete entity with no edges', async () => {
         const data = getOpenVaultData();
-        data.graph.nodes['marcus_hale'] = buildMockGraphNode({
+        data.graph.nodes.marcus_hale = buildMockGraphNode({
             name: 'Marcus Hale',
             type: 'PERSON',
             description: 'A soldier',
@@ -38,27 +38,27 @@ describe('deleteEntity', () => {
         const result = await deleteEntity('marcus_hale');
 
         expect(result.success).toBe(true);
-        expect(data.graph.nodes['marcus_hale']).toBeUndefined();
+        expect(data.graph.nodes.marcus_hale).toBeUndefined();
     });
 
     it('should delete entity and remove connected edges', async () => {
         const data = getOpenVaultData();
-        data.graph.nodes['marcus_hale'] = buildMockGraphNode({
+        data.graph.nodes.marcus_hale = buildMockGraphNode({
             name: 'Marcus Hale',
             type: 'PERSON',
             description: 'A soldier',
         });
-        data.graph.nodes['tavern'] = buildMockGraphNode({
+        data.graph.nodes.tavern = buildMockGraphNode({
             name: 'The Tavern',
             type: 'PLACE',
             description: 'A pub',
         });
-        data.graph.edges['marcus_hale__tavern'] = {
+        data.graph.edges.marcus_hale__tavern = {
             source: 'marcus_hale',
             target: 'tavern',
             relation: 'frequents',
         };
-        data.graph.edges['tavern__marcus_hale'] = {
+        data.graph.edges.tavern__marcus_hale = {
             source: 'tavern',
             target: 'marcus_hale',
             relation: 'patron',
@@ -67,32 +67,32 @@ describe('deleteEntity', () => {
         const result = await deleteEntity('marcus_hale');
 
         expect(result.success).toBe(true);
-        expect(data.graph.nodes['marcus_hale']).toBeUndefined();
-        expect(data.graph.edges['marcus_hale__tavern']).toBeUndefined();
-        expect(data.graph.edges['tavern__marcus_hale']).toBeUndefined();
+        expect(data.graph.nodes.marcus_hale).toBeUndefined();
+        expect(data.graph.edges.marcus_hale__tavern).toBeUndefined();
+        expect(data.graph.edges.tavern__marcus_hale).toBeUndefined();
     });
 
     it('should clean up merge redirects when deleting entity', async () => {
         const data = getOpenVaultData();
-        data.graph.nodes['marcus_hale'] = buildMockGraphNode({
+        data.graph.nodes.marcus_hale = buildMockGraphNode({
             name: 'Marcus Hale',
             type: 'PERSON',
             description: 'A soldier',
         });
         data.graph._mergeRedirects = {
-            'old_name': 'marcus_hale',
-            'marcus_hale': 'new_name',
+            old_name: 'marcus_hale',
+            marcus_hale: 'new_name',
         };
 
         await deleteEntity('marcus_hale');
 
-        expect(data.graph._mergeRedirects['old_name']).toBeUndefined();
-        expect(data.graph._mergeRedirects['marcus_hale']).toBeUndefined();
+        expect(data.graph._mergeRedirects.old_name).toBeUndefined();
+        expect(data.graph._mergeRedirects.marcus_hale).toBeUndefined();
     });
 
     it('should handle missing _mergeRedirects without error', async () => {
         const data = getOpenVaultData();
-        data.graph.nodes['marcus_hale'] = buildMockGraphNode({
+        data.graph.nodes.marcus_hale = buildMockGraphNode({
             name: 'Marcus Hale',
             type: 'PERSON',
             description: 'A soldier',
@@ -103,7 +103,7 @@ describe('deleteEntity', () => {
         const result = await deleteEntity('marcus_hale');
 
         expect(result.success).toBe(true);
-        expect(data.graph.nodes['marcus_hale']).toBeUndefined();
+        expect(data.graph.nodes.marcus_hale).toBeUndefined();
     });
 
     it('should return failure for non-existent entity', async () => {

@@ -57,9 +57,9 @@ export function filterEntities(graph, query, typeFilter) {
             const desc = (entity.description || '').toLowerCase();
             const aliases = (entity.aliases || []).join(' ').toLowerCase();
 
-            return name.includes(normalizedQuery) ||
-                   desc.includes(normalizedQuery) ||
-                   aliases.includes(normalizedQuery);
+            return (
+                name.includes(normalizedQuery) || desc.includes(normalizedQuery) || aliases.includes(normalizedQuery)
+            );
         })
         .sort((a, b) => (b[1].mentions || 0) - (a[1].mentions || 0));
 }

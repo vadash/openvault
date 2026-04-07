@@ -1,48 +1,48 @@
 /* Entity Card Styles */
 .openvault-entity-card {
-  position: relative;
-  padding: 12px;
-  border: 1px solid var(--SmartThemeBorderColor, #333);
-  border-radius: 6px;
-  margin-bottom: 8px;
-  background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
+    position: relative;
+    padding: 12px;
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
 }
 
 .openvault-entity-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
 }
 
 .openvault-entity-name {
-  font-weight: bold;
-  font-size: 1.1em;
-  flex: 1;
+    font-weight: bold;
+    font-size: 1.1em;
+    flex: 1;
 }
 
 .openvault-entity-badges {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .openvault-entity-actions {
-  display: flex;
-  gap: 6px;
+    display: flex;
+    gap: 6px;
 }
 
 .openvault-entity-action-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 4px 6px;
-  opacity: 0.7;
-  transition: opacity 0.2s;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px 6px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
 }
 
 .openvault-entity-action-btn:hover {
-  opacity: 1;
+    opacity: 1;
 }
 
 /* Type badge styles already defined in world.css (class-based, translucent)
@@ -50,146 +50,150 @@
 
 /* Pending embed badge */
 .openvault-pending-embed {
-  display: inline-flex;
-  align-items: center;
-  color: #f1c40f;
-  font-size: 0.85em;
+    display: inline-flex;
+    align-items: center;
+    color: #f1c40f;
+    font-size: 0.85em;
 }
 
 .openvault-pending-embed .icon {
-  animation: rotate 1s linear infinite;
+    animation: rotate 1s linear infinite;
 }
 
 @keyframes rotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Alias row */
 .openvault-entity-aliases {
-  font-size: 0.9em;
-  color: var(--SmartThemeEmColor, #888);
-  margin-bottom: 6px;
-  font-style: italic;
+    font-size: 0.9em;
+    color: var(--SmartThemeEmColor, #888);
+    margin-bottom: 6px;
+    font-style: italic;
 }
 
 .openvault-entity-aliases::before {
-  content: "aka: ";
+    content: "aka: ";
 }
 
 /* Entity edit form */
 .openvault-entity-edit {
-  padding: 12px;
-  border: 1px solid var(--SmartThemeBorderColor, #333);
-  border-radius: 6px;
-  background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3));
+    padding: 12px;
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 6px;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3));
 }
 
 .openvault-entity-edit-row {
-  margin-bottom: 10px;
+    margin-bottom: 10px;
 }
 
 .openvault-entity-edit-row label {
-  display: block;
-  font-size: 0.85em;
-  margin-bottom: 4px;
-  color: var(--SmartThemeEmColor, #888);
+    display: block;
+    font-size: 0.85em;
+    margin-bottom: 4px;
+    color: var(--SmartThemeEmColor, #888);
 }
 
 .openvault-entity-edit-row input[type="text"],
 .openvault-entity-edit-row select,
 .openvault-entity-edit-row textarea {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid var(--SmartThemeBorderColor, #333);
-  border-radius: 4px;
-  background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
-  color: inherit;
-  font-family: inherit;
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 4px;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
+    color: inherit;
+    font-family: inherit;
 }
 
 .openvault-entity-edit-row textarea {
-  min-height: 80px;
-  resize: vertical;
+    min-height: 80px;
+    resize: vertical;
 }
 
 /* Alias chips */
 .openvault-alias-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
 }
 
 .openvault-alias-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
-  border: 1px solid var(--SmartThemeBorderColor, #333);
-  border-radius: 12px;
-  font-size: 0.85em;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    border-radius: 12px;
+    font-size: 0.85em;
 }
 
 .openvault-alias-chip .remove {
-  cursor: pointer;
-  opacity: 0.6;
-  font-weight: bold;
+    cursor: pointer;
+    opacity: 0.6;
+    font-weight: bold;
 }
 
 .openvault-alias-chip .remove:hover {
-  opacity: 1;
+    opacity: 1;
 }
 
 .openvault-alias-input-row {
-  display: flex;
-  gap: 6px;
+    display: flex;
+    gap: 6px;
 }
 
 .openvault-alias-input-row input {
-  flex: 1;
+    flex: 1;
 }
 
 .openvault-alias-input-row button {
-  padding: 6px 12px;
+    padding: 6px 12px;
 }
 
 /* Edit form actions */
 .openvault-entity-edit-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 12px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
 }
 
 .openvault-entity-edit-actions button {
-  padding: 6px 16px;
-  border-radius: 4px;
-  cursor: pointer;
+    padding: 6px 16px;
+    border-radius: 4px;
+    cursor: pointer;
 }
 
 .openvault-entity-edit-actions .cancel {
-  background: transparent;
-  border: 1px solid var(--SmartThemeBorderColor, #333);
-  color: inherit;
+    background: transparent;
+    border: 1px solid var(--SmartThemeBorderColor, #333);
+    color: inherit;
 }
 
 .openvault-entity-edit-actions .save {
-  background: var(--SmartThemeEmColor, #48c);
-  border: 1px solid var(--SmartThemeEmColor, #48c);
-  color: white;
+    background: var(--SmartThemeEmColor, #48c);
+    border: 1px solid var(--SmartThemeEmColor, #48c);
+    color: white;
 }
 
 /* Entity description */
 .openvault-entity-description {
-  font-size: 0.9em;
-  line-height: 1.4;
-  color: inherit;
+    font-size: 0.9em;
+    line-height: 1.4;
+    color: inherit;
 }
 
 .openvault-entity-mentions {
-  font-size: 0.8em;
-  color: var(--SmartThemeEmColor, #888);
-  margin-top: 6px;
+    font-size: 0.8em;
+    color: var(--SmartThemeEmColor, #888);
+    margin-top: 6px;
 }

@@ -150,10 +150,10 @@ describe('ui/helpers', () => {
 
         it('sorts by mentions descending', () => {
             const result = filterEntities(mockGraph, '', '');
-            expect(result[0][0]).toBe('aldric');   // 7 mentions
-            expect(result[1][0]).toBe('guard');     // 5 mentions
-            expect(result[2][0]).toBe('castle');    // 3 mentions
-            expect(result[3][0]).toBe('sword');     // 2 mentions
+            expect(result[0][0]).toBe('aldric'); // 7 mentions
+            expect(result[1][0]).toBe('guard'); // 5 mentions
+            expect(result[2][0]).toBe('castle'); // 3 mentions
+            expect(result[3][0]).toBe('sword'); // 2 mentions
         });
 
         it('searches aliases', () => {
