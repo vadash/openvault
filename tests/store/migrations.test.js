@@ -81,10 +81,10 @@ describe('v2 migration', () => {
         expect(data.reflection_state).toEqual({});
     });
 
-    it('sets schema_version to 2', () => {
+    it('sets schema_version to current', () => {
         const data = {};
         runSchemaMigrations(data, chat);
-        expect(data.schema_version).toBe(2);
+        expect(data.schema_version).toBe(CURRENT_SCHEMA_VERSION);
     });
 
     it('returns true when migrations applied', () => {

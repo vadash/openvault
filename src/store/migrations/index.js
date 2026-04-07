@@ -1,8 +1,12 @@
 import { migrateToV2 } from './v2.js';
+import { migrateToV3 } from './v3.js';
 
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
-const MIGRATIONS = [{ version: 2, run: migrateToV2 }];
+const MIGRATIONS = [
+    { version: 2, run: migrateToV2 },
+    { version: 3, run: migrateToV3 },
+];
 
 /**
  * Run required schema migrations on OpenVault data.

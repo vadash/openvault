@@ -38,9 +38,9 @@ describe('store/chat-data', () => {
     afterEach(() => resetDeps());
 
     describe('getOpenVaultData', () => {
-        it('creates complete v2 schema for new chats', () => {
+        it('creates complete schema for new chats', () => {
             const data = getOpenVaultData();
-            expect(data.schema_version).toBe(2);
+            expect(data.schema_version).toBe(3);
             expect(data.memories).toEqual([]);
             expect(data.character_states).toEqual({});
             expect(data.graph).toBeDefined();
@@ -52,7 +52,7 @@ describe('store/chat-data', () => {
         it('creates empty data structure if none exists', () => {
             const data = getOpenVaultData();
             expect(data).toEqual({
-                schema_version: 2,
+                schema_version: 3,
                 [MEMORIES_KEY]: [],
                 [CHARACTERS_KEY]: {},
                 processed_message_ids: [],
