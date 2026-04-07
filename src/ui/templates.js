@@ -380,3 +380,72 @@ export function renderEntityEdit(entity, key) {
     </div>
   `;
 }
+
+/**
+ * Render a merge picker panel using native HTML5 datalist.
+ * @param {string} sourceKey - The entity being merged (will be deleted)
+ * @param {Object} sourceNode - The source entity node data
+ * @param {Object} graphNodes - All nodes in graph (for building options)
+ * @returns {string} HTML string for the merge picker
+ */
+export function renderEntityMergePicker(sourceKey, sourceNode, graphNodes) {
+    const sourceDisplay = escapeHtml(sourceNode.name || sourceKey);
+    const datalistId = `merge-targets-${sourceKey.replace(/[^a-zA-Z0-9]/g, '-')}`;
+
+    // Build datalist options from all nodes except source
+    // Include both name and aliases as separate options for searchability
+    const options = Object.entries(graphNodes)
+        .filter(([key]) => key !== sourceKey)
+        .flatMap(([key, node]) => {
+            const displayName = escapeHtml(node.name || key);
+            const typeLabel = node.type ? ` [${node.type}]` : '';
+            const primaryOption = `<option value="${displayName}${typeLabel}" data-key="${escapeHtml(key)}">`;
+
+            // Also add alias options pointing to same entity
+            const aliasOptions = (node.aliases || [])
+                .filter((alias) => alias !== node.name)
+                .map(
+                    (alias) =>
+                        `<option value="${escapeHtml(alias)} [alias of ${displayName}]" data-key="${escapeHtml(key)}">`
+                );
+
+            return [primaryOption, ...aliasOptions];
+        })
+        .join('\n');
+
+    return `
+    <div class="openvault-entity-merge-panel" data-source-key="${escapeHtml(sourceKey)}">
+      <div class="merge-header">
+        <h4>Merge "${sourceDisplay}" into another entity</h4>
+        <p class="merge-explanation">
+          "${sourceDisplay}" will be deleted. Its relationships, aliases, and description
+          will be combined into the target entity.
+        </p>
+      </div>
+
+      <div class="merge-target-picker">
+        <label for="merge-target-input-${sourceKey}">Target:</label>
+        <input
+          type="text"
+          id="merge-target-input-${sourceKey}"
+          class="openvault-merge-search"
+          placeholder="Type to search entities..."
+          autocomplete="off"
+          list="${datalistId}"
+        />
+        <datalist id="${datalistId}">
+          ${options}
+        </datalist>
+      </div>
+
+      <div class="merge-actions">
+        <button class="openvault-cancel-entity-merge" data-key="${escapeHtml(sourceKey)}">
+          Cancel
+        </button>
+        <button class="openvault-confirm-entity-merge" data-source-key="${escapeHtml(sourceKey)}">
+          Confirm Merge
+        </button>
+      </div>
+    </div>
+  `;
+}
