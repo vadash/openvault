@@ -175,6 +175,11 @@ export function getNextBatch(chat, data, tokenBudget, isEmergencyCut = false) {
         snapped = snapToTurnBoundary(chat, extended);
     }
 
+    // Swipe protection: exclude recent turns from extraction (bypassed for Emergency Cut)
+    if (!isEmergencyCut) {
+        snapped = trimTailTurns(chat, snapped, SWIPE_PROTECTION_TAIL_MESSAGES);
+    }
+
     return snapped.length > 0 ? snapped : null;
 }
 

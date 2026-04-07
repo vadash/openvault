@@ -485,3 +485,41 @@ describe('trimTailTurns', () => {
         expect(result).toBe(ids);
     });
 });
+
+describe('getNextBatch swipe protection', () => {
+    it('excludes the last turn from extraction', () => {
+        const chat = makeChat([
+            [LONG_USER_MESSAGE, true], [LONG_BOT_MESSAGE, false],
+            [LONG_USER_MESSAGE, true], [LONG_BOT_MESSAGE, false],
+            [LONG_USER_MESSAGE, true], [LONG_BOT_MESSAGE, false],
+        ]);
+        // Budget = exact total tokens (402). Accumulation gathers all 6 msgs,
+        // snaps to 3 complete turns. Trim removes last turn → turns 1+2 only.
+        const batch = getNextBatch(chat, {}, 402);
+        expect(batch).not.toBeNull();
+        expect(batch).toEqual([0, 1, 2, 3]);
+    });
+
+    it('does not trim when isEmergencyCut is true', () => {
+        const chat = makeChat([
+            [LONG_USER_MESSAGE, true], [LONG_BOT_MESSAGE, false],
+            [LONG_USER_MESSAGE, true], [LONG_BOT_MESSAGE, false],
+            [LONG_USER_MESSAGE, true], [LONG_BOT_MESSAGE, false],
+        ]);
+        const batch = getNextBatch(chat, {}, 1, true);
+        // Emergency Cut: no trimming, should get all messages
+        expect(batch).not.toBeNull();
+        expect(batch).toEqual([0, 1, 2, 3, 4, 5]);
+    });
+
+    it('returns the single turn when only 1 turn exists (trimTailTurns protects it)', () => {
+        const chat = makeChat([
+            [LONG_USER_MESSAGE, true], [LONG_BOT_MESSAGE, false],
+        ]);
+        // Budget = exact total tokens for 1 turn. Accumulation gets both msgs,
+        // snaps to 1 turn. Trim would empty → helper returns original.
+        const batch = getNextBatch(chat, {}, 134);
+        expect(batch).not.toBeNull();
+        expect(batch).toEqual([0, 1]);
+    });
+});
