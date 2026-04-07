@@ -28,6 +28,7 @@ export const MemorySchema = z.object({
     level: z.number().optional(),
     tokens: z.array(z.string()),
     message_ids: z.array(z.number()).optional(),
+    message_fingerprints: z.array(z.string()).optional(),
     mentions: z.number().optional(),
     retrieval_hits: z.number().optional(),
     archived: z.boolean().optional(),

@@ -781,12 +781,13 @@ async function fetchGraphFromLLM(contextParams, formattedEvents, abortSignal) {
  *
  * @param {Array} rawEvents - Events from LLM (no metadata yet)
  * @param {number[]} messageIdsArray - Source message IDs for this batch
+ * @param {string[]} messageFingerprintsArray - Source message fingerprints for this batch
  * @param {string} batchId - Unique batch identifier
  * @param {Array} existingMemories - All existing memories (for dedup comparison)
  * @param {Object} settings - Extension settings
  * @returns {Promise<{events: Array}>}
  */
-async function enrichAndDedupEvents(rawEvents, messageIdsArray, batchId, existingMemories, settings) {
+async function enrichAndDedupEvents(rawEvents, messageIdsArray, messageFingerprintsArray, batchId, existingMemories, settings) {
     const minMessageId = Math.min(...messageIdsArray);
 
     let events = rawEvents.map((event, index) => ({
@@ -795,6 +796,7 @@ async function enrichAndDedupEvents(rawEvents, messageIdsArray, batchId, existin
         ...event,
         tokens: tokenize(event.summary || ''),
         message_ids: messageIdsArray,
+        message_fingerprints: messageFingerprintsArray,
         sequence: minMessageId * 1000 + index,
         created_at: Date.now(),
         batch_id: batchId,
@@ -959,10 +961,12 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
 
         // Stage 3: Enrich & dedup events
         const messageIdsArray = messages.map((m) => m.id);
+        const messageFingerprintsArray = messages.map((m) => getFingerprint(m));
         logDebug(`LLM returned ${rawEvents.length} events from ${messages.length} messages`);
         const { events } = await enrichAndDedupEvents(
             rawEvents,
             messageIdsArray,
+            messageFingerprintsArray,
             batchId,
             data.memories || [],
             settings
