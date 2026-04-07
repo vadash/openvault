@@ -1,7 +1,7 @@
 // @ts-check
 /* global describe, expect, it */
 import { describe, expect, it } from 'vitest';
-import { runSchemaMigrations, CURRENT_SCHEMA_VERSION } from '../../src/store/migrations/index.js';
+import { runSchemaMigrations } from '../../src/store/migrations/index.js';
 
 describe('v3 migration - backfill message_fingerprints', () => {
     const chat = [

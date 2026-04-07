@@ -787,7 +787,14 @@ async function fetchGraphFromLLM(contextParams, formattedEvents, abortSignal) {
  * @param {Object} settings - Extension settings
  * @returns {Promise<{events: Array}>}
  */
-async function enrichAndDedupEvents(rawEvents, messageIdsArray, messageFingerprintsArray, batchId, existingMemories, settings) {
+async function enrichAndDedupEvents(
+    rawEvents,
+    messageIdsArray,
+    messageFingerprintsArray,
+    batchId,
+    existingMemories,
+    settings
+) {
     const minMessageId = Math.min(...messageIdsArray);
 
     let events = rawEvents.map((event, index) => ({

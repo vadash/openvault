@@ -474,7 +474,7 @@ export async function scoreMemories(
             if (val > maxIDF) maxIDF = val;
         }
     }
-    if (!isFinite(maxIDF)) maxIDF = Math.log(idfCorpus.length + 1);
+    if (!Number.isFinite(maxIDF)) maxIDF = Math.log(idfCorpus.length + 1);
 
     for (let i = 0; i < memories.length; i++) {
         if (exactPhrases.length === 0) break;

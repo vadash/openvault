@@ -39,10 +39,16 @@ describe('scoreMemories - safe max over large iterables', () => {
         expect(idfMap.size).toBeGreaterThanOrEqual(90000);
 
         // Should not throw and should return valid scored results
-        const result = await scoreMemories(memories, null, 1,
+        const result = await scoreMemories(
+            memories,
+            null,
+            1,
             { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 },
             { alpha: 0.7, combinedBoostWeight: 15, vectorSimilarityThreshold: 0.5 },
-            'unique_term_0_0 unique_term_1_1', [], [], null
+            'unique_term_0_0 unique_term_1_1',
+            [],
+            [],
+            null
         );
         expect(result).toHaveLength(memories.length);
         expect(result[0].score).toBeGreaterThan(0);
@@ -59,16 +65,22 @@ describe('scoreMemories - safe max over large iterables', () => {
             id: String(i),
         }));
 
-        const result = await scoreMemories(memories, null, 1,
+        const result = await scoreMemories(
+            memories,
+            null,
+            1,
             { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 },
             { alpha: 0.7, combinedBoostWeight: 15, vectorSimilarityThreshold: 0.5 },
-            'topic_0 topic_1 topic_2', [], [], null
+            'topic_0 topic_1 topic_2',
+            [],
+            [],
+            null
         );
         expect(result).toHaveLength(100_000);
         // Spot-check: all results should have valid scores
         for (const r of result) {
             expect(typeof r.score).toBe('number');
-            expect(isFinite(r.score)).toBe(true);
+            expect(Number.isFinite(r.score)).toBe(true);
         }
     }, 60000);
 });
@@ -78,7 +90,8 @@ describe('calculateScore - safe max over message_ids', () => {
         const { calculateScore } = await import('../../src/retrieval/math.js');
         const result = calculateScore(
             { importance: 3, message_ids: [50] },
-            null, 100,
+            null,
+            100,
             { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 },
             { alpha: 0.7, combinedBoostWeight: 15, vectorSimilarityThreshold: 0.5 },
             0
@@ -91,7 +104,8 @@ describe('calculateScore - safe max over message_ids', () => {
         const { calculateScore } = await import('../../src/retrieval/math.js');
         const result = calculateScore(
             { importance: 3, message_ids: [10, 50, 90] },
-            null, 100,
+            null,
+            100,
             { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 },
             { alpha: 0.7, combinedBoostWeight: 15, vectorSimilarityThreshold: 0.5 },
             0

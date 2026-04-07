@@ -598,18 +598,18 @@ describe('calculateScore - fingerprint resolution', () => {
         // But message_fingerprints point to a message that is now at index 45
         const memory = {
             importance: 3,
-            message_ids: [90],               // stale — original index
+            message_ids: [90], // stale — original index
             message_fingerprints: ['fp_45'], // current fingerprint
         };
 
         const result = calculateScore(
             memory,
             null,
-            50,  // current chat length (after 50 messages deleted)
+            50, // current chat length (after 50 messages deleted)
             { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 },
             { alpha: 0.7, combinedBoostWeight: 15, vectorSimilarityThreshold: 0.5 },
             0,
-            chatFingerprintMap,
+            chatFingerprintMap
         );
 
         // With stale message_ids: distance = max(0, 50 - 90) = 0 (broken — appears brand new)
@@ -633,7 +633,7 @@ describe('calculateScore - fingerprint resolution', () => {
             { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 },
             { alpha: 0.7, combinedBoostWeight: 15, vectorSimilarityThreshold: 0.5 },
             0,
-            null,
+            null
         );
 
         expect(result).toBeDefined();
@@ -656,7 +656,7 @@ describe('calculateScore - fingerprint resolution', () => {
             { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 },
             { alpha: 0.7, combinedBoostWeight: 15, vectorSimilarityThreshold: 0.5 },
             0,
-            null, // no map — should fall back to message_ids
+            null // no map — should fall back to message_ids
         );
 
         expect(result).toBeDefined();
@@ -673,7 +673,7 @@ describe('calculateScore - fingerprint resolution', () => {
 
         const memory = {
             importance: 3,
-            message_ids: [99],                // stale
+            message_ids: [99], // stale
             message_fingerprints: ['fp_10', 'fp_42'],
         };
 
@@ -684,7 +684,7 @@ describe('calculateScore - fingerprint resolution', () => {
             { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 5 },
             { alpha: 0.7, combinedBoostWeight: 15, vectorSimilarityThreshold: 0.5 },
             0,
-            chatFingerprintMap,
+            chatFingerprintMap
         );
 
         // Should use max fingerprint position: 42

@@ -342,6 +342,7 @@ export const RetrievalContextSchema = z.object({
     graphEdges: z.record(z.string(), GraphEdgeSchema).optional(),
     allAvailableMemories: z.array(MemorySchema).optional(),
     idfCache: IDFCacheSchema.optional(),
+    chatFingerprintMap: z.map(z.string(), z.number()).nullable().optional(),
 });
 
 // BM25 calculation context

@@ -13,6 +13,7 @@ export type Memory = {
     level?: number | undefined;
     tokens: string[];
     message_ids?: number[] | undefined;
+    message_fingerprints?: string[] | undefined;
     mentions?: number | undefined;
     retrieval_hits?: number | undefined;
     archived?: boolean | undefined;
@@ -105,6 +106,7 @@ export type ScoredMemory = {
         level?: number | undefined;
         tokens: string[];
         message_ids?: number[] | undefined;
+        message_fingerprints?: string[] | undefined;
         mentions?: number | undefined;
         retrieval_hits?: number | undefined;
         archived?: boolean | undefined;
@@ -232,6 +234,7 @@ export type OpenVaultData = {
               level?: number | undefined;
               tokens: string[];
               message_ids?: number[] | undefined;
+              message_fingerprints?: string[] | undefined;
               mentions?: number | undefined;
               retrieval_hits?: number | undefined;
               archived?: boolean | undefined;
@@ -414,6 +417,7 @@ export type GenerateReflectionsResult = {
         level?: number | undefined;
         tokens: string[];
         message_ids?: number[] | undefined;
+        message_fingerprints?: string[] | undefined;
         mentions?: number | undefined;
         retrieval_hits?: number | undefined;
         archived?: boolean | undefined;
@@ -565,6 +569,7 @@ export type RetrievalContext = {
               level?: number | undefined;
               tokens: string[];
               message_ids?: number[] | undefined;
+              message_fingerprints?: string[] | undefined;
               mentions?: number | undefined;
               retrieval_hits?: number | undefined;
               archived?: boolean | undefined;
@@ -583,6 +588,7 @@ export type RetrievalContext = {
               avgDL: number;
           }
         | undefined;
+    chatFingerprintMap?: (Map<string, number> | null) | undefined;
 };
 
 export type BM25Context = {
@@ -632,6 +638,7 @@ export type PromptContext = {
               level?: number | undefined;
               tokens: string[];
               message_ids?: number[] | undefined;
+              message_fingerprints?: string[] | undefined;
               mentions?: number | undefined;
               retrieval_hits?: number | undefined;
               archived?: boolean | undefined;
@@ -666,6 +673,7 @@ export type BasePromptParams = {
                         level?: number | undefined;
                         tokens: string[];
                         message_ids?: number[] | undefined;
+                        message_fingerprints?: string[] | undefined;
                         mentions?: number | undefined;
                         retrieval_hits?: number | undefined;
                         archived?: boolean | undefined;
@@ -705,6 +713,7 @@ export type GraphPromptParams = {
                         level?: number | undefined;
                         tokens: string[];
                         message_ids?: number[] | undefined;
+                        message_fingerprints?: string[] | undefined;
                         mentions?: number | undefined;
                         retrieval_hits?: number | undefined;
                         archived?: boolean | undefined;
@@ -754,6 +763,7 @@ export type ReflectionPromptParams = {
         level?: number | undefined;
         tokens: string[];
         message_ids?: number[] | undefined;
+        message_fingerprints?: string[] | undefined;
         mentions?: number | undefined;
         retrieval_hits?: number | undefined;
         archived?: boolean | undefined;

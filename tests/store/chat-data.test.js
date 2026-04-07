@@ -407,10 +407,10 @@ describe('store/chat-data', () => {
                 [MEMORIES_KEY]: [{ id: '1' }],
             };
             mockContext.chat = [
-                { is_system: false },                         // visible — no change
-                { is_system: true, is_user: true },            // ST-native hidden (e.g. Author's Note)
-                { is_system: true, openvault_hidden: true },  // OpenVault hidden — should unhide
-                { is_system: true },                           // ST-native hidden — should stay hidden
+                { is_system: false }, // visible — no change
+                { is_system: true, is_user: true }, // ST-native hidden (e.g. Author's Note)
+                { is_system: true, openvault_hidden: true }, // OpenVault hidden — should unhide
+                { is_system: true }, // ST-native hidden — should stay hidden
             ];
             setDeps({
                 console: mockConsole,
@@ -423,10 +423,10 @@ describe('store/chat-data', () => {
 
             await deleteCurrentChatData();
 
-            expect(mockContext.chat[0].is_system).toBe(false);   // unchanged
-            expect(mockContext.chat[1].is_system).toBe(true);     // ST-native preserved
-            expect(mockContext.chat[2].is_system).toBe(false);    // OV-hidden unhid
-            expect(mockContext.chat[3].is_system).toBe(true);     // ST-native preserved
+            expect(mockContext.chat[0].is_system).toBe(false); // unchanged
+            expect(mockContext.chat[1].is_system).toBe(true); // ST-native preserved
+            expect(mockContext.chat[2].is_system).toBe(false); // OV-hidden unhid
+            expect(mockContext.chat[3].is_system).toBe(true); // ST-native preserved
         });
     });
 
