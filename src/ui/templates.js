@@ -5,8 +5,8 @@
  * Zero side effects, easily testable.
  */
 
-import { isEmbeddingsEnabled } from '../embeddings.js';
 import { ENTITY_TYPES } from '../constants.js';
+import { isEmbeddingsEnabled } from '../embeddings.js';
 import { escapeHtml } from '../utils/dom.js';
 import { hasEmbedding } from '../utils/embedding-codec.js';
 import { formatMemoryDate, formatMemoryImportance, formatWitnesses } from './helpers.js';
@@ -284,15 +284,13 @@ export function renderCommunityAccordion(id, community) {
  * @returns {string} HTML string
  */
 export function renderEntityCard(entity, key) {
-  const typeLabel = entity.type.charAt(0) + entity.type.slice(1).toLowerCase();
-  const aliasText = entity.aliases?.length > 0
-    ? entity.aliases.join(', ')
-    : '';
-  const pendingBadge = !hasEmbedding(entity)
-    ? '<span class="openvault-pending-embed"><span class="icon">↻</span> pending</span>'
-    : '';
+    const typeLabel = entity.type.charAt(0) + entity.type.slice(1).toLowerCase();
+    const aliasText = entity.aliases?.length > 0 ? entity.aliases.join(', ') : '';
+    const pendingBadge = !hasEmbedding(entity)
+        ? '<span class="openvault-pending-embed"><span class="icon">↻</span> pending</span>'
+        : '';
 
-  return `
+    return `
     <div class="openvault-entity-card" data-key="${escapeHtml(key)}">
       <div class="openvault-entity-header">
         <span class="openvault-entity-name">${escapeHtml(entity.name)}</span>
@@ -314,6 +312,68 @@ export function renderEntityCard(entity, key) {
       ${aliasText ? `<div class="openvault-entity-aliases">${escapeHtml(aliasText)}</div>` : ''}
       <div class="openvault-entity-description">${escapeHtml(entity.description || '')}</div>
       <small class="openvault-entity-mentions">${entity.mentions || 0} mentions</small>
+    </div>
+  `;
+}
+
+/**
+ * Render an entity card in edit mode
+ * @param {Object} entity - Entity node with name, type, description, aliases
+ * @param {string} key - Normalized entity key
+ * @returns {string} HTML string
+ */
+export function renderEntityEdit(entity, key) {
+    const aliasChips = (entity.aliases || [])
+        .map(
+            (alias) => `
+      <span class="openvault-alias-chip">
+        ${escapeHtml(alias)}
+        <span class="remove openvault-remove-alias" data-key="${escapeHtml(key)}" data-alias="${escapeHtml(alias)}">×</span>
+      </span>
+    `
+        )
+        .join('');
+
+    const typeOptions = Object.entries(ENTITY_TYPES)
+        .map(
+            ([type]) => `
+    <option value="${type}" ${entity.type === type ? 'selected' : ''}>
+      ${type.charAt(0) + type.slice(1).toLowerCase()}
+    </option>
+  `
+        )
+        .join('');
+
+    return `
+    <div class="openvault-entity-edit" data-key="${escapeHtml(key)}">
+      <div class="openvault-entity-edit-row">
+        <label>Name</label>
+        <input type="text" class="openvault-edit-name" value="${escapeHtml(entity.name)}" data-key="${escapeHtml(key)}">
+      </div>
+      <div class="openvault-entity-edit-row">
+        <label>Type</label>
+        <select class="openvault-edit-type" data-key="${escapeHtml(key)}">
+          ${typeOptions}
+        </select>
+      </div>
+      <div class="openvault-entity-edit-row">
+        <label>Description</label>
+        <textarea class="openvault-edit-description" data-key="${escapeHtml(key)}" rows="3">${escapeHtml(entity.description || '')}</textarea>
+      </div>
+      <div class="openvault-entity-edit-row">
+        <label>Aliases</label>
+        <div class="openvault-alias-list" data-key="${escapeHtml(key)}">
+          ${aliasChips}
+        </div>
+        <div class="openvault-alias-input-row">
+          <input type="text" class="openvault-alias-input" placeholder="e.g. The Stranger, Masked Figure..." data-key="${escapeHtml(key)}">
+          <button class="openvault-add-alias" data-key="${escapeHtml(key)}">Add</button>
+        </div>
+      </div>
+      <div class="openvault-entity-edit-actions">
+        <button class="cancel openvault-cancel-entity-edit" data-key="${escapeHtml(key)}">Cancel</button>
+        <button class="save openvault-save-entity-edit" data-key="${escapeHtml(key)}">Save</button>
+      </div>
     </div>
   `;
 }
