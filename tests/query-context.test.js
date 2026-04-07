@@ -198,6 +198,20 @@ describe('query-context', () => {
             expect(query.length).toBeLessThanOrEqual(500);
         });
 
+        it('preserves top entities even when weighted text exceeds chunk size', () => {
+            const longMessage = 'word '.repeat(500); // ~2500 chars, exceeds 500 mock chunk size
+            const messages = [{ mes: longMessage }];
+            const entities = { entities: ['Dragon', 'Castle', 'Alice'], weights: {} };
+            const query = buildEmbeddingQuery(messages, entities, queryConfig);
+
+            // Must still be within chunk size
+            expect(query.length).toBeLessThanOrEqual(500);
+            // Entities must be present (they should be prepended, not chopped)
+            expect(query).toContain('Dragon');
+            expect(query).toContain('Castle');
+            expect(query).toContain('Alice');
+        });
+
         it('handles empty messages', () => {
             const query = buildEmbeddingQuery([], { entities: [], weights: {} }, queryConfig);
             expect(query).toBe('');

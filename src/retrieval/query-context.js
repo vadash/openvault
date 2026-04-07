@@ -123,9 +123,11 @@ export function buildEmbeddingQuery(messages, extractedEntities, queryConfig) {
     // Append top entities (adds semantic anchors)
     const topEntities = (extractedEntities?.entities || []).slice(0, 5).join(' ');
 
-    // Cap at strategy's optimal chunk size
+    // Cap at strategy's optimal chunk size — entities are prepended so they survive truncation
     const chunkSize = getOptimalChunkSize();
-    return (weightedText + ' ' + topEntities).slice(0, chunkSize);
+    const entityPrefix = topEntities.length > 0 ? topEntities + ' ' : '';
+    const availableSpace = Math.max(0, chunkSize - entityPrefix.length);
+    return (entityPrefix + weightedText.slice(0, availableSpace)).trim();
 }
 
 /**
