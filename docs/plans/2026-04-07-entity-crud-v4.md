@@ -38,11 +38,14 @@
 - Add new styles in separate file, include both in extension
 - Use jQuery-compatible class names (kebab-case)
 - Use correct ENTITY_TYPE values: PERSON, PLACE, ORGANIZATION, OBJECT, CONCEPT
+- Use `--SmartTheme*` CSS variables (SillyTavern convention), NOT `--st-color-*`
+- Use existing class-based type badge selectors (`person`, `place`, etc.), NOT `data-type` attribute selectors — world.css already defines these with translucent dark-theme-friendly colors
+- Do NOT redefine type badge colors — world.css:106-142 already has them
 
 - [ ] Step 1: Read existing world.css to check existing styles
 
 Run: `type css\world.css`
-Expected: Shows existing community styles
+Expected: Shows existing community styles and type badge colors
 
 - [ ] Step 2: Create entity-crud.css with new styles only
 
@@ -53,10 +56,10 @@ Create file `css/entity-crud.css`:
 .openvault-entity-card {
   position: relative;
   padding: 12px;
-  border: 1px solid var(--st-color-border, #444);
+  border: 1px solid var(--SmartThemeBorderColor, #333);
   border-radius: 6px;
   margin-bottom: 8px;
-  background: var(--st-color-bg-secondary, #2a2a2a);
+  background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
 }
 
 .openvault-entity-header {
@@ -70,6 +73,12 @@ Create file `css/entity-crud.css`:
   font-weight: bold;
   font-size: 1.1em;
   flex: 1;
+}
+
+.openvault-entity-badges {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .openvault-entity-actions {
@@ -90,42 +99,8 @@ Create file `css/entity-crud.css`:
   opacity: 1;
 }
 
-.openvault-entity-type-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.75em;
-  font-weight: 500;
-  text-transform: uppercase;
-}
-
-/* Type-specific badge colors - match existing ENTITY_TYPES */
-.openvault-entity-type-badge[data-type="PERSON"] {
-  background: #4a90d9;
-  color: white;
-}
-
-.openvault-entity-type-badge[data-type="PLACE"] {
-  background: #6b8e23;
-  color: white;
-}
-
-.openvault-entity-type-badge[data-type="ORGANIZATION"] {
-  background: #9b59b6;
-  color: white;
-}
-
-.openvault-entity-type-badge[data-type="OBJECT"] {
-  background: #7f8c8d;
-  color: white;
-}
-
-.openvault-entity-type-badge[data-type="CONCEPT"] {
-  background: #e67e22;
-  color: white;
-}
+/* Type badge styles already defined in world.css (class-based, translucent)
+   Do NOT redefine them here. */
 
 /* Pending embed badge */
 .openvault-pending-embed {
@@ -147,7 +122,7 @@ Create file `css/entity-crud.css`:
 /* Alias row */
 .openvault-entity-aliases {
   font-size: 0.9em;
-  color: var(--st-color-text-secondary, #888);
+  color: var(--SmartThemeEmColor, #888);
   margin-bottom: 6px;
   font-style: italic;
 }
@@ -159,9 +134,9 @@ Create file `css/entity-crud.css`:
 /* Entity edit form */
 .openvault-entity-edit {
   padding: 12px;
-  border: 1px solid var(--st-color-border, #444);
+  border: 1px solid var(--SmartThemeBorderColor, #333);
   border-radius: 6px;
-  background: var(--st-color-bg-tertiary, #333);
+  background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3));
 }
 
 .openvault-entity-edit-row {
@@ -172,7 +147,7 @@ Create file `css/entity-crud.css`:
   display: block;
   font-size: 0.85em;
   margin-bottom: 4px;
-  color: var(--st-color-text-secondary, #aaa);
+  color: var(--SmartThemeEmColor, #888);
 }
 
 .openvault-entity-edit-row input[type="text"],
@@ -180,10 +155,10 @@ Create file `css/entity-crud.css`:
 .openvault-entity-edit-row textarea {
   width: 100%;
   padding: 6px 8px;
-  border: 1px solid var(--st-color-border, #555);
+  border: 1px solid var(--SmartThemeBorderColor, #333);
   border-radius: 4px;
-  background: var(--st-color-bg-primary, #1a1a1a);
-  color: var(--st-color-text-primary, #fff);
+  background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
+  color: inherit;
   font-family: inherit;
 }
 
@@ -205,8 +180,8 @@ Create file `css/entity-crud.css`:
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  background: var(--st-color-bg-primary, #1a1a1a);
-  border: 1px solid var(--st-color-border, #555);
+  background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
+  border: 1px solid var(--SmartThemeBorderColor, #333);
   border-radius: 12px;
   font-size: 0.85em;
 }
@@ -250,13 +225,13 @@ Create file `css/entity-crud.css`:
 
 .openvault-entity-edit-actions .cancel {
   background: transparent;
-  border: 1px solid var(--st-color-border, #555);
-  color: var(--st-color-text-primary, #fff);
+  border: 1px solid var(--SmartThemeBorderColor, #333);
+  color: inherit;
 }
 
 .openvault-entity-edit-actions .save {
-  background: var(--st-color-primary, #4a90d9);
-  border: 1px solid var(--st-color-primary, #4a90d9);
+  background: var(--SmartThemeEmColor, #48c);
+  border: 1px solid var(--SmartThemeEmColor, #48c);
   color: white;
 }
 
@@ -264,12 +239,12 @@ Create file `css/entity-crud.css`:
 .openvault-entity-description {
   font-size: 0.9em;
   line-height: 1.4;
-  color: var(--st-color-text-primary, #ddd);
+  color: inherit;
 }
 
 .openvault-entity-mentions {
   font-size: 0.8em;
-  color: var(--st-color-text-secondary, #888);
+  color: var(--SmartThemeEmColor, #888);
   margin-top: 6px;
 }
 ```
@@ -401,8 +376,15 @@ git commit -m "feat: split World tab into Entities and Communities tabs"
 - Normalize new name with same logic used elsewhere (check existing normalization)
 - Check for collisions BEFORE making any changes (transaction-like)
 - Rewrite edge keys properly: sourceKey__targetKey format
-- Don't forget to delete old embedding via deleteEmbedding()
+- Don't forget to delete old embedding via deleteEmbedding() (already imported in chat-data.js)
 - For rename: must delete old hash from ST Vector DB if `_st_synced: true` to prevent orphan
+- **Import `normalizeKey` from `../graph/graph.js`** (correct path from src/store/)
+- **Import `cyrb53` from `../utils/embedding-codec.js`** (NOT `../utils/hash.js` — no such file exists). Since `deleteEmbedding` is already imported from that file, consolidate into one import line
+- **Use `logWarn()` from `../utils/logging.js`** for warnings (already imported in chat-data.js), NOT `console.warn()`
+- **Guard `_mergeRedirects` before accessing**: `if (!graph._mergeRedirects) graph._mergeRedirects = {};` — matches existing pattern in graph.js:272
+- **ST Vector hash format**: use `[OV_ID:${key}] ${node.description}` — match insertion format in graph.js:486 exactly, no `|| node.name` fallback
+- **Tests must provide `saveChatConditional` in `setupTestContext` deps**: `setupTestContext({ deps: { saveChatConditional: vi.fn() } })`
+- **Tests must use `buildMockGraphNode()` from `tests/factories.js`** per tests/CLAUDE.md, NOT inline objects
 
 - [ ] Step 1: Write failing test for updateEntity
 
@@ -410,15 +392,18 @@ Create `tests/store/chat-data-updateEntity.test.js`:
 
 ```js
 // @ts-check
-/* global describe, it, expect, beforeEach */
-import { describe, it, expect, beforeEach } from 'vitest';
+/* global describe, it, expect, beforeEach, vi */
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { updateEntity, getOpenVaultData } from '../../src/store/chat-data.js';
 import { setupTestContext } from '../setup.js';
+import { buildMockGraphNode } from '../factories.js';
 
 describe('updateEntity', () => {
   beforeEach(() => {
     // Use setupTestContext per tests/CLAUDE.md - never vi.mock
-    setupTestContext();
+    setupTestContext({
+      deps: { saveChatConditional: vi.fn() }
+    });
     // Reset graph data for each test (use .graph not .graphData)
     const data = getOpenVaultData();
     data.graph = {
@@ -430,12 +415,11 @@ describe('updateEntity', () => {
 
   it('should update entity description without rename', async () => {
     const data = getOpenVaultData();
-    data.graph.nodes['marcus_hale'] = {
+    data.graph.nodes['marcus_hale'] = buildMockGraphNode({
       name: 'Marcus Hale',
       type: 'PERSON',
       description: 'A former soldier',
-      aliases: [],
-    };
+    });
 
     const result = await updateEntity('marcus_hale', {
       description: 'A former soldier turned mercenary',
@@ -447,18 +431,16 @@ describe('updateEntity', () => {
 
   it('should rename entity and rewrite edges', async () => {
     const data = getOpenVaultData();
-    data.graph.nodes['marcus_hale'] = {
+    data.graph.nodes['marcus_hale'] = buildMockGraphNode({
       name: 'Marcus Hale',
       type: 'PERSON',
       description: 'A soldier',
-      aliases: [],
-    };
-    data.graph.nodes['tavern'] = {
+    });
+    data.graph.nodes['tavern'] = buildMockGraphNode({
       name: 'The Tavern',
       type: 'PLACE',
       description: 'A pub',
-      aliases: [],
-    };
+    });
     data.graph.edges['marcus_hale__tavern'] = {
       source: 'marcus_hale',
       target: 'tavern',
@@ -479,13 +461,12 @@ describe('updateEntity', () => {
 
   it('should return stChanges.toDelete when renaming synced entity', async () => {
     const data = getOpenVaultData();
-    data.graph.nodes['marcus_hale'] = {
+    data.graph.nodes['marcus_hale'] = buildMockGraphNode({
       name: 'Marcus Hale',
       type: 'PERSON',
       description: 'A soldier',
-      aliases: [],
       _st_synced: true,
-    };
+    });
 
     const result = await updateEntity('marcus_hale', {
       name: 'Marcus the Brave',
@@ -498,18 +479,16 @@ describe('updateEntity', () => {
 
   it('should block rename to existing entity name', async () => {
     const data = getOpenVaultData();
-    data.graph.nodes['marcus_hale'] = {
+    data.graph.nodes['marcus_hale'] = buildMockGraphNode({
       name: 'Marcus Hale',
       type: 'PERSON',
       description: 'A soldier',
-      aliases: [],
-    };
-    data.graph.nodes['john_doe'] = {
+    });
+    data.graph.nodes['john_doe'] = buildMockGraphNode({
       name: 'John Doe',
       type: 'PERSON',
       description: 'Another person',
-      aliases: [],
-    };
+    });
 
     const result = await updateEntity('marcus_hale', {
       name: 'John Doe',
@@ -521,12 +500,12 @@ describe('updateEntity', () => {
 
   it('should update aliases array', async () => {
     const data = getOpenVaultData();
-    data.graph.nodes['marcus_hale'] = {
+    data.graph.nodes['marcus_hale'] = buildMockGraphNode({
       name: 'Marcus Hale',
       type: 'PERSON',
       description: 'A soldier',
       aliases: ['masked figure'],
-    };
+    });
 
     const result = await updateEntity('marcus_hale', {
       aliases: ['masked figure', 'the stranger'],
@@ -550,13 +529,19 @@ Expected: Shows existing store methods like updateMemory, deleteMemory
 
 - [ ] Step 4: Implement updateEntity() function
 
-Add to `src/store/chat-data.js` (after existing update/delete methods):
+Add to `src/store/chat-data.js` (after existing update/delete methods).
+
+**Import changes:** Add `normalizeKey` to existing graph.js import line. Add `cyrb53` to existing embedding-codec.js import line (consolidate with `deleteEmbedding`).
 
 ```js
-import { deleteEmbedding } from '../utils/embedding-codec.js';
-import { normalizeKey } from '../graph/graph.js';
-import { cyrb53 } from '../utils/hash.js';
+import { createEmptyGraph, normalizeKey } from '../graph/graph.js';
+// ...
+import { deleteEmbedding, cyrb53 } from '../utils/embedding-codec.js';
+```
 
+Implementation:
+
+```js
 /**
  * Update an entity's fields. Handles rename by rewriting edges and merge redirects.
  * @param {string} key - Current normalized entity key
@@ -569,7 +554,7 @@ export async function updateEntity(key, updates) {
   const node = graph.nodes[key];
 
   if (!node) {
-    console.warn(`[OpenVault] Cannot update entity: ${key} not found`);
+    logWarn(`Cannot update entity: ${key} not found`);
     return null;
   }
 
@@ -580,7 +565,7 @@ export async function updateEntity(key, updates) {
   // If renaming, check for collision
   if (newKey !== key) {
     if (graph.nodes[newKey]) {
-      console.warn(`[OpenVault] Cannot rename to '${newName}': entity already exists`);
+      logWarn(`Cannot rename to '${newName}': entity already exists`);
       return null;
     }
   }
@@ -589,8 +574,9 @@ export async function updateEntity(key, updates) {
     // Track old hash for ST Vector deletion if synced
     const toDelete = [];
     if (node._st_synced) {
-      // Calculate hash using same format as insertion: [OV_ID:key] description
-      const text = `[OV_ID:${key}] ${node.description || node.name}`;
+      // Calculate hash using same format as insertion in graph.js:486:
+      // [OV_ID:key] description (no fallback to name)
+      const text = `[OV_ID:${key}] ${node.description}`;
       const hash = cyrb53(text).toString();
       toDelete.push(hash);
     }
@@ -633,7 +619,8 @@ export async function updateEntity(key, updates) {
       }
     }
 
-    // Set merge redirect
+    // Guard _mergeRedirects (matches pattern in graph.js:272)
+    if (!graph._mergeRedirects) graph._mergeRedirects = {};
     graph._mergeRedirects[key] = newKey;
 
     // Invalidate embedding on new node
@@ -688,9 +675,13 @@ git commit -m "feat: add updateEntity() with rename and edge rewriting"
 **Common Pitfalls:**
 - Use `data.graph` not `data.graphData` for node/edge access
 - Remove all edges where entity is source OR target
-- Clean up merge redirects pointing to or from the deleted key
+- **Guard `_mergeRedirects` before iterating**: `if (!graph._mergeRedirects) graph._mergeRedirects = {};` — matches graph.js:272. Without this guard, `Object.entries(graph._mergeRedirects)` throws on older data structures where the field is absent
 - Must delete from ST Vector DB if `_st_synced: true` to prevent orphan embeddings
-- Return boolean to indicate success/failure
+- **Import `cyrb53` from `../utils/embedding-codec.js`** (already imported in Task 3 if done sequentially)
+- **Use `logWarn()`** (already imported), NOT `console.warn()`
+- **Tests must provide `saveChatConditional` in `setupTestContext` deps**
+- **Tests must use `buildMockGraphNode()`** per tests/CLAUDE.md
+- **Return `{success: boolean, stChanges?: {toDelete: string[]}}`** — NOT a bare boolean (matches design doc calling code pattern)
 
 - [ ] Step 1: Write failing test for deleteEntity
 
@@ -698,17 +689,18 @@ Create `tests/store/chat-data-deleteEntity.test.js`:
 
 ```js
 // @ts-check
-/* global describe, it, expect, beforeEach */
-import { describe, it, expect, beforeEach } from 'vitest';
+/* global describe, it, expect, beforeEach, vi */
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { deleteEntity, getOpenVaultData } from '../../src/store/chat-data.js';
 import { setupTestContext } from '../setup.js';
+import { buildMockGraphNode } from '../factories.js';
 
 describe('deleteEntity', () => {
   beforeEach(() => {
-    // Use setupTestContext per tests/CLAUDE.md - never vi.mock
-    setupTestContext();
+    setupTestContext({
+      deps: { saveChatConditional: vi.fn() }
+    });
     const data = getOpenVaultData();
-    // Use .graph not .graphData
     data.graph = {
       nodes: {},
       edges: {},
@@ -718,33 +710,30 @@ describe('deleteEntity', () => {
 
   it('should delete entity with no edges', async () => {
     const data = getOpenVaultData();
-    data.graph.nodes['marcus_hale'] = {
+    data.graph.nodes['marcus_hale'] = buildMockGraphNode({
       name: 'Marcus Hale',
       type: 'PERSON',
       description: 'A soldier',
-      aliases: [],
-    };
+    });
 
     const result = await deleteEntity('marcus_hale');
 
-    expect(result).toBe(true);
+    expect(result.success).toBe(true);
     expect(data.graph.nodes['marcus_hale']).toBeUndefined();
   });
 
   it('should delete entity and remove connected edges', async () => {
     const data = getOpenVaultData();
-    data.graph.nodes['marcus_hale'] = {
+    data.graph.nodes['marcus_hale'] = buildMockGraphNode({
       name: 'Marcus Hale',
       type: 'PERSON',
       description: 'A soldier',
-      aliases: [],
-    };
-    data.graph.nodes['tavern'] = {
+    });
+    data.graph.nodes['tavern'] = buildMockGraphNode({
       name: 'The Tavern',
       type: 'PLACE',
       description: 'A pub',
-      aliases: [],
-    };
+    });
     data.graph.edges['marcus_hale__tavern'] = {
       source: 'marcus_hale',
       target: 'tavern',
@@ -758,7 +747,7 @@ describe('deleteEntity', () => {
 
     const result = await deleteEntity('marcus_hale');
 
-    expect(result).toBe(true);
+    expect(result.success).toBe(true);
     expect(data.graph.nodes['marcus_hale']).toBeUndefined();
     expect(data.graph.edges['marcus_hale__tavern']).toBeUndefined();
     expect(data.graph.edges['tavern__marcus_hale']).toBeUndefined();
@@ -766,12 +755,11 @@ describe('deleteEntity', () => {
 
   it('should clean up merge redirects when deleting entity', async () => {
     const data = getOpenVaultData();
-    data.graph.nodes['marcus_hale'] = {
+    data.graph.nodes['marcus_hale'] = buildMockGraphNode({
       name: 'Marcus Hale',
       type: 'PERSON',
       description: 'A soldier',
-      aliases: [],
-    };
+    });
     data.graph._mergeRedirects = {
       'old_name': 'marcus_hale',
       'marcus_hale': 'new_name',
@@ -783,9 +771,25 @@ describe('deleteEntity', () => {
     expect(data.graph._mergeRedirects['marcus_hale']).toBeUndefined();
   });
 
-  it('should return false for non-existent entity', async () => {
+  it('should handle missing _mergeRedirects without error', async () => {
+    const data = getOpenVaultData();
+    data.graph.nodes['marcus_hale'] = buildMockGraphNode({
+      name: 'Marcus Hale',
+      type: 'PERSON',
+      description: 'A soldier',
+    });
+    // Intentionally no _mergeRedirects field (simulates older data structure)
+    delete data.graph._mergeRedirects;
+
+    const result = await deleteEntity('marcus_hale');
+
+    expect(result.success).toBe(true);
+    expect(data.graph.nodes['marcus_hale']).toBeUndefined();
+  });
+
+  it('should return failure for non-existent entity', async () => {
     const result = await deleteEntity('non_existent');
-    expect(result).toBe(false);
+    expect(result.success).toBe(false);
   });
 });
 ```
@@ -800,8 +804,6 @@ Expected: FAIL - "deleteEntity is not exported"
 Add to `src/store/chat-data.js` (after updateEntity):
 
 ```js
-import { cyrb53 } from '../utils/hash.js'; // For calculating ST Vector hash
-
 /**
  * Delete an entity and all its edges and merge redirects.
  * Also deletes from ST Vector storage if _st_synced to prevent orphan embeddings.
@@ -814,15 +816,16 @@ export async function deleteEntity(key) {
 
   const node = graph.nodes[key];
   if (!node) {
-    console.warn(`[OpenVault] Cannot delete entity: ${key} not found`);
+    logWarn(`Cannot delete entity: ${key} not found`);
     return { success: false };
   }
 
   // Track ST Vector items to delete (prevent orphan embeddings)
   const toDelete = [];
   if (node._st_synced) {
-    // Calculate hash using same format as insertion: [OV_ID:key] description
-    const text = `[OV_ID:${key}] ${node.description || node.name}`;
+    // Calculate hash using same format as insertion in graph.js:486:
+    // [OV_ID:key] description (no fallback to name)
+    const text = `[OV_ID:${key}] ${node.description}`;
     const hash = cyrb53(text).toString();
     toDelete.push(hash);
   }
@@ -837,10 +840,12 @@ export async function deleteEntity(key) {
     }
   }
 
-  // Clean up merge redirects
-  for (const [redirectKey, redirectValue] of Object.entries(graph._mergeRedirects)) {
-    if (redirectKey === key || redirectValue === key) {
-      delete graph._mergeRedirects[redirectKey];
+  // Guard _mergeRedirects before iterating (matches graph.js:272)
+  if (graph._mergeRedirects) {
+    for (const [redirectKey, redirectValue] of Object.entries(graph._mergeRedirects)) {
+      if (redirectKey === key || redirectValue === key) {
+        delete graph._mergeRedirects[redirectKey];
+      }
     }
   }
 
@@ -872,27 +877,35 @@ git commit -m "feat: add deleteEntity() with edge, redirect, and ST Vector clean
 **Files:**
 - Modify: `src/ui/templates.js`
 
-**Purpose:** Add edit/delete buttons, alias display, and pending-embed badge to entity cards.
+**Purpose:** Add edit/delete buttons, alias display, and pending-embed badge to entity cards. Change signature from `renderEntityCard(entity)` to `renderEntityCard(entity, key)`.
 
 **Common Pitfalls:**
+- `escapeHtml` is already imported from `'../utils/dom.js'` (line 7) — do NOT add a duplicate local helper
+- `hasEmbedding` is already imported from `'../utils/embedding-codec.js'` (line 8) — do NOT add a duplicate import
+- `ENTITY_TYPES` must be imported from `'../constants.js'` — it's a frozen object where keys and values are identical uppercase strings (e.g. `ENTITY_TYPES.PERSON === 'PERSON'`)
 - Use `data-key` attribute with the entity's normalized key
-- Check for embedding using hasEmbedding() utility (import from embedding-codec.js)
-- Only show aliases row if aliases array is non-empty
-- Use existing icon patterns from memory cards
+- Use class-based type badge pattern: `${entity.type.toLowerCase()}` — matches existing world.css selectors (`.openvault-entity-type-badge.person`, etc.)
+- Do NOT use `data-type="${entity.type}"` attribute selector — world.css uses class-based selectors
+- This is a **breaking signature change** — `tests/ui-templates.test.js` calls `renderEntityCard(entity)` with a single argument and must be updated in this same commit
 
 - [ ] Step 1: Read existing templates.js to understand current renderEntityCard
 
 Run: `type src\ui\templates.js`
 Expected: Shows current renderEntityCard function
 
-- [ ] Step 2: Update renderEntityCard() function
+- [ ] Step 2: Add ENTITY_TYPES import if not present
 
-Find and replace the `renderEntityCard` function:
+Check if `ENTITY_TYPES` is already imported. If not, add to imports:
 
 ```js
-import { hasEmbedding } from '../utils/embedding-codec.js';
 import { ENTITY_TYPES } from '../constants.js';
+```
 
+- [ ] Step 3: Update renderEntityCard() function
+
+Replace the `renderEntityCard` function:
+
+```js
 /**
  * Render an entity card in view mode
  * @param {Object} entity - Entity node with name, type, description, aliases
@@ -900,7 +913,7 @@ import { ENTITY_TYPES } from '../constants.js';
  * @returns {string} HTML string
  */
 export function renderEntityCard(entity, key) {
-  const typeConfig = ENTITY_TYPES[entity.type] || ENTITY_TYPES.OBJECT;
+  const typeLabel = entity.type.charAt(0) + entity.type.slice(1).toLowerCase();
   const aliasText = entity.aliases?.length > 0
     ? entity.aliases.join(', ')
     : '';
@@ -909,58 +922,55 @@ export function renderEntityCard(entity, key) {
     : '';
 
   return `
-    <div class="openvault-entity-card" data-key="${key}">
+    <div class="openvault-entity-card" data-key="${escapeHtml(key)}">
       <div class="openvault-entity-header">
         <span class="openvault-entity-name">${escapeHtml(entity.name)}</span>
         <div class="openvault-entity-badges">
-          <span class="openvault-entity-type-badge" data-type="${entity.type}">
-            ${typeConfig}
+          <span class="openvault-entity-type-badge ${entity.type.toLowerCase()}">
+            ${typeLabel}
           </span>
           ${pendingBadge}
         </div>
         <div class="openvault-entity-actions">
-          <button class="openvault-entity-action-btn openvault-edit-entity" data-key="${key}" title="Edit">
+          <button class="openvault-entity-action-btn openvault-edit-entity" data-key="${escapeHtml(key)}" title="Edit">
             ✏️
           </button>
-          <button class="openvault-entity-action-btn openvault-delete-entity" data-key="${key}" title="Delete">
+          <button class="openvault-entity-action-btn openvault-delete-entity" data-key="${escapeHtml(key)}" title="Delete">
             🗑️
           </button>
         </div>
       </div>
       ${aliasText ? `<div class="openvault-entity-aliases">${escapeHtml(aliasText)}</div>` : ''}
       <div class="openvault-entity-description">${escapeHtml(entity.description || '')}</div>
-      <div class="openvault-entity-mentions">${entity.mentions || 0} mentions</div>
+      <small class="openvault-entity-mentions">${entity.mentions || 0} mentions</small>
     </div>
   `;
 }
 ```
 
-Add helper if not present:
+- [ ] Step 4: Update tests/ui-templates.test.js renderEntityCard tests
+
+The 5 `renderEntityCard` tests in `tests/ui-templates.test.js` all call `renderEntityCard(entity)` without a key. Update each call to pass the key as a second argument:
 
 ```js
-/**
- * Escape HTML special characters
- * @param {string} text
- * @returns {string}
- */
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
+// Before:
+const html = renderEntityCard(entity);
+// After:
+const html = renderEntityCard(entity, 'king_aldric');
 ```
 
-- [ ] Step 3: Run templates test if exists
+Use a sensible key for each test (matching the entity name). Also update assertions to check for the new elements (badges div, edit/delete buttons) where appropriate.
 
-Run: `npm test -- tests/ui/templates.test.js 2>nul || echo "No templates test yet"`
-Expected: Either runs tests or shows no test file
+- [ ] Step 5: Run template tests
 
-- [ ] Step 4: Commit
+Run: `npm test -- tests/ui-templates.test.js`
+Expected: PASS
+
+- [ ] Step 6: Commit
 
 ```bash
-git add src/ui/templates.js
-git commit -m "feat: update renderEntityCard with edit/delete buttons and aliases"
+git add src/ui/templates.js tests/ui-templates.test.js
+git commit -m "feat: update renderEntityCard with edit/delete buttons, aliases, and key param"
 ```
 
 ---
@@ -977,6 +987,8 @@ git commit -m "feat: update renderEntityCard with edit/delete buttons and aliase
 - Use data-key for cancel/save buttons
 - Include all 5 entity types in dropdown
 - Alias chips need remove buttons with data-alias attribute
+- `escapeHtml` is already imported — use it, don't define locally
+- Use class-based type badge pattern for consistency
 
 - [ ] Step 1: Add renderEntityEdit() function to templates.js
 
@@ -994,60 +1006,52 @@ export function renderEntityEdit(entity, key) {
     .map(alias => `
       <span class="openvault-alias-chip">
         ${escapeHtml(alias)}
-        <span class="remove openvault-remove-alias" data-key="${key}" data-alias="${escapeHtml(alias)}">×</span>
+        <span class="remove openvault-remove-alias" data-key="${escapeHtml(key)}" data-alias="${escapeHtml(alias)}">×</span>
       </span>
     `).join('');
 
-  const typeOptions = Object.entries(ENTITY_TYPES).map(([type, label]) => `
+  const typeOptions = Object.entries(ENTITY_TYPES).map(([type]) => `
     <option value="${type}" ${entity.type === type ? 'selected' : ''}>
-      ${label.charAt(0) + label.slice(1).toLowerCase()}
+      ${type.charAt(0) + type.slice(1).toLowerCase()}
     </option>
   `).join('');
 
   return `
-    <div class="openvault-entity-edit" data-key="${key}">
+    <div class="openvault-entity-edit" data-key="${escapeHtml(key)}">
       <div class="openvault-entity-edit-row">
         <label>Name</label>
-        <input type="text" class="openvault-edit-name" value="${escapeHtml(entity.name)}" data-key="${key}">
+        <input type="text" class="openvault-edit-name" value="${escapeHtml(entity.name)}" data-key="${escapeHtml(key)}">
       </div>
       <div class="openvault-entity-edit-row">
         <label>Type</label>
-        <select class="openvault-edit-type" data-key="${key}">
+        <select class="openvault-edit-type" data-key="${escapeHtml(key)}">
           ${typeOptions}
         </select>
       </div>
       <div class="openvault-entity-edit-row">
         <label>Description</label>
-        <textarea class="openvault-edit-description" data-key="${key}" rows="3">${escapeHtml(entity.description || '')}</textarea>
+        <textarea class="openvault-edit-description" data-key="${escapeHtml(key)}" rows="3">${escapeHtml(entity.description || '')}</textarea>
       </div>
       <div class="openvault-entity-edit-row">
         <label>Aliases</label>
-        <div class="openvault-alias-list" data-key="${key}">
+        <div class="openvault-alias-list" data-key="${escapeHtml(key)}">
           ${aliasChips}
         </div>
         <div class="openvault-alias-input-row">
-          <input type="text" class="openvault-alias-input" placeholder="e.g. The Stranger, Masked Figure..." data-key="${key}">
-          <button class="openvault-add-alias" data-key="${key}">Add</button>
+          <input type="text" class="openvault-alias-input" placeholder="e.g. The Stranger, Masked Figure..." data-key="${escapeHtml(key)}">
+          <button class="openvault-add-alias" data-key="${escapeHtml(key)}">Add</button>
         </div>
       </div>
       <div class="openvault-entity-edit-actions">
-        <button class="cancel openvault-cancel-entity-edit" data-key="${key}">Cancel</button>
-        <button class="save openvault-save-entity-edit" data-key="${key}">Save</button>
+        <button class="cancel openvault-cancel-entity-edit" data-key="${escapeHtml(key)}">Cancel</button>
+        <button class="save openvault-save-entity-edit" data-key="${escapeHtml(key)}">Save</button>
       </div>
     </div>
   `;
 }
 ```
 
-- [ ] Step 2: Export the new function if using named exports
-
-Verify export statement includes `renderEntityEdit`:
-
-```js
-export { renderEntityCard, renderEntityEdit, /* other exports */ };
-```
-
-- [ ] Step 3: Commit
+- [ ] Step 2: Commit
 
 ```bash
 git add src/ui/templates.js
@@ -1056,26 +1060,23 @@ git commit -m "feat: add renderEntityEdit() for entity editing form"
 
 ---
 
-## Task 7: Update filterEntities() to Search Aliases
+## Task 7 + 9: Update filterEntities() AND renderEntityList() Together
 
 **Files:**
-- Modify: `src/ui/helpers.js`
+- Modify: `src/ui/helpers.js` — Update `filterEntities()` signature and add alias search
+- Modify: `src/ui/render.js` — Update `renderEntityList()` to use new signature
 
-**Purpose:** Include aliases in entity search matching so searching "masked figure" finds "Marcus Hale".
+**Purpose:** Change filterEntities from `filterEntities(entities, typeFilter, searchQuery)` (takes array) to `filterEntities(graph, query, typeFilter)` (takes graph, returns `[key, entity]` tuples). These MUST be done in the same commit because renderEntityList depends on filterEntities — the intermediate state between them would break.
 
 **Common Pitfalls:**
 - Handle case-insensitive search
 - Handle empty aliases array
 - Don't break existing name/description search
+- renderEntityList currently calls `filtered.map(renderEntityCard)` — must change to `filtered.map(([key, entity]) => renderEntityCard(entity, key))`
 
-- [ ] Step 1: Read existing helpers.js
+- [ ] Step 1: Update filterEntities() in helpers.js
 
-Run: `type src\ui\helpers.js`
-Expected: Shows current filterEntities function
-
-- [ ] Step 2: Update filterEntities() to include aliases
-
-Replace or update the filterEntities function:
+Replace the `filterEntities` function:
 
 ```js
 /**
@@ -1089,7 +1090,7 @@ export function filterEntities(graph, query, typeFilter) {
   const normalizedQuery = query.toLowerCase().trim();
 
   return Object.entries(graph?.nodes || {})
-    .filter(([key, entity]) => {
+    .filter(([, entity]) => {
       // Type filter
       if (typeFilter && entity.type !== typeFilter) {
         return false;
@@ -1112,6 +1113,37 @@ export function filterEntities(graph, query, typeFilter) {
 }
 ```
 
+- [ ] Step 2: Update renderEntityList() in render.js
+
+Update to pass graph directly and destructure tuples:
+
+```js
+/**
+ * Render the entity list
+ * @param {string} searchQuery - Current search query
+ * @param {string} typeFilter - Current type filter
+ */
+export function renderEntityList(searchQuery = '', typeFilter = '') {
+  const graph = getOpenVaultData().graph;
+  const $container = $('#openvault_entity_list');
+
+  if ($container.length === 0) return;
+
+  const filtered = filterEntities(graph, searchQuery, typeFilter);
+
+  if (filtered.length === 0) {
+    $container.html('<div class="openvault-empty">No entities found</div>');
+    return;
+  }
+
+  const html = filtered
+    .map(([key, entity]) => renderEntityCard(entity, key))
+    .join('');
+
+  $container.html(html);
+}
+```
+
 - [ ] Step 3: Write test for alias search
 
 Create `tests/ui/helpers-alias-search.test.js`:
@@ -1120,24 +1152,25 @@ Create `tests/ui/helpers-alias-search.test.js`:
 // @ts-check
 import { describe, it, expect } from 'vitest';
 import { filterEntities } from '../../src/ui/helpers.js';
+import { buildMockGraphNode } from '../factories.js';
 
 describe('filterEntities alias search', () => {
   const mockGraph = {
     nodes: {
-      'marcus_hale': {
+      'marcus_hale': buildMockGraphNode({
         name: 'Marcus Hale',
         type: 'PERSON',
         description: 'A former soldier',
         aliases: ['masked figure', 'the stranger'],
         mentions: 5,
-      },
-      'tavern': {
+      }),
+      'tavern': buildMockGraphNode({
         name: 'The Tavern',
         type: 'PLACE',
         description: 'A drinking establishment',
         aliases: [],
         mentions: 3,
-      },
+      }),
     },
   };
 
@@ -1166,11 +1199,11 @@ describe('filterEntities alias search', () => {
 Run: `npm test -- tests/ui/helpers-alias-search.test.js`
 Expected: PASS
 
-- [ ] Step 5: Commit
+- [ ] Step 5: Commit (both files together)
 
 ```bash
-git add src/ui/helpers.js tests/ui/helpers-alias-search.test.js
-git commit -m "feat: include aliases in entity search"
+git add src/ui/helpers.js src/ui/render.js tests/ui/helpers-alias-search.test.js
+git commit -m "feat: update filterEntities to search aliases; update renderEntityList for new signature"
 ```
 
 ---
@@ -1187,6 +1220,8 @@ git commit -m "feat: include aliases in entity search"
 - Count edges before delete for confirm dialog
 - Validate name is not empty before save
 - Handle alias add on Enter key as well as button click
+- `escapeHtml` is NOT imported in render.js — import it from `'../utils/dom.js'`
+- Clean up `entityEditState` Map entry when entity is deleted (prevents stale entries)
 
 - [ ] Step 1: Read existing render.js to understand patterns
 
@@ -1198,9 +1233,10 @@ Expected: Shows memory event binding patterns
 At top of file, add:
 
 ```js
-import { updateEntity, deleteEntity, getOpenVaultData } from '../store/chat-data.js';
+import { updateEntity, deleteEntity, getOpenVaultData, getCurrentChatId } from '../store/chat-data.js';
 import { renderEntityCard, renderEntityEdit } from './templates.js';
 import { filterEntities } from './helpers.js';
+import { escapeHtml } from '../utils/dom.js';
 import { deleteItemsFromST } from '../services/st-vector.js'; // For ST Vector cleanup
 ```
 
@@ -1266,8 +1302,6 @@ function initEntityEventBindings() {
 
 - [ ] Step 4: Add CRUD action functions
 
-Add the action functions:
-
 ```js
 // In-memory storage for edit form state
 const entityEditState = new Map();
@@ -1277,7 +1311,7 @@ const entityEditState = new Map();
  * @param {string} key - Entity key
  */
 function enterEntityEditMode(key) {
-  const graph = getOpenVaultData().graph;  // Use .graph not .graphData
+  const graph = getOpenVaultData().graph;
   const entity = graph.nodes[key];
   if (!entity) return;
 
@@ -1295,7 +1329,7 @@ function enterEntityEditMode(key) {
  * @param {string} key - Entity key
  */
 function cancelEntityEdit(key) {
-  const graph = getOpenVaultData().graph;  // Use .graph not .graphData
+  const graph = getOpenVaultData().graph;
   const entity = graph.nodes[key];
   if (!entity) return;
 
@@ -1331,7 +1365,6 @@ async function saveEntityEdit(key, btn) {
   // Capture any pending alias in the input field
   const pendingAlias = $edit.find('.openvault-alias-input').val()?.toString().trim();
   if (pendingAlias) {
-    // Check for duplicates before adding
     const existingLower = aliases.map(a => a.toLowerCase());
     if (!existingLower.includes(pendingAlias.toLowerCase())) {
       aliases.push(pendingAlias);
@@ -1359,7 +1392,7 @@ async function saveEntityEdit(key, btn) {
       return;
     }
 
-    // Clear edit state
+    // Clear edit state (use old key and new key for rename case)
     entityEditState.delete(key);
 
     // Handle ST Vector cleanup if renaming synced entity
@@ -1371,7 +1404,7 @@ async function saveEntityEdit(key, btn) {
     }
 
     // Replace with updated view card (use newKey if renamed)
-    const graph = getOpenVaultData().graph;  // Use .graph not .graphData
+    const graph = getOpenVaultData().graph;
     const entity = graph.nodes[result.key];
     const viewHtml = renderEntityCard(entity, result.key);
     $edit.replaceWith(viewHtml);
@@ -1386,7 +1419,7 @@ async function saveEntityEdit(key, btn) {
  * @param {string} key - Entity key
  */
 async function deleteEntityAction(key) {
-  const graph = getOpenVaultData().graph;  // Use .graph not .graphData
+  const graph = getOpenVaultData().graph;
   const entity = graph.nodes[key];
   if (!entity) return;
 
@@ -1403,6 +1436,9 @@ async function deleteEntityAction(key) {
 
   const result = await deleteEntity(key);
   if (result.success) {
+    // Clean up stale edit state
+    entityEditState.delete(key);
+
     // Remove from DOM
     $(`.openvault-entity-card[data-key="${key}"]`).remove();
 
@@ -1453,23 +1489,11 @@ function addAliasChip(key) {
   const chipHtml = `
     <span class="openvault-alias-chip">
       ${escapeHtml(alias)}
-      <span class="remove openvault-remove-alias" data-key="${key}" data-alias="${escapeHtml(alias)}">×</span>
+      <span class="remove openvault-remove-alias" data-key="${escapeHtml(key)}" data-alias="${escapeHtml(alias)}">×</span>
     </span>
   `;
   $edit.find('.openvault-alias-list').append(chipHtml);
   $input.val('');
-}
-
-/**
- * Escape HTML special characters
- * @param {string} text
- * @returns {string}
- */
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
 }
 ```
 
@@ -1490,85 +1514,25 @@ git commit -m "feat: add entity CRUD event bindings and actions"
 
 ---
 
-## Task 9: Update renderEntityList() for New Tab
-
-**Files:**
-- Modify: `src/ui/render.js`
-
-**Purpose:** Update entity list rendering to use new container ID and work with tab restructure.
-
-**Common Pitfalls:**
-- Update container selector from world-specific to entities-specific
-- Ensure it works with the new tab structure
-
-- [ ] Step 1: Find and update renderEntityList function
-
-Find the entity list rendering function and update container selector:
-
-```js
-/**
- * Render the entity list
- * @param {string} searchQuery - Current search query
- * @param {string} typeFilter - Current type filter
- */
-export function renderEntityList(searchQuery = '', typeFilter = '') {
-  const graph = getOpenVaultData().graph;  // Use .graph not .graphData
-  const $container = $('#openvault_entity_list');
-
-  if ($container.length === 0) return;
-
-  const filtered = filterEntities(graph, searchQuery, typeFilter);
-
-  if (filtered.length === 0) {
-    $container.html('<div class="openvault-empty">No entities found</div>');
-    return;
-  }
-
-  const html = filtered
-    .map(([key, entity]) => renderEntityCard(entity, key))
-    .join('');
-
-  $container.html(html);
-}
-```
-
-- [ ] Step 2: Update tab switching logic if needed
-
-Find tab switching code and ensure it handles the new tabs:
-
-```js
-// In tab switch handler
-$(document).on('click', '[data-tab="entities"]', () => {
-  renderEntityList();
-});
-
-$(document).on('click', '[data-tab="communities"]', () => {
-  renderCommunityList();
-});
-```
-
-- [ ] Step 3: Commit
-
-```bash
-git add src/ui/render.js
-git commit -m "feat: update entity list rendering for new tab structure"
-```
-
----
-
 ## Task 10: Update UI Structure Tests
 
 **Files:**
 - Modify: `tests/ui/world-structure.test.js`
+- Modify: `tests/ui/settings-bindings.test.js`
 
-**Purpose:** Update test selectors from "world" to "entities" and "communities" tabs.
+**Purpose:** Update test selectors from "world" to "entities" and "communities" tabs. Both files reference `data-tab="world"` and need updating.
 
-- [ ] Step 1: Read existing test file
+**Common Pitfalls:**
+- `settings-bindings.test.js` has a mock DOM fragment with `data-tab="world"` that also needs the update (lines 156-160)
+- `world-structure.test.js` should be renamed to `tab-structure.test.js`
+
+- [ ] Step 1: Read existing test files
 
 Run: `type tests\ui\world-structure.test.js`
-Expected: Shows current tests for World tab
+Run: `type tests\ui\settings-bindings.test.js`
+Expected: Shows current tests referencing "world" tab
 
-- [ ] Step 2: Update test file
+- [ ] Step 2: Update world-structure.test.js
 
 Replace references to "world" with "entities" and "communities":
 
@@ -1624,20 +1588,43 @@ describe('UI Tab Structure', () => {
 });
 ```
 
-- [ ] Step 3: Rename test file
+- [ ] Step 3: Update settings-bindings.test.js
+
+Find the mock DOM fragment and update `data-tab="world"` to the two new tabs:
+
+```js
+// Before (lines 156-160):
+<div class="openvault-tab-btn" data-tab="dashboard"></div>
+<div class="openvault-tab-btn" data-tab="memories"></div>
+<div class="openvault-tab-btn" data-tab="world"></div>
+<div class="openvault-tab-btn" data-tab="advanced"></div>
+<div class="openvault-tab-btn" data-tab="performance"></div>
+
+// After:
+<div class="openvault-tab-btn" data-tab="dashboard"></div>
+<div class="openvault-tab-btn" data-tab="memories"></div>
+<div class="openvault-tab-btn" data-tab="entities"></div>
+<div class="openvault-tab-btn" data-tab="communities"></div>
+<div class="openvault-tab-btn" data-tab="advanced"></div>
+<div class="openvault-tab-btn" data-tab="performance"></div>
+```
+
+Also update any test assertions that reference `data-tab="world"` to check for `data-tab="entities"` or `data-tab="communities"` as appropriate.
+
+- [ ] Step 4: Rename test file
 
 Run: `rename tests\ui\world-structure.test.js tests\ui\tab-structure.test.js`
 Expected: File renamed
 
-- [ ] Step 4: Run updated tests
+- [ ] Step 5: Run updated tests
 
-Run: `npm test -- tests/ui/tab-structure.test.js`
+Run: `npm test -- tests/ui/tab-structure.test.js tests/ui/settings-bindings.test.js`
 Expected: PASS
 
-- [ ] Step 5: Commit
+- [ ] Step 6: Commit
 
 ```bash
-git add tests/ui/tab-structure.test.js
+git add tests/ui/tab-structure.test.js tests/ui/settings-bindings.test.js
 git rm tests/ui/world-structure.test.js 2>nul || git add tests/ui/world-structure.test.js
 git commit -m "test: update UI structure tests for Entities/Communities tabs"
 ```
@@ -1657,18 +1644,19 @@ Create `tests/integration/entity-crud.test.js`:
 
 ```js
 // @ts-check
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { updateEntity, deleteEntity, getOpenVaultData } from '../../src/store/chat-data.js';
 import { renderEntityCard, renderEntityEdit } from '../../src/ui/templates.js';
 import { filterEntities } from '../../src/ui/helpers.js';
 import { setupTestContext } from '../setup.js';
+import { buildMockGraphNode } from '../factories.js';
 
 describe('Entity CRUD Integration', () => {
   beforeEach(() => {
-    // Use setupTestContext per tests/CLAUDE.md - never vi.mock
-    setupTestContext();
+    setupTestContext({
+      deps: { saveChatConditional: vi.fn() }
+    });
     const data = getOpenVaultData();
-    // Use .graph not .graphData
     data.graph = {
       nodes: {},
       edges: {},
@@ -1680,18 +1668,17 @@ describe('Entity CRUD Integration', () => {
     const data = getOpenVaultData();
 
     // Create initial entity
-    data.graph.nodes['masked_figure'] = {
+    data.graph.nodes['masked_figure'] = buildMockGraphNode({
       name: 'Masked Figure',
       type: 'PERSON',
       description: 'A mysterious person in a mask',
       aliases: ['the stranger'],
       mentions: 3,
-    };
+    });
 
     // Render view card
     const viewHtml = renderEntityCard(data.graph.nodes['masked_figure'], 'masked_figure');
     expect(viewHtml).toContain('Masked Figure');
-    expect(viewHtml).toContain('aka:');
     expect(viewHtml).toContain('the stranger');
 
     // Update with alias
@@ -1743,32 +1730,7 @@ git commit -m "test: add entity CRUD integration tests"
 
 ---
 
-## Task 12: Verify ENTITY_TYPES Import
-
-**Files:**
-- Modify: `src/ui/templates.js` (verify import)
-
-**Purpose:** Ensure ENTITY_TYPES constant is imported correctly. The constant already exists in `src/constants.js` with values: PERSON, PLACE, ORGANIZATION, OBJECT, CONCEPT.
-
-- [ ] Step 1: Verify ENTITY_TYPES import in templates.js
-
-Ensure import exists:
-
-```js
-import { ENTITY_TYPES } from '../constants.js';
-```
-
-Note: ENTITY_TYPES is a simple frozen object where values are strings (not objects with label/color properties). Access directly: `ENTITY_TYPES.PERSON` returns `"PERSON"`.
-
-- [ ] Step 2: Commit (if import was missing)
-
-```bash
-git add src/ui/templates.js 2>nul && git commit -m "fix: ensure ENTITY_TYPES import in templates" || echo "Import already present"
-```
-
----
-
-## Task 13: Final Verification and Commit
+## Task 12: Final Verification and Commit
 
 **Files:**
 - All modified files
@@ -1823,14 +1785,32 @@ This implementation plan covers the complete Entity CRUD feature:
 2. **Task 2:** HTML tab restructure (World → Entities + Communities)
 3. **Task 3:** `updateEntity()` store method with edge rewriting
 4. **Task 4:** `deleteEntity()` store method with cleanup
-5. **Task 5:** Updated `renderEntityCard()` with buttons and aliases
+5. **Task 5:** Updated `renderEntityCard()` with buttons, aliases, and key param (+ update existing tests)
 6. **Task 6:** New `renderEntityEdit()` for edit mode
-7. **Task 7:** Updated `filterEntities()` to search aliases
+7. **Task 7+9:** Updated `filterEntities()` to search aliases + updated `renderEntityList()` for new signature (combined to avoid broken intermediate state)
 8. **Task 8:** Event bindings for all CRUD actions
-9. **Task 9:** Updated `renderEntityList()` for new structure
-10. **Task 10:** Updated UI structure tests
-11. **Task 11:** Integration tests
-12. **Task 12:** Constants verification
-13. **Task 13:** Final verification and commit
+9. **Task 10:** Updated UI structure tests (including settings-bindings.test.js)
+10. **Task 11:** Integration tests
+11. **Task 12:** Final verification and commit
 
-Each task follows TDD red-green methodology with explicit commands and expected outputs.
+### Changes from v3
+
+| # | Issue | Fix |
+|---|-------|-----|
+| 1 | `renderEntityCard` signature change breaks `tests/ui-templates.test.js` (5 tests) | Task 5 now includes updating those tests in the same commit |
+| 2 | `cyrb53` imported from nonexistent `../utils/hash.js` | Import from `../utils/embedding-codec.js`, consolidated with `deleteEmbedding` |
+| 3 | `saveChatConditional` not mocked in `setupTestContext` | All test files now pass `{ deps: { saveChatConditional: vi.fn() } }` to `setupTestContext` |
+| 4 | `deleteEntity` return type mismatch (design doc says `boolean`, plan returns `{success, stChanges}`) | Noted as design doc deviation — plan's richer return type is correct for ST Vector cleanup |
+| 5 | ST Vector hash uses `node.description \|\| node.name` fallback — doesn't match insertion format | Removed fallback, now uses `node.description` only, matching `graph.js:486` |
+| 6 | `_mergeRedirects` accessed without guard — throws on older data structures | Added `if (!graph._mergeRedirects)` guard in both `updateEntity` and `deleteEntity`, matching `graph.js:272` |
+| 7 | `filterEntities` and `renderEntityList` changed in separate tasks — broken intermediate state | Merged Tasks 7 and 9 into single commit |
+| 8 | CSS uses `--st-color-*` variables — doesn't match SillyTavern convention | Changed all to `--SmartTheme*` equivalents |
+| 9 | CSS defines type badge colors with `data-type` attribute selectors — conflicts with existing `world.css` class selectors | Removed badge color definitions; CSS comment notes world.css already defines them |
+| 10 | Duplicate `escapeHtml` helper defined in templates.js | Removed — use existing import from `../utils/dom.js` |
+| 11 | Duplicate `hasEmbedding` import in templates.js | Removed — use existing import from `../utils/embedding-codec.js` |
+| 12 | `ENTITY_TYPES` accessed as if values are display labels — fragile | Use explicit `entity.type.charAt(0) + entity.type.slice(1).toLowerCase()` instead |
+| 13 | Tests use inline objects instead of `buildMockGraphNode()` | All tests now use `buildMockGraphNode()` from `tests/factories.js` |
+| 14 | `console.warn()` used instead of `logWarn()` | Changed to `logWarn()` (already imported in chat-data.js) |
+| 15 | `entityEditState` Map never cleaned on deletion | Added `entityEditState.delete(key)` in `deleteEntityAction` |
+| 16 | `settings-bindings.test.js` not mentioned in Task 10 | Added to Task 10 — update mock DOM fragment and assertions |
+| 17 | Type badge uses `data-type` attribute in renderEntityCard template | Changed to class-based `${entity.type.toLowerCase()}` matching existing pattern |
