@@ -146,6 +146,8 @@ export function formatEstablishedMemories(existingMemories) {
  * @returns {string}
  */
 export function formatCharacters(characterName, userName, characterDescription, personaDescription) {
+    userName = userName || 'User';
+    characterName = characterName || 'Character';
     if (characterDescription || personaDescription) {
         const parts = ['<characters>'];
         if (characterDescription) {

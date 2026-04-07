@@ -35,6 +35,8 @@ export function buildGraphExtractionPrompt({
     outputLanguage = 'auto',
 }) {
     const { char: characterName, user: userName } = names;
+    const safeCharName = characterName || 'Character';
+    const safeUserName = userName || 'User';
     const { charDesc: characterDescription = '', personaDesc: personaDescription = '' } = context;
 
     const systemPrompt = assembleSystemPrompt({
@@ -43,7 +45,7 @@ export function buildGraphExtractionPrompt({
         outputLanguage,
     });
 
-    const charactersSection = formatCharacters(characterName, userName, characterDescription, personaDescription);
+    const charactersSection = formatCharacters(safeCharName, safeUserName, characterDescription, personaDescription);
     const contextSection = charactersSection ? `<context>\n${charactersSection}\n</context>\n` : '';
     const eventsSection =
         extractedEvents.length > 0 ? `<extracted_events>\n${extractedEvents.join('\n')}\n</extracted_events>\n` : '';
@@ -61,7 +63,7 @@ ${messages}
 </messages>
 
 ${eventsSection}Based on the messages${extractedEvents.length > 0 ? ' and extracted events above' : ''}, extract named entities and relationships.
-Use EXACT character names: ${characterName}, ${userName}. Never transliterate these names into another script.
+Use EXACT character names: ${safeCharName}, ${safeUserName}. Never transliterate these names into another script.
 
 ${constraints}`;
 

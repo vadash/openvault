@@ -33,6 +33,8 @@ export function buildEventExtractionPrompt({
     outputLanguage = 'auto',
 }) {
     const { char: characterName, user: userName } = names;
+    const safeCharName = characterName || 'Character';
+    const safeUserName = userName || 'User';
     const {
         memories: existingMemories = [],
         charDesc: characterDescription = '',
@@ -46,7 +48,7 @@ export function buildEventExtractionPrompt({
     });
 
     const memoriesSection = formatEstablishedMemories(existingMemories);
-    const charactersSection = formatCharacters(characterName, userName, characterDescription, personaDescription);
+    const charactersSection = formatCharacters(safeCharName, safeUserName, characterDescription, personaDescription);
     const contextParts = [memoriesSection, charactersSection].filter(Boolean).join('\n');
     const contextSection = contextParts ? `<context>\n${contextParts}\n</context>\n` : '';
 
@@ -63,7 +65,7 @@ ${messages}
 </messages>
 
 Analyze the messages above. Extract events only.
-Use EXACT character names: ${characterName}, ${userName}. Never transliterate these names into another script.
+Use EXACT character names: ${safeCharName}, ${safeUserName}. Never transliterate these names into another script.
 
 ${constraints}`;
 
