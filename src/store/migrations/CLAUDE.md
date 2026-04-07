@@ -41,6 +41,7 @@ try {
 
 ## GOTCHAS & RULES
 - **Three-Point Updates**: When adding fields, update: (1) `getOpenVaultData()` for new chats, (2) migration backfill for existing chats, (3) tests in `tests/store/chat-data.test.js` and `tests/store/migrations.test.js`.
+- **Fingerprint migrations need chat.** Migrations that convert `message_ids` indices to `message_fingerprints` must accept the `chat` array as a parameter (already threaded through `runSchemaMigrations`). Import `getFingerprint` from `../../extraction/scheduler.js`. Skip out-of-bounds indices gracefully.
 - **No Defensive Checks**: Domain code assumes schema shape — migrations must backfill all fields.
 - **Chat Context**: Pass `chat` array to migrations that need message data (e.g., fingerprint conversion).
 - **Test Coverage**: Every migration needs test cases for: fresh data, already-migrated data, partial migration recovery.

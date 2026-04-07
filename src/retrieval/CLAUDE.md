@@ -6,7 +6,7 @@
 - **Run O(1) Slow Pass second.** Execute heavy typed-array Cosine Similarity only on the top `VECTOR_PASS_LIMIT` (200) candidates.
 
 ## FORGETFULNESS & DECAY
-- **Calculate narrative distance.** Use `chat.length - max(message_ids)`.
+- **Calculate narrative distance.** Resolve `message_fingerprints` via `chatFingerprintMap` to find current positions, then `chat.length - max(resolvedPosition)`. Falls back to `message_ids` for unmigrated v2 data.
 - **Apply Transient Multiplier.** Multiply lambda by 5x (`transientDecayMultiplier`) for short-term intentions (`is_transient: true`).
 - **Decay high-level reflections slower.** Divide decay penalty by `reflectionLevelMultiplier` (2.0) for level-2+ reflections past 750 messages.
 
@@ -25,5 +25,6 @@
 - **Local queries:** Execute pure vector similarity search against specific community summaries.
 
 ## CONTEXT BUDGETING
+- **Never spread large iterables into Math.max.** Use `for...of` loops with manual tracking instead of `Math.max(...array)` — spreads hit JS argument limits (~65K) with large IDF maps.
 - **Use Score-First Soft Balancing.** Reserve `minRepresentation` (20%) of the token budget per chronological bucket (Old/Mid/Recent).
 - **Fill the remainder by raw score.** Allocate the remaining 40% purely to the highest-scoring memories regardless of bucket.
