@@ -262,6 +262,59 @@ export async function updateEntity(key, updates) {
 }
 
 /**
+ * Delete an entity and all its edges and merge redirects.
+ * Also deletes from ST Vector storage if _st_synced to prevent orphan embeddings.
+ * @param {string} key - Normalized entity key
+ * @returns {Promise<{success: boolean, stChanges?: {toDelete: string[]}}>}
+ */
+export async function deleteEntity(key) {
+    const { saveChatConditional } = getDeps();
+    const graph = getOpenVaultData().graph;
+
+    const node = graph.nodes[key];
+    if (!node) {
+        logWarn(`Cannot delete entity: ${key} not found`);
+        return { success: false };
+    }
+
+    // Track ST Vector items to delete (prevent orphan embeddings)
+    const toDelete = [];
+    if (node._st_synced) {
+        // Calculate hash using same format as insertion in graph.js:486:
+        // [OV_ID:key] description (no fallback to name)
+        const text = `[OV_ID:${key}] ${node.description}`;
+        const hash = cyrb53(text).toString();
+        toDelete.push(hash);
+    }
+
+    // Delete the node
+    delete graph.nodes[key];
+
+    // Remove all edges connected to this entity
+    for (const [edgeKey, edge] of Object.entries(graph.edges)) {
+        if (edge.source === key || edge.target === key) {
+            delete graph.edges[edgeKey];
+        }
+    }
+
+    // Guard _mergeRedirects before iterating (matches graph.js:272)
+    if (graph._mergeRedirects) {
+        for (const [redirectKey, redirectValue] of Object.entries(graph._mergeRedirects)) {
+            if (redirectKey === key || redirectValue === key) {
+                delete graph._mergeRedirects[redirectKey];
+            }
+        }
+    }
+
+    await saveChatConditional();
+
+    return {
+        success: true,
+        stChanges: toDelete.length > 0 ? { toDelete } : undefined,
+    };
+}
+
+/**
  * Delete all OpenVault data for the current chat.
  * @returns {Promise<boolean>} True if deleted, false otherwise
  */
