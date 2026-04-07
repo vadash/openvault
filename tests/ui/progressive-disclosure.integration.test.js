@@ -20,10 +20,10 @@ describe('Progressive Disclosure Integration', () => {
         return match ? match[1] : '';
     }
 
-    it('has all 5 tabs', () => {
+    it('has all 6 tabs', () => {
         const tabBtnMatches = html.matchAll(/<button class="openvault-tab-btn/g);
         const tabCount = [...tabBtnMatches].length;
-        expect(tabCount).toBe(5);
+        expect(tabCount).toBe(6);
     });
 
     it('Dashboard has Quick Toggles before collapsible sections', () => {
@@ -46,8 +46,8 @@ describe('Progressive Disclosure Integration', () => {
         expect(searchIndex).toBeLessThan(detailsIndex);
     });
 
-    it('World has no visible range inputs', () => {
-        const worldHtml = extractTabContent('world');
+    it('Entities has no visible range inputs', () => {
+        const worldHtml = extractTabContent('entities');
         // Check for range inputs that are NOT inside details elements
         const nonDetailsRanges = [];
         const lines = worldHtml.split('\n');
