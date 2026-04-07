@@ -11,7 +11,7 @@
 ## File Structure Overview
 
 **Create:**
-- `css/entities.css` - Styles for entity cards, alias chips, edit forms, action buttons (renamed from world.css)
+- `css/entity-crud.css` - Additional styles for entity cards, alias chips, edit forms (extends world.css)
 
 **Modify:**
 - `templates/settings_panel.html` - Replace World tab with Entities + Communities tabs
@@ -19,33 +19,34 @@
 - `src/ui/templates.js` - Update `renderEntityCard()`, add `renderEntityEdit()`
 - `src/ui/render.js` - Add entity CRUD event bindings, update `renderEntityList()`
 - `src/ui/helpers.js` - Update `filterEntities()` to search aliases
-- `css/world.css` → `css/entities.css` - Rename and extend styles
-- `tests/store/chat-data.test.js` - Add tests for entity CRUD operations
-- `tests/ui/world-structure.test.js` - Update tab selectors
+- `css/world.css` - Keep existing styles, entity CRUD styles go in new file
+- `tests/store/chat-data-updateEntity.test.js` - Tests for updateEntity
+- `tests/store/chat-data-deleteEntity.test.js` - Tests for deleteEntity
+- `tests/ui/tab-structure.test.js` - Update tab selectors
 
 ---
 
 ## Task 1: Create CSS Styles for Entity CRUD
 
 **Files:**
-- Create: `css/entities.css`
-- Modify: `css/world.css` (delete after copying base)
+- Create: `css/entity-crud.css` (additions only - keep world.css intact)
 
-**Purpose:** Establish styling for entity cards with edit buttons, alias chips, edit form layout, and action buttons. Rename from world.css to entities.css to match new tab name.
+**Purpose:** Add styles for entity cards with edit buttons, alias chips, edit form layout. Keep existing world.css for Communities tab styling.
 
 **Common Pitfalls:**
+- Do NOT delete or rename world.css - Communities tab still needs those styles
+- Add new styles in separate file, include both in extension
 - Use jQuery-compatible class names (kebab-case)
-- Style the pending-embed badge to match memory badges (yellow rotate icon)
-- Ensure edit form doesn't overflow card boundaries
+- Use correct ENTITY_TYPE values: PERSON, PLACE, ORGANIZATION, OBJECT, CONCEPT
 
-- [ ] Step 1: Read existing world.css to understand base styles
+- [ ] Step 1: Read existing world.css to check existing styles
 
 Run: `type css\world.css`
-Expected: Shows existing world tab styles
+Expected: Shows existing community styles
 
-- [ ] Step 2: Create entities.css with all required styles
+- [ ] Step 2: Create entity-crud.css with new styles only
 
-Create file `css/entities.css`:
+Create file `css/entity-crud.css`:
 
 ```css
 /* Entity Card Styles */
@@ -100,7 +101,7 @@ Create file `css/entities.css`:
   text-transform: uppercase;
 }
 
-/* Type-specific badge colors */
+/* Type-specific badge colors - match existing ENTITY_TYPES */
 .openvault-entity-type-badge[data-type="PERSON"] {
   background: #4a90d9;
   color: white;
@@ -111,18 +112,18 @@ Create file `css/entities.css`:
   color: white;
 }
 
-.openvault-entity-type-badge[data-type="EVENT"] {
-  background: #d94a4a;
-  color: white;
-}
-
-.openvault-entity-type-badge[data-type="ORG"] {
+.openvault-entity-type-badge[data-type="ORGANIZATION"] {
   background: #9b59b6;
   color: white;
 }
 
-.openvault-entity-type-badge[data-type="THING"] {
+.openvault-entity-type-badge[data-type="OBJECT"] {
   background: #7f8c8d;
+  color: white;
+}
+
+.openvault-entity-type-badge[data-type="CONCEPT"] {
+  background: #e67e22;
   color: white;
 }
 
@@ -273,22 +274,16 @@ Create file `css/entities.css`:
 }
 ```
 
-- [ ] Step 3: Delete old world.css
+- [ ] Step 3: Verify entity-crud.css created
 
-Run: `del css\world.css`
-Expected: File removed
-
-- [ ] Step 4: Verify entities.css exists
-
-Run: `dir css\entities.css`
+Run: `dir css\entity-crud.css`
 Expected: Shows file exists
 
-- [ ] Step 5: Commit
+- [ ] Step 4: Commit
 
 ```bash
-git add css/entities.css
-git rm css/world.css
-git commit -m "feat: add entity CRUD styles, rename world.css to entities.css"
+git add css/entity-crud.css
+git commit -m "feat: add entity CRUD styles (keep world.css for Communities)"
 ```
 
 ---
@@ -304,6 +299,8 @@ git commit -m "feat: add entity CRUD styles, rename world.css to entities.css"
 - Keep existing community HTML structure intact - just move it
 - Update `data-tab` attributes from "world" to "entities" and "communities"
 - Ensure entity list container has id `openvault_entity_list` for event binding
+- Include count badges with ids `openvault_entity_count` and `openvault_community_count` for refreshStats()
+- Use correct ENTITY_TYPES: PERSON, PLACE, ORGANIZATION, OBJECT, CONCEPT (not EVENT, ORG, THING)
 
 - [ ] Step 1: Read current settings_panel.html
 
@@ -348,15 +345,18 @@ And the content:
 <!-- Entities Tab Content -->
 <div class="tab-pane" data-tab="entities" role="tabpanel">
   <div id="openvault_entity_controls" class="openvault-controls">
-    <input type="text" id="openvault_entity_search" class="text_pole" placeholder="Search entities (name, description, or alias)..."></input>
-    <select id="openvault_entity_type_filter" class="text_pole">
-      <option value="">All Types</option>
-      <option value="PERSON">Person</option>
-      <option value="PLACE">Place</option>
-      <option value="EVENT">Event</option>
-      <option value="ORG">Organization</option>
-      <option value="THING">Thing</option>
-    </select>
+    <div class="openvault-control-row">
+      <input type="text" id="openvault_entity_search" class="text_pole" placeholder="Search entities (name, description, or alias)..."></input>
+      <select id="openvault_entity_type_filter" class="text_pole">
+        <option value="">All Types</option>
+        <option value="PERSON">Person</option>
+        <option value="PLACE">Place</option>
+        <option value="ORGANIZATION">Organization</option>
+        <option value="OBJECT">Object</option>
+        <option value="CONCEPT">Concept</option>
+      </select>
+      <span class="openvault-card-badge" id="openvault_entity_count">0</span>
+    </div>
   </div>
   <div id="openvault_entity_list" class="openvault-list">
     <!-- Entity cards rendered here -->
@@ -365,6 +365,9 @@ And the content:
 
 <!-- Communities Tab Content -->
 <div class="tab-pane" data-tab="communities" role="tabpanel">
+  <div id="openvault_community_controls" class="openvault-controls">
+    <span class="openvault-card-badge" id="openvault_community_count">0</span>
+  </div>
   <div id="openvault_community_list" class="openvault-list">
     <!-- Community summaries rendered here -->
   </div>
@@ -394,10 +397,12 @@ git commit -m "feat: split World tab into Entities and Communities tabs"
 **Purpose:** Implement entity update with rename handling - rewrites edges and updates merge redirects when key changes.
 
 **Common Pitfalls:**
+- Schema uses `data.graph` not `data.graphData` - access nodes/edges via `getOpenVaultData().graph`
 - Normalize new name with same logic used elsewhere (check existing normalization)
 - Check for collisions BEFORE making any changes (transaction-like)
 - Rewrite edge keys properly: sourceKey__targetKey format
 - Don't forget to delete old embedding via deleteEmbedding()
+- For rename: must delete old hash from ST Vector DB if `_st_synced: true` to prevent orphan
 
 - [ ] Step 1: Write failing test for updateEntity
 
@@ -405,27 +410,18 @@ Create `tests/store/chat-data-updateEntity.test.js`:
 
 ```js
 // @ts-check
-/* global describe, it, expect, beforeEach, vi */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { updateEntity } from '../../src/store/chat-data.js';
-import { getOpenVaultData } from '../../src/store/chat-data.js';
-
-// Mock dependencies
-vi.mock('../../src/deps.js', () => ({
-  getDeps: () => ({
-    saveChatConditional: vi.fn().mockResolvedValue(undefined),
-  }),
-}));
-
-vi.mock('../../src/utils/embedding-codec.js', () => ({
-  deleteEmbedding: vi.fn(),
-}));
+/* global describe, it, expect, beforeEach */
+import { describe, it, expect, beforeEach } from 'vitest';
+import { updateEntity, getOpenVaultData } from '../../src/store/chat-data.js';
+import { setupTestContext } from '../setup.js';
 
 describe('updateEntity', () => {
   beforeEach(() => {
-    // Reset graph data for each test
+    // Use setupTestContext per tests/CLAUDE.md - never vi.mock
+    setupTestContext();
+    // Reset graph data for each test (use .graph not .graphData)
     const data = getOpenVaultData();
-    data.graphData = {
+    data.graph = {
       nodes: {},
       edges: {},
       _mergeRedirects: {},
@@ -434,7 +430,7 @@ describe('updateEntity', () => {
 
   it('should update entity description without rename', async () => {
     const data = getOpenVaultData();
-    data.graphData.nodes['marcus_hale'] = {
+    data.graph.nodes['marcus_hale'] = {
       name: 'Marcus Hale',
       type: 'PERSON',
       description: 'A former soldier',
@@ -445,25 +441,25 @@ describe('updateEntity', () => {
       description: 'A former soldier turned mercenary',
     });
 
-    expect(result).toBe('marcus_hale');
-    expect(data.graphData.nodes['marcus_hale'].description).toBe('A former soldier turned mercenary');
+    expect(result.key).toBe('marcus_hale');
+    expect(data.graph.nodes['marcus_hale'].description).toBe('A former soldier turned mercenary');
   });
 
   it('should rename entity and rewrite edges', async () => {
     const data = getOpenVaultData();
-    data.graphData.nodes['marcus_hale'] = {
+    data.graph.nodes['marcus_hale'] = {
       name: 'Marcus Hale',
       type: 'PERSON',
       description: 'A soldier',
       aliases: [],
     };
-    data.graphData.nodes['tavern'] = {
+    data.graph.nodes['tavern'] = {
       name: 'The Tavern',
       type: 'PLACE',
       description: 'A pub',
       aliases: [],
     };
-    data.graphData.edges['marcus_hale__tavern'] = {
+    data.graph.edges['marcus_hale__tavern'] = {
       source: 'marcus_hale',
       target: 'tavern',
       relation: 'frequents',
@@ -473,23 +469,42 @@ describe('updateEntity', () => {
       name: 'Marcus the Brave',
     });
 
-    expect(result).toBe('marcus_the_brave');
-    expect(data.graphData.nodes['marcus_the_brave']).toBeDefined();
-    expect(data.graphData.nodes['marcus_hale']).toBeUndefined();
-    expect(data.graphData.edges['marcus_the_brave__tavern']).toBeDefined();
-    expect(data.graphData.edges['marcus_hale__tavern']).toBeUndefined();
-    expect(data.graphData._mergeRedirects['marcus_hale']).toBe('marcus_the_brave');
+    expect(result.key).toBe('marcus_the_brave');
+    expect(data.graph.nodes['marcus_the_brave']).toBeDefined();
+    expect(data.graph.nodes['marcus_hale']).toBeUndefined();
+    expect(data.graph.edges['marcus_the_brave__tavern']).toBeDefined();
+    expect(data.graph.edges['marcus_hale__tavern']).toBeUndefined();
+    expect(data.graph._mergeRedirects['marcus_hale']).toBe('marcus_the_brave');
+  });
+
+  it('should return stChanges.toDelete when renaming synced entity', async () => {
+    const data = getOpenVaultData();
+    data.graph.nodes['marcus_hale'] = {
+      name: 'Marcus Hale',
+      type: 'PERSON',
+      description: 'A soldier',
+      aliases: [],
+      _st_synced: true,
+    };
+
+    const result = await updateEntity('marcus_hale', {
+      name: 'Marcus the Brave',
+    });
+
+    expect(result.key).toBe('marcus_the_brave');
+    expect(result.stChanges?.toDelete).toBeDefined();
+    expect(result.stChanges.toDelete.length).toBe(1);
   });
 
   it('should block rename to existing entity name', async () => {
     const data = getOpenVaultData();
-    data.graphData.nodes['marcus_hale'] = {
+    data.graph.nodes['marcus_hale'] = {
       name: 'Marcus Hale',
       type: 'PERSON',
       description: 'A soldier',
       aliases: [],
     };
-    data.graphData.nodes['john_doe'] = {
+    data.graph.nodes['john_doe'] = {
       name: 'John Doe',
       type: 'PERSON',
       description: 'Another person',
@@ -501,23 +516,24 @@ describe('updateEntity', () => {
     });
 
     expect(result).toBeNull();
-    expect(data.graphData.nodes['marcus_hale']).toBeDefined();
+    expect(data.graph.nodes['marcus_hale']).toBeDefined();
   });
 
   it('should update aliases array', async () => {
     const data = getOpenVaultData();
-    data.graphData.nodes['marcus_hale'] = {
+    data.graph.nodes['marcus_hale'] = {
       name: 'Marcus Hale',
       type: 'PERSON',
       description: 'A soldier',
       aliases: ['masked figure'],
     };
 
-    await updateEntity('marcus_hale', {
+    const result = await updateEntity('marcus_hale', {
       aliases: ['masked figure', 'the stranger'],
     });
 
-    expect(data.graphData.nodes['marcus_hale'].aliases).toEqual(['masked figure', 'the stranger']);
+    expect(result.key).toBe('marcus_hale');
+    expect(data.graph.nodes['marcus_hale'].aliases).toEqual(['masked figure', 'the stranger']);
   });
 });
 ```
@@ -538,26 +554,19 @@ Add to `src/store/chat-data.js` (after existing update/delete methods):
 
 ```js
 import { deleteEmbedding } from '../utils/embedding-codec.js';
-
-/**
- * Normalize entity name to graph key
- * @param {string} name - Entity name
- * @returns {string} Normalized key
- */
-function normalizeEntityKey(name) {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-}
+import { normalizeKey } from '../graph/graph.js';
+import { cyrb53 } from '../utils/hash.js';
 
 /**
  * Update an entity's fields. Handles rename by rewriting edges and merge redirects.
  * @param {string} key - Current normalized entity key
  * @param {Object} updates - { name?, type?, description?, aliases? }
- * @returns {Promise<string|null>} New key if renamed, null on failure
+ * @returns {Promise<{key: string, stChanges?: {toDelete: string[]}}|null>} Result with new key and optional ST Vector changes, null on failure
  */
 export async function updateEntity(key, updates) {
   const { saveChatConditional } = getDeps();
-  const graphData = getOpenVaultData().graphData;
-  const node = graphData.nodes[key];
+  const graph = getOpenVaultData().graph;  // Use .graph not .graphData
+  const node = graph.nodes[key];
 
   if (!node) {
     console.warn(`[OpenVault] Cannot update entity: ${key} not found`);
@@ -566,19 +575,28 @@ export async function updateEntity(key, updates) {
 
   // Determine if renaming
   const newName = updates.name ?? node.name;
-  const newKey = normalizeEntityKey(newName);
+  const newKey = normalizeKey(newName);
 
   // If renaming, check for collision
   if (newKey !== key) {
-    if (graphData.nodes[newKey]) {
+    if (graph.nodes[newKey]) {
       console.warn(`[OpenVault] Cannot rename to '${newName}': entity already exists`);
       return null;
     }
   }
 
   if (newKey !== key) {
+    // Track old hash for ST Vector deletion if synced
+    const toDelete = [];
+    if (node._st_synced) {
+      // Calculate hash using same format as insertion: [OV_ID:key] description
+      const text = `[OV_ID:${key}] ${node.description || node.name}`;
+      const hash = cyrb53(text).toString();
+      toDelete.push(hash);
+    }
+
     // Create new node with updated fields
-    graphData.nodes[newKey] = {
+    graph.nodes[newKey] = {
       ...node,
       name: newName,
       type: updates.type ?? node.type,
@@ -587,10 +605,10 @@ export async function updateEntity(key, updates) {
     };
 
     // Delete old node
-    delete graphData.nodes[key];
+    delete graph.nodes[key];
 
     // Rewrite edges
-    for (const [edgeKey, edge] of Object.entries(graphData.edges)) {
+    for (const [edgeKey, edge] of Object.entries(graph.edges)) {
       let needsRewrite = false;
       let newSource = edge.source;
       let newTarget = edge.target;
@@ -606,8 +624,8 @@ export async function updateEntity(key, updates) {
 
       if (needsRewrite) {
         const newEdgeKey = `${newSource}__${newTarget}`;
-        delete graphData.edges[edgeKey];
-        graphData.edges[newEdgeKey] = {
+        delete graph.edges[edgeKey];
+        graph.edges[newEdgeKey] = {
           ...edge,
           source: newSource,
           target: newTarget,
@@ -616,13 +634,16 @@ export async function updateEntity(key, updates) {
     }
 
     // Set merge redirect
-    graphData._mergeRedirects[key] = newKey;
+    graph._mergeRedirects[key] = newKey;
 
-    // Invalidate embedding
-    deleteEmbedding(graphData.nodes[newKey]);
+    // Invalidate embedding on new node
+    deleteEmbedding(graph.nodes[newKey]);
 
     await saveChatConditional();
-    return newKey;
+    return {
+      key: newKey,
+      stChanges: toDelete.length > 0 ? { toDelete } : undefined
+    };
   } else {
     // Simple field update, no rename
     Object.assign(node, {
@@ -637,7 +658,7 @@ export async function updateEntity(key, updates) {
     }
 
     await saveChatConditional();
-    return key;
+    return { key };
   }
 }
 ```
@@ -662,11 +683,13 @@ git commit -m "feat: add updateEntity() with rename and edge rewriting"
 - Create: `tests/store/chat-data-deleteEntity.test.js`
 - Modify: `src/store/chat-data.js`
 
-**Purpose:** Implement entity deletion with edge cleanup and merge redirect cleanup.
+**Purpose:** Implement entity deletion with edge cleanup, merge redirect cleanup, and ST Vector orphan cleanup.
 
 **Common Pitfalls:**
+- Use `data.graph` not `data.graphData` for node/edge access
 - Remove all edges where entity is source OR target
 - Clean up merge redirects pointing to or from the deleted key
+- Must delete from ST Vector DB if `_st_synced: true` to prevent orphan embeddings
 - Return boolean to indicate success/failure
 
 - [ ] Step 1: Write failing test for deleteEntity
@@ -675,21 +698,18 @@ Create `tests/store/chat-data-deleteEntity.test.js`:
 
 ```js
 // @ts-check
-/* global describe, it, expect, beforeEach, vi */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+/* global describe, it, expect, beforeEach */
+import { describe, it, expect, beforeEach } from 'vitest';
 import { deleteEntity, getOpenVaultData } from '../../src/store/chat-data.js';
-
-// Mock dependencies
-vi.mock('../../src/deps.js', () => ({
-  getDeps: () => ({
-    saveChatConditional: vi.fn().mockResolvedValue(undefined),
-  }),
-}));
+import { setupTestContext } from '../setup.js';
 
 describe('deleteEntity', () => {
   beforeEach(() => {
+    // Use setupTestContext per tests/CLAUDE.md - never vi.mock
+    setupTestContext();
     const data = getOpenVaultData();
-    data.graphData = {
+    // Use .graph not .graphData
+    data.graph = {
       nodes: {},
       edges: {},
       _mergeRedirects: {},
@@ -698,7 +718,7 @@ describe('deleteEntity', () => {
 
   it('should delete entity with no edges', async () => {
     const data = getOpenVaultData();
-    data.graphData.nodes['marcus_hale'] = {
+    data.graph.nodes['marcus_hale'] = {
       name: 'Marcus Hale',
       type: 'PERSON',
       description: 'A soldier',
@@ -708,29 +728,29 @@ describe('deleteEntity', () => {
     const result = await deleteEntity('marcus_hale');
 
     expect(result).toBe(true);
-    expect(data.graphData.nodes['marcus_hale']).toBeUndefined();
+    expect(data.graph.nodes['marcus_hale']).toBeUndefined();
   });
 
   it('should delete entity and remove connected edges', async () => {
     const data = getOpenVaultData();
-    data.graphData.nodes['marcus_hale'] = {
+    data.graph.nodes['marcus_hale'] = {
       name: 'Marcus Hale',
       type: 'PERSON',
       description: 'A soldier',
       aliases: [],
     };
-    data.graphData.nodes['tavern'] = {
+    data.graph.nodes['tavern'] = {
       name: 'The Tavern',
       type: 'PLACE',
       description: 'A pub',
       aliases: [],
     };
-    data.graphData.edges['marcus_hale__tavern'] = {
+    data.graph.edges['marcus_hale__tavern'] = {
       source: 'marcus_hale',
       target: 'tavern',
       relation: 'frequents',
     };
-    data.graphData.edges['tavern__marcus_hale'] = {
+    data.graph.edges['tavern__marcus_hale'] = {
       source: 'tavern',
       target: 'marcus_hale',
       relation: 'patron',
@@ -739,29 +759,28 @@ describe('deleteEntity', () => {
     const result = await deleteEntity('marcus_hale');
 
     expect(result).toBe(true);
-    expect(data.graphData.nodes['marcus_hale']).toBeUndefined();
-    expect(data.graphData.edges['marcus_hale__tavern']).toBeUndefined();
-    expect(data.graphData.edges['tavern__marcus_hale']).toBeUndefined();
-    expect(data.graphData.edges['tavern__someone_else']).toBeUndefined();
+    expect(data.graph.nodes['marcus_hale']).toBeUndefined();
+    expect(data.graph.edges['marcus_hale__tavern']).toBeUndefined();
+    expect(data.graph.edges['tavern__marcus_hale']).toBeUndefined();
   });
 
   it('should clean up merge redirects when deleting entity', async () => {
     const data = getOpenVaultData();
-    data.graphData.nodes['marcus_hale'] = {
+    data.graph.nodes['marcus_hale'] = {
       name: 'Marcus Hale',
       type: 'PERSON',
       description: 'A soldier',
       aliases: [],
     };
-    data.graphData._mergeRedirects = {
+    data.graph._mergeRedirects = {
       'old_name': 'marcus_hale',
       'marcus_hale': 'new_name',
     };
 
     await deleteEntity('marcus_hale');
 
-    expect(data.graphData._mergeRedirects['old_name']).toBeUndefined();
-    expect(data.graphData._mergeRedirects['marcus_hale']).toBeUndefined();
+    expect(data.graph._mergeRedirects['old_name']).toBeUndefined();
+    expect(data.graph._mergeRedirects['marcus_hale']).toBeUndefined();
   });
 
   it('should return false for non-existent entity', async () => {
@@ -781,39 +800,56 @@ Expected: FAIL - "deleteEntity is not exported"
 Add to `src/store/chat-data.js` (after updateEntity):
 
 ```js
+import { cyrb53 } from '../utils/hash.js'; // For calculating ST Vector hash
+
 /**
  * Delete an entity and all its edges and merge redirects.
+ * Also deletes from ST Vector storage if _st_synced to prevent orphan embeddings.
  * @param {string} key - Normalized entity key
- * @returns {Promise<boolean>}
+ * @returns {Promise<{success: boolean, stChanges?: {toDelete: string[]}}>}
  */
 export async function deleteEntity(key) {
   const { saveChatConditional } = getDeps();
-  const graphData = getOpenVaultData().graphData;
+  const graph = getOpenVaultData().graph;  // Use .graph not .graphData
 
-  if (!graphData.nodes[key]) {
+  const node = graph.nodes[key];
+  if (!node) {
     console.warn(`[OpenVault] Cannot delete entity: ${key} not found`);
-    return false;
+    return { success: false };
+  }
+
+  // Track ST Vector items to delete (prevent orphan embeddings)
+  const toDelete = [];
+  if (node._st_synced) {
+    // Calculate hash using same format as insertion: [OV_ID:key] description
+    const text = `[OV_ID:${key}] ${node.description || node.name}`;
+    const hash = cyrb53(text).toString();
+    toDelete.push(hash);
   }
 
   // Delete the node
-  delete graphData.nodes[key];
+  delete graph.nodes[key];
 
   // Remove all edges connected to this entity
-  for (const [edgeKey, edge] of Object.entries(graphData.edges)) {
+  for (const [edgeKey, edge] of Object.entries(graph.edges)) {
     if (edge.source === key || edge.target === key) {
-      delete graphData.edges[edgeKey];
+      delete graph.edges[edgeKey];
     }
   }
 
   // Clean up merge redirects
-  for (const [redirectKey, redirectValue] of Object.entries(graphData._mergeRedirects)) {
+  for (const [redirectKey, redirectValue] of Object.entries(graph._mergeRedirects)) {
     if (redirectKey === key || redirectValue === key) {
-      delete graphData._mergeRedirects[redirectKey];
+      delete graph._mergeRedirects[redirectKey];
     }
   }
 
   await saveChatConditional();
-  return true;
+
+  return {
+    success: true,
+    stChanges: toDelete.length > 0 ? { toDelete } : undefined
+  };
 }
 ```
 
@@ -826,7 +862,7 @@ Expected: PASS
 
 ```bash
 git add tests/store/chat-data-deleteEntity.test.js src/store/chat-data.js
-git commit -m "feat: add deleteEntity() with edge and redirect cleanup"
+git commit -m "feat: add deleteEntity() with edge, redirect, and ST Vector cleanup"
 ```
 
 ---
@@ -864,7 +900,7 @@ import { ENTITY_TYPES } from '../constants.js';
  * @returns {string} HTML string
  */
 export function renderEntityCard(entity, key) {
-  const typeConfig = ENTITY_TYPES[entity.type] || ENTITY_TYPES.THING;
+  const typeConfig = ENTITY_TYPES[entity.type] || ENTITY_TYPES.OBJECT;
   const aliasText = entity.aliases?.length > 0
     ? entity.aliases.join(', ')
     : '';
@@ -878,7 +914,7 @@ export function renderEntityCard(entity, key) {
         <span class="openvault-entity-name">${escapeHtml(entity.name)}</span>
         <div class="openvault-entity-badges">
           <span class="openvault-entity-type-badge" data-type="${entity.type}">
-            ${typeConfig.label}
+            ${typeConfig}
           </span>
           ${pendingBadge}
         </div>
@@ -893,7 +929,7 @@ export function renderEntityCard(entity, key) {
       </div>
       ${aliasText ? `<div class="openvault-entity-aliases">${escapeHtml(aliasText)}</div>` : ''}
       <div class="openvault-entity-description">${escapeHtml(entity.description || '')}</div>
-      <div class="openvault-entity-mentions">${entity.mentionCount || 0} mentions</div>
+      <div class="openvault-entity-mentions">${entity.mentions || 0} mentions</div>
     </div>
   `;
 }
@@ -962,9 +998,9 @@ export function renderEntityEdit(entity, key) {
       </span>
     `).join('');
 
-  const typeOptions = Object.entries(ENTITY_TYPES).map(([type, config]) => `
+  const typeOptions = Object.entries(ENTITY_TYPES).map(([type, label]) => `
     <option value="${type}" ${entity.type === type ? 'selected' : ''}>
-      ${config.label}
+      ${label.charAt(0) + label.slice(1).toLowerCase()}
     </option>
   `).join('');
 
@@ -1044,15 +1080,15 @@ Replace or update the filterEntities function:
 ```js
 /**
  * Filter entities based on search query and type filter
- * @param {Object} graphData - Graph data with nodes
+ * @param {Object} graph - Graph object with nodes (from data.graph)
  * @param {string} query - Search query
  * @param {string} typeFilter - Entity type to filter by (or empty for all)
  * @returns {Array<[string, Object]>} Array of [key, entity] tuples
  */
-export function filterEntities(graphData, query, typeFilter) {
+export function filterEntities(graph, query, typeFilter) {
   const normalizedQuery = query.toLowerCase().trim();
 
-  return Object.entries(graphData.nodes || {})
+  return Object.entries(graph?.nodes || {})
     .filter(([key, entity]) => {
       // Type filter
       if (typeFilter && entity.type !== typeFilter) {
@@ -1072,7 +1108,7 @@ export function filterEntities(graphData, query, typeFilter) {
              desc.includes(normalizedQuery) ||
              aliases.includes(normalizedQuery);
     })
-    .sort((a, b) => (b[1].mentionCount || 0) - (a[1].mentionCount || 0));
+    .sort((a, b) => (b[1].mentions || 0) - (a[1].mentions || 0));
 }
 ```
 
@@ -1086,39 +1122,39 @@ import { describe, it, expect } from 'vitest';
 import { filterEntities } from '../../src/ui/helpers.js';
 
 describe('filterEntities alias search', () => {
-  const mockGraphData = {
+  const mockGraph = {
     nodes: {
       'marcus_hale': {
         name: 'Marcus Hale',
         type: 'PERSON',
         description: 'A former soldier',
         aliases: ['masked figure', 'the stranger'],
-        mentionCount: 5,
+        mentions: 5,
       },
       'tavern': {
         name: 'The Tavern',
         type: 'PLACE',
         description: 'A drinking establishment',
         aliases: [],
-        mentionCount: 3,
+        mentions: 3,
       },
     },
   };
 
   it('should find entity by alias', () => {
-    const results = filterEntities(mockGraphData, 'masked figure', '');
+    const results = filterEntities(mockGraph, 'masked figure', '');
     expect(results).toHaveLength(1);
     expect(results[0][0]).toBe('marcus_hale');
   });
 
   it('should find entity by second alias', () => {
-    const results = filterEntities(mockGraphData, 'stranger', '');
+    const results = filterEntities(mockGraph, 'stranger', '');
     expect(results).toHaveLength(1);
     expect(results[0][0]).toBe('marcus_hale');
   });
 
   it('should still find by name', () => {
-    const results = filterEntities(mockGraphData, 'Marcus', '');
+    const results = filterEntities(mockGraph, 'Marcus', '');
     expect(results).toHaveLength(1);
     expect(results[0][0]).toBe('marcus_hale');
   });
@@ -1165,6 +1201,7 @@ At top of file, add:
 import { updateEntity, deleteEntity, getOpenVaultData } from '../store/chat-data.js';
 import { renderEntityCard, renderEntityEdit } from './templates.js';
 import { filterEntities } from './helpers.js';
+import { deleteItemsFromST } from '../services/st-vector.js'; // For ST Vector cleanup
 ```
 
 - [ ] Step 3: Add entity CRUD event bindings
@@ -1240,8 +1277,8 @@ const entityEditState = new Map();
  * @param {string} key - Entity key
  */
 function enterEntityEditMode(key) {
-  const graphData = getOpenVaultData().graphData;
-  const entity = graphData.nodes[key];
+  const graph = getOpenVaultData().graph;  // Use .graph not .graphData
+  const entity = graph.nodes[key];
   if (!entity) return;
 
   // Store current state for potential cancel
@@ -1258,8 +1295,8 @@ function enterEntityEditMode(key) {
  * @param {string} key - Entity key
  */
 function cancelEntityEdit(key) {
-  const graphData = getOpenVaultData().graphData;
-  const entity = graphData.nodes[key];
+  const graph = getOpenVaultData().graph;  // Use .graph not .graphData
+  const entity = graph.nodes[key];
   if (!entity) return;
 
   entityEditState.delete(key);
@@ -1291,6 +1328,16 @@ async function saveEntityEdit(key, btn) {
     .map((_, chip) => $(chip).text().replace('×', '').trim())
     .get();
 
+  // Capture any pending alias in the input field
+  const pendingAlias = $edit.find('.openvault-alias-input').val()?.toString().trim();
+  if (pendingAlias) {
+    // Check for duplicates before adding
+    const existingLower = aliases.map(a => a.toLowerCase());
+    if (!existingLower.includes(pendingAlias.toLowerCase())) {
+      aliases.push(pendingAlias);
+    }
+  }
+
   const updates = {
     name,
     type,
@@ -1304,9 +1351,9 @@ async function saveEntityEdit(key, btn) {
   $btn.prop('disabled', true).text('Saving...');
 
   try {
-    const newKey = await updateEntity(key, updates);
+    const result = await updateEntity(key, updates);
 
-    if (newKey === null) {
+    if (result === null) {
       alert('An entity with that name already exists. Merging will be available in a future update.');
       $btn.prop('disabled', false).text(originalText);
       return;
@@ -1315,10 +1362,18 @@ async function saveEntityEdit(key, btn) {
     // Clear edit state
     entityEditState.delete(key);
 
+    // Handle ST Vector cleanup if renaming synced entity
+    if (result.stChanges?.toDelete?.length > 0) {
+      const chatId = getCurrentChatId();
+      if (chatId) {
+        await deleteItemsFromST(result.stChanges.toDelete, chatId);
+      }
+    }
+
     // Replace with updated view card (use newKey if renamed)
-    const graphData = getOpenVaultData().graphData;
-    const entity = graphData.nodes[newKey];
-    const viewHtml = renderEntityCard(entity, newKey);
+    const graph = getOpenVaultData().graph;  // Use .graph not .graphData
+    const entity = graph.nodes[result.key];
+    const viewHtml = renderEntityCard(entity, result.key);
     $edit.replaceWith(viewHtml);
   } catch (err) {
     console.error('[OpenVault] Failed to save entity:', err);
@@ -1331,12 +1386,12 @@ async function saveEntityEdit(key, btn) {
  * @param {string} key - Entity key
  */
 async function deleteEntityAction(key) {
-  const graphData = getOpenVaultData().graphData;
-  const entity = graphData.nodes[key];
+  const graph = getOpenVaultData().graph;  // Use .graph not .graphData
+  const entity = graph.nodes[key];
   if (!entity) return;
 
   // Count connected edges
-  const edgeCount = Object.values(graphData.edges).filter(
+  const edgeCount = Object.values(graph.edges).filter(
     e => e.source === key || e.target === key
   ).length;
 
@@ -1346,10 +1401,18 @@ async function deleteEntityAction(key) {
 
   if (!confirm(confirmMsg)) return;
 
-  const success = await deleteEntity(key);
-  if (success) {
+  const result = await deleteEntity(key);
+  if (result.success) {
     // Remove from DOM
     $(`.openvault-entity-card[data-key="${key}"]`).remove();
+
+    // Clean up ST Vector if needed
+    if (result.stChanges?.toDelete?.length > 0) {
+      const chatId = getCurrentChatId();
+      if (chatId) {
+        await deleteItemsFromST(result.stChanges.toDelete, chatId);
+      }
+    }
   }
 }
 
@@ -1449,12 +1512,12 @@ Find the entity list rendering function and update container selector:
  * @param {string} typeFilter - Current type filter
  */
 export function renderEntityList(searchQuery = '', typeFilter = '') {
-  const graphData = getOpenVaultData().graphData;
+  const graph = getOpenVaultData().graph;  // Use .graph not .graphData
   const $container = $('#openvault_entity_list');
 
   if ($container.length === 0) return;
 
-  const filtered = filterEntities(graphData, searchQuery, typeFilter);
+  const filtered = filterEntities(graph, searchQuery, typeFilter);
 
   if (filtered.length === 0) {
     $container.html('<div class="openvault-empty">No entities found</div>');
@@ -1594,27 +1657,19 @@ Create `tests/integration/entity-crud.test.js`:
 
 ```js
 // @ts-check
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { updateEntity, deleteEntity, getOpenVaultData } from '../../src/store/chat-data.js';
 import { renderEntityCard, renderEntityEdit } from '../../src/ui/templates.js';
 import { filterEntities } from '../../src/ui/helpers.js';
-
-// Mock dependencies
-vi.mock('../../src/deps.js', () => ({
-  getDeps: () => ({
-    saveChatConditional: vi.fn().mockResolvedValue(undefined),
-  }),
-}));
-
-vi.mock('../../src/utils/embedding-codec.js', () => ({
-  deleteEmbedding: vi.fn(),
-  hasEmbedding: vi.fn(() => true),
-}));
+import { setupTestContext } from '../setup.js';
 
 describe('Entity CRUD Integration', () => {
   beforeEach(() => {
+    // Use setupTestContext per tests/CLAUDE.md - never vi.mock
+    setupTestContext();
     const data = getOpenVaultData();
-    data.graphData = {
+    // Use .graph not .graphData
+    data.graph = {
       nodes: {},
       edges: {},
       _mergeRedirects: {},
@@ -1625,16 +1680,16 @@ describe('Entity CRUD Integration', () => {
     const data = getOpenVaultData();
 
     // Create initial entity
-    data.graphData.nodes['masked_figure'] = {
+    data.graph.nodes['masked_figure'] = {
       name: 'Masked Figure',
       type: 'PERSON',
       description: 'A mysterious person in a mask',
       aliases: ['the stranger'],
-      mentionCount: 3,
+      mentions: 3,
     };
 
     // Render view card
-    const viewHtml = renderEntityCard(data.graphData.nodes['masked_figure'], 'masked_figure');
+    const viewHtml = renderEntityCard(data.graph.nodes['masked_figure'], 'masked_figure');
     expect(viewHtml).toContain('Masked Figure');
     expect(viewHtml).toContain('aka:');
     expect(viewHtml).toContain('the stranger');
@@ -1644,27 +1699,27 @@ describe('Entity CRUD Integration', () => {
       aliases: ['the stranger', 'shadow walker'],
     });
 
-    expect(data.graphData.nodes['masked_figure'].aliases).toContain('shadow walker');
+    expect(data.graph.nodes['masked_figure'].aliases).toContain('shadow walker');
 
     // Search by alias
-    const results = filterEntities(data.graphData, 'shadow walker', '');
+    const results = filterEntities(data.graph, 'shadow walker', '');
     expect(results).toHaveLength(1);
 
     // Render edit form
-    const editHtml = renderEntityEdit(data.graphData.nodes['masked_figure'], 'masked_figure');
+    const editHtml = renderEntityEdit(data.graph.nodes['masked_figure'], 'masked_figure');
     expect(editHtml).toContain('shadow walker');
     expect(editHtml).toContain('openvault-alias-chip');
 
     // Rename entity
-    const newKey = await updateEntity('masked_figure', { name: 'Marcus Hale' });
-    expect(newKey).toBe('marcus_hale');
-    expect(data.graphData.nodes['marcus_hale']).toBeDefined();
-    expect(data.graphData.nodes['masked_figure']).toBeUndefined();
+    const result = await updateEntity('masked_figure', { name: 'Marcus Hale' });
+    expect(result.key).toBe('marcus_hale');
+    expect(data.graph.nodes['marcus_hale']).toBeDefined();
+    expect(data.graph.nodes['masked_figure']).toBeUndefined();
 
     // Delete entity
     const deleted = await deleteEntity('marcus_hale');
-    expect(deleted).toBe(true);
-    expect(data.graphData.nodes['marcus_hale']).toBeUndefined();
+    expect(deleted.success).toBe(true);
+    expect(data.graph.nodes['marcus_hale']).toBeUndefined();
   });
 });
 ```
@@ -1688,38 +1743,27 @@ git commit -m "test: add entity CRUD integration tests"
 
 ---
 
-## Task 12: Update Constants for ENTITY_TYPES (if needed)
+## Task 12: Verify ENTITY_TYPES Import
 
 **Files:**
-- Modify: `src/constants.js` (if ENTITY_TYPES not present)
 - Modify: `src/ui/templates.js` (verify import)
 
-**Purpose:** Ensure ENTITY_TYPES enum exists for type badges.
+**Purpose:** Ensure ENTITY_TYPES constant is imported correctly. The constant already exists in `src/constants.js` with values: PERSON, PLACE, ORGANIZATION, OBJECT, CONCEPT.
 
-- [ ] Step 1: Check if ENTITY_TYPES exists in constants.js
+- [ ] Step 1: Verify ENTITY_TYPES import in templates.js
 
-Run: `grep -n "ENTITY_TYPES" src\constants.js`
-Expected: Shows definition or nothing
-
-- [ ] Step 2: Add ENTITY_TYPES if missing
-
-If not present, add to `src/constants.js`:
+Ensure import exists:
 
 ```js
-/** @type {Object<string, {label: string, color: string}>} */
-export const ENTITY_TYPES = Object.freeze({
-  PERSON: { label: 'Person', color: '#4a90d9' },
-  PLACE: { label: 'Place', color: '#6b8e23' },
-  EVENT: { label: 'Event', color: '#d94a4a' },
-  ORG: { label: 'Organization', color: '#9b59b6' },
-  THING: { label: 'Thing', color: '#7f8c8d' },
-});
+import { ENTITY_TYPES } from '../constants.js';
 ```
 
-- [ ] Step 3: Commit if changed
+Note: ENTITY_TYPES is a simple frozen object where values are strings (not objects with label/color properties). Access directly: `ENTITY_TYPES.PERSON` returns `"PERSON"`.
+
+- [ ] Step 2: Commit (if import was missing)
 
 ```bash
-git add src/constants.js 2>nul && git commit -m "feat: add ENTITY_TYPES constant for badges" || echo "No changes needed"
+git add src/ui/templates.js 2>nul && git commit -m "fix: ensure ENTITY_TYPES import in templates" || echo "Import already present"
 ```
 
 ---
