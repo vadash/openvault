@@ -574,3 +574,81 @@ describe('updateIDFCache — archived memories', () => {
         expect(data.idf_cache.memoryCount).toBe(2);
     });
 });
+
+// ── graph extraction with zero events (bugfix tests) ──
+
+describe('graph extraction with zero events', () => {
+    let mockContext;
+    let mockData;
+
+    beforeEach(() => {
+        mockData = {
+            schema_version: 2,
+            memories: [],
+            character_states: {},
+            processed_message_ids: [],
+            graph: { nodes: {}, edges: {} },
+            communities: {},
+            reflection_state: {},
+            graph_message_count: 0,
+        };
+
+        mockContext = {
+            chat: [
+                { mes: 'Hello', is_user: true, name: 'User', send_date: '1000000' },
+                { mes: 'Welcome to the Castle', is_user: false, name: 'King Aldric', send_date: '1000001' },
+            ],
+            name1: 'User',
+            name2: 'King Aldric',
+            characterId: 'char1',
+            characters: { char1: { description: '' } },
+            chatMetadata: { openvault: mockData },
+            chatId: 'test-chat',
+            powerUserSettings: {},
+        };
+    });
+
+    afterEach(() => {
+        resetDeps();
+        vi.clearAllMocks();
+    });
+
+    it('runs graph extraction even when zero events are extracted', async () => {
+        const zeroEventsResponse = JSON.stringify({
+            reasoning: null,
+            events: [],
+        });
+
+        const graphResponse = JSON.stringify({
+            entities: [{ name: 'Shadow Guild', type: 'ORGANIZATION', description: 'A secret thieves guild' }],
+            relationships: [],
+        });
+
+        const sendRequest = vi
+            .fn()
+            .mockResolvedValueOnce({ content: zeroEventsResponse })
+            .mockResolvedValueOnce({ content: graphResponse });
+
+        setupTestContext({
+            context: mockContext,
+            settings: getExtractionSettings(),
+            deps: {
+                connectionManager: getMockConnectionManager(sendRequest),
+                fetch: vi.fn(async () => ({
+                    ok: true,
+                    json: async () => ({ embedding: [0.1, 0.2] }),
+                })),
+                saveChatConditional: vi.fn(async () => true),
+            },
+        });
+
+        const _result = await extractMemories([0, 1]);
+
+        // Graph extraction should have been called (2 LLM calls, not 1)
+        expect(sendRequest).toHaveBeenCalledTimes(2);
+
+        // Entity should exist in the graph
+        expect(mockData.graph.nodes['shadow guild']).toBeDefined();
+        expect(mockData.graph.nodes['shadow guild'].type).toBe('ORGANIZATION');
+    });
+});

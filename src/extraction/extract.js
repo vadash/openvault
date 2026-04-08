@@ -968,13 +968,11 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         const existingMemories = selectMemoriesForExtraction(data, settings);
         const { events: rawEvents } = await fetchEventsFromLLM(contextParams, existingMemories, abortSignal);
 
-        // Stage 2: Graph extraction (LLM call, skip if no events)
+        // Stage 2: Graph extraction (LLM call)
         let graphResult = { entities: [], relationships: [] };
-        if (rawEvents.length > 0) {
-            await rpmDelay(settings, 'Inter-call rate limit');
-            const formattedEvents = rawEvents.map((e, i) => `${i + 1}. [${e.importance}★] ${e.summary}`);
-            graphResult = await fetchGraphFromLLM(contextParams, formattedEvents, abortSignal);
-        }
+        await rpmDelay(settings, 'Inter-call rate limit');
+        const formattedEvents = rawEvents.map((e, i) => `${i + 1}. [${e.importance}★] ${e.summary}`);
+        graphResult = await fetchGraphFromLLM(contextParams, formattedEvents, abortSignal);
 
         // Stage 3: Enrich & dedup events
         const messageIdsArray = messages.map((m) => m.id);
