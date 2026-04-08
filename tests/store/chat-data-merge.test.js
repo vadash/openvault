@@ -237,4 +237,54 @@ describe('mergeEntities', () => {
             expect(result.stChanges.toDelete.length).toBeGreaterThan(0);
         });
     });
+
+    describe('ST Vector Storage sync', () => {
+        it('returns toSync for surviving target node after merge', async () => {
+            const saveFn = vi.fn(async () => true);
+            setupTestContext({
+                context: {
+                    chatMetadata: {
+                        openvault: {
+                            schema_version: 3,
+                            memories: [],
+                            character_states: {},
+                            processed_message_ids: [],
+                            graph: {
+                                nodes: {
+                                    alice: {
+                                        name: 'Alice',
+                                        type: 'PERSON',
+                                        description: 'A young woman',
+                                        mentions: 3,
+                                        aliases: [],
+                                    },
+                                    bob: {
+                                        name: 'Bob',
+                                        type: 'PERSON',
+                                        description: 'A tall man',
+                                        mentions: 2,
+                                        aliases: [],
+                                        _st_synced: true,
+                                    },
+                                },
+                                edges: {},
+                                _mergeRedirects: {},
+                            },
+                        },
+                    },
+                },
+                deps: { saveChatConditional: saveFn },
+            });
+
+            const { mergeEntities: mergeEntitiesImported } = await import('../../src/store/chat-data.js');
+            const result = await mergeEntitiesImported('bob', 'alice');
+
+            expect(result.success).toBe(true);
+            expect(result.stChanges.toDelete).toBeDefined();
+            expect(result.stChanges.toDelete.length).toBeGreaterThan(0);
+            // The bug: toSync is missing for the surviving node
+            expect(result.stChanges.toSync).toBeDefined();
+            expect(result.stChanges.toSync.length).toBeGreaterThan(0);
+        });
+    });
 });
