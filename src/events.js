@@ -217,10 +217,11 @@ export function onGenerationEnded() {
  * Handle chat changed event
  */
 export async function onChatChanged() {
-    if (!isExtensionEnabled()) return;
-
     // FIRST: abort all in-flight operations from previous chat
+    // This must run regardless of extension state to prevent stale workers
     resetSessionController();
+
+    if (!isExtensionEnabled()) return;
 
     const { clearEmbeddingCache } = await import('./embeddings.js');
     const { cleanupCharacterStates } = await import('./extraction/extract.js');
