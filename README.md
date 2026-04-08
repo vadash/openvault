@@ -102,7 +102,7 @@ Everything stays on your machine. The in-browser embedding model means no text g
 
 ## Version History
 
-- **22.00** - Bugfixes
+- **22.00** - Bugfixes (about 20 of them)
 - **21.00** - Provides a manual mechanism to merge two entities
 - **20.00** - Entity editing, deletion, and alias management with tab restructure from "World" to "Entities" + "Communities"
 - **19.00** - Exclude the last N complete turns from extraction batches so hallucinated/swiped AI responses dont enter the memory

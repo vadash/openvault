@@ -26,16 +26,6 @@ Agentic memory extension for SillyTavern providing POV-aware memory, witness tra
 ### 4. Pre-Commit
 - **`npm run check` runs automatically on every commit** (sync-version, generate-types, lint, jsdoc, css, typecheck). The commit is aborted on any failure — fix errors, never skip them
 
-## COMMANDS
-| Command | Description |
-|---------|-------------|
-| `npm test` | Run all tests (generates types first) |
-| `npm run check` | Pre-commit: sync-version, generate-types, lint, jsdoc, css, typecheck |
-| `npm run lint` | Run biome + JSDoc checks |
-| `npm run generate-types` | Regenerate `src/types.d.ts` from Zod schemas |
-| `npm run typecheck` | Run TypeScript compiler for type validation |
-| `npm run repomix:logic-lite` | Pack source logic into single context file for LLM |
-
 ## DIRECTORY KNOWLEDGE MAP
 Domain-specific rules live in subdirectory CLAUDE.md files (auto-discovered by Claude):
 - `src/store/` — State management, stChanges contract, migrations
