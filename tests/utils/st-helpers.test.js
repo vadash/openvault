@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { extensionName } from '../../src/constants.js';
 import { resetDeps, setDeps } from '../../src/deps.js';
 import { isExtensionEnabled, safeSetExtensionPrompt, withTimeout, yieldToMain } from '../../src/utils/st-helpers.js';
@@ -7,6 +7,14 @@ describe('st-helpers', () => {
     afterEach(() => resetDeps());
 
     describe('withTimeout', () => {
+        beforeEach(() => {
+            vi.useFakeTimers();
+        });
+
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
         it('resolves when promise completes before timeout', async () => {
             const result = await withTimeout(Promise.resolve('success'), 1000, 'Test');
             expect(result).toBe('success');
@@ -14,7 +22,61 @@ describe('st-helpers', () => {
 
         it('rejects when promise exceeds timeout', async () => {
             const promise = new Promise((resolve) => setTimeout(resolve, 100));
-            await expect(withTimeout(promise, 10, 'Test')).rejects.toThrow('Test timed out after 10ms');
+            const resultPromise = withTimeout(promise, 10, 'Test');
+
+            // Advance time past the timeout
+            vi.advanceTimersByTime(10);
+
+            await expect(resultPromise).rejects.toThrow('Test timed out after 10ms');
+        });
+
+        it('should clear timeout when promise resolves before timeout', async () => {
+            const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+            const promise = Promise.resolve('success');
+            const resultPromise = withTimeout(promise, 5000, 'Test');
+
+            // Fast-forward but not enough to trigger timeout
+            await vi.advanceTimersByTimeAsync(100);
+
+            const result = await resultPromise;
+
+            expect(result).toBe('success');
+            expect(clearTimeoutSpy).toHaveBeenCalled();
+        });
+
+        it('should clear timeout when promise rejects before timeout', async () => {
+            const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+            // Create a promise that rejects, but catch the rejection to prevent unhandled warning
+            const error = new Error('test error');
+            const rejectingPromise = new Promise((_, reject) => reject(error));
+            rejectingPromise.catch(() => {}); // Prevent unhandled rejection
+
+            const resultPromise = withTimeout(rejectingPromise, 5000, 'Test');
+
+            // Fast-forward but not enough to trigger timeout
+            await vi.advanceTimersByTimeAsync(100);
+
+            await expect(resultPromise).rejects.toThrow('test error');
+            expect(clearTimeoutSpy).toHaveBeenCalled();
+        });
+
+        it('should reject with timeout error when promise takes too long', async () => {
+            const promise = new Promise(() => {}); // Never resolves
+            const resultPromise = withTimeout(promise, 5000, 'Test Operation');
+
+            vi.advanceTimersByTime(5000);
+
+            await expect(resultPromise).rejects.toThrow('Test Operation timed out after 5000ms');
+        });
+
+        it('should resolve with promise value when it completes in time', async () => {
+            const promise = Promise.resolve('completed');
+
+            const result = await withTimeout(promise, 5000, 'Test');
+
+            expect(result).toBe('completed');
         });
     });
 

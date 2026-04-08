@@ -10,9 +10,19 @@ import { logError } from './logging.js';
  * @returns {Promise} Promise that rejects on timeout
  */
 export function withTimeout(promise, ms, operation = 'Operation') {
+    let timeoutId;
+
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+            reject(new Error(`${operation} timed out after ${ms}ms`));
+        }, ms);
+    });
+
     return Promise.race([
-        promise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error(`${operation} timed out after ${ms}ms`)), ms)),
+        promise.finally(() => {
+            clearTimeout(timeoutId);
+        }),
+        timeoutPromise,
     ]);
 }
 
