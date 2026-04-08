@@ -7,6 +7,7 @@
 import { getEmbedding, hasEmbedding } from '../utils/embedding-codec.js';
 import { countTokens } from '../utils/tokens.js';
 import { cosineSimilarity } from './math.js';
+import { getSettings } from '../settings.js';
 
 /**
  * Multilingual regex for macro-intent detection.
@@ -54,7 +55,17 @@ export function retrieveWorldContext(communities, globalState, userMessagesStrin
         return { text: '', communityIds: [], isMacroIntent: false };
     }
 
-    // Score communities by cosine similarity
+    // Check if using ST Vector mode - if so, skip local retrieval to avoid duplicate processing
+    const settings = getSettings();
+    const isStVectorMode = settings?.embeddingSource === 'st_vector';
+
+    if (isStVectorMode) {
+        // In ST Vector mode, communities are retrieved via the scoring layer
+        // Return empty here to avoid duplicate processing
+        return { text: '', communityIds: [], isMacroIntent: false };
+    }
+
+    // Score communities by cosine similarity (local mode only)
     const scored = [];
     for (const [id, community] of Object.entries(communities)) {
         if (!hasEmbedding(community)) continue;

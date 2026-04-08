@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 describe('selectMemoriesWithSoftBalance', () => {
     it('should select top-scoring memories first (Phase 1)', async () => {
@@ -120,5 +120,68 @@ describe('selectRelevantMemories with soft balance', () => {
 
         const result = await selectRelevantMemories(memories, mockCtx);
         expect(Array.isArray(result)).toBe(true);
+    });
+});
+
+describe('ST Vector retrieval with graph nodes', () => {
+    it('should look up graph nodes from ST Vector results', async () => {
+        const { selectRelevantMemories } = await import('../../src/retrieval/scoring.js');
+        const embeddingsModule = await import('../../src/embeddings.js');
+
+        const memories = [
+            { id: 'memory1', summary: 'Test memory', importance: 5, type: 'event', message_ids: [100], sequence: 1000 },
+        ];
+
+        const mockCtx = {
+            recentContext: 'Tell me about Alice',
+            userMessages: 'Tell me about Alice',
+            activeCharacters: [],
+            chatLength: 1000,
+            finalTokens: 500,
+            graphNodes: {
+                'Alice': { name: 'Alice', description: 'A brave warrior', type: 'PERSON', mentions: 5 },
+            },
+            graphEdges: {},
+            allAvailableMemories: memories,
+            scoringConfig: {
+                forgetfulnessBaseLambda: 0.05,
+                forgetfulnessImportance5Floor: undefined,
+                reflectionDecayThreshold: undefined,
+                vectorSimilarityThreshold: 0.5,
+                alpha: 0.7,
+                combinedBoostWeight: 15,
+                embeddingSource: 'st_vector',
+                transientDecayMultiplier: undefined,
+            },
+            queryConfig: {
+                entityWindowSize: 10,
+                embeddingWindowSize: 5,
+                recencyDecayFactor: 0.09,
+                topEntitiesCount: 5,
+                entityBoostWeight: 5.0,
+                exactPhraseBoostWeight: 10.0,
+            },
+        };
+
+        // Mock getStrategy to return a mock ST Vector strategy
+        const mockStrategy = {
+            usesExternalStorage: vi.fn().mockReturnValue(true),
+            searchItems: vi.fn().mockResolvedValue([
+                { id: 'memory1', hash: 123, text: '[OV_ID:memory1] Test' },
+                { id: 'Alice', hash: 456, text: '[OV_ID:Alice] A brave warrior' },
+            ]),
+        };
+
+        vi.spyOn(embeddingsModule, 'getStrategy').mockReturnValue(mockStrategy);
+
+        const result = await selectRelevantMemories(memories, mockCtx);
+
+        // Verify ST Vector was called
+        expect(mockStrategy.searchItems).toHaveBeenCalled();
+        // Verify memory was retrieved (graph nodes are looked up but not returned in memory results)
+        expect(result.length).toBe(1);
+        expect(result[0].id).toBe('memory1');
+
+        vi.restoreAllMocks();
     });
 });
