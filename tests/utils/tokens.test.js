@@ -202,3 +202,66 @@ describe('snapToTurnBoundary', () => {
         expect(result).toEqual([2, 3]);
     });
 });
+
+describe('snapToTurnBoundary — system messages', () => {
+    it('finds boundary when system message sits between Bot and User', async () => {
+        const { snapToTurnBoundary } = await import('../../src/utils/tokens.js');
+
+        // U(0) B(1) SYS(2) U(3)
+        const chat = [
+            { mes: 'u0', is_user: true, is_system: false },
+            { mes: 'b1', is_user: false, is_system: false },
+            { mes: 'note', is_user: false, is_system: true }, // Author's Note
+            { mes: 'u3', is_user: true, is_system: false },
+        ];
+
+        // After index 1 (Bot), next non-system is U(3) → valid boundary
+        const result = snapToTurnBoundary(chat, [0, 1]);
+        expect(result).toEqual([0, 1]);
+    });
+
+    it('finds boundary when multiple system messages sit between Bot and User', async () => {
+        const { snapToTurnBoundary } = await import('../../src/utils/tokens.js');
+
+        // U(0) B(1) SYS(2) SYS(3) U(4)
+        const chat = [
+            { mes: 'u0', is_user: true, is_system: false },
+            { mes: 'b1', is_user: false, is_system: false },
+            { mes: 'sys1', is_user: false, is_system: true },
+            { mes: 'sys2', is_user: true, is_system: true },
+            { mes: 'u4', is_user: true, is_system: false },
+        ];
+
+        const result = snapToTurnBoundary(chat, [0, 1]);
+        expect(result).toEqual([0, 1]);
+    });
+
+    it('returns empty when system message blocks boundary from reaching User', async () => {
+        const { snapToTurnBoundary } = await import('../../src/utils/tokens.js');
+
+        // B(0) SYS(1) B(2)
+        const chat = [
+            { mes: 'b0', is_user: false, is_system: false },
+            { mes: 'sys', is_user: false, is_system: true },
+            { mes: 'b2', is_user: false, is_system: false },
+        ];
+
+        const result = snapToTurnBoundary(chat, [0]);
+        expect(result).toEqual([]);
+    });
+
+    it('finds boundary when system message has is_user true', async () => {
+        const { snapToTurnBoundary } = await import('../../src/utils/tokens.js');
+
+        // U(0) B(1) SYS(is_user:true)(2) U(3)
+        const chat = [
+            { mes: 'u0', is_user: true, is_system: false },
+            { mes: 'b1', is_user: false, is_system: false },
+            { mes: 'note', is_user: true, is_system: true }, // ST hidden with is_user
+            { mes: 'u3', is_user: true, is_system: false },
+        ];
+
+        const result = snapToTurnBoundary(chat, [0, 1]);
+        expect(result).toEqual([0, 1]);
+    });
+});
