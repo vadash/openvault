@@ -101,6 +101,8 @@ Everything stays on your machine. The in-browser embedding model means no text g
 - **Generative Agents** - Importance-weighted memory, reflection triggers, observation loops. Park et al., *"Generative Agents: Interactive Simulacra of Human Behavior"* ([arXiv:2304.03442](https://arxiv.org/abs/2304.03442))
 
 ## Version History
+
+- **22.00** - Bugfixes
 - **21.00** - Provides a manual mechanism to merge two entities
 - **20.00** - Entity editing, deletion, and alias management with tab restructure from "World" to "Entities" + "Communities"
 - **19.00** - Exclude the last N complete turns from extraction batches so hallucinated/swiped AI responses dont enter the memory
