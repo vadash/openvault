@@ -119,7 +119,7 @@ async function rpmDelay(settings, label = 'Rate limit') {
  * @param {StSyncChanges} stChanges
  * @returns {Promise<void>}
  */
-async function applySyncChanges(stChanges) {
+export async function applySyncChanges(stChanges) {
     if (!isStVectorSource()) return;
     const chatId = getCurrentChatId();
     if (stChanges.toSync?.length > 0) {

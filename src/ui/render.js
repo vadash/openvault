@@ -8,11 +8,9 @@
 import { CHARACTERS_KEY, MEMORIES_KEY, MEMORIES_PER_PAGE } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { getDocumentEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
-import { deleteItemsFromST } from '../services/st-vector.js';
 import {
     deleteEntity as deleteEntityStoreAction,
     deleteMemory as deleteMemoryAction,
-    getCurrentChatId,
     getOpenVaultData,
     mergeEntities,
     updateEntity,
@@ -99,6 +97,10 @@ function filterBySearch(memories, query) {
 async function deleteMemory(id) {
     const deleted = await deleteMemoryAction(id);
     if (deleted.success) {
+        if (deleted.stChanges) {
+            const { applySyncChanges } = await import('../extraction/extract.js');
+            await applySyncChanges(deleted.stChanges);
+        }
         renderMemoryList();
         populateCharacterFilter();
         refreshStats();
@@ -140,6 +142,10 @@ async function saveEdit(id, btnElement) {
 
     const updated = await updateMemoryAction(id, { summary, importance, temporal_anchor, is_transient });
     if (updated.success) {
+        if (updated.stChanges) {
+            const { applySyncChanges } = await import('../extraction/extract.js');
+            await applySyncChanges(updated.stChanges);
+        }
         const memory = getMemoryById(id);
         if (memory && !hasEmbedding(memory) && isEmbeddingsEnabled()) {
             const embedding = await getDocumentEmbedding(summary);
@@ -580,12 +586,10 @@ async function saveEntityEdit(key, btn) {
         // Clear edit state (use old key and new key for rename case)
         entityEditState.delete(key);
 
-        // Handle ST Vector cleanup if renaming synced entity
-        if (result.stChanges?.toDelete?.length > 0) {
-            const chatId = getCurrentChatId();
-            if (chatId) {
-                await deleteItemsFromST(result.stChanges.toDelete, chatId);
-            }
+        // Sync ST Vector changes (re-sync on rename, delete old hashes)
+        if (result.stChanges) {
+            const { applySyncChanges } = await import('../extraction/extract.js');
+            await applySyncChanges(result.stChanges);
         }
 
         // Replace with updated view card (use newKey if renamed)
@@ -630,11 +634,9 @@ async function deleteEntityAction(key) {
         $(`.openvault-entity-card[data-key="${key}"]`).remove();
 
         // Clean up ST Vector if needed
-        if (result.stChanges?.toDelete?.length > 0) {
-            const chatId = getCurrentChatId();
-            if (chatId) {
-                await deleteItemsFromST(result.stChanges.toDelete, chatId);
-            }
+        if (result.stChanges) {
+            const { applySyncChanges } = await import('../extraction/extract.js');
+            await applySyncChanges(result.stChanges);
         }
 
         showToast('success', 'Entity deleted');
@@ -789,10 +791,10 @@ async function confirmEntityMerge(sourceKey) {
             return;
         }
 
-        // Delete ST vectors for removed items
-        if (result.stChanges?.toDelete?.length > 0) {
-            const chatId = getCurrentChatId();
-            await deleteItemsFromST(result.stChanges.toDelete, chatId);
+        // Sync ST Vector changes (delete removed, re-sync surviving node)
+        if (result.stChanges) {
+            const { applySyncChanges } = await import('../extraction/extract.js');
+            await applySyncChanges(result.stChanges);
         }
 
         // Re-render the entity list
