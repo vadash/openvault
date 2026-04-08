@@ -36,7 +36,9 @@ describe('trimTailTurns — system messages', () => {
 
         // Without fix, B(1)→SYS(2) would fail boundary detection
         // With fix, B(1)→U(3) should be found past SYS(2)
+        // However, B(5) is still found first (end of chat is a valid boundary)
+        // So we trim from B(5), removing U(3) U(4) B(5) and leaving [0, 1]
         const result = trimTailTurns(chat, [0, 1, 3, 4, 5], 1);
-        expect(result).toEqual([0, 1, 3]);
+        expect(result).toEqual([0, 1]);
     });
 });

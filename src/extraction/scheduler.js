@@ -96,7 +96,14 @@ export function trimTailTurns(chat, messageIds, turnsToTrim) {
     for (let i = messageIds.length - 1; i >= 0; i--) {
         const id = messageIds[i];
         const msg = chat[id];
-        const nextInChat = chat[id + 1];
+
+        // Skip system messages — they aren't real conversation turns
+        if (msg?.is_system) continue;
+
+        // Walk forward past system messages to find the next real message
+        let nextIdx = id + 1;
+        while (chat[nextIdx]?.is_system) nextIdx++;
+        const nextInChat = chat[nextIdx];
 
         // Bot→User boundary (same logic as snapToTurnBoundary)
         if (msg && !msg.is_user && (!nextInChat || nextInChat.is_user)) {
