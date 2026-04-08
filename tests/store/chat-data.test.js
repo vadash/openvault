@@ -288,6 +288,57 @@ describe('store/chat-data', () => {
         });
     });
 
+    describe('updateMemory — stChanges', () => {
+        it('returns stChanges with toSync when summary changes', async () => {
+            const saveFn = vi.fn(async () => true);
+            setDeps({
+                console: mockConsole,
+                getContext: () => mockContext,
+                getExtensionSettings: () => ({
+                    [extensionName]: { debugMode: true },
+                }),
+                saveChatConditional: saveFn,
+            });
+
+            // First create a memory
+            const data = getOpenVaultData();
+            data[MEMORIES_KEY] = [{ id: 'mem1', summary: 'Old summary', importance: 5 }];
+
+            const result = await updateMemory('mem1', { summary: 'New summary' });
+
+            // Bug: updateMemory returns boolean, not stChanges object
+            expect(result).not.toBe(true);
+            expect(result).toHaveProperty('stChanges');
+            expect(result.stChanges.toSync).toBeDefined();
+            expect(result.stChanges.toSync.length).toBeGreaterThan(0);
+        });
+    });
+
+    describe('deleteMemory — stChanges', () => {
+        it('returns stChanges with toDelete when memory had embedding', async () => {
+            const saveFn = vi.fn(async () => true);
+            setDeps({
+                console: mockConsole,
+                getContext: () => mockContext,
+                getExtensionSettings: () => ({
+                    [extensionName]: { debugMode: true },
+                }),
+                saveChatConditional: saveFn,
+            });
+
+            const data = getOpenVaultData();
+            data[MEMORIES_KEY] = [{ id: 'mem1', summary: 'A memory to delete', importance: 5, _st_synced: true }];
+
+            const result = await deleteMemory('mem1');
+
+            // Bug: deleteMemory returns boolean, not stChanges object
+            expect(result).not.toBe(true);
+            expect(result).toHaveProperty('stChanges');
+            expect(result.stChanges.toDelete).toBeDefined();
+            expect(result.stChanges.toDelete.length).toBeGreaterThan(0);
+        });
+    });
+
     describe('deleteCurrentChatData', () => {
         it('deletes openvault key from chatMetadata', async () => {
             mockContext.chatMetadata[METADATA_KEY] = {
