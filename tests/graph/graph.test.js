@@ -361,7 +361,9 @@ describe('mergeOrInsertEntity', () => {
         upsertEntity(graphData, 'Castle', 'PLACE', 'A fortress');
         const { key, stChanges } = await mergeOrInsertEntity(graphData, 'castle', 'PLACE', 'Updated', 3, mockSettings);
         expect(key).toBe('castle');
-        expect(stChanges.toSync).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1); // Updated node should be synced
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:castle] A fortress | Updated');
+        expect(stChanges.toSync[0].item).toBe(graphData.nodes.castle);
         expect(stChanges.toDelete).toHaveLength(0);
         expect(graphData.nodes.castle.mentions).toBe(2);
         expect(Object.keys(graphData.nodes)).toHaveLength(1);
@@ -376,7 +378,8 @@ describe('mergeOrInsertEntity', () => {
 
         const { key, stChanges } = await mergeOrInsertEntity(graphData, 'Dragon', 'PERSON', 'A beast', 3, mockSettings);
         expect(key).toBe('dragon');
-        expect(stChanges.toSync).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1); // New node should be synced
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:dragon] A beast');
         expect(stChanges.toDelete).toHaveLength(0);
         expect(Object.keys(graphData.nodes)).toHaveLength(2);
     });
@@ -399,7 +402,8 @@ describe('mergeOrInsertEntity', () => {
         );
         // PERSON can merge on high similarity alone (names are unique identifiers)
         expect(key).toBe('dragon');
-        expect(stChanges.toSync).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1); // Updated node should be synced
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:dragon] A creature | Another name');
         expect(stChanges.toDelete).toHaveLength(0);
         expect(graphData.nodes.dragon.mentions).toBe(2);
         expect(Object.keys(graphData.nodes)).toHaveLength(1);
@@ -422,7 +426,8 @@ describe('mergeOrInsertEntity', () => {
         );
         // Fast-path key match fires first regardless of type
         expect(key).toBe('castle');
-        expect(stChanges.toSync).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1); // Updated node should be synced
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:castle] A fortress | A person named Castle');
         expect(stChanges.toDelete).toHaveLength(0);
         expect(graphData.nodes.castle.type).toBe('PLACE'); // Original type preserved
     });
@@ -441,7 +446,8 @@ describe('mergeOrInsertEntity', () => {
             mockSettings
         );
         expect(key).toBe('fortress');
-        expect(stChanges.toSync).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1); // New node should be synced
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:fortress] A stronghold');
         expect(stChanges.toDelete).toHaveLength(0);
         expect(Object.keys(graphData.nodes)).toHaveLength(2);
     });
@@ -486,7 +492,8 @@ describe('mergeOrInsertEntity', () => {
 
         // Assert: merged into existing English node
         expect(key).toBe('suzy');
-        expect(stChanges.toSync).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1); // Updated node should be synced
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:suzy] Main character | Главная героиня');
         expect(stChanges.toDelete).toHaveLength(0);
         expect(graphData.nodes.suzy.description).toContain('Главная героиня');
         expect(graphData.nodes.suzy.aliases).toContain('Сузи');
@@ -510,7 +517,8 @@ describe('mergeOrInsertEntity', () => {
 
         // Should create a new node, not merge
         expect(key).toBe('сузи');
-        expect(stChanges.toSync).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1); // New node should be synced
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:сузи] Some object named Сузи');
         expect(stChanges.toDelete).toHaveLength(0);
         expect(graphData.nodes.сузи).toBeDefined();
     });
@@ -523,7 +531,8 @@ describe('mergeOrInsertEntity', () => {
 
         // Creates new node since no existing PERSON nodes to match against
         expect(key).toBe('сузи');
-        expect(stChanges.toSync).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1); // New node should be synced
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:сузи] Some person');
         expect(stChanges.toDelete).toHaveLength(0);
         expect(graphData.nodes.сузи).toBeDefined();
     });
@@ -544,7 +553,8 @@ describe('mergeOrInsertEntity', () => {
 
         // Assert: merged into existing Latin node
         expect(key).toBe('mina');
-        expect(stChanges.toSync).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1); // Updated node should be synced
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:mina] A friend | Подруга');
         expect(stChanges.toDelete).toHaveLength(0);
         expect(graphData.nodes.mina.aliases).toContain('Мина');
         expect(graphData.nodes.мина).toBeUndefined();
@@ -567,7 +577,8 @@ describe('mergeOrInsertEntity', () => {
 
         // Assert: merged into existing Cyrillic node (first-inserted wins)
         expect(key).toBe('мина');
-        expect(stChanges.toSync).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1); // Updated node should be synced
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:мина] Подруга | A friend');
         expect(stChanges.toDelete).toHaveLength(0);
         expect(graphData.nodes.мина.aliases).toContain('Mina');
         expect(graphData.nodes.mina).toBeUndefined();
@@ -591,7 +602,8 @@ describe('mergeOrInsertEntity', () => {
 
         // Assert: should NOT merge - distance 2 exceeds stricter threshold (1) for short names
         expect(key).toBe('мама');
-        expect(stChanges.toSync).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1); // New node should be synced
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:мама] Mother');
         expect(stChanges.toDelete).toHaveLength(0);
         expect(graphData.nodes.мама).toBeDefined();
         expect(graphData.nodes.kaya.aliases).toBeUndefined();
@@ -612,7 +624,8 @@ describe('mergeOrInsertEntity', () => {
 
         // Distance 0 should always match
         expect(key).toBe('mina');
-        expect(stChanges.toSync).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1); // Updated node should be synced
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:mina] A friend | Подруга');
         expect(stChanges.toDelete).toHaveLength(0);
         expect(graphData.nodes.mina.aliases).toContain('Мина');
     });
@@ -632,7 +645,8 @@ describe('mergeOrInsertEntity', () => {
 
         // Distance 1 should match for longer names (threshold ≤2)
         expect(key).toBe('elizabeth');
-        expect(stChanges.toSync).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1); // Updated node should be synced
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:elizabeth] Queen | Королева');
         expect(stChanges.toDelete).toHaveLength(0);
         expect(graphData.nodes.elizabeth.aliases).toContain('Элизабет');
     });
@@ -692,18 +706,19 @@ describe('mergeOrInsertEntity', () => {
         expect(stChanges.toDelete).toHaveLength(0);
     });
 
-    it('returns empty stChanges on fast path (exact key match)', async () => {
+    it('returns stChanges with updated node on fast path (exact key match)', async () => {
         const { getDocumentEmbedding } = await import('../../src/embeddings.js');
         getDocumentEmbedding.mockResolvedValue(null);
 
         upsertEntity(graphData, 'Castle', 'PLACE', 'A fortress');
         const { key, stChanges } = await mergeOrInsertEntity(graphData, 'castle', 'PLACE', 'Updated', 3, mockSettings);
         expect(key).toBe('castle');
-        expect(stChanges.toSync).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1); // Updated node should be synced
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:castle] A fortress | Updated');
         expect(stChanges.toDelete).toHaveLength(0);
     });
 
-    it('returns empty stChanges on semantic merge path (existing node updated)', async () => {
+    it('returns stChanges with updated node on semantic merge path (existing node updated)', async () => {
         const { getDocumentEmbedding } = await import('../../src/embeddings.js');
         getDocumentEmbedding.mockResolvedValue([0.9, 0.1, 0]);
 
@@ -720,7 +735,8 @@ describe('mergeOrInsertEntity', () => {
         );
         // PERSON can merge on high similarity alone
         expect(key).toBe('dragon');
-        expect(stChanges.toSync).toHaveLength(0);
+        expect(stChanges.toSync).toHaveLength(1); // Updated node should be synced
+        expect(stChanges.toSync[0].text).toBe('[OV_ID:dragon] A creature | Another name');
         expect(stChanges.toDelete).toHaveLength(0);
     });
 });

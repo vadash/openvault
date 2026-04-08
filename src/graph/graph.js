@@ -402,9 +402,19 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
     const key = normalizeKey(name);
     const stChanges = { toSync: [], toDelete: [] };
 
+    /** Push updated node to stChanges.toSync */
+    const syncNode = (nodeKey) => {
+        const n = graphData.nodes[nodeKey];
+        if (n) {
+            const t = `[OV_ID:${nodeKey}] ${n.description}`;
+            stChanges.toSync.push({ hash: cyrb53(t), text: t, item: n });
+        }
+    };
+
     // Fast path: exact key match
     if (graphData.nodes[key]) {
         upsertEntity(graphData, name, type, description, cap);
+        syncNode(key);
         return { key, stChanges };
     }
 
@@ -438,6 +448,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
                 if (key !== existingKey) {
                     graphData._mergeRedirects[key] = existingKey;
                 }
+                syncNode(existingKey);
                 return { key: existingKey, stChanges };
             }
         }
@@ -453,6 +464,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
 
     if (!newEmbedding) {
         upsertEntity(graphData, name, type, description, cap);
+        syncNode(key);
         return { key, stChanges };
     }
 
@@ -507,6 +519,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
         if (key !== bestMatch) {
             graphData._mergeRedirects[key] = bestMatch;
         }
+        syncNode(bestMatch);
         return { key: bestMatch, stChanges };
     }
 
