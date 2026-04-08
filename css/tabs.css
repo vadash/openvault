@@ -45,8 +45,8 @@
     margin-right: 4px;
 }
 
-/* Wide screens: icons only */
-@media (min-width: 1281px) {
+/* Small screens: icons only, hide text */
+@media (max-width: 1280px) {
     .openvault-tab-btn span {
         display: none;
     }
