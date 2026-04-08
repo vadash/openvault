@@ -286,5 +286,70 @@ describe('mergeEntities', () => {
             expect(result.stChanges.toSync).toBeDefined();
             expect(result.stChanges.toSync.length).toBeGreaterThan(0);
         });
+
+        it('queues rewritten edge for re-sync in toSync after merge', async () => {
+            const saveFn = vi.fn(async () => true);
+            const testGraph = {
+                nodes: {
+                    alice: {
+                        name: 'Alice',
+                        type: 'PERSON',
+                        description: 'A young woman',
+                        mentions: 3,
+                        aliases: [],
+                        _st_synced: true,
+                    },
+                    bob: {
+                        name: 'Bob',
+                        type: 'PERSON',
+                        description: 'A tall man',
+                        mentions: 2,
+                        aliases: [],
+                        _st_synced: true,
+                    },
+                    charlie: {
+                        name: 'Charlie',
+                        type: 'PERSON',
+                        description: 'Quiet guy',
+                        mentions: 1,
+                        aliases: [],
+                    },
+                },
+                edges: {
+                    alice__charlie: {
+                        source: 'alice',
+                        target: 'charlie',
+                        weight: 2,
+                        description: 'Alice mentors Charlie',
+                        _st_synced: true,
+                    },
+                },
+                _mergeRedirects: {},
+            };
+            setupTestContext({
+                context: {
+                    chatMetadata: {
+                        openvault: {
+                            schema_version: 3,
+                            memories: [],
+                            character_states: {},
+                            processed_message_ids: [],
+                            graph: testGraph,
+                        },
+                    },
+                },
+                deps: { saveChatConditional: saveFn },
+            });
+
+            const { mergeEntities: mergeEntitiesImported } = await import('../../src/store/chat-data.js');
+            const result = await mergeEntitiesImported('alice', 'bob');
+
+            expect(result.success).toBe(true);
+            // The rewritten edge bob__charlie must be in toSync
+            // Note: edge ID format uses single underscore: edge_bob_charlie
+            const edgeSync = result.stChanges.toSync.find((s) => s.text.includes('edge_bob_charlie'));
+            expect(edgeSync).toBeDefined();
+            expect(edgeSync.item).toBe(testGraph.edges.bob__charlie); // same object reference
+        });
     });
 });

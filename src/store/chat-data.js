@@ -566,6 +566,11 @@ export async function mergeEntities(sourceKey, targetKey, graph = null) {
                 toDelete.push({ hash: cyrb53(`[OV_ID:edge_${edge.source}_${edge.target}] ${edge.description}`) });
             }
 
+            // Queue merged edge for re-sync
+            const mergedEdgeId = `edge_${newSource}_${newTarget}`;
+            const mergedEdgeText = `[OV_ID:${mergedEdgeId}] ${existingEdge.description}`;
+            toSync.push({ hash: cyrb53(mergedEdgeText), text: mergedEdgeText, item: existingEdge });
+
             delete g.edges[oldKey];
         } else if (newKey !== oldKey) {
             // No collision: rewrite edge
@@ -577,6 +582,11 @@ export async function mergeEntities(sourceKey, targetKey, graph = null) {
             deleteEmbedding(edge);
             g.edges[newKey] = edge;
             delete g.edges[oldKey];
+
+            // Queue rewritten edge for re-sync
+            const rewrittenEdgeId = `edge_${newSource}_${newTarget}`;
+            const rewrittenEdgeText = `[OV_ID:${rewrittenEdgeId}] ${edge.description}`;
+            toSync.push({ hash: cyrb53(rewrittenEdgeText), text: rewrittenEdgeText, item: edge });
         }
     }
 
