@@ -19,6 +19,7 @@ Agentic memory extension for SillyTavern providing POV-aware memory, witness tra
 ### 3. Code & State Safety
 - **Validate arrays explicitly.** Use `array?.length > 0 ? array : fallback`. Empty arrays are truthy and will bypass `||` fallbacks
 - **Throw `AbortError` to signal cancellation.** Catch it explicitly and do not log it as a failure
+- **Reset session controller before checking extension enabled.** In `onChatChanged`, `resetSessionController()` must fire before `isExtensionEnabled()` — otherwise disabling the extension leaks in-flight workers across chat switches.
 - **Yield the main thread in heavy loops.** Call `await yieldToMain()` to polyfill `scheduler.yield()` and prevent ST UI freezes
 - **Never edit `src/types.d.ts` directly.** Regenerate it from Zod schemas using `npm run generate-types`
 
@@ -29,6 +30,8 @@ Agentic memory extension for SillyTavern providing POV-aware memory, witness tra
 - **toDelete items:** Always push `{ hash: number }` objects, never plain strings
 - **Hash computation:** Use `cyrb53(text)` (returns number), never `.toString()`
 - **Schema contract:** `StSyncChangesSchema` in `schemas.js` validates shapes — keep in sync
+- **Every mutation must return complete stChanges.** If a function modifies/deletes entities, memories, or communities, it must return `{ toSync, toDelete }` for both. Missing either causes orphaned embeddings. Check all code paths — early returns are the most common leak source.
+- **Use the `syncNode(key)` helper pattern** (from `graph.js`) to avoid duplicating the `[OV_ID:${key}] ${description}` + `cyrb53` boilerplate in every merge path.
 
 ## DIRECTORY KNOWLEDGE MAP
 To keep context windows clean, domain-specific rules live in their respective directories:

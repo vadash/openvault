@@ -29,6 +29,11 @@
 - **Delete ST Vector orphans on rename/delete.** If `node._st_synced === true`, calculate hash via `cyrb53(\`[OV_ID:${key}] ${node.description}\`)` and return it as `stChanges.toDelete` for the caller to pass to `deleteItemsFromST()`. Hash format must match `graph.js:486` exactly — no `|| node.name` fallback.
 - **Return structured results, not bare booleans.** Use `{ success, stChanges? }` for delete, `{ key, stChanges? }` for update. Callers need the hash list for ST Vector cleanup.
 
+## ST CHANGES CONTRACT
+- **Every store mutation that touches embeddings must return stChanges.** `updateEntity`, `mergeEntities`, `updateMemory`, `deleteMemory`, `mergeOrInsertEntity` — all must return `{ toSync?, toDelete? }` alongside their primary result.
+- **Check all early-return paths.** Most stChanges leaks come from `return` statements before the sync logic runs. Use a local `stChanges` object initialized at function top and returned at every exit.
+- **Filter archived memories before cache operations.** `updateIDFCache` must count only `!m.archived` memories — using the raw array length produces stale IDF values after archiving.
+
 ## ENTITY MERGE TESTS
 - **`tests/store/chat-data-merge.test.js`** uses inline objects, not `buildMockGraphNode()`. Merge tests need explicit control over specific field combinations (`_st_synced`, edge structures) where factory defaults would obscure test intent.
 - **Uses `setDeps()` alongside `setupTestContext()`.** The merge module imports `getDeps()` internally, so tests must call `setDeps()` directly to inject the mock context.

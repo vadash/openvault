@@ -12,6 +12,7 @@
   6. `synthesizeCommunities` (Deferred on backfill)
 
 ## TURN BOUNDARY FALLBACK
+- **Skip `is_system` messages in forward look.** Both `snapToTurnBoundary` and `trimTailTurns` must walk past system messages (Author's Notes, hidden system prompts) when scanning forward for Bot→User boundaries. System messages are not real conversation turns — treating them as such causes boundary misdetection.
 - **`snapToTurnBoundary` accepts `allowUserOnly` flag.** When true (Emergency Cut), returns the accumulated messages as-is even if no Bot→User boundary exists. Prevents extraction stall on all-User message queues.
 
 ## BACKFILL OPTIMIZATION
@@ -19,6 +20,7 @@
 - **Run Phase 2 once at the end.** Execute `runPhase2Enrichment()` over all accumulated data to save API calls and UI lockups.
 
 ## GRAPH & COMMUNITIES
+- **Filter archived memories before IDF calculation.** `updateIDFCache` must use `memories.filter(m => !m.archived)` — the raw array includes archived items, producing stale IDF values and causing BM25 score mismatches.
 - **Apply `.max(5)` to Graph Zod schemas.** Force the LLM to extract deltas (new entities/changes) rather than re-evaluating the whole world.
 - **Merge PERSON entities on high cosine similarity.** Names are unique identifiers. 
 - **Require token-overlap for OBJECT/CONCEPT/PLACE.** Prevent false merges caused by similar contextual embeddings.
