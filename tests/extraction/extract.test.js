@@ -368,35 +368,6 @@ describe('extractAllMessages Emergency Cut support', () => {
         vi.clearAllMocks();
     });
 
-    it.skip('accepts options object with isEmergencyCut flag', async () => {
-        const progressCallback = vi.fn();
-        const abortSignal = new AbortController().signal;
-        const onPhase2Start = vi.fn();
-
-        setupTestContext({
-            context: mockContext,
-            settings: { ...getExtractionSettings(), extractionTokenBudget: 8000 },
-            deps: {
-                connectionManager: getMockConnectionManager(mockSendRequest()),
-                fetch: vi.fn(async () => ({
-                    ok: true,
-                    json: async () => ({ embedding: [0.1, 0.2] }),
-                })),
-                saveChatConditional: vi.fn(async () => true),
-            },
-        });
-
-        // Should not throw - options object with isEmergencyCut should be accepted
-        await expect(
-            extractAllMessages({
-                isEmergencyCut: true,
-                progressCallback,
-                abortSignal,
-                onPhase2Start,
-            })
-        ).resolves.toBeDefined();
-    });
-
     it('throws AbortError when signal is aborted during batch loop', async () => {
         const controller = new AbortController();
 
