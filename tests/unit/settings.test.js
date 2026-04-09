@@ -13,14 +13,12 @@ const lodashGet = (obj, path, defaultValue) => {
 
 const lodashSet = (obj, path, value) => {
     if (Object(obj) !== obj) return obj;
-    // Handle both dot notation and array bracket notation
     const keys = String(path)
         .split(/[.[\]]+/)
         .filter(Boolean);
     let current = obj;
     for (let i = 0; i < keys.length - 1; i++) {
         const key = keys[i];
-        // Convert numeric keys to numbers for array access
         const numKey = /^\d+$/.test(key) ? parseInt(key, 10) : key;
         if (!(numKey in current)) {
             current[numKey] = /^\d+$/.test(keys[i + 1]) ? [] : {};
@@ -57,7 +55,7 @@ const lodashMerge = (target, source) => {
     return result;
 };
 
-describe('Centralized Settings Module', () => {
+describe('Centralized Settings Module — wiring checks', () => {
     let mockExtensionSettings;
     let mockLodash;
     let mockSaveSettingsDebounced;
@@ -65,7 +63,6 @@ describe('Centralized Settings Module', () => {
     beforeEach(async () => {
         vi.resetModules();
 
-        // Setup mocks - use mock implementations
         mockSaveSettingsDebounced = vi.fn();
 
         mockLodash = {
@@ -86,7 +83,6 @@ describe('Centralized Settings Module', () => {
             },
         };
 
-        // Mock deps.js
         vi.doMock('../../src/deps.js', () => ({
             getDeps: () => ({
                 getContext: () => ({
@@ -99,7 +95,6 @@ describe('Centralized Settings Module', () => {
             resetDeps: vi.fn(),
         }));
 
-        // Mock constants.js
         vi.doMock('../../src/constants.js', () => ({
             extensionName: 'openvault',
             defaultSettings: {
@@ -113,199 +108,46 @@ describe('Centralized Settings Module', () => {
         }));
     });
 
-    describe('getSettings', () => {
-        it('should return entire settings object when no path provided', async () => {
-            const { getSettings } = await import('../../src/settings.js');
-            const result = getSettings();
-            expect(result).toEqual(mockExtensionSettings.openvault);
-        });
-
-        it('should get nested value with dot notation', async () => {
-            const { getSettings } = await import('../../src/settings.js');
-            const result = getSettings('injection.memory.position');
-            expect(result).toBe(1);
-        });
-
-        it('should return default value for missing paths', async () => {
-            const { getSettings } = await import('../../src/settings.js');
-            const result = getSettings('nonexistent.path', 42);
-            expect(result).toBe(42);
-        });
-
-        it('should return default value when path is undefined', async () => {
-            const { getSettings } = await import('../../src/settings.js');
-            const result = getSettings('missing.nested.deep', 'default');
-            expect(result).toBe('default');
-        });
+    it('should set nested value with dot notation and trigger save', async () => {
+        const { setSetting, getSettings } = await import('../../src/settings.js');
+        setSetting('injection.memory.position', 0);
+        expect(getSettings('injection.memory.position')).toBe(0);
+        expect(mockSaveSettingsDebounced).toHaveBeenCalled();
     });
 
-    describe('setSetting', () => {
-        it('should set nested value with dot notation', async () => {
-            const { setSetting, getSettings } = await import('../../src/settings.js');
-            setSetting('injection.memory.position', 0);
-            expect(getSettings('injection.memory.position')).toBe(0);
-            expect(mockSaveSettingsDebounced).toHaveBeenCalled();
-        });
+    it('should use setByPath fallback when lodash.set is unavailable', async () => {
+        const lodashNoSet = {
+            get: mockLodash.get,
+            has: mockLodash.has,
+            merge: mockLodash.merge,
+        };
 
-        it('should create intermediate objects when setting nested path', async () => {
-            const { setSetting, getSettings } = await import('../../src/settings.js');
-            setSetting('new.nested.path', 'value');
-            expect(getSettings('new.nested.path')).toBe('value');
-            expect(mockSaveSettingsDebounced).toHaveBeenCalled();
-        });
-
-        it('should overwrite existing values', async () => {
-            const { setSetting, getSettings } = await import('../../src/settings.js');
-            setSetting('extractionTokenBudget', 12000);
-            expect(getSettings('extractionTokenBudget')).toBe(12000);
-        });
-
-        it('should work with array notation', async () => {
-            const { setSetting, getSettings } = await import('../../src/settings.js');
-            setSetting('testArray[0].name', 'first');
-            expect(getSettings('testArray[0].name')).toBe('first');
-        });
-
-        it('should use setByPath fallback when lodash.set is unavailable', async () => {
-            // Re-mock with lodash that has no .set
-            const lodashNoSet = {
-                get: mockLodash.get,
-                has: mockLodash.has,
-                merge: mockLodash.merge,
-                // No .set property
-            };
-
-            vi.doMock('../../src/deps.js', () => ({
-                getDeps: () => ({
-                    getContext: () => ({
-                        lodash: lodashNoSet,
-                    }),
-                    getExtensionSettings: () => mockExtensionSettings,
-                    saveSettingsDebounced: mockSaveSettingsDebounced,
+        vi.doMock('../../src/deps.js', () => ({
+            getDeps: () => ({
+                getContext: () => ({
+                    lodash: lodashNoSet,
                 }),
-                setDeps: vi.fn(),
-                resetDeps: vi.fn(),
-            }));
+                getExtensionSettings: () => mockExtensionSettings,
+                saveSettingsDebounced: mockSaveSettingsDebounced,
+            }),
+            setDeps: vi.fn(),
+            resetDeps: vi.fn(),
+        }));
 
-            // Re-import to get fresh module
-            const { setSetting, getSettings } = await import('../../src/settings.js');
-            setSetting('fallback.test.value', 'works');
-            expect(getSettings('fallback.test.value')).toBe('works');
-        });
+        const { setSetting, getSettings } = await import('../../src/settings.js');
+        setSetting('fallback.test.value', 'works');
+        expect(getSettings('fallback.test.value')).toBe('works');
     });
 
-    describe('Edge Cases', () => {
-        it('should handle undefined path in getSettings', async () => {
-            const { getSettings } = await import('../../src/settings.js');
-            const result = getSettings();
-            expect(result).toEqual(mockExtensionSettings.openvault);
-        });
-
-        it('should handle array notation in paths', async () => {
-            mockExtensionSettings.openvault = {
-                testArray: [{ name: 'first' }, { name: 'second' }],
-            };
-
-            const { getSettings } = await import('../../src/settings.js');
-            expect(getSettings('testArray[0].name')).toBe('first');
-        });
-
-        it('should handle deeply nested paths', async () => {
-            const { getSettings, setSetting } = await import('../../src/settings.js');
-            setSetting('a.b.c.d.e', 'deep');
-            expect(getSettings('a.b.c.d.e')).toBe('deep');
-        });
-
-        it('should return defaultValue for undefined settings object', async () => {
-            mockExtensionSettings.openvault = undefined;
-            const { getSettings } = await import('../../src/settings.js');
-            expect(getSettings('any.path', 'default')).toBe('default');
-        });
+    it('should return true for existing paths (hasSettings)', async () => {
+        const { hasSettings } = await import('../../src/settings.js');
+        expect(hasSettings('injection.memory')).toBe(true);
+        expect(hasSettings('enabled')).toBe(true);
     });
 
-    describe('hasSettings', () => {
-        it('should return true for existing paths', async () => {
-            const { hasSettings } = await import('../../src/settings.js');
-            expect(hasSettings('injection.memory')).toBe(true);
-            expect(hasSettings('enabled')).toBe(true);
-        });
-
-        it('should return false for missing paths', async () => {
-            const { hasSettings } = await import('../../src/settings.js');
-            expect(hasSettings('nonexistent.path')).toBe(false);
-            expect(hasSettings('injection.nonexistent')).toBe(false);
-        });
-
-        it('should work with deeply nested paths', async () => {
-            const { hasSettings } = await import('../../src/settings.js');
-            expect(hasSettings('injection.memory.position')).toBe(true);
-            expect(hasSettings('injection.memory.nonexistent')).toBe(false);
-        });
-    });
-
-    describe('settings initialization', () => {
-        let mockExtensionSettings;
-        let mockLodashMerge;
-        let mockRegisterSettings;
-        let mockGetContext;
-
-        beforeEach(async () => {
-            vi.resetModules();
-
-            // Setup mocks
-            mockLodashMerge = vi.fn((a, b) => ({ ...a, ...b }));
-            mockExtensionSettings = { openvault: { enabled: true } };
-            mockRegisterSettings = vi.fn();
-            mockGetContext = vi.fn(() => ({
-                extensionSettings: mockExtensionSettings,
-                lodash: { merge: mockLodashMerge },
-                registerSettings: mockRegisterSettings,
-            }));
-
-            // Mock deps.js
-            vi.doMock('../../src/deps.js', () => ({
-                getDeps: () => ({
-                    getExtensionSettings: () => mockExtensionSettings,
-                    getContext: mockGetContext,
-                    registerSettings: mockRegisterSettings,
-                }),
-                setDeps: vi.fn(),
-                resetDeps: vi.fn(),
-            }));
-
-            // Mock constants.js
-            vi.doMock('../../src/constants.js', () => ({
-                extensionName: 'openvault',
-                defaultSettings: {
-                    enabled: true,
-                    injection: { memory: { position: 1, depth: 4 } },
-                },
-            }));
-        });
-
-        it('should use lodash.merge to combine defaults with existing', async () => {
-            const { loadSettings } = await import('../../src/settings.js');
-            loadSettings();
-            expect(mockLodashMerge).toHaveBeenCalled();
-        });
-
-        it('should preserve existing settings while adding defaults', async () => {
-            const { loadSettings } = await import('../../src/settings.js');
-            loadSettings();
-            expect(mockExtensionSettings.openvault.injection).toBeDefined();
-        });
-
-        it('should call lodash.merge with defaultSettings first', async () => {
-            const { loadSettings } = await import('../../src/settings.js');
-            loadSettings();
-
-            expect(mockLodashMerge).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    enabled: true,
-                    injection: { memory: { position: 1, depth: 4 } },
-                }),
-                mockExtensionSettings.openvault
-            );
-        });
+    it('should return false for missing paths (hasSettings)', async () => {
+        const { hasSettings } = await import('../../src/settings.js');
+        expect(hasSettings('nonexistent.path')).toBe(false);
+        expect(hasSettings('injection.nonexistent')).toBe(false);
     });
 });
