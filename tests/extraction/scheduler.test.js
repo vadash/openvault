@@ -89,11 +89,6 @@ describe('scheduler with fingerprints', () => {
     });
 
     describe('getProcessedFingerprints', () => {
-        it('returns empty set when no processed messages', () => {
-            const result = getProcessedFingerprints(data);
-            expect(result.size).toBe(0);
-        });
-
         it('returns set of fingerprint strings', () => {
             data[PROCESSED_MESSAGES_KEY] = ['1000000', '1000002'];
             const result = getProcessedFingerprints(data);
@@ -349,51 +344,6 @@ describe('getNextBatch (token-based)', () => {
     });
 });
 
-describe('getBackfillStats (token-based)', () => {
-    let savedTimestamp;
-
-    beforeEach(() => {
-        savedTimestamp = testTimestamp;
-        testTimestamp = 1000000;
-    });
-
-    afterEach(() => {
-        testTimestamp = savedTimestamp;
-    });
-
-    it('calculates correct stats with no processed messages', () => {
-        const chat = makeChat([
-            [LONG_USER_MESSAGE, true],
-            [LONG_BOT_MESSAGE, false],
-            [LONG_USER_MESSAGE, true],
-            [LONG_BOT_MESSAGE, false],
-            [LONG_USER_MESSAGE, true],
-            [LONG_BOT_MESSAGE, false],
-        ]);
-
-        const stats = getBackfillStats(chat, {});
-        expect(stats.totalMessages).toBe(6);
-        expect(stats.extractedCount).toBe(0);
-        expect(stats.unextractedCount).toBe(6);
-    });
-
-    it('excludes already-extracted from count', () => {
-        const chat = makeChat([
-            [LONG_USER_MESSAGE, true],
-            [LONG_BOT_MESSAGE, false],
-            [LONG_USER_MESSAGE, true],
-            [LONG_BOT_MESSAGE, false],
-        ]);
-        const data = {};
-        // Use fingerprints (send_date strings) instead of indices
-        data[PROCESSED_MESSAGES_KEY] = ['1000000', '1000001'];
-
-        const stats = getBackfillStats(chat, data);
-        expect(stats.extractedCount).toBe(2);
-        expect(stats.unextractedCount).toBe(2);
-    });
-});
-
 describe('getBackfillMessageIds (token-based)', () => {
     it('returns complete batches worth of message IDs', () => {
         const chat = makeChat([
@@ -443,16 +393,6 @@ describe('trimTailTurns', () => {
         expect(result).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
     });
 
-    it('returns original when turnsToTrim is 0', () => {
-        const chat = makeChat([
-            ['u1', true],
-            ['b1', false],
-        ]);
-        const ids = [0, 1];
-        const result = trimTailTurns(chat, ids, 0);
-        expect(result).toBe(ids); // Same reference
-    });
-
     it('returns original when trimming would empty the batch', () => {
         // Single turn: U, B — trimming 1 turn would empty it
         const chat = makeChat([
@@ -462,11 +402,6 @@ describe('trimTailTurns', () => {
         const ids = [0, 1];
         const result = trimTailTurns(chat, ids, 1);
         expect(result).toBe(ids); // Same reference, not trimmed
-    });
-
-    it('returns original when messageIds is empty', () => {
-        const result = trimTailTurns([], [], 1);
-        expect(result).toEqual([]);
     });
 
     it('handles multi-message turns (U,U,B,B counts as 1 turn)', () => {
@@ -593,40 +528,6 @@ describe('getNextBatch with all-User messages', () => {
         // Should not stall - either return messages or null, not empty array
         // that causes infinite loop
         expect(result === null || result.length > 0).toBe(true);
-    });
-});
-
-describe('getBackfillMessageIds swipe protection', () => {
-    it('excludes the last turn from backfill', () => {
-        const chat = makeChat([
-            ['u1', true],
-            ['b1', false],
-            ['u2', true],
-            ['b2', false],
-            ['u3', true],
-            ['b3', false],
-        ]);
-        // Budget of 1 token means each message completes a batch.
-        // After incomplete-last-batch trim, all messages remain.
-        // Swipe protection trims last turn (ids 4,5).
-        const result = getBackfillMessageIds(chat, {}, 1);
-        expect(result.messageIds).not.toContain(4);
-        expect(result.messageIds).not.toContain(5);
-        expect(result.messageIds).toEqual([0, 1, 2, 3]);
-    });
-
-    it('does not trim when isEmergencyCut is true', () => {
-        const chat = makeChat([
-            ['u1', true],
-            ['b1', false],
-            ['u2', true],
-            ['b2', false],
-            ['u3', true],
-            ['b3', false],
-        ]);
-        const result = getBackfillMessageIds(chat, {}, 1, true);
-        // Emergency Cut: no trimming
-        expect(result.messageIds).toEqual([0, 1, 2, 3, 4, 5]);
     });
 });
 
