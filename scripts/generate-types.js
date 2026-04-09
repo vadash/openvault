@@ -77,8 +77,6 @@ const {
     ReflectionPromptParamsSchema,
     CommunitySummaryParamsSchema,
     GlobalSynthesisParamsSchema,
-    CdnMirrorFnSchema,
-    LadderQueueSchema,
 } = await import('../src/store/schemas.js');
 
 // --- 4. Map: Type Name -> Zod Schema ---
@@ -128,9 +126,6 @@ const typeMappings = [
     { name: 'ReflectionPromptParams', schema: ReflectionPromptParamsSchema },
     { name: 'CommunitySummaryParams', schema: CommunitySummaryParamsSchema },
     { name: 'GlobalSynthesisParams', schema: GlobalSynthesisParamsSchema },
-    // Function/complex types represented as any
-    { name: 'CdnMirrorFn', schema: CdnMirrorFnSchema },
-    { name: 'LadderQueue', schema: LadderQueueSchema },
 ];
 
 // --- 5. Generate the .d.ts file ---

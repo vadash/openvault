@@ -450,9 +450,3 @@ export const GlobalSynthesisParamsSchema = z.object({
     prefill: z.string(),
     outputLanguage: z.enum(['auto', 'en', 'ru']).optional(),
 });
-
-// CdnMirrorFn - function type (represented as any for Zod)
-export const CdnMirrorFnSchema = z.any();
-
-// LadderQueue - complex interface (represented as any for Zod)
-export const LadderQueueSchema = z.any();

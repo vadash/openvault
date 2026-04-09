@@ -937,8 +937,4 @@ export type GlobalSynthesisParams = {
     outputLanguage?: ("auto" | "en" | "ru") | undefined;
 };
 
-export type CdnMirrorFn = any;
-
-export type LadderQueue = any;
-
 // End of generated types

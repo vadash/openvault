@@ -26,7 +26,7 @@
 
 // @ts-check
 
-/** @typedef {import('../types.d.ts').CdnMirrorFn} CdnMirrorFn */
+/** @typedef {(pkg: string) => string | null} CdnMirrorFn */
 
 /**
  * Pinned CDN package versions.

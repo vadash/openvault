@@ -13,7 +13,7 @@
 
 import { cdnImport } from './cdn.js';
 
-/** @typedef {import('../types.d.ts').LadderQueue} LadderQueue */
+/** @typedef {{ add: (fn: () => Promise<unknown>) => Promise<unknown>, onIdle: () => Promise<void>, concurrency: number }} LadderQueue */
 
 /** @type {typeof import('p-queue').default | null} */
 let PQueue;
