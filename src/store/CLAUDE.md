@@ -23,7 +23,7 @@ Every store mutation that touches embeddings must return `{ toSync?, toDelete? }
 ## ENTITY GRAPH MUTATIONS
 - **Guard `_mergeRedirects` before access.** `if (!graph._mergeRedirects) graph._mergeRedirects = {};` — older data may lack this field.
 - **Rewrite edges on rename.** Edge keys are `sourceKey__targetKey`. On rename, iterate all edges, rebuild keys, delete old, write new.
-- **Set merge redirect on rename.** `graph._mergeRedirects[oldKey] = newKey`. Also update redirects pointing to `oldKey` — `_resolveKey()` is non-recursive so chained redirects break.
+- **Set merge redirect on rename.** `graph._mergeRedirects[oldKey] = newKey`. Also update redirects pointing to `oldKey`. `_resolveKey()` follows redirect chains up to `MAX_REDIRECT_DEPTH` (10) with circular-reference guard.
 - **Delete ST Vector orphans on rename/delete.** If `node._st_synced === true`, hash via `cyrb53(\`[OV_ID:${key}] ${node.description}\`)` and return as `stChanges.toDelete`. Hash format must match `graph.js:486` — no `|| node.name` fallback.
 - **Return structured results.** Use `{ success, stChanges? }` for delete, `{ key, stChanges? }` for update.
 

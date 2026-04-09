@@ -7,6 +7,9 @@
 - **`logWarn(msg, data)`:** Use for recovered errors and edge-case fallbacks.
 - **`logError(msg, err, context)`:** Use for unrecoverable failures. Always pass a truncated context object for the 3 critical paths (JSON parse, embedding, extraction).
 
+## PRODUCTION LOGGING RULE
+- **Never use raw `console.log` in src/.** Always use `logDebug()` / `logInfo()` / `logWarn()` / `logError()` from `logging.js`. These route through `getDeps().console` and respect the `debugMode` toggle.
+
 ## JSON PARSING (`text.js`)
 - **Execute the 5-Tier `safeParseJSON` waterfall:**
   1. Native `JSON.parse`.

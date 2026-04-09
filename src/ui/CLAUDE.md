@@ -11,6 +11,9 @@
 - **Trap keyboard focus.** Ensure modal `Escape` handlers work, but `stopPropagation()` to prevent ST from swallowing the keypress.
 - **Sanitize dynamically rendered text.** Wrap all user-generated strings (summaries, character names) in `escapeHtml()`.
 
+## PROMISE HYGIENE
+- **Always chain `.catch()` on fire-and-forget promises.** Clipboard API calls (`navigator.clipboard.writeText`) and dynamic imports (`import('./module')`) that aren't `await`ed must have `.catch(() => {})` on the outer `.then()` to prevent unhandled rejection warnings in the browser.
+
 ## PAYLOAD CALCULATOR
 - **Use `PAYLOAD_CALC` as the single source of truth.** (`src/constants.js`). 
 - **Include overhead in warnings.** Calculate `Budget + Rearview + 12k Overhead`. Display severity colors: Green (≤32k), Yellow (≤48k), Orange (≤64k), Red (>64k).

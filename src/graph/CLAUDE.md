@@ -37,4 +37,4 @@ Extraction uses delta approach — focuses on NEW entities or CHANGES, not re-de
 - **ESM**: `https://esm.sh/graphology`. Mapped in `vitest.config.js`.
 - **Guard `_mergeRedirects` before access.** Older data may lack this field. Use `if (!graph._mergeRedirects) graph._mergeRedirects = {};`
 - **Rewrite edges on rename.** Edge keys are `sourceKey__targetKey`. On node rename, iterate all edges, rebuild keys, delete old, write new.
-- **Set merge redirect on rename.** `graph._mergeRedirects[oldKey] = newKey`. Also update any existing redirects pointing to `oldKey` — `_resolveKey()` is non-recursive so chained redirects break.
+- **Set merge redirect on rename.** `graph._mergeRedirects[oldKey] = newKey`. Also update any existing redirects pointing to `oldKey`. `_resolveKey()` follows redirect chains up to `MAX_REDIRECT_DEPTH` (10) with circular-reference guard.
