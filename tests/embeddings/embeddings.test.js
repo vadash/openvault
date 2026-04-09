@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TRANSFORMERS_MODELS } from '../src/embeddings.js';
+import { TRANSFORMERS_MODELS } from '../../src/embeddings.js';
 
 describe('TRANSFORMERS_MODELS config', () => {
     it('multilingual-e5-small has Cyrillic-safe chunk size', () => {
@@ -19,7 +19,7 @@ describe('generateEmbeddingsForMemories', () => {
 
     beforeEach(async () => {
         // Import and save original getDeps
-        const depsModule = await import('../src/deps.js');
+        const depsModule = await import('../../src/deps.js');
         _originalGetDeps = depsModule.getDeps;
 
         // Mock getDeps to return enabled settings
@@ -40,8 +40,8 @@ describe('generateEmbeddingsForMemories', () => {
     });
 
     it('generateEmbeddingsForMemories stores embedding as Base64 via setEmbedding', async () => {
-        const { hasEmbedding, getEmbedding } = await import('../src/utils/embedding-codec.js');
-        const { generateEmbeddingsForMemories, getStrategy } = await import('../src/embeddings.js');
+        const { hasEmbedding, getEmbedding } = await import('../../src/utils/embedding-codec.js');
+        const { generateEmbeddingsForMemories, getStrategy } = await import('../../src/embeddings.js');
 
         const memories = [{ summary: 'Test memory', id: 'test1' }];
 
@@ -66,7 +66,7 @@ describe('generateEmbeddingsForMemories', () => {
 
 describe('getQueryEmbedding abort signal', () => {
     beforeEach(async () => {
-        const depsModule = await import('../src/deps.js');
+        const depsModule = await import('../../src/deps.js');
         vi.spyOn(depsModule, 'getDeps').mockReturnValue({
             getExtensionSettings: vi.fn(() => ({
                 openvault: {
@@ -87,7 +87,7 @@ describe('getQueryEmbedding abort signal', () => {
     });
 
     it('throws AbortError with pre-aborted signal', async () => {
-        const { getQueryEmbedding, clearEmbeddingCache } = await import('../src/embeddings.js');
+        const { getQueryEmbedding, clearEmbeddingCache } = await import('../../src/embeddings.js');
         clearEmbeddingCache();
         const ctrl = new AbortController();
         ctrl.abort();
@@ -98,7 +98,7 @@ describe('getQueryEmbedding abort signal', () => {
     });
 
     it('throws AbortError with pre-aborted signal on getDocumentEmbedding', async () => {
-        const { getDocumentEmbedding, clearEmbeddingCache } = await import('../src/embeddings.js');
+        const { getDocumentEmbedding, clearEmbeddingCache } = await import('../../src/embeddings.js');
         clearEmbeddingCache();
         const ctrl = new AbortController();
         ctrl.abort();
@@ -116,7 +116,7 @@ describe('OllamaStrategy abort signal', () => {
             json: async () => ({ embedding: [0.1, 0.2] }),
         }));
 
-        const depsModule = await import('../src/deps.js');
+        const depsModule = await import('../../src/deps.js');
         vi.spyOn(depsModule, 'getDeps').mockReturnValue({
             getExtensionSettings: vi.fn(() => ({
                 openvault: {
@@ -128,7 +128,7 @@ describe('OllamaStrategy abort signal', () => {
             fetch: fetchSpy,
         });
 
-        const { getStrategy } = await import('../src/embeddings.js');
+        const { getStrategy } = await import('../../src/embeddings.js');
         const strategy = getStrategy('ollama');
         const ctrl = new AbortController();
         await strategy.getEmbedding('test text', {
@@ -149,7 +149,7 @@ describe('OllamaStrategy abort signal', () => {
 
 describe('enrichEventsWithEmbeddings abort signal', () => {
     beforeEach(async () => {
-        const depsModule = await import('../src/deps.js');
+        const depsModule = await import('../../src/deps.js');
         vi.spyOn(depsModule, 'getDeps').mockReturnValue({
             getExtensionSettings: vi.fn(() => ({
                 openvault: {
@@ -170,7 +170,7 @@ describe('enrichEventsWithEmbeddings abort signal', () => {
     });
 
     it('throws AbortError when signal is pre-aborted', async () => {
-        const { enrichEventsWithEmbeddings } = await import('../src/embeddings.js');
+        const { enrichEventsWithEmbeddings } = await import('../../src/embeddings.js');
         const ctrl = new AbortController();
         ctrl.abort();
 
@@ -187,10 +187,10 @@ describe('OllamaStrategy with injected params', () => {
             json: async () => ({ embedding: [0.1, 0.2] }),
         }));
 
-        const depsModule = await import('../src/deps.js');
+        const depsModule = await import('../../src/deps.js');
         vi.spyOn(depsModule, 'getDeps').mockReturnValue({ fetch: fetchSpy });
 
-        const { getStrategy } = await import('../src/embeddings.js');
+        const { getStrategy } = await import('../../src/embeddings.js');
         const strategy = getStrategy('ollama');
         const result = await strategy.getEmbedding('test text', {
             url: 'http://injected:11434',
@@ -217,7 +217,7 @@ describe('testOllamaConnection', () => {
 
     it('returns true on successful connection', async () => {
         global.fetch = vi.fn(() => Promise.resolve({ ok: true }));
-        const { testOllamaConnection } = await import('../src/embeddings.js');
+        const { testOllamaConnection } = await import('../../src/embeddings.js');
 
         const result = await testOllamaConnection('http://localhost:11434');
 
@@ -230,14 +230,14 @@ describe('testOllamaConnection', () => {
 
     it('throws on HTTP error response', async () => {
         global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500 }));
-        const { testOllamaConnection } = await import('../src/embeddings.js');
+        const { testOllamaConnection } = await import('../../src/embeddings.js');
 
         await expect(testOllamaConnection('http://localhost:11434')).rejects.toThrow('HTTP 500');
     });
 
     it('throws on network error', async () => {
         global.fetch = vi.fn(() => Promise.reject(new Error('ECONNREFUSED')));
-        const { testOllamaConnection } = await import('../src/embeddings.js');
+        const { testOllamaConnection } = await import('../../src/embeddings.js');
 
         await expect(testOllamaConnection('http://localhost:11434')).rejects.toThrow('ECONNREFUSED');
     });

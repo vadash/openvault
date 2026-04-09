@@ -5,7 +5,7 @@ import {
     PAYLOAD_CALC,
     POSITION_LABELS,
     UI_DEFAULT_HINTS,
-} from '../src/constants.js';
+} from '../../src/constants.js';
 
 describe('PAYLOAD_CALC', () => {
     it('exports all required fields', () => {
@@ -30,7 +30,7 @@ describe('defaultSettings', () => {
 
 describe('CONSOLIDATION', () => {
     it('defines CONSOLIDATION constants', async () => {
-        const { CONSOLIDATION } = await import('../src/constants.js');
+        const { CONSOLIDATION } = await import('../../src/constants.js');
         expect(CONSOLIDATION).toBeDefined();
         expect(CONSOLIDATION.TOKEN_THRESHOLD).toBe(150);
         expect(CONSOLIDATION.MAX_CONSOLIDATION_BATCH).toBe(10);
@@ -51,44 +51,44 @@ describe('Exact Phrase Boost Settings', () => {
 
 describe('Reflection Level Settings', () => {
     it('should have maxReflectionLevel in defaultSettings', async () => {
-        const { defaultSettings } = await import('../src/constants.js');
+        const { defaultSettings } = await import('../../src/constants.js');
         expect(defaultSettings.maxReflectionLevel).toBe(3);
     });
 
     it('should have reflectionLevelMultiplier in defaultSettings', async () => {
-        const { defaultSettings } = await import('../src/constants.js');
+        const { defaultSettings } = await import('../../src/constants.js');
         expect(defaultSettings.reflectionLevelMultiplier).toBe(2.0);
     });
 
     it('should have maxReflectionLevel in UI_DEFAULT_HINTS', async () => {
-        const { UI_DEFAULT_HINTS } = await import('../src/constants.js');
+        const { UI_DEFAULT_HINTS } = await import('../../src/constants.js');
         expect(UI_DEFAULT_HINTS.maxReflectionLevel).toBeDefined();
     });
 
     it('should have reflectionLevelMultiplier in UI_DEFAULT_HINTS', async () => {
-        const { UI_DEFAULT_HINTS } = await import('../src/constants.js');
+        const { UI_DEFAULT_HINTS } = await import('../../src/constants.js');
         expect(UI_DEFAULT_HINTS.reflectionLevelMultiplier).toBeDefined();
     });
 });
 
 describe('Bucket Balance Settings', () => {
     it('should have bucketMinRepresentation in defaultSettings', async () => {
-        const { defaultSettings } = await import('../src/constants.js');
+        const { defaultSettings } = await import('../../src/constants.js');
         expect(defaultSettings.bucketMinRepresentation).toBe(0.2);
     });
 
     it('should have bucketSoftBalanceBudget in defaultSettings', async () => {
-        const { defaultSettings } = await import('../src/constants.js');
+        const { defaultSettings } = await import('../../src/constants.js');
         expect(defaultSettings.bucketSoftBalanceBudget).toBe(0.05);
     });
 
     it('should have bucketMinRepresentation in UI_DEFAULT_HINTS', async () => {
-        const { UI_DEFAULT_HINTS } = await import('../src/constants.js');
+        const { UI_DEFAULT_HINTS } = await import('../../src/constants.js');
         expect(UI_DEFAULT_HINTS.bucketMinRepresentation).toBeDefined();
     });
 
     it('should have bucketSoftBalanceBudget in UI_DEFAULT_HINTS', async () => {
-        const { UI_DEFAULT_HINTS } = await import('../src/constants.js');
+        const { UI_DEFAULT_HINTS } = await import('../../src/constants.js');
         expect(UI_DEFAULT_HINTS.bucketSoftBalanceBudget).toBeDefined();
     });
 });

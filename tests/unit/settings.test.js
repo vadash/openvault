@@ -114,25 +114,25 @@ describe('Centralized Settings Module', () => {
 
     describe('getSettings', () => {
         it('should return entire settings object when no path provided', async () => {
-            const { getSettings } = await import('../src/settings.js');
+            const { getSettings } = await import('../../src/settings.js');
             const result = getSettings();
             expect(result).toEqual(mockExtensionSettings.openvault);
         });
 
         it('should get nested value with dot notation', async () => {
-            const { getSettings } = await import('../src/settings.js');
+            const { getSettings } = await import('../../src/settings.js');
             const result = getSettings('injection.memory.position');
             expect(result).toBe(1);
         });
 
         it('should return default value for missing paths', async () => {
-            const { getSettings } = await import('../src/settings.js');
+            const { getSettings } = await import('../../src/settings.js');
             const result = getSettings('nonexistent.path', 42);
             expect(result).toBe(42);
         });
 
         it('should return default value when path is undefined', async () => {
-            const { getSettings } = await import('../src/settings.js');
+            const { getSettings } = await import('../../src/settings.js');
             const result = getSettings('missing.nested.deep', 'default');
             expect(result).toBe('default');
         });
@@ -140,27 +140,27 @@ describe('Centralized Settings Module', () => {
 
     describe('setSetting', () => {
         it('should set nested value with dot notation', async () => {
-            const { setSetting, getSettings } = await import('../src/settings.js');
+            const { setSetting, getSettings } = await import('../../src/settings.js');
             setSetting('injection.memory.position', 0);
             expect(getSettings('injection.memory.position')).toBe(0);
             expect(mockSaveSettingsDebounced).toHaveBeenCalled();
         });
 
         it('should create intermediate objects when setting nested path', async () => {
-            const { setSetting, getSettings } = await import('../src/settings.js');
+            const { setSetting, getSettings } = await import('../../src/settings.js');
             setSetting('new.nested.path', 'value');
             expect(getSettings('new.nested.path')).toBe('value');
             expect(mockSaveSettingsDebounced).toHaveBeenCalled();
         });
 
         it('should overwrite existing values', async () => {
-            const { setSetting, getSettings } = await import('../src/settings.js');
+            const { setSetting, getSettings } = await import('../../src/settings.js');
             setSetting('extractionTokenBudget', 12000);
             expect(getSettings('extractionTokenBudget')).toBe(12000);
         });
 
         it('should work with array notation', async () => {
-            const { setSetting, getSettings } = await import('../src/settings.js');
+            const { setSetting, getSettings } = await import('../../src/settings.js');
             setSetting('testArray[0].name', 'first');
             expect(getSettings('testArray[0].name')).toBe('first');
         });
@@ -187,7 +187,7 @@ describe('Centralized Settings Module', () => {
             }));
 
             // Re-import to get fresh module
-            const { setSetting, getSettings } = await import('../src/settings.js');
+            const { setSetting, getSettings } = await import('../../src/settings.js');
             setSetting('fallback.test.value', 'works');
             expect(getSettings('fallback.test.value')).toBe('works');
         });
@@ -195,7 +195,7 @@ describe('Centralized Settings Module', () => {
 
     describe('Edge Cases', () => {
         it('should handle undefined path in getSettings', async () => {
-            const { getSettings } = await import('../src/settings.js');
+            const { getSettings } = await import('../../src/settings.js');
             const result = getSettings();
             expect(result).toEqual(mockExtensionSettings.openvault);
         });
@@ -205,38 +205,38 @@ describe('Centralized Settings Module', () => {
                 testArray: [{ name: 'first' }, { name: 'second' }],
             };
 
-            const { getSettings } = await import('../src/settings.js');
+            const { getSettings } = await import('../../src/settings.js');
             expect(getSettings('testArray[0].name')).toBe('first');
         });
 
         it('should handle deeply nested paths', async () => {
-            const { getSettings, setSetting } = await import('../src/settings.js');
+            const { getSettings, setSetting } = await import('../../src/settings.js');
             setSetting('a.b.c.d.e', 'deep');
             expect(getSettings('a.b.c.d.e')).toBe('deep');
         });
 
         it('should return defaultValue for undefined settings object', async () => {
             mockExtensionSettings.openvault = undefined;
-            const { getSettings } = await import('../src/settings.js');
+            const { getSettings } = await import('../../src/settings.js');
             expect(getSettings('any.path', 'default')).toBe('default');
         });
     });
 
     describe('hasSettings', () => {
         it('should return true for existing paths', async () => {
-            const { hasSettings } = await import('../src/settings.js');
+            const { hasSettings } = await import('../../src/settings.js');
             expect(hasSettings('injection.memory')).toBe(true);
             expect(hasSettings('enabled')).toBe(true);
         });
 
         it('should return false for missing paths', async () => {
-            const { hasSettings } = await import('../src/settings.js');
+            const { hasSettings } = await import('../../src/settings.js');
             expect(hasSettings('nonexistent.path')).toBe(false);
             expect(hasSettings('injection.nonexistent')).toBe(false);
         });
 
         it('should work with deeply nested paths', async () => {
-            const { hasSettings } = await import('../src/settings.js');
+            const { hasSettings } = await import('../../src/settings.js');
             expect(hasSettings('injection.memory.position')).toBe(true);
             expect(hasSettings('injection.memory.nonexistent')).toBe(false);
         });
