@@ -691,3 +691,33 @@ describe('calculateScore - fingerprint resolution', () => {
         expect(result.distance).toBe(8); // 50 - 42
     });
 });
+
+describe('calculateScore - threshold edge cases', () => {
+    it('should not produce Infinity when vectorSimilarityThreshold is 0.99', async () => {
+        const { calculateScore } = await import('../../src/retrieval/math.js');
+        const memory = {
+            importance: 3,
+            message_ids: [100],
+            _proxyVectorScore: 0.995,
+        };
+        const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 1.0, reflectionDecayThreshold: 750 };
+        const settings = { vectorSimilarityThreshold: 0.99, alpha: 0.7, combinedBoostWeight: 15 };
+        const result = calculateScore(memory, null, 100, constants, settings, 0);
+        expect(Number.isFinite(result.vectorBonus)).toBe(true);
+        expect(Number.isFinite(result.total)).toBe(true);
+    });
+
+    it('should not produce Infinity when vectorSimilarityThreshold is 1.0', async () => {
+        const { calculateScore } = await import('../../src/retrieval/math.js');
+        const memory = {
+            importance: 3,
+            message_ids: [100],
+            _proxyVectorScore: 1.0,
+        };
+        const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 1.0, reflectionDecayThreshold: 750 };
+        const settings = { vectorSimilarityThreshold: 1.0, alpha: 0.7, combinedBoostWeight: 15 };
+        const result = calculateScore(memory, null, 100, constants, settings, 0);
+        expect(Number.isFinite(result.vectorBonus)).toBe(true);
+        expect(Number.isFinite(result.total)).toBe(true);
+    });
+});

@@ -317,7 +317,8 @@ export function calculateScore(
         vectorSimilarity = memory._proxyVectorScore;
         const threshold = clampedThreshold;
         if (vectorSimilarity > threshold) {
-            const normalizedSim = (vectorSimilarity - threshold) / (1 - threshold);
+            const denominator = 1 - threshold;
+            const normalizedSim = denominator > 0 ? (vectorSimilarity - threshold) / denominator : 0;
             vectorBonus = alpha * boostWeight * normalizedSim;
         }
     } else if (contextEmbedding && hasEmbedding(memory)) {
@@ -327,7 +328,8 @@ export function calculateScore(
         if (vectorSimilarity > threshold) {
             // Scale similarity above threshold to bonus points
             // e.g., similarity 0.75 with threshold 0.5 -> (0.75-0.5)/(1-0.5) = 0.5
-            const normalizedSim = (vectorSimilarity - threshold) / (1 - threshold);
+            const denominator = 1 - threshold;
+            const normalizedSim = denominator > 0 ? (vectorSimilarity - threshold) / denominator : 0;
             // Vector bonus = alpha * boostWeight * normalizedSim
             vectorBonus = alpha * boostWeight * normalizedSim;
         }
@@ -577,7 +579,8 @@ export async function scoreMemories(
             const alpha = Math.min(Math.max(settings.alpha || 0, 0), 1);
             const boostWeight = Math.max(settings.combinedBoostWeight || 0, 0);
             if (vectorSimilarity > threshold) {
-                const normalizedSim = (vectorSimilarity - threshold) / (1 - threshold);
+                const denominator = 1 - threshold;
+                const normalizedSim = denominator > 0 ? (vectorSimilarity - threshold) / denominator : 0;
                 breakdown.vectorBonus = alpha * boostWeight * normalizedSim;
                 breakdown.vectorSimilarity = vectorSimilarity;
                 breakdown.total = breakdown.baseAfterFloor + breakdown.vectorBonus + breakdown.bm25Bonus;
