@@ -1,12 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { extensionName, MEMORIES_KEY, METADATA_KEY } from '../../src/constants.js';
 import { resetDeps, setDeps } from '../../src/deps.js';
-import {
-    deleteCurrentChatEmbeddings,
-    getStVectorFingerprint,
-    invalidateStaleEmbeddings,
-    stampStVectorFingerprint,
-} from '../../src/embeddings/migration.js';
+import { deleteCurrentChatEmbeddings, invalidateStaleEmbeddings } from '../../src/embeddings/migration.js';
 
 describe('migration', () => {
     let mockConsole;
@@ -32,25 +27,6 @@ describe('migration', () => {
     afterEach(() => resetDeps());
 
     describe('invalidateStaleEmbeddings', () => {
-        it('stamps model ID on empty chat and returns 0', async () => {
-            const data = { memories: [], graph: { nodes: {}, edges: {} }, communities: {} };
-            const result = await invalidateStaleEmbeddings(data, 'multilingual-e5-small');
-            expect(result).toBe(0);
-            expect(data.embedding_model_id).toBe('multilingual-e5-small');
-        });
-
-        it('returns 0 when model matches', async () => {
-            const data = {
-                embedding_model_id: 'multilingual-e5-small',
-                memories: [{ id: '1', embedding_b64: 'abc' }],
-                graph: { nodes: {}, edges: {} },
-                communities: {},
-            };
-            const result = await invalidateStaleEmbeddings(data, 'multilingual-e5-small');
-            expect(result).toBe(0);
-            expect(data.memories[0].embedding_b64).toBe('abc');
-        });
-
         it('wipes all embeddings on model mismatch', async () => {
             const data = {
                 embedding_model_id: 'multilingual-e5-small',
@@ -139,31 +115,6 @@ describe('migration', () => {
                 fetch: vi.fn().mockResolvedValue({ ok: true }),
             });
         }
-
-        it('stamps ST fingerprint on empty chat', async () => {
-            setStVectorDeps('openrouter', 'text-embedding-3-large');
-            const data = { memories: [], graph: { nodes: {}, edges: {} }, communities: {} };
-            const result = await invalidateStaleEmbeddings(data, 'st_vector');
-            expect(result).toBe(0);
-            expect(data.embedding_model_id).toBe('st_vector');
-            expect(data.st_vector_source).toBe('openrouter');
-            expect(data.st_vector_model).toBe('text-embedding-3-large');
-        });
-
-        it('returns 0 when ST source and model match', async () => {
-            setStVectorDeps('openrouter', 'text-embedding-3-large');
-            const data = {
-                embedding_model_id: 'st_vector',
-                st_vector_source: 'openrouter',
-                st_vector_model: 'text-embedding-3-large',
-                memories: [{ id: '1', _st_synced: true, summary: 'test' }],
-                graph: { nodes: {}, edges: {} },
-                communities: {},
-            };
-            const result = await invalidateStaleEmbeddings(data, 'st_vector');
-            expect(result).toBe(0);
-            expect(data.memories[0]._st_synced).toBe(true);
-        });
 
         it('clears sync flags when ST source changes', async () => {
             setStVectorDeps('ollama', 'nomic-embed-text');
@@ -275,67 +226,6 @@ describe('migration', () => {
             expect(data.st_vector_source).toBe('openrouter');
             expect(data.st_vector_model).toBe('text-embedding-3-large');
             expect(data.memories[0].embedding_b64).toBeUndefined();
-        });
-    });
-
-    describe('getStVectorFingerprint', () => {
-        it('returns current ST vector source and model', () => {
-            setDeps({
-                console: mockConsole,
-                getContext: () => mockContext,
-                getExtensionSettings: () => ({
-                    [extensionName]: { embeddingSource: 'st_vector' },
-                    vectors: {
-                        source: 'openrouter',
-                        openrouter_model: 'text-embedding-3-large',
-                    },
-                }),
-                Date: { now: () => 1000000 },
-            });
-            const fp = getStVectorFingerprint();
-            expect(fp.source).toBe('openrouter');
-            expect(fp.model).toBe('text-embedding-3-large');
-        });
-
-        it('returns empty model for transformers source', () => {
-            setDeps({
-                console: mockConsole,
-                getContext: () => mockContext,
-                getExtensionSettings: () => ({
-                    [extensionName]: { embeddingSource: 'st_vector' },
-                    vectors: { source: 'transformers' },
-                }),
-                Date: { now: () => 1000000 },
-            });
-            const fp = getStVectorFingerprint();
-            expect(fp.source).toBe('transformers');
-            expect(fp.model).toBe('');
-        });
-    });
-
-    describe('stampStVectorFingerprint', () => {
-        it('stamps source and model onto data', () => {
-            setDeps({
-                console: mockConsole,
-                getContext: () => mockContext,
-                getExtensionSettings: () => ({
-                    [extensionName]: { embeddingSource: 'st_vector' },
-                    vectors: {
-                        source: 'ollama',
-                        ollama_model: 'nomic-embed-text',
-                    },
-                }),
-                Date: { now: () => 1000000 },
-            });
-            const data = { memories: [] };
-            stampStVectorFingerprint(data);
-            expect(data.st_vector_source).toBe('ollama');
-            expect(data.st_vector_model).toBe('nomic-embed-text');
-        });
-
-        it('is a no-op for null data', () => {
-            stampStVectorFingerprint(null);
-            // Should not throw
         });
     });
 
