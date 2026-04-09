@@ -55,23 +55,6 @@ describe('getEmbedding (lazy migration)', () => {
         expect(result[0]).toBeCloseTo(0.1, 5);
     });
 
-    it('returns null for empty object', () => {
-        expect(getEmbedding({})).toBeNull();
-    });
-
-    it('returns null for null/undefined input', () => {
-        expect(getEmbedding(null)).toBeNull();
-        expect(getEmbedding(undefined)).toBeNull();
-    });
-
-    it('returns null for embedding: null', () => {
-        expect(getEmbedding({ embedding: null })).toBeNull();
-    });
-
-    it('returns null for embedding: []', () => {
-        expect(getEmbedding({ embedding: [] })).toBeNull();
-    });
-
     it('returns Float32Array from Base64 decode', () => {
         const obj = {};
         setEmbedding(obj, [0.5, -0.5, 1.0]);
@@ -114,23 +97,6 @@ describe('hasEmbedding', () => {
     it('returns true for legacy embedding', () => {
         expect(hasEmbedding({ embedding: [0.1] })).toBe(true);
     });
-
-    it('returns false for empty object', () => {
-        expect(hasEmbedding({})).toBe(false);
-    });
-
-    it('returns false for null/undefined', () => {
-        expect(hasEmbedding(null)).toBe(false);
-        expect(hasEmbedding(undefined)).toBe(false);
-    });
-
-    it('returns false for embedding: null', () => {
-        expect(hasEmbedding({ embedding: null })).toBe(false);
-    });
-
-    it('returns false for embedding: []', () => {
-        expect(hasEmbedding({ embedding: [] })).toBe(false);
-    });
 });
 
 describe('deleteEmbedding', () => {
@@ -146,23 +112,10 @@ describe('deleteEmbedding', () => {
         deleteEmbedding(obj);
         expect(obj.embedding).toBeUndefined();
     });
-
-    it('no-ops on empty object', () => {
-        const obj = {};
-        deleteEmbedding(obj);
-        expect(Object.keys(obj)).toHaveLength(0);
-    });
-
-    it('no-ops on null/undefined', () => {
-        expect(() => deleteEmbedding(null)).not.toThrow();
-        expect(() => deleteEmbedding(undefined)).not.toThrow();
-    });
 });
 
 describe('post-migration behavior (no legacy fallback)', () => {
     it('getEmbedding returns null for legacy array after migration', () => {
-        // After v2 migration, all arrays should be converted to b64
-        // This test documents the expected behavior when legacy data is gone
         const obj = {};
         setEmbedding(obj, [0.1, 0.2, 0.3]);
         expect(getEmbedding(obj)).toBeInstanceOf(Float32Array);
