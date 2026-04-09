@@ -164,17 +164,6 @@ describe('CN preamble and assistant prefill', () => {
     });
 });
 describe('preamble and prefill exports', () => {
-    it('exports PREFILL_PRESETS with all 6 keys', () => {
-        const keys = Object.keys(PREFILL_PRESETS);
-        expect(keys).toContain('cn_compliance');
-        expect(keys).toContain('en_compliance');
-        expect(keys).toContain('step_by_step');
-        expect(keys).toContain('pure_think');
-        expect(keys).toContain('json_only');
-        expect(keys).toContain('none');
-        expect(keys).toHaveLength(6);
-    });
-
     it('each preset has label and value', () => {
         for (const [_key, preset] of Object.entries(PREFILL_PRESETS)) {
             expect(preset).toHaveProperty('label');

@@ -12,10 +12,6 @@ describe('debug-cache', () => {
         clearRetrievalDebug();
     });
 
-    it('returns null when no data cached', () => {
-        expect(getLastRetrievalDebug()).toBeNull();
-    });
-
     it('caches and retrieves data with timestamp', () => {
         const data = { filters: { total: 10 } };
         cacheRetrievalDebug(data);

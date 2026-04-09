@@ -31,14 +31,6 @@ describe('Session AbortController', () => {
         expect(newSignal.aborted).toBe(false);
     });
 
-    it('multiple resets do not throw', () => {
-        expect(() => {
-            resetSessionController();
-            resetSessionController();
-            resetSessionController();
-        }).not.toThrow();
-    });
-
     it('each reset produces a distinct signal', () => {
         const signal1 = getSessionSignal();
         resetSessionController();

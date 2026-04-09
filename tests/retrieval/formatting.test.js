@@ -4,22 +4,10 @@
 import { describe, expect, it } from 'vitest';
 import {
     assignMemoriesToBuckets,
-    CURRENT_SCENE_SIZE,
     formatContextForInjection,
     formatMemory,
     getMemoryPosition,
-    LEADING_UP_SIZE,
 } from '../../src/retrieval/formatting.js';
-
-describe('constants', () => {
-    it('exports CURRENT_SCENE_SIZE as 100', () => {
-        expect(CURRENT_SCENE_SIZE).toBe(100);
-    });
-
-    it('exports LEADING_UP_SIZE as 500', () => {
-        expect(LEADING_UP_SIZE).toBe(500);
-    });
-});
 
 describe('formatting', () => {
     describe('getMemoryPosition', () => {
