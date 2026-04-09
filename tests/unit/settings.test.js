@@ -87,7 +87,7 @@ describe('Centralized Settings Module', () => {
         };
 
         // Mock deps.js
-        vi.doMock('../src/deps.js', () => ({
+        vi.doMock('../../src/deps.js', () => ({
             getDeps: () => ({
                 getContext: () => ({
                     lodash: mockLodash,
@@ -100,13 +100,14 @@ describe('Centralized Settings Module', () => {
         }));
 
         // Mock constants.js
-        vi.doMock('../src/constants.js', () => ({
+        vi.doMock('../../src/constants.js', () => ({
             extensionName: 'openvault',
             defaultSettings: {
                 enabled: true,
                 extractionTokenBudget: 8000,
                 injection: {
                     memory: { position: 1, depth: 4 },
+                    world: { position: 1, depth: 4 },
                 },
             },
         }));
@@ -174,7 +175,7 @@ describe('Centralized Settings Module', () => {
                 // No .set property
             };
 
-            vi.doMock('../src/deps.js', () => ({
+            vi.doMock('../../src/deps.js', () => ({
                 getDeps: () => ({
                     getContext: () => ({
                         lodash: lodashNoSet,
