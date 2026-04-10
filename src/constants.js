@@ -108,6 +108,9 @@ export const defaultSettings = {
     maxReflectionsPerCharacter: 50,
     maxReflectionLevel: 3, // Maximum reflection tree depth
     reflectionLevelMultiplier: 2.0, // Decay slows by 2x per level
+    // Reflection control toggles
+    reflectionGenerationEnabled: true, // Enable automatic reflection generation
+    reflectionInjectionEnabled: true, // Enable reflection injection into context
     // Bucket balance settings (score-first budgeting with soft chronological balancing)
     bucketMinRepresentation: 0.2, // 20% minimum per bucket
     bucketSoftBalanceBudget: 0.05, // 5% budget for soft balancing
