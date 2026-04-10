@@ -21,6 +21,12 @@
 /* Navigation elements */
 @import url("css/navigation.css");
 
+/* Entity list and detail cards */
+@import url("css/entities.css");
+
+/* Entity CRUD action buttons */
+@import url("css/entity-crud.css");
+
 /* World view (entities, communities) */
 @import url("css/world.css");
 

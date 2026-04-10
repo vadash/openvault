@@ -52,6 +52,21 @@ export function setSessionDisabled(value) {
     _sessionDisabled = value;
 }
 
+// Tracks when the last LLM API call completed (or when rpmDelay last ran).
+// Updated by callLLM after every response and by rpmDelay before each call,
+// so that rate-limit spacing is based on actual API activity.
+let _lastApiCallTime = 0;
+
+/** @returns {number} */
+export function getLastApiCallTime() {
+    return _lastApiCallTime;
+}
+
+/** @param {number} t */
+export function setLastApiCallTime(t) {
+    _lastApiCallTime = t;
+}
+
 // Operation state machine to prevent concurrent operations
 export const operationState = {
     generationInProgress: false,

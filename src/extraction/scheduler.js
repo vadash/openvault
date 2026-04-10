@@ -281,8 +281,10 @@ export function getBackfillMessageIds(chat, data, tokenBudget, isEmergencyCut = 
         }
     }
 
-    // For Emergency Cut, if we have messages but no complete batches, report as 1 batch
-    if (isEmergencyCut && messageIds.length > 0 && batchCount === 0) {
+    // If we have extractable messages but no complete batches (e.g. after swipe
+    // protection trimmed the tail), report at least 1 batch — getNextBatch uses
+    // snap-to-turn-boundary logic and will still find a valid batch.
+    if (messageIds.length > 0 && batchCount === 0) {
         batchCount = 1;
     }
 

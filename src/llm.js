@@ -16,7 +16,7 @@ import {
     getGraphExtractionJsonSchema,
     getUnifiedReflectionJsonSchema,
 } from './extraction/structured.js';
-import { getSessionSignal } from './state.js';
+import { getSessionSignal, setLastApiCallTime } from './state.js';
 import { showToast } from './utils/dom.js';
 import { logDebug, logError, logRequest } from './utils/logging.js';
 import { withTimeout } from './utils/st-helpers.js';
@@ -144,6 +144,7 @@ export async function callLLM(messages, config, options = {}) {
         );
 
         const result = await raceAbort(withTimeout(requestPromise, timeoutMs || 120000, `${errorContext} API`), signal);
+        setLastApiCallTime(Date.now());
         // Extract content from result object, preserving empty strings as valid (not falsy)
         const content = result && typeof result === 'object' && 'content' in result ? result.content : result || '';
 
@@ -174,6 +175,7 @@ export async function callLLM(messages, config, options = {}) {
         logDebug(`Using ConnectionManagerRequestService with profile: ${profileId}`);
         return await executeRequest(profileId);
     } catch (mainError) {
+        setLastApiCallTime(Date.now());
         if (mainError.name === 'AbortError') throw mainError;
 
         // Attempt backup profile if configured and different from main

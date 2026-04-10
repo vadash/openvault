@@ -53,7 +53,7 @@ import {
 import { accumulateImportance, generateReflections, shouldReflect } from '../reflection/reflect.js';
 import { calculateIDF, cosineSimilarity, tokenize } from '../retrieval/math.js';
 import { deleteItemsFromST, isStVectorSource, syncItemsToST } from '../services/st-vector.js';
-import { clearAllLocks, isWorkerRunning, operationState } from '../state.js';
+import { clearAllLocks, getLastApiCallTime, isWorkerRunning, operationState, setLastApiCallTime } from '../state.js';
 import {
     addMemories,
     getCurrentChatId,
@@ -90,11 +90,11 @@ const BACKOFF_SCHEDULE_SECONDS = [1, 2, 3, 10, 20, 30, 30, 60, 60];
  */
 const MAX_BACKOFF_TOTAL_MS = 15 * 60 * 1000;
 
-let lastApiCallTime = 0;
-
 /**
  * Wait based on the configured RPM rate limit.
- * Accounts for elapsed time since the last call — only sleeps the remaining delta.
+ * Accounts for elapsed time since the last API call — only sleeps the remaining delta.
+ * Uses the shared lastApiCallTime from state.js, which is updated by callLLM
+ * after every response, so the delay tracks actual API activity.
  * @param {Object} settings - Extension settings containing backfillMaxRPM
  * @param {string} [label='Rate limit'] - Log label
  * @returns {Promise<void>}
@@ -103,14 +103,14 @@ async function rpmDelay(settings, label = 'Rate limit') {
     const rpm = settings.backfillMaxRPM;
     const delayMs = Math.ceil(60000 / rpm);
     const now = Date.now();
-    const timeSinceLastCall = now - lastApiCallTime;
+    const timeSinceLastCall = now - getLastApiCallTime();
 
     if (timeSinceLastCall < delayMs) {
         const sleepTime = delayMs - timeSinceLastCall;
         logDebug(`${label}: waiting ${sleepTime}ms (${rpm} RPM)`);
         await new Promise((r) => setTimeout(r, sleepTime));
     }
-    lastApiCallTime = Date.now();
+    setLastApiCallTime(Date.now());
 }
 
 /**
@@ -1058,6 +1058,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
                     for (const w of event.witnesses || []) characters.add(w);
                 }
 
+                await rpmDelay(settings, 'Phase 2 reflection rate limit');
                 await synthesizeReflections(data, [...characters], settings, { abortSignal });
             }
 
@@ -1066,6 +1067,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             const prevCount = (data.graph_message_count || 0) - messages.length;
             const currCount = data.graph_message_count || 0;
             if (Math.floor(currCount / communityInterval) > Math.floor(prevCount / communityInterval)) {
+                await rpmDelay(settings, 'Phase 2 community rate limit');
                 await synthesizeCommunities(data, settings, characterName, userName);
             }
 
@@ -1112,8 +1114,13 @@ export async function runPhase2Enrichment(data, settings, targetChatId, options 
     logDebug('runPhase2Enrichment: Starting comprehensive Phase 2 synthesis');
 
     try {
+        // Enforce RPM spacing from the last Phase 1 API call to avoid 502s
+        await rpmDelay(settings, 'Phase 2 rate limit');
+
         const characterNames = Object.keys(data.reflection_state || {});
         await synthesizeReflections(data, characterNames, settings, { abortSignal });
+
+        await rpmDelay(settings, 'Phase 2 inter-step rate limit');
 
         const context = getDeps().getContext();
         await synthesizeCommunities(data, settings, context.name2, context.name1);

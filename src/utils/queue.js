@@ -27,7 +27,14 @@ const _RATE_LIMIT_COOLOFF_MS = 4000;
  * @returns {boolean}
  */
 function isRateLimitError(error) {
-    return error.status === 429 || error.message?.includes('429') || error.message?.includes('timeout');
+    return (
+        error.status === 429 ||
+        error.status === 502 ||
+        error.message?.includes('429') ||
+        error.message?.includes('502') ||
+        error.message?.includes('Bad Gateway') ||
+        error.message?.includes('timeout')
+    );
 }
 
 /**
