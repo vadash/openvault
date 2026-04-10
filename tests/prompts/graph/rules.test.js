@@ -19,4 +19,18 @@ describe('GRAPH_RULES', () => {
         expect(outputIndex).toBeGreaterThan(-1);
         expect(validationIndex).toBeLessThan(outputIndex);
     });
+
+    describe('OBJECT type definition', () => {
+        it('should contain PROHIBITED list for transient objects', () => {
+            expect(GRAPH_RULES).toContain('PROHIBITED:');
+            expect(GRAPH_RULES).toContain('food, meals, cleaning supplies');
+            expect(GRAPH_RULES).toContain('temporary clothing states, consumables');
+            expect(GRAPH_RULES).toContain('Do NOT extract fluids');
+        });
+
+        it('should allow significant unique items', () => {
+            expect(GRAPH_RULES).toContain('The One Ring');
+            expect(GRAPH_RULES).toContain('Cursed Sword');
+        });
+    });
 });

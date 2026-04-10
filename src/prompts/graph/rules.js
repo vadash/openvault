@@ -8,7 +8,11 @@ export const GRAPH_RULES = `Extract named entities mentioned or clearly implied 
 - ${ENTITY_TYPES.PERSON}: Named characters, NPCs, people mentioned by name, and fictional identities presented as characters (includes personas, alter-egos, avatars)
 - ${ENTITY_TYPES.PLACE}: Named locations, buildings, rooms, cities, regions
 - ${ENTITY_TYPES.ORGANIZATION}: Named groups, factions, guilds, companies
-- ${ENTITY_TYPES.OBJECT}: Highly significant unique items, weapons, or plot devices. Do NOT extract mundane items, clothing, food, cups, phones, or daily objects UNLESS they are enchanted, unique, or become permanent fixtures of the story. Do NOT extract body parts, anatomical features, or bodily fluids UNLESS they act as unique plot devices, evidence, or specific permanent anchors for the narrative.
+- ${ENTITY_TYPES.OBJECT}: Highly significant unique items, weapons, or plot devices.
+  PROHIBITED: Do not extract food, meals, cleaning supplies, mundane furniture,
+  temporary clothing states, consumables, or scene props unless they are permanent,
+  story-defining artifacts (e.g., "The One Ring", "Cursed Sword").
+  Do NOT extract fluids, temporary body states, or transient physical descriptions.
 - ${ENTITY_TYPES.CONCEPT}: Named abilities, spells, diseases, prophecies, or strict dietary/lifestyle requirements (e.g., "Peanut Allergy", "Veganism"). Do NOT extract temporary physical states (e.g., "soreness", "arousal") as concepts.
 
 Also extract relationships between pairs of entities when the connection is stated or clearly implied. Do NOT re-describe existing static relationships unless a specific progression or change occurred in this batch.
