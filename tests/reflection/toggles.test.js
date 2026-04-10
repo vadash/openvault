@@ -258,3 +258,87 @@ describe('retrieveAndInjectContext with injection toggle', () => {
         expect(_mockGetSettings).toHaveBeenCalledWith('reflectionInjectionEnabled', true);
     });
 });
+
+// ── Integration tests ──
+
+describe('integration: reflection toggles', () => {
+    let mockData;
+    let mockSettings;
+
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        generateReflections.mockReset();
+
+        // Clear mock settings overrides
+        for (const key of Object.keys(_mockSettingsValues)) delete _mockSettingsValues[key];
+
+        mockData = {
+            schema_version: 2,
+            memories: [{ id: 'existing-reflection', type: 'reflection', summary: 'Old reflection' }],
+            character_states: {},
+            reflection_state: { TestChar: { importance_sum: 100 } },
+            graph: { nodes: {}, edges: {} },
+        };
+        mockSettings = {
+            reflectionThreshold: 40,
+            maxConcurrency: 1,
+        };
+    });
+
+    afterEach(() => {
+        resetDeps();
+        vi.clearAllMocks();
+    });
+
+    it('should preserve existing reflections when generation is disabled', async () => {
+        // Override getSettings to return false for generation toggle
+        _mockSettingsValues.reflectionGenerationEnabled = false;
+
+        setupTestContext({
+            settings: {
+                reflectionGenerationEnabled: false,
+                reflectionThreshold: 40,
+            },
+        });
+
+        await synthesizeReflections(mockData, ['TestChar'], mockSettings);
+
+        // Existing reflection should still be in memories
+        expect(mockData.memories.some((m) => m.id === 'existing-reflection')).toBe(true);
+
+        // generateReflections should never be called
+        expect(generateReflections).not.toHaveBeenCalled();
+    });
+
+    it('should allow generation to continue while injection is disabled', async () => {
+        // These are independent toggles - generation can happen while injection is off
+        // This is useful for "audit mode" - building reflections but not using them yet
+
+        // Override getSettings for independent toggles
+        _mockSettingsValues.reflectionGenerationEnabled = true;
+        _mockSettingsValues.reflectionInjectionEnabled = false;
+
+        setupTestContext({
+            settings: {
+                reflectionGenerationEnabled: true,
+                reflectionInjectionEnabled: false,
+                reflectionThreshold: 40,
+            },
+        });
+
+        // Mock generateReflections to return empty reflections
+        generateReflections.mockResolvedValue({
+            reflections: [],
+            stChanges: { toUpsert: [], toDelete: [] },
+        });
+
+        await synthesizeReflections(mockData, ['TestChar'], mockSettings);
+
+        // Verify the settings are independent
+        expect(_mockGetSettings('reflectionGenerationEnabled')).toBe(true);
+        expect(_mockGetSettings('reflectionInjectionEnabled')).toBe(false);
+
+        // Generation should proceed (generateReflections was called)
+        expect(generateReflections).toHaveBeenCalledTimes(1);
+    });
+});
