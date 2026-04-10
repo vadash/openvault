@@ -207,3 +207,23 @@ import { yieldToMain } from '../utils/st-helpers.js';
 - All prompt changes are backward-compatible and don't require schema migrations
 - The `yieldToMain()` polyfill uses `scheduler.yield()` when available, falling back to `setTimeout(resolve, 0)`
 - These fixes are intentionally minimal to avoid architectural churn
+
+---
+
+## Review Feedback Applied
+
+**Date:** 2025-04-10
+
+### Problem 4 DRY Correction
+**Original:** Proposed wrapping every `saveOpenVaultData()` call site with `yieldToMain()`.
+
+**Correction:** Modified design to add `yieldToMain()` **inside** `saveOpenVaultData()` only. Since all domain code calls this centralized repository method, modifying the function internally automatically protects all call sites without code duplication.
+
+**Rationale:** Avoids redundant async overhead and follows DRY principle.
+
+### Problem 3 Code Removal
+**Original:** Proposed `validateThinkTagBalance()` code layer for tag balancing.
+
+**Correction:** Removed code proposal entirely. The existing `extractJsonBlocks` + `jsonrepair` waterfall already handles missing closing tags correctly. Prompt-only fix is sufficient.
+
+**Rationale:** Prevented fatal flaw where auto-added `</think>` would cause `stripThinkingTags()` to delete valid JSON.
