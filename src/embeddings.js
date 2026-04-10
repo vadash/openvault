@@ -280,31 +280,64 @@ class TransformersStrategy extends EmbeddingStrategy {
                     throw new Error(`${modelKey} requires WebGPU which is not available`);
                 }
 
-                const device = useWebGPU ? 'webgpu' : 'wasm';
-                const dtype = useWebGPU ? modelConfig.dtypeWebGPU : modelConfig.dtypeWASM;
-
-                logDebug(`Loading ${modelKey} with ${device} (${dtype})`);
+                logDebug(`Loading ${modelKey} (WebGPU: ${useWebGPU})`);
 
                 const { pipeline } = await cdnImport('@huggingface/transformers');
 
-                let lastReportedPct = 0;
-                const pipe = await pipeline('feature-extraction', modelConfig.name, {
-                    device,
-                    dtype,
-                    progress_callback: (progress) => {
-                        if (progress.status === 'progress' && progress.total) {
-                            const pct = Math.round((progress.loaded / progress.total) * 100);
-                            if (pct >= lastReportedPct + 25) {
-                                lastReportedPct = Math.floor(pct / 25) * 25;
-                                this.#updateStatus(`Loading ${modelKey}: ${lastReportedPct}%`);
-                            }
-                        }
-                    },
-                });
+                // Build a list of device/dtype combos to try in order
+                const attempts = [];
+                if (useWebGPU) {
+                    attempts.push({ device: 'webgpu', dtype: modelConfig.dtypeWebGPU });
+                    // If fp16 fails (common on some GPUs), try q4 as WebGPU fallback
+                    if (modelConfig.dtypeWebGPU === 'fp16') {
+                        attempts.push({ device: 'webgpu', dtype: 'q4' });
+                    }
+                }
+                // Always try WASM as final fallback
+                if (modelConfig.dtypeWASM) {
+                    attempts.push({ device: 'wasm', dtype: modelConfig.dtypeWASM });
+                }
+
+                let pipe = null;
+                let usedDevice = null;
+
+                for (const attempt of attempts) {
+                    try {
+                        logDebug(`Trying ${modelKey} with ${attempt.device} (${attempt.dtype})`);
+                        this.#updateStatus(`Loading ${modelKey} (${attempt.device})...`);
+
+                        let lastReportedPct = 0;
+                        pipe = await pipeline('feature-extraction', modelConfig.name, {
+                            device: attempt.device,
+                            dtype: attempt.dtype,
+                            progress_callback: (progress) => {
+                                if (progress.status === 'progress' && progress.total) {
+                                    const pct = Math.round((progress.loaded / progress.total) * 100);
+                                    if (pct >= lastReportedPct + 25) {
+                                        lastReportedPct = Math.floor(pct / 25) * 25;
+                                        this.#updateStatus(`Loading ${modelKey}: ${lastReportedPct}%`);
+                                    }
+                                }
+                            },
+                        });
+
+                        usedDevice = attempt.device;
+                        logDebug(`Successfully loaded ${modelKey} with ${attempt.device} (${attempt.dtype})`);
+                        break;
+                    } catch (attemptError) {
+                        logDebug(`Failed to load ${modelKey} with ${attempt.device} (${attempt.dtype}): ${attemptError.message}`);
+                        pipe = null;
+                        // Continue to next attempt
+                    }
+                }
+
+                if (!pipe) {
+                    throw new Error(`All backends failed for ${modelKey}. Tried: ${attempts.map(a => `${a.device}/${a.dtype}`).join(', ')}`);
+                }
 
                 this.#cachedPipeline = pipe;
-                this.#cachedDevice = device;
-                const deviceLabel = useWebGPU ? 'WebGPU' : 'WASM';
+                this.#cachedDevice = usedDevice;
+                const deviceLabel = usedDevice === 'webgpu' ? 'WebGPU' : 'WASM';
                 this.#updateStatus(`${modelKey} (${deviceLabel}) ✓`);
                 return pipe;
             } catch (error) {
