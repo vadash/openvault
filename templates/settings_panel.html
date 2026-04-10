@@ -616,6 +616,14 @@
                         </div>
 
                         <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+                            <label for="openvault_post_history_prompt" style="display: block; margin-bottom: 4px;">
+                                <i class="fa-solid fa-comment-dots"></i> Post-History Prompt
+                            </label>
+                            <textarea id="openvault_post_history_prompt" class="text_pole" rows="3" placeholder="Injected after all chat messages (useful for steering model behavior)"></textarea>
+                            <small class="openvault-hint">Injected at IN_CHAT depth 0 — appears after the last message in context</small>
+                        </div>
+
+                        <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
                             <small class="text-muted">
                                 <i class="fa-solid fa-info-circle"></i>
                                 ↓Char is recommended. Memories injected at ↑Char may not affect character behavior in some models.

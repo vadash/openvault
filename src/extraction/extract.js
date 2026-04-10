@@ -93,6 +93,26 @@ const MAX_BACKOFF_TOTAL_MS = 15 * 60 * 1000;
 let lastApiCallTime = 0;
 
 /**
+ * Tracks how many times a batch produced 0 raw events from the LLM.
+ * Keyed by a hash of the batch's message fingerprints.
+ * Entries are cleared on successful extraction or after max retries.
+ * @type {Map<string, number>}
+ */
+const _emptyExtractionAttempts = new Map();
+
+const MAX_EMPTY_RETRIES = 2;
+
+/**
+ * Build a stable key for a batch of messages.
+ * @param {Array} messages - Message objects with send_date, name, mes
+ * @returns {string}
+ */
+function _getBatchKey(messages) {
+    const fps = messages.map((m) => getFingerprint(m)).sort().join('|');
+    return String(cyrb53(fps));
+}
+
+/**
  * Wait based on the configured RPM rate limit.
  * Accounts for elapsed time since the last call — only sleeps the remaining delta.
  * @param {Object} settings - Extension settings containing backfillMaxRPM
@@ -893,7 +913,7 @@ async function processGraphUpdates(graphData, entities, relationships, settings)
  * @param {number[]} [messageIds=null] - Optional specific message IDs for targeted extraction
  * @param {string} [targetChatId=null] - Optional chat ID to verify before saving
  * @param {ExtractionOptions} [options={}] - Extraction options
- * @returns {Promise<{status: string, events_created?: number, messages_processed?: number, reason?: string}>}
+ * @returns {Promise<{status: string, events_created?: number, messages_processed?: number, reason?: string, attempt?: number, max_attempts?: number, messages_in_batch?: number}>}
  */
 export async function extractMemories(messageIds = null, targetChatId = null, options = {}) {
     if (!isExtensionEnabled()) {
@@ -986,6 +1006,35 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             data.memories || [],
             settings
         );
+
+        // Empty extraction retry: if the LLM returned 0 raw events, allow
+        // retrying the same batch before permanently marking messages as processed.
+        // Only triggers on rawEvents === 0 (LLM found nothing); post-dedup empty
+        // (rawEvents > 0 but all dupes) is legitimate processing.
+        const batchKey = _getBatchKey(messages);
+        if (rawEvents.length === 0) {
+            const attempts = (_emptyExtractionAttempts.get(batchKey) || 0) + 1;
+            _emptyExtractionAttempts.set(batchKey, attempts);
+
+            if (attempts <= MAX_EMPTY_RETRIES) {
+                logDebug(
+                    `LLM returned 0 events (attempt ${attempts}/${MAX_EMPTY_RETRIES + 1}), will retry batch`
+                );
+                return {
+                    status: 'no_events_retry',
+                    attempt: attempts,
+                    max_attempts: MAX_EMPTY_RETRIES + 1,
+                    messages_in_batch: messages.length,
+                };
+            }
+
+            logDebug(
+                `LLM returned 0 events after ${attempts} attempts, marking ${messages.length} messages as processed`
+            );
+            _emptyExtractionAttempts.delete(batchKey);
+        } else {
+            _emptyExtractionAttempts.delete(batchKey);
+        }
 
         // Stamp embedding model ID on first successful embedding generation
         if (events.length > 0 && !data.embedding_model_id && events.some((e) => hasEmbedding(e))) {
@@ -1280,6 +1329,15 @@ export async function extractAllMessages(optionsOrCallback) {
                 silent: true,
                 abortSignal, // v6: Pass signal to enable mid-request cancellation
             });
+
+            if (result?.status === 'no_events_retry') {
+                logDebug(
+                    `Backfill batch ${batchesProcessed + 1}: LLM returned 0 events (attempt ${result.attempt}/${result.max_attempts}), retrying after delay`
+                );
+                await rpmDelay(settings, 'Empty extraction retry delay');
+                continue;
+            }
+
             totalEvents += result?.events_created || 0;
             messagesProcessed += currentBatch?.length || 0;
 

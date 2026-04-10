@@ -214,6 +214,12 @@ export function injectContext(contextText, worldText = '') {
     } else {
         safeSetExtensionPrompt(worldText, 'openvault_world', worldPosition, worldDepth);
     }
+
+    // Inject post-history prompt (IN_CHAT at depth 0 = after all messages).
+    // Useful for steering model behavior with certain providers that require
+    // a trailing instruction to stay in character.
+    const postHistoryPrompt = (settings?.postHistoryPrompt || '').trim();
+    safeSetExtensionPrompt(postHistoryPrompt, 'openvault_posthistory', 4, 0);
 }
 
 /**

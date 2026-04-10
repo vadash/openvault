@@ -39,11 +39,21 @@ export function getProcessedFingerprints(data) {
  * @param {Set<string>} processedFps - Set of already processed fingerprint strings
  * @returns {number[]} Array of unextracted message indices
  */
-export function getUnextractedMessageIds(chat, processedFps) {
+export function getUnextractedMessageIds(chat, processedFps, { includeLatest = false } = {}) {
     const unextractedIds = [];
+
+    // Find the last non-system message index
+    let lastNonSystemIdx = -1;
+    if (!includeLatest) {
+        for (let i = chat.length - 1; i >= 0; i--) {
+            if (!chat[i].is_system) { lastNonSystemIdx = i; break; }
+        }
+    }
+
     for (let i = 0; i < chat.length; i++) {
         const msg = chat[i];
         if (msg.is_system) continue;
+        if (!includeLatest && i === lastNonSystemIdx) continue;
         if (!processedFps.has(getFingerprint(msg))) {
             unextractedIds.push(i);
         }
@@ -229,7 +239,7 @@ export function getBackfillStats(chat, data, _tokenBudget) {
  */
 export function getBackfillMessageIds(chat, data, tokenBudget, isEmergencyCut = false) {
     const processedFps = getProcessedFingerprints(data);
-    const allUnextracted = getUnextractedMessageIds(chat, processedFps);
+    const allUnextracted = getUnextractedMessageIds(chat, processedFps, { includeLatest: true });
     const totalTokens = getTokenSum(chat, allUnextracted);
 
     // Emergency Cut bypasses token budget - extract all unextracted messages
