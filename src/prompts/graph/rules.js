@@ -23,7 +23,10 @@ Follow these steps IN ORDER. Write your work inside <think> tags BEFORE outputti
 Step 1: Entity scan — List every named entity mentioned or implied. Include type (${Object.values(ENTITY_TYPES).join(', ')}).
 Step 2: Type validation — Verify each entity type against the allowed set. Skip mundane objects unless plot-critical.
 Step 3: Relationship map — For each entity pair with a stated or implied connection, note the direction and nature.
-Step 4: Output — Count entities and relationships, then produce the final JSON.
+Step 4: VALIDATION — Verify every 'source' and 'target' in your relationships array
+  exactly matches a 'name' defined in your entities array. If a relationship references
+  an entity not in your list, either add that entity or remove the relationship.
+Step 5: Output — Count entities and relationships, then produce the final JSON.
 </thinking_process>`;
 
 export const EDGE_CONSOLIDATION_RULES = `1. Summarize the CURRENT dynamic, but preserve critical historical shifts.
