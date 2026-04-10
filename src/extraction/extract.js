@@ -53,6 +53,7 @@ import {
 import { accumulateImportance, generateReflections, shouldReflect } from '../reflection/reflect.js';
 import { calculateIDF, cosineSimilarity, tokenize } from '../retrieval/math.js';
 import { deleteItemsFromST, isStVectorSource, syncItemsToST } from '../services/st-vector.js';
+import { getSettings } from '../settings.js';
 import { clearAllLocks, isWorkerRunning, operationState } from '../state.js';
 import {
     addMemories,
@@ -617,6 +618,13 @@ export async function filterSimilarEvents(
  */
 export async function synthesizeReflections(data, characterNames, settings, options = {}) {
     const { abortSignal = null } = options;
+
+    // Check if reflection generation is enabled
+    if (!getSettings('reflectionGenerationEnabled', true)) {
+        logDebug('[Extraction] Reflection generation disabled, skipping Phase 2');
+        return { stChanges: { toUpsert: [], toDelete: [] } };
+    }
+
     const reflectionThreshold = settings.reflectionThreshold;
     const ladderQueue = await createLadderQueue(settings.maxConcurrency);
     const reflectionPromises = [];
