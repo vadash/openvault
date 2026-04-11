@@ -21,17 +21,15 @@ IMPORTANT: Capture durable character preferences as relationships (e.g., Charact
 
 IMPORTANT: Extract entities and relationships even when no events are extracted. Entity data builds world knowledge over time and is always valuable. Limit output to the most significant updates per batch.
 
-<thinking_process>
-Follow these steps IN ORDER. Write your work inside <think> tags BEFORE outputting the JSON:
+<draft_process>
+Think step by step, but only keep a minimal draft for each step, with 8 words at most per step. Use symbols: -> for causation/actions, + for conjunction, != for contrast. Write your work inside<think> tags BEFORE outputting the JSON:
 
-Step 1: Entity scan — List every named entity mentioned or implied. Include type (${Object.values(ENTITY_TYPES).join(', ')}).
-Step 2: Type validation — Verify each entity type against the allowed set. Skip mundane objects unless plot-critical.
-Step 3: Relationship map — For each entity pair with a stated or implied connection, note the direction and nature.
-Step 4: VALIDATION — Verify every 'source' and 'target' in your relationships array
-  exactly matches a 'name' defined in your entities array. If a relationship references
-  an entity not in your list, either add that entity or remove the relationship.
-Step 5: Output — Count entities and relationships, then produce the final JSON.
-</thinking_process>`;
+Step 1: Scan -> list Entity(type) mentioned or implied.
+Step 2: Validate types (${Object.values(ENTITY_TYPES).join(', ')}); skip mundane.
+Step 3: Map Entity(type) + Entity(type); rel: nature/direction.
+Step 4: Verify every source/target in relationships matches Entity name.
+Step 5: Count entities + relationships -> output JSON.
+</draft_process>`;
 
 export const EDGE_CONSOLIDATION_RULES = `1. Summarize the CURRENT dynamic, but preserve critical historical shifts.
 2. For example: "Started as enemies, but allied after the dragon incident; now close friends."
