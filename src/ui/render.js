@@ -863,8 +863,8 @@ export function renderPositionBadges(settings) {
         return labels[position] || 'Unknown';
     };
 
-    const memoryPos = settings?.injection?.memory?.position ?? 1;
-    const worldPos = settings?.injection?.world?.position ?? 1;
+    const memoryPos = settings?.injection?.memory?.position ?? 5;
+    const worldPos = settings?.injection?.world?.position ?? 5;
 
     const memoryLabel =
         memoryPos === -1

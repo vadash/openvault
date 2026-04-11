@@ -195,9 +195,9 @@ export function injectContext(contextText, worldText = '') {
     cachedContent.world = worldText || '';
 
     // Get position settings with defaults
-    const memoryPosition = settings?.injection?.memory?.position ?? 1;
+    const memoryPosition = settings?.injection?.memory?.position ?? 5;
     const memoryDepth = settings?.injection?.memory?.depth ?? 4;
-    const worldPosition = settings?.injection?.world?.position ?? 1;
+    const worldPosition = settings?.injection?.world?.position ?? 5;
     const worldDepth = settings?.injection?.world?.depth ?? 4;
 
     // Inject memory content

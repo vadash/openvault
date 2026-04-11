@@ -25,19 +25,17 @@ export const PROCESSED_MESSAGES_KEY = 'processed_message_ids';
 // =============================================================================
 
 export const INJECTION_POSITIONS = Object.freeze({
-    BEFORE_MAIN: 0, // ↑Char - Before character definitions
-    AFTER_MAIN: 1, // ↓Char - After character definitions (default)
-    BEFORE_AN: 2, // ↑AN - Before author's note
-    AFTER_AN: 3, // ↓AN - After author's note
+    BEFORE_MAIN: 0, // ↑Main - Before system prompt
+    AFTER_MAIN: 1, // ↓Main - After system prompt
+    TOP_OF_CHAT: 5, // ↓Char - After char defs, top of chat (default)
     IN_CHAT: 4, // In-chat - At specified message depth
     CUSTOM: -1, // Custom - Macro-only, no auto-injection
 });
 
 export const POSITION_LABELS = Object.freeze([
-    { value: 0, label: '↑Char', description: 'Before character definitions' },
-    { value: 1, label: '↓Char', description: 'After character definitions' },
-    { value: 2, label: '↑AN', description: "Before author's note" },
-    { value: 3, label: '↓AN', description: "After author's note" },
+    { value: 0, label: '↑Main', description: 'Before system prompt' },
+    { value: 1, label: '↓Main', description: 'After system prompt' },
+    { value: 5, label: '↓Char', description: 'After char defs (top of chat)' },
     { value: 4, label: 'In-chat', description: 'At specified message depth' },
     { value: -1, label: 'Custom', description: 'Use macro manually' },
 ]);
@@ -120,8 +118,8 @@ export const defaultSettings = {
     outputLanguage: 'auto',
     // Injection settings
     injection: {
-        memory: { position: 1, depth: 4 },
-        world: { position: 1, depth: 4 },
+        memory: { position: 5, depth: 4 },
+        world: { position: 5, depth: 4 },
     },
 };
 

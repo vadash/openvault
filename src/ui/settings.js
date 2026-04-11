@@ -902,7 +902,7 @@ export function updateInjectionUI(type = 'both') {
     const settings = getSettings();
 
     const updateType = (t) => {
-        const position = settings.injection?.[t]?.position ?? 1;
+        const position = settings.injection?.[t]?.position ?? 5;
         const _depth = settings.injection?.[t]?.depth ?? 4;
 
         // Update selector
