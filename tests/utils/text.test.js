@@ -102,6 +102,32 @@ describe('text', () => {
                 );
             });
         });
+
+        describe('draft tags', () => {
+            it('strips <draft> paired tags', () => {
+                expect(stripThinkingTags('<draft>concise notes</draft>{"events": []}')).toBe('{"events": []}');
+            });
+
+            it('strips <draft_process> paired tags', () => {
+                expect(stripThinkingTags('<draft_process>step1->step2</draft_process>{"result": true}')).toBe(
+                    '{"result": true}'
+                );
+            });
+
+            it('strips mixed <think/> and <draft> tags', () => {
+                expect(stripThinkingTags('<thinking>reasoning</thinking><draft>notes</draft>{"data": 1}')).toBe(
+                    '{"data": 1}'
+                );
+            });
+
+            it('strips [DRAFT] bracket tags', () => {
+                expect(stripThinkingTags('[DRAFT]draft notes[/DRAFT]{"ok": true}')).toBe('{"ok": true}');
+            });
+
+            it('strips [DRAFT_PROCESS] bracket tags', () => {
+                expect(stripThinkingTags('[DRAFT_PROCESS]step notes[/DRAFT_PROCESS][1,2,3]')).toBe('[1,2,3]');
+            });
+        });
     });
 
     describe('sortMemoriesBySequence', () => {
