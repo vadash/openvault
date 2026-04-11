@@ -19,10 +19,12 @@ Relationships
 - Lord Bassett → City Ledger  Falsified entries for years to erase victims before questions could be asked
 - Mira → City Ledger  Stole a copy of original pages before falsification; holds the only surviving proof
 - Mira → Renata  Wants to hand over the evidence but hasn't found reason yet to trust a city watch officer`,
-        thinking: `Step 1: Entity inventory — Renata PERSON, Bassett PERSON, Mira PERSON, The Hollows ORGANIZATION, City Ledger OBJECT. Five nodes — two of them in direct opposition without knowing it yet.
-Step 2: Relationship map — Renata→Bassett (reports to, unaware he is the target), Renata→Hollows (fragile contact), Bassett→Hollows (raids, disappearances), Bassett→Ledger (falsifies), Mira→Ledger (stole original pages), Mira→Renata (wants to trust, hasn't).
-Step 3: Dynamic analysis — The central problem is informational: Renata's chain of command runs straight through the perpetrator. Mira is the critical path with the only hard evidence. The Ledger is the fulcrum — Bassett's authority is inseparable from official record. The dynamic is a deadlock.
-Step 4: Output — 4 findings on the informational trap, Mira as resolution path, Bassett's structural vulnerability, and the Hollows as untameable threat.`,
+        thinking: `1. Entities: Renata(PERSON) + Bassett(PERSON) + Mira(PERSON) + Hollows(ORG) + Ledger(OBJ)
+2. Renata -> Bassett: reports, unaware = target; Hollows: fragile contact
+3. Bassett -> Hollows: raids; -> Ledger: falsifies; Mira stole originals
+4. Mira holds proof, distrusts institutions; Renata trapped inside perpetrator's chain
+5. Deadlock: Renata compromised; Mira = only path; Ledger = Bassett's fulcrum
+6. 4 findings: info trap, Mira resolution, Bassett vulnerability, Hollows threat`,
         output: `{
   "title": "Bassett Corruption Network",
   "summary": "A corruption structure built on falsified death records, where the investigator assigned to expose it reports directly to the man running it. Lord Bassett has used his control of the City Watch and official documentation to erase victims before anyone can count them. The only intact evidence lives with Mira, leader of the underground refugee network Bassett has been systematically raiding. The dynamic is a deliberate deadlock — Renata has access but is compromised; Mira has the proof but not the trust to deploy it.",
@@ -50,10 +52,12 @@ Relationships
 - Solène → Dex  Disagrees with how he's handling Priya but hasn't confronted him; absorbing the friction
 - Priya → The Manifesto  Was seen near it twice; Dex noticed and is watching; Solène hasn't
 - The Vault → The Manifesto  The document lives here; if the Vault is burned, every name on it is exposed`,
-        thinking: `Step 1: Entity inventory — Dex PERSON, Solène PERSON, Priya PERSON, The Vault PLACE, The Manifesto OBJECT.
-Step 2: Relationship map — Dex→Solène (withholding ops details), Dex→Priya (surveillance as mentorship), Solène→Priya (genuine connection, training), Solène→Dex (disagrees, hasn't confronted), Priya→Manifesto (near it twice, noticed by Dex), Vault→Manifesto (document stored here, exposure risk).
-Step 3: Dynamic analysis — The structural problem isn't Priya — it's that Dex and Solène are reading her from opposite conclusions without comparing notes. Dex's withholding from Solène is the real accelerant. Priya's proximity to the Manifesto is unresolved. The Vault's potential compromise compounds every other risk.
-Step 4: Output — 5 findings on the perception gap, erosion between Dex and Solène, Priya's ambiguous exposure, the Vault as compounding liability, and cost of Dex's wait-and-watch posture.`,
+        thinking: `1. Entities: Dex(PERSON) + Solène(PERSON) + Priya(PERSON) + Vault(PLACE) + Manifesto(OBJ)
+2. Dex -> Solène: withholding ops; -> Priya: surveillance as mentorship
+3. Solène -> Priya: genuine bond + training; Priya near Manifesto twice
+4. Dex + Solène = opposite conclusions, no comparison; withholding = accelerant
+5. Manifesto exposure unresolved; Vault compromise compounds all risk
+6. 5 findings: perception gap, Dex-Solène erosion, Priya ambiguous, Vault liability`,
         output: `{
   "title": "Cell Fracture Point",
   "summary": "A resistance cell fracturing along a perception split rather than any confirmed external threat. Dex's post-capture paranoia has become covert surveillance of his newest recruit, while Solène — his second-in-command — has developed genuine rapport with the same person. Neither is telling the other what they see. The result is a cell where the leader is withholding from his most trusted operator, the new recruit's loyalties are genuinely unresolved, and a document naming every member sits in a safehouse that may already be flagged.",
@@ -82,10 +86,12 @@ Relationships
 - Vera → Teo  Occasional contact; emotionally accessible to him in a way that bypasses the withdrawal pattern he runs with Cass
 - Teo → Restraint Session  Seeks the sessions himself — he initiates; submission is the one context where he doesn't have to manage his own emotional output
 - Vera → Cass  Listens carefully and supports her; observes more than she says`,
-        thinking: `Step 1: Entity inventory — Cass PERSON, Teo PERSON, Vera PERSON, Restraint Session CONCEPT, The Apartment PLACE.
-Step 2: Relationship map — Cass→Teo (directs scenes, precision reads), Teo→Cass (obedient in sessions, deflects intimacy outside), Cass→Vera (aware of history, uses as pressure valve), Vera→Teo (emotionally accessible, bypasses withdrawal), Teo→Restraint Session (seeks it himself — initiation), Vera→Cass (listens, observes).
-Step 3: Dynamic analysis — The key inversion is that Teo seeks the sessions — submission functions as affect regulation. Withdrawal is relational, not dispositional — Vera can reach him when Cass can't. The apartment is a threshold Teo crosses twice. The structural problem: the power exchange gives Cass precise physical access and near-zero interior access.
-Step 4: Output — 5 findings on affect regulation, relational withdrawal, Cass's avoidance of the Vera question, the apartment as threshold, and the structural tension between physical and interior access.`,
+        thinking: `1. Entities: Cass(PERSON) + Teo(PERSON) + Vera(PERSON) + Session(CONCEPT) + Apartment(PLACE)
+2. Cass -> Teo: directs scenes, precision reads; Teo deflects outside sessions
+3. Cass -> Vera: aware of history, pressure valve; Vera -> Teo: emotional access
+4. Teo seeks sessions = affect regulation; withdrawal relational != dispositional
+5. Power exchange: physical access yes, interior access near-zero
+6. 5 findings: affect regulation, relational withdrawal, Vera avoidance, apartment threshold`,
         output: `{
   "title": "Cass and Teo Power Circuit",
   "summary": "A dominant-submissive dynamic that functions with real precision inside sessions and stalls almost completely outside them. Teo seeks the restraint sessions himself — submission is how he regulates affect, the one context where he doesn't have to manage his own emotional output — but consistently withdraws from Cass the moment sessions end. Vera, who knew Teo before Cass, retains an emotional access Cass hasn't been able to build, and Cass is using Vera as a pressure valve while carefully not naming what she's actually trying to understand.",
@@ -107,9 +113,11 @@ export const GLOBAL_SYNTHESIS = [
 - Bassett Corruption Network: Renata investigates disappearances while unknowingly reporting to the man who ordered them. The only surviving evidence is in Mira's hands, held back by her rational distrust of city institutions.
 - Hollow Underground: The Hollows are an organized refugee network that Bassett has been systematically raiding. Mira leads them and holds the falsified Ledger pages — the only proof of Bassett's crimes.
 - Watch Internal Friction: Two senior Watch officers below Bassett have independently noticed anomalies in the Ledger records. Neither knows the other is looking. Neither has approached Renata.`,
-        thinking: `Step 1: Community scan — Bassett Corruption (Renata trapped inside the machine she's investigating), Hollow Underground (Mira holds the evidence, distrust is the single friction point), Watch Internal Friction (independent inquiry beginning from within, uncoordinated).
-Step 2: Cross-links — Bassett is the central node all three communities approach from different angles. Renata and Watch officers converge on the same Ledger anomalies without knowing the other exists. Mira's stolen pages are the key to unlock both investigative threads.
-Step 3: Narrative arc — Bassett is encircled without knowing it. Fragmentation is the danger — all three groups hold pieces each other needs and none are in contact. Trajectory: a race between accidental coordination and Bassett's capacity to neutralize them one at a time.`,
+        thinking: `1. Bassett Corruption: Renata trapped inside; Hollows: Mira holds evidence, distrust
+2. Watch Friction: two officers, independent, uncoordinated Ledger anomaly inquiry
+3. All three -> Bassett from different angles; none in contact
+4. Renata + Watch officers -> same Ledger anomalies, don't know each other
+5. Race: accidental coordination vs Bassett neutralizing them one-by-one`,
         output: `{
   "global_summary": "A conspiracy beginning to collapse under pressure from three independent directions that haven't located each other yet. Renata investigates from inside the Watch without knowing she reports to her own suspect. Two Watch officers below Bassett are noticing Ledger anomalies in parallel without coordinating. Mira holds the only hard evidence and is waiting for a trust mechanism that hasn't arrived. Bassett's structural vulnerability is the falsified Ledger — a single point of failure that all three threads are approaching from different angles — but his positional advantage is that he sees Renata's moves in real time and can suppress any one investigation before the others converge. The trajectory is a race: accidental coordination among investigators who don't know each other exist versus Bassett identifying and cutting them individually before they find each other."
 }`,
@@ -120,9 +128,12 @@ Step 3: Narrative arc — Bassett is encircled without knowing it. Fragmentation
 - Cell Fracture Point: Dex's paranoia is consuming the cell's internal coherence. Dex and Solène are assessing Priya from opposite conclusions without comparing notes. The Manifesto lists every member by real name and sits in a safehouse that may already be under surveillance.
 - Revolutionary Coordination Network: The upstream network that Dex's cell feeds intelligence to. Leadership is unaware the cell's output has slowed or that the Vault may be flagged.
 - The Cartographers: A nominally neutral faction that maps contested territory and sells to multiple buyers. They have recently begun surveying the district where the Vault is located.`,
-        thinking: `Step 1: Community scan — Cell Fracture (internal breakdown accelerating, Manifesto exposure live, Priya's loyalties unresolved), Coordination Network (uninformed upstream, no visibility into degradation), Cartographers (neutral mapping faction, recent activity in Vault district, sells to multiple buyers).
-Step 2: Cross-links — Cartographers' work in the Vault district is the external trigger no one has noticed. Network upstream is flying blind. If Priya is feeding information out, Cartographers' maps make it trivially easy to correlate activity with the Vault's location. Three independent vectors converging on the same physical point.
-Step 3: Narrative arc — The cell tears itself apart while an external clock runs down. The Cartographers put a deadline on the Vault's exposure. Trajectory: Vault gets flagged through routine cartographic work; Priya's loyalty is confirmed or catastrophically misplaced; Solène becomes the deciding variable in whether the cell survives intact.`,
+        thinking: `1. Cell Fracture: internal breakdown, Manifesto exposed, Priya unresolved
+2. Coordination Network: upstream uninformed, no visibility into degradation
+3. Cartographers: neutral mappers, surveying Vault district, sell to multiple buyers
+4. Cartographers = external trigger; maps correlate with Vault if Priya feeds info
+5. Cell tears apart while external clock runs; Vault deadline via routine mapping
+6. Solène = deciding variable for cell survival; Priya loyalty unresolved`,
         output: `{
   "global_summary": "A cell tearing itself apart from inside while an external clock runs down on it from outside. Dex and Solène's unresolved split over Priya is the internal drag; the Cartographers' routine mapping of the Vault district is the external deadline no one in the cell has identified. The Revolutionary Coordination Network upstream is receiving slowed output without visibility into why and has no mechanism to apply pressure that would force the fracture to resolve. All three communities are converging on the same physical point — the Vault — through unrelated vectors: paranoid watch, potential informant activity, and neutral survey work sold to any buyer. Whether Priya is clean or not, the Vault's exposure window is closing. The Dex-Solène communication failure is the variable that determines whether the cell evacuates in time or gets caught mid-argument about who to trust."
 }`,
