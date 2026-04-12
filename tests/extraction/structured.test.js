@@ -15,6 +15,33 @@ import {
     parseUnifiedReflectionResponse,
 } from '../../src/extraction/structured.js';
 
+// --- Lazy Exit Tests (Empty Output After Thinking Tags) ---
+describe('parseEventExtractionResponse - lazy exits', () => {
+    it.each([
+        ['<think>analysis here</think>', 'think tag only'],
+        ['<thinking>analysis here</thinking>', 'thinking tag only'],
+        ['<reasoning>analysis here</reasoning>', 'reasoning tag only'],
+        ['   ', 'whitespace only'],
+        ['\t\n  ', 'mixed whitespace'],
+    ])('returns empty events for %s (%s)', (input, _label) => {
+        const result = parseEventExtractionResponse(input);
+        expect(result).toEqual({ events: [] });
+    });
+});
+
+describe('parseGraphExtractionResponse - lazy exits', () => {
+    it.each([
+        ['<think>analysis here</think>', 'think tag only'],
+        ['<thinking>analysis here</thinking>', 'thinking tag only'],
+        ['<reasoning>analysis here</reasoning>', 'reasoning tag only'],
+        ['   ', 'whitespace only'],
+        ['\t\n  ', 'mixed whitespace'],
+    ])('returns empty entities/relationships for %s (%s)', (input, _label) => {
+        const result = parseGraphExtractionResponse(input);
+        expect(result).toEqual({ entities: [], relationships: [] });
+    });
+});
+
 describe('stripMarkdown edge cases', () => {
     it('strips unclosed opening fence', () => {
         const content = '```json\n{"events": []}';

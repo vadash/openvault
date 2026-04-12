@@ -6,7 +6,7 @@ import { ENTITY_TYPES } from '../constants.js';
 // Import base schemas from store/schemas.js
 import { BaseEntitySchema, BaseRelationshipSchema, EventExtractionSchema, EventSchema } from '../store/schemas.js';
 import { logError, logWarn } from '../utils/logging.js';
-import { safeParseJSON, stripMarkdownFences } from '../utils/text.js';
+import { safeParseJSON, stripMarkdownFences, stripThinkingTags } from '../utils/text.js';
 
 // --- Schemas Extended with .catch() Fallbacks for LLM Validation ---
 
@@ -191,6 +191,13 @@ export function getGraphExtractionJsonSchema() {
  * @returns {Object} Validated event extraction response with {events}
  */
 export function parseEventExtractionResponse(content) {
+    // Handle lazy exits: strip thinking tags and check for empty output
+    const stripped = stripThinkingTags(content);
+    if (stripped.trim().length === 0) {
+        logWarn('LLM returned only thinking tags or whitespace, returning empty events');
+        return { events: [] };
+    }
+
     const result = safeParseJSON(content);
     if (!result.success) {
         const start = content.slice(0, 500);
@@ -243,6 +250,13 @@ export function parseEventExtractionResponse(content) {
  * @returns {Object} Validated graph extraction response with {entities, relationships}
  */
 export function parseGraphExtractionResponse(content) {
+    // Handle lazy exits: strip thinking tags and check for empty output
+    const stripped = stripThinkingTags(content);
+    if (stripped.trim().length === 0) {
+        logWarn('LLM returned only thinking tags or whitespace, returning empty entities and relationships');
+        return { entities: [], relationships: [] };
+    }
+
     const result = safeParseJSON(content);
     if (!result.success) {
         const start = content.slice(0, 500);
