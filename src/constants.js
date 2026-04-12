@@ -59,11 +59,11 @@ export const defaultSettings = {
     debugMode: false,
     requestLogging: false,
     // Extraction settings
-    extractionTokenBudget: 8000, // Token threshold for extraction batches
-    extractionRearviewTokens: 6000, // Token budget for extraction memory context
-    extractionMaxTurns: 30, // Max conversation turns per extraction batch
+    extractionTokenBudget: 6000, // Token threshold for extraction batches
+    extractionRearviewTokens: 3000, // Token budget for extraction memory context
+    extractionMaxTurns: 20, // Max conversation turns per extraction batch
     // Retrieval pipeline settings (token-based)
-    retrievalFinalTokens: 10000, // Final context budget
+    retrievalFinalTokens: 8000, // Final context budget
     // Auto-hide settings
     autoHideEnabled: true,
     visibleChatBudget: 16000, // Maximum tokens visible in chat history
