@@ -44,16 +44,6 @@ describe('text', () => {
                 ['<thinking> tags', '<thinking>analysis</thinking>{"data": [1,2]}', '{"data": [1,2]}'],
                 ['<reasoning> tags', '<reasoning>my thoughts</reasoning>[1,2,3]', '[1,2,3]'],
                 ['case-insensitive', '<THINK>loud</THINK><Thinking>mixed</Thinking>{"done": true}', '{"done": true}'],
-                [
-                    '<tool_call> paired tags',
-                    '<tool_call>{"name":"extract"}</tool_call>{"events": []}',
-                    '{"events": []}',
-                ],
-                [
-                    '<tool_call> with attributes',
-                    '<tool_call name="extract_events">{"name":"extract"}</tool_call>{"events": []}',
-                    '{"events": []}',
-                ],
             ])('strips $name', (_, input, expected) => {
                 expect(stripThinkingTags(input)).toBe(expected);
             });
@@ -64,11 +54,6 @@ describe('text', () => {
                 ['orphaned </thinking> closing tag', 'reasoning about the scene\n</thinking>\n[1,2,3]', '[1,2,3]'],
                 ['orphaned </thought> closing tag', 'analysis\n</thought>{"ok": true}', '{"ok": true}'],
                 ['orphaned </reasoning> closing tag', 'my reasoning here\n</reasoning>\n{"data": 1}', '{"data": 1}'],
-                [
-                    'orphaned </tool_call> closing tag',
-                    'calling the tool now\n</tool_call>\n{"events": []}',
-                    '{"events": []}',
-                ],
                 [
                     'orphaned </ideal_output> closing tag',
                     '{"events": [{"summary": "test"}]}\n</ideal_output>',
@@ -95,11 +80,41 @@ describe('text', () => {
             });
         });
 
+        describe('tool_call and search tags NOT stripped', () => {
+            it.each([
+                [
+                    '<tool_call> paired tags preserve inner JSON',
+                    '<tool_call>{"name":"extract"}</tool_call>{"events": []}',
+                    '<tool_call>{"name":"extract"}</tool_call>{"events": []}',
+                ],
+                [
+                    '<tool_call> with attributes preserves inner JSON',
+                    '<tool_call name="extract_events">{"name":"extract"}</tool_call>{"events": []}',
+                    '<tool_call name="extract_events">{"name":"extract"}</tool_call>{"events": []}',
+                ],
+                [
+                    '<search> paired tags preserve inner JSON',
+                    '<search>{"events": []}</search>',
+                    '<search>{"events": []}</search>',
+                ],
+                [
+                    'orphaned </tool_call> closing tag NOT stripped',
+                    'calling the tool now\n</tool_call>\n{"events": []}',
+                    'calling the tool now\n</tool_call>\n{"events": []}',
+                ],
+                [
+                    '[TOOL_CALL] bracket tags NOT stripped',
+                    '[TOOL_CALL]function call here[/TOOL_CALL]{"result": true}',
+                    '[TOOL_CALL]function call here[/TOOL_CALL]{"result": true}',
+                ],
+            ])('$name', (_, input, expected) => {
+                expect(stripThinkingTags(input)).toBe(expected);
+            });
+        });
+
         describe('bracket tags', () => {
-            it('strips [TOOL_CALL] bracket tags', () => {
-                expect(stripThinkingTags('[TOOL_CALL]function call here[/TOOL_CALL]{"result": true}')).toBe(
-                    '{"result": true}'
-                );
+            it('strips [THINK] bracket tags', () => {
+                expect(stripThinkingTags('[THINK]thinking here[/THINK]{"result": true}')).toBe('{"result": true}');
             });
         });
 
