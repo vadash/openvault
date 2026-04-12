@@ -361,22 +361,21 @@ async function handleExtractAll() {
         onComplete: updateEventListeners,
         onStart: (batchCount) => {
             setStatus('extracting');
-            toastr?.info(`Backfill: 0/${batchCount} batches (0%)`, 'OpenVault - Extracting', {
+            toastr?.info(`Backfill: 0% (~${batchCount} batches estimated)`, 'OpenVault - Extracting', {
                 timeOut: 0,
                 extendedTimeOut: 0,
                 tapToDismiss: false,
                 toastClass: 'toast openvault-backfill-toast',
             });
         },
-        onProgress: (batchNum, totalBatches, _eventsCreated, retryText) => {
-            const progress = Math.round((batchNum / totalBatches) * 100);
+        onProgress: (batchNum, totalBatches, progressPercent, _eventsCreated, retryText) => {
             $('.openvault-backfill-toast .toast-message').text(
-                `Backfill: ${batchNum}/${totalBatches} batches (${Math.min(progress, 100)}%) - Processing...${retryText}`
+                `Backfill: ${progressPercent}% (${batchNum}/~${totalBatches} batches) - Processing...${retryText}`
             );
         },
-        onBatchRetryWait: (batchNum, totalBatches, backoffSeconds, retryCount) => {
+        onBatchRetryWait: (batchNum, _totalBatches, backoffSeconds, retryCount) => {
             $('.openvault-backfill-toast .toast-message').text(
-                `Backfill: ${batchNum}/${totalBatches} batches - Waiting ${backoffSeconds}s before retry ${retryCount}...`
+                `Backfill: batch ${batchNum} - Waiting ${backoffSeconds}s before retry ${retryCount}...`
             );
         },
         onPhase2Start: () => {

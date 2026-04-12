@@ -1233,6 +1233,7 @@ export async function extractAllMessages(optionsOrCallback) {
     let currentBatch = null;
     let retryCount = 0;
     let cumulativeBackoffMs = 0;
+    let remainingUnextracted = initialMessageIds.length;
 
     while (true) {
         // v6: Check abort signal at start of loop
@@ -1264,6 +1265,8 @@ export async function extractAllMessages(optionsOrCallback) {
                 isEmergencyCut // Bypass token budget check for Emergency Cut
             );
 
+            remainingUnextracted = freshIds.length;
+
             logDebug(
                 `Backfill check: ${freshIds.length} unextracted messages available, ${remainingBatches} complete batches remaining`
             );
@@ -1283,20 +1286,27 @@ export async function extractAllMessages(optionsOrCallback) {
         }
 
         // Update progress (toast for normal, callback for Emergency Cut)
-        const _progress = Math.round((batchesProcessed / initialBatchCount) * 100);
+        // Adaptive estimate: use actual throughput to predict remaining work
+        const estimatedTotal = messagesProcessed + remainingUnextracted;
+        const progressPercent =
+            estimatedTotal > 0 ? Math.min(Math.round((messagesProcessed / estimatedTotal) * 100), 100) : 0;
+        const avgPerBatch = batchesProcessed > 0 ? messagesProcessed / batchesProcessed : 0;
+        const estimatedBatchesLeft = avgPerBatch > 0 ? Math.ceil(remainingUnextracted / avgPerBatch) : 0;
+        const estimatedTotalBatches = batchesProcessed + estimatedBatchesLeft;
+
         const retryText =
             retryCount > 0
                 ? ` (retry ${retryCount}, backoff ${Math.round(cumulativeBackoffMs / 1000)}s/${Math.round(MAX_BACKOFF_TOTAL_MS / 1000)}s)`
                 : '';
 
         if (!isEmergencyCut) {
-            onProgress?.(batchesProcessed, initialBatchCount, totalEvents, retryText);
+            onProgress?.(batchesProcessed, estimatedTotalBatches, progressPercent, totalEvents, retryText);
         } else if (progressCallback) {
             progressCallback(batchesProcessed + 1, initialBatchCount, totalEvents);
         }
 
         try {
-            logDebug(`Processing batch ${batchesProcessed + 1}/${initialBatchCount}${retryText}...`);
+            logDebug(`Processing batch ${batchesProcessed + 1}/~${estimatedTotalBatches}${retryText}...`);
             const result = await extractMemories(currentBatch, targetChatId, {
                 isBackfill: true,
                 silent: true,
