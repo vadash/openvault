@@ -21,7 +21,8 @@ export const EXECUTION_TRIGGER = `OUTPUT FORMAT:
 Step 1: Write concise draft notes inside <think/> tags. Limit each step to 8 words max.
 Step 2: You MUST close the reasoning block with exactly </think>.
 Step 3: Output ONLY a single raw JSON object immediately after the closing tag.
-CRITICAL: Do NOT put the JSON inside the think tags. The JSON must follow AFTER think`;
+CRITICAL: Do NOT put the JSON inside the think tags. The JSON must follow AFTER think.
+CRITICAL: You MUST output the JSON object even if it is empty. Never stop generating after </think>`;
 
 // =============================================================================
 // LANGUAGE RESOLUTION
