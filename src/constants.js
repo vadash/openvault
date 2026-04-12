@@ -61,6 +61,7 @@ export const defaultSettings = {
     // Extraction settings
     extractionTokenBudget: 8000, // Token threshold for extraction batches
     extractionRearviewTokens: 6000, // Token budget for extraction memory context
+    extractionMaxTurns: 30, // Max conversation turns per extraction batch
     // Retrieval pipeline settings (token-based)
     retrievalFinalTokens: 10000, // Final context budget
     // Auto-hide settings
@@ -241,6 +242,7 @@ export const NON_GROUNDED_BOOST_RATIO = 0.4;
 export const UI_DEFAULT_HINTS = {
     // Extraction
     extractionTokenBudget: defaultSettings.extractionTokenBudget,
+    extractionMaxTurns: defaultSettings.extractionMaxTurns,
 
     // Context budget
     retrievalFinalTokens: defaultSettings.retrievalFinalTokens,

@@ -65,6 +65,30 @@ export function getTokenSum(chat, indices) {
 }
 
 /**
+ * Count complete User+Bot turns in a list of message IDs.
+ * Skips system messages. A turn is counted each time a Bot message (non-user, non-system)
+ * is encountered in the filtered sequence.
+ * @param {Array<{is_user?: boolean; is_system?: boolean}>} chat - Full chat array
+ * @param {number[]} messageIds - Ordered message indices to count turns in
+ * @returns {number} Number of complete turns
+ */
+export function countTurns(chat, messageIds) {
+    let turns = 0;
+    let seenUser = false;
+    for (const id of messageIds) {
+        const msg = chat[id];
+        if (!msg || msg.is_system) continue;
+        if (msg.is_user) {
+            seenUser = true;
+        } else if (seenUser) {
+            turns++;
+            seenUser = false;
+        }
+    }
+    return turns;
+}
+
+/**
  * Snap a message index list to a valid turn boundary.
  * A split is valid when the last message is from Bot and the next message is from User,
  * or at end-of-chat. This prevents orphaning User messages from their Bot responses.
