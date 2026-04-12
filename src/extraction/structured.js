@@ -391,6 +391,13 @@ export function getUnifiedReflectionJsonSchema() {
  * @returns {Object} Validated unified reflection with reflections array
  */
 export function parseUnifiedReflectionResponse(content) {
+    // Handle lazy exits: strip thinking tags and check for empty output
+    const stripped = stripThinkingTags(content);
+    if (stripped.trim().length === 0) {
+        logWarn('LLM returned only thinking tags or whitespace, returning empty reflections');
+        return { reflections: [] };
+    }
+
     const result = parseStructuredResponse(content, UnifiedReflectionSchema);
     return {
         reflections: result.reflections.map((r) => ({
