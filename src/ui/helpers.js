@@ -220,12 +220,12 @@ export function getBatchProgressInfo(stats) {
  * Validate and clamp RPM value
  * @param {*} value - Input value
  * @param {number} defaultValue - Default if invalid
- * @returns {number} Clamped value between 1-600
+ * @returns {number} Clamped value between 1-30
  */
-export function validateRPM(value, defaultValue = 30) {
+export function validateRPM(value, defaultValue = 10) {
     const parsed = parseInt(value, 10);
     const num = Number.isNaN(parsed) ? defaultValue : parsed;
-    return Math.max(1, Math.min(600, num));
+    return Math.max(1, Math.min(30, num));
 }
 
 /**

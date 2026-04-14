@@ -671,11 +671,12 @@ function bindUIElements() {
     bindSetting('entity_boost', 'entityBoostWeight', 'float');
 
     // Backfill settings
-    $('#openvault_backfill_rpm').on('change', function () {
+    $('#openvault_backfill_rpm').on('input', function () {
         let value = $(this).val();
-        value = validateRPM(value, 30);
+        value = validateRPM(value, 10);
         setSetting('backfillMaxRPM', value);
         $(this).val(value);
+        $('#openvault_backfill_rpm_value').text(value);
     });
 
     // Concurrency settings
@@ -984,6 +985,7 @@ export function updateUI() {
 
     // Backfill settings
     $('#openvault_backfill_rpm').val(settings.backfillMaxRPM);
+    $('#openvault_backfill_rpm_value').text(settings.backfillMaxRPM);
 
     // Embedding settings
     $('#openvault_embedding_source').val(settings.embeddingSource);

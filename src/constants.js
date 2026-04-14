@@ -68,7 +68,7 @@ export const defaultSettings = {
     autoHideEnabled: true,
     visibleChatBudget: 16000, // Maximum tokens visible in chat history
     // Backfill settings
-    backfillMaxRPM: 20,
+    backfillMaxRPM: 10,
     // Concurrency settings (Phase 2 parallelism)
     maxConcurrency: 1, // Default to 1 to protect local/VRAM-bound LLM users
     // Embedding settings (Local RAG)
