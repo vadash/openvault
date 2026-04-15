@@ -153,5 +153,11 @@ jQuery(() => {
         updateEventListeners();
         setStatus('ready');
         logInfo('Extension initialized successfully');
+
+        // Pre-load embedding model in background so status shows ready immediately
+        import('./src/embeddings.js').then(({ getEmbeddingStatus, getQueryEmbedding }) => {
+            // Trigger lazy load with a test query (fire-and-forget)
+            getQueryEmbedding('_preload_check_').catch(() => {});
+        }).catch(() => {});
     });
 });
