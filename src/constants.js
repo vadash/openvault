@@ -124,6 +124,7 @@ export const defaultSettings = {
         memory: { position: 1, depth: 4 },
         world: { position: 1, depth: 4 },
     },
+    postHistoryPrompt: '',
 };
 
 // Embedding prefix defaults per model

@@ -115,7 +115,16 @@ async function runWorkerLoop() {
             logDebug(`Worker: Processing batch [${batch[0]}..${batch[batch.length - 1]}]`);
 
             try {
-                await extractMemories(batch, targetChatId, { silent: true });
+                const result = await extractMemories(batch, targetChatId, { silent: true });
+
+                if (result?.status === 'no_events_retry') {
+                    logDebug(
+                        `Worker: LLM returned 0 events (attempt ${result.attempt}/${result.max_attempts}), retrying batch after 3s`
+                    );
+                    await interruptibleSleep(3000, lastSeenGeneration);
+                    continue;
+                }
+
                 retryCount = 0;
                 cumulativeBackoffMs = 0;
                 refreshAllUI();
