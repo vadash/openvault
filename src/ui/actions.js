@@ -11,7 +11,8 @@ import { getEmbeddingStatus, getStrategy, isEmbeddingsEnabled, testOllamaConnect
 import { updateEventListeners } from '../events.js';
 import { setSetting } from '../settings.js';
 import { deleteCurrentChatData, getOpenVaultData, saveOpenVaultData } from '../store/chat-data.js';
-import { logError, logWarn, showToast } from '../utils/dom.js';
+import { showToast } from '../utils/dom.js';
+import { logError, logWarn } from '../utils/logging.js';
 import { refreshAllUI } from './render.js';
 import { updateUI } from './settings.js';
 import { setStatus, updateEmbeddingStatusDisplay } from './status.js';

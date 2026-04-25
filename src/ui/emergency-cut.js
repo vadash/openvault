@@ -6,7 +6,8 @@
  */
 
 import { executeEmergencyCut } from '../extraction/extract.js';
-import { logError, showToast } from '../utils/dom.js';
+import { showToast } from '../utils/dom.js';
+import { logError } from '../utils/logging.js';
 import { refreshAllUI } from './render.js';
 
 let emergencyCutModalAppended = false;
