@@ -67,7 +67,7 @@ describe('Emergency Cut Modal Helpers', () => {
 
     describe('showEmergencyCutModal', () => {
         it('appends modal to body and removes hidden class', async () => {
-            const { showEmergencyCutModal } = await import('../../src/ui/settings.js');
+            const { showEmergencyCutModal } = await import('../../src/ui/emergency-cut.js');
 
             showEmergencyCutModal();
 
@@ -82,7 +82,7 @@ describe('Emergency Cut Modal Helpers', () => {
 
     describe('hideEmergencyCutModal', () => {
         it('adds hidden class to modal', async () => {
-            const { showEmergencyCutModal, hideEmergencyCutModal } = await import('../../src/ui/settings.js');
+            const { showEmergencyCutModal, hideEmergencyCutModal } = await import('../../src/ui/emergency-cut.js');
 
             showEmergencyCutModal();
             hideEmergencyCutModal();

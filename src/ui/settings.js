@@ -3,12 +3,14 @@
  *
  * Handles loading settings, binding UI elements, and updating the interface.
  * Refactored to use raw jQuery instead of bindings.js abstraction.
- * Action handlers inlined from actions.js.
+ *
+ * Action handlers moved to actions.js.
+ * Emergency cut modal moved to emergency-cut.js.
+ * Prefill selector moved to prefill-selector.js.
  */
 
 import {
     defaultSettings,
-    embeddingModelPrefixes,
     extensionFolderPath,
     extensionName,
     PAYLOAD_CALC,
@@ -17,182 +19,32 @@ import {
     UI_DEFAULT_HINTS,
 } from '../constants.js';
 import { getDeps } from '../deps.js';
-import {
-    getEmbeddingStatus,
-    getStrategy,
-    isEmbeddingsEnabled,
-    setEmbeddingStatusCallback,
-    testOllamaConnection,
-} from '../embeddings.js';
+import { getEmbeddingStatus, setEmbeddingStatusCallback } from '../embeddings.js';
 import { updateEventListeners } from '../events.js';
-import { executeEmergencyCut } from '../extraction/extract.js';
 import { formatForClipboard, getAll as getPerfData } from '../perf/store.js';
 import { getSettings, setSetting } from '../settings.js';
-import { logError, logInfo, logWarn } from '../utils/logging.js';
+import { getOpenVaultData } from '../store/chat-data.js';
+import { showToast } from '../utils/dom.js';
+import { logInfo, logWarn } from '../utils/logging.js';
+// Action handlers
+import {
+    backfillEmbeddings,
+    handleDeleteChatData,
+    handleEmbeddingSourceChange,
+    handleExtractAll,
+    handleOllamaTestClick,
+    handleResetSettings,
+} from './actions.js';
+import { handleEmergencyCutClick } from './emergency-cut.js';
 import { exportToClipboard } from './export-debug.js';
 import { validateRPM } from './helpers.js';
+import { initPrefillSelector, syncPrefillSelector } from './prefill-selector.js';
 import { initBrowser, refreshAllUI, resetAndRender } from './render.js';
-import { setStatus, updateEmbeddingStatusDisplay } from './status.js';
+import { updateEmbeddingStatusDisplay } from './status.js';
 
-// =============================================================================
-// Emergency Cut Modal Helpers
-// =============================================================================
-
-let emergencyCutModalAppended = false;
-let emergencyCutAbortController = null;
-
-/**
- * Show the Emergency Cut progress modal.
- * Appends to body to avoid stacking context issues with ST's extension panel.
- */
-export function showEmergencyCutModal() {
-    const $modal = $('#openvault_emergency_cut_modal');
-    if (!emergencyCutModalAppended) {
-        $modal.appendTo('body');
-        emergencyCutModalAppended = true;
-    }
-    $modal.removeClass('hidden');
-
-    // Keyboard trap with modal accessibility
-    $(document).on('keydown.emergencyCut', (e) => {
-        // Escape - always check first (handles focus loss on overlay click)
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            const $cancelBtn = $('#openvault_emergency_cancel');
-            if (!$cancelBtn.prop('disabled')) {
-                $cancelBtn.click();
-            }
-            return;
-        }
-
-        // Allow Tab/Enter inside modal
-        if ($(e.target).closest('#openvault_emergency_cut_modal').length) {
-            return;
-        }
-
-        // Block ST hotkeys outside
-        e.preventDefault();
-        e.stopPropagation();
-    });
-
-    // Bind cancel button click to abort controller
-    $('#openvault_emergency_cancel')
-        .off('click')
-        .on('click', () => {
-            if (emergencyCutAbortController) {
-                emergencyCutAbortController.abort();
-            }
-        });
-}
-
-/**
- * Hide the Emergency Cut progress modal.
- */
-export function hideEmergencyCutModal() {
-    $('#openvault_emergency_cut_modal').addClass('hidden');
-    $(document).off('keydown.emergencyCut');
-    $('#openvault_emergency_cancel').off('click');
-}
-
-/**
- * Update progress display during Emergency Cut.
- * @param {number} batchNum - Current batch number (1-indexed)
- * @param {number} totalBatches - Total number of batches
- * @param {number} eventsCreated - Number of memories created so far
- */
-export function updateEmergencyCutProgress(batchNum, totalBatches, eventsCreated) {
-    const progress = Math.round((batchNum / totalBatches) * 100);
-    $('#openvault_emergency_fill').css('width', `${progress}%`);
-    $('#openvault_emergency_label').text(`Batch ${batchNum}/${totalBatches} - ${eventsCreated} memories created`);
-}
-
-/**
- * Disable the cancel button when entering Phase 2 (uncancellable).
- */
-export function disableEmergencyCutCancel() {
-    $('#openvault_emergency_cancel').prop('disabled', true).text('Synthesizing...');
-    $('#openvault_emergency_phase').text('Running final synthesis...');
-}
-
-/**
- * Handle Emergency Cut button click — thin UI wrapper around domain function.
- */
-async function handleEmergencyCutClick() {
-    emergencyCutAbortController = new AbortController();
-
-    await executeEmergencyCut({
-        onWarning: (msg) => showToast('warning', msg),
-        onConfirmPrompt: (msg) => confirm(msg),
-        onStart: () => {
-            $('#send_textarea').prop('disabled', true);
-            showEmergencyCutModal();
-        },
-        onProgress: (batch, total, events) => updateEmergencyCutProgress(batch, total, events),
-        onPhase2Start: () => disableEmergencyCutCancel(),
-        onComplete: ({ messagesProcessed, eventsCreated, hiddenCount }) => {
-            if (messagesProcessed > 0) {
-                showToast(
-                    'success',
-                    `Emergency Cut complete. ${messagesProcessed} messages processed, ` +
-                        `${eventsCreated} memories created. Chat history hidden.`
-                );
-            } else {
-                showToast('success', `Emergency Cut complete. ${hiddenCount} messages hidden from context.`);
-            }
-            $('#send_textarea').prop('disabled', false);
-            hideEmergencyCutModal();
-            emergencyCutAbortController = null;
-            refreshAllUI();
-        },
-        onError: (err, isCancel) => {
-            const message = isCancel
-                ? 'Emergency Cut cancelled. No messages were hidden.'
-                : `Emergency Cut failed: ${err.message}. No messages were hidden.`;
-            showToast(isCancel ? 'info' : 'error', message);
-            logError('Emergency Cut failed', err);
-            $('#send_textarea').prop('disabled', false);
-            hideEmergencyCutModal();
-            emergencyCutAbortController = null;
-        },
-        abortSignal: emergencyCutAbortController.signal,
-    });
-}
-
-/**
- * Handle Ollama test button click — thin UI wrapper around domain function.
- */
-async function handleOllamaTestClick() {
-    const $btn = $('#openvault_test_ollama_btn');
-    const url = $('#openvault_ollama_url').val().trim();
-
-    if (!url) {
-        $btn.removeClass('success').addClass('error');
-        $btn.html('<i class="fa-solid fa-xmark"></i> No URL');
-        return;
-    }
-
-    $btn.removeClass('success error');
-    $btn.html('<i class="fa-solid fa-spinner fa-spin"></i> Testing...');
-
-    try {
-        await testOllamaConnection(url);
-        $btn.removeClass('error').addClass('success');
-        $btn.html('<i class="fa-solid fa-check"></i> Connected');
-    } catch (err) {
-        $btn.removeClass('success').addClass('error');
-        $btn.html('<i class="fa-solid fa-xmark"></i> Failed');
-        logError('Ollama test failed', err);
-    }
-
-    setTimeout(() => {
-        $btn.removeClass('success error');
-        $btn.html('<i class="fa-solid fa-plug"></i> Test');
-    }, 3000);
-}
-
-import { PREFILL_PRESETS } from '../prompts/index.js';
-import { deleteCurrentChatData, getOpenVaultData } from '../store/chat-data.js';
-import { showToast } from '../utils/dom.js';
+export { handleResetSettings } from './actions.js';
+// Re-export for backward compatibility
+export { hideEmergencyCutModal, showEmergencyCutModal } from './emergency-cut.js';
 
 // =============================================================================
 // Helper Functions (inlined from bindings.js)
@@ -253,272 +105,6 @@ export function updatePayloadCalculator() {
     } else {
         $warning.text(`Ensure your Extraction Profile supports at least ${Math.ceil(total / 1000)}k context.`);
     }
-}
-
-// =============================================================================
-// Prefill Selector (custom dropdown with hover preview)
-// =============================================================================
-
-function initPrefillSelector() {
-    const $container = $('#openvault_prefill_selector');
-    if (!$container.length) return;
-
-    const settings = getSettings();
-    const currentKey = settings.extractionPrefill || 'pure_think';
-    const currentPreset = PREFILL_PRESETS[currentKey] || PREFILL_PRESETS.pure_think;
-
-    // Trigger button
-    const $trigger = $('<div class="openvault-prefill-trigger" tabindex="0"></div>').text(currentPreset.label);
-
-    // Dropdown panel
-    const $dropdown = $('<div class="openvault-prefill-dropdown"></div>');
-    const $options = $('<div class="openvault-prefill-options"></div>');
-    const $preview = $('<div class="openvault-prefill-preview"></div>');
-    const $previewLabel = $('<div class="openvault-prefill-preview-label">Preview</div>');
-    const $previewCode = $('<pre></pre>');
-    $preview.append($previewLabel, $previewCode);
-
-    renderPrefillPreview($previewCode, currentPreset.value);
-
-    for (const [key, preset] of Object.entries(PREFILL_PRESETS)) {
-        const $opt = $('<div class="openvault-prefill-option"></div>').attr('data-value', key).text(preset.label);
-
-        if (key === currentKey) $opt.addClass('selected');
-
-        $opt.on('mouseenter', () => renderPrefillPreview($previewCode, preset.value));
-
-        $opt.on('click', () => {
-            setSetting('extractionPrefill', key);
-            $trigger.text(preset.label);
-            $options.find('.selected').removeClass('selected');
-            $opt.addClass('selected');
-            $container.removeClass('open');
-            renderPrefillPreview($previewCode, preset.value);
-        });
-
-        $options.append($opt);
-    }
-
-    // Revert preview when mouse leaves options area
-    $options.on('mouseleave', () => {
-        const selKey = $options.find('.selected').data('value');
-        renderPrefillPreview($previewCode, PREFILL_PRESETS[selKey]?.value);
-    });
-
-    $dropdown.append($options, $preview);
-    $container.append($trigger, $dropdown);
-
-    // Toggle dropdown
-    $trigger.on('click', (e) => {
-        e.stopPropagation();
-        $container.toggleClass('open');
-    });
-
-    // Close on outside click
-    $(document).on('click.prefillSelector', (e) => {
-        if (!$container[0].contains(e.target)) {
-            $container.removeClass('open');
-        }
-    });
-
-    // Close on Escape
-    $(document).on('keydown.prefillSelector', (e) => {
-        if (e.key === 'Escape' && $container.hasClass('open')) {
-            $container.removeClass('open');
-            $trigger.trigger('focus');
-        }
-    });
-}
-
-function renderPrefillPreview($pre, value) {
-    if (value === '' || value === undefined) {
-        $pre.html('<span class="openvault-prefill-preview-empty">(empty — no prefill)</span>');
-    } else {
-        $pre.text(value);
-    }
-}
-
-function syncPrefillSelector() {
-    const settings = getSettings();
-    const key = settings.extractionPrefill || 'pure_think';
-    const preset = PREFILL_PRESETS[key];
-    if (!preset) return;
-
-    const $container = $('#openvault_prefill_selector');
-    $container.find('.openvault-prefill-trigger').text(preset.label);
-    $container.find('.openvault-prefill-option').removeClass('selected');
-    $container.find(`.openvault-prefill-option[data-value="${key}"]`).addClass('selected');
-    renderPrefillPreview($container.find('.openvault-prefill-preview pre'), preset.value);
-}
-
-// =============================================================================
-// Action Handlers (inlined from actions.js)
-// =============================================================================
-
-async function handleExtractAll() {
-    const { extractAllMessages } = await import('../extraction/extract.js');
-    await extractAllMessages({
-        onComplete: updateEventListeners,
-        onStart: (batchCount) => {
-            setStatus('extracting');
-            toastr?.info(`Backfill: 0% (~${batchCount} batches estimated)`, 'OpenVault - Extracting', {
-                timeOut: 0,
-                extendedTimeOut: 0,
-                tapToDismiss: false,
-                toastClass: 'toast openvault-backfill-toast',
-            });
-        },
-        onProgress: (batchNum, totalBatches, progressPercent, _eventsCreated, retryText) => {
-            $('.openvault-backfill-toast .toast-message').text(
-                `Backfill: ${progressPercent}% (${batchNum}/~${totalBatches} batches) - Processing...${retryText}`
-            );
-        },
-        onBatchRetryWait: (batchNum, _totalBatches, backoffSeconds, retryCount) => {
-            $('.openvault-backfill-toast .toast-message').text(
-                `Backfill: batch ${batchNum} - Waiting ${backoffSeconds}s before retry ${retryCount}...`
-            );
-        },
-        onPhase2Start: () => {
-            $('.openvault-backfill-toast .toast-message').text(
-                'Backfill: 100% - Synthesizing world state and reflections. This may take a minute...'
-            );
-        },
-        onFinish: ({ messagesProcessed, eventsCreated }) => {
-            $('.openvault-backfill-toast').remove();
-            showToast('success', `Extracted ${eventsCreated} events from ${messagesProcessed} messages`);
-            refreshAllUI();
-            setStatus('ready');
-        },
-        onAbort: () => {
-            $('.openvault-backfill-toast').remove();
-            showToast('warning', 'Backfill aborted: chat changed', 'OpenVault');
-            setStatus('ready');
-        },
-        onError: (error) => {
-            $('.openvault-backfill-toast').remove();
-            showToast('warning', error.message, 'OpenVault');
-            setStatus('ready');
-        },
-    });
-}
-
-async function handleDeleteChatData() {
-    if (!confirm('Are you sure you want to delete all OpenVault data for this chat?')) {
-        return;
-    }
-
-    const deleted = await deleteCurrentChatData();
-    if (deleted) {
-        showToast('success', 'Chat memories deleted');
-        refreshAllUI();
-    }
-}
-
-// Define keys that should be preserved during settings reset
-const PRESERVED_KEYS = [
-    'extractionProfile',
-    'backupProfile',
-    'preambleLanguage',
-    'outputLanguage',
-    'extractionPrefill',
-    'embeddingSource',
-    'ollamaUrl',
-    'embeddingModel',
-    'embeddingQueryPrefix',
-    'embeddingDocPrefix',
-    'maxConcurrency',
-    'backfillMaxRPM',
-    'debugMode',
-    'requestLogging',
-];
-
-// Define fine-tune keys that should be reset to defaults
-const RESETTABLE_KEYS = [
-    'extractionTokenBudget',
-    'extractionMaxTurns',
-    'extractionRearviewTokens',
-    'retrievalFinalTokens',
-    'visibleChatBudget',
-    'worldContextBudget',
-    'reflectionThreshold',
-    'maxInsightsPerReflection',
-    'maxReflectionsPerCharacter',
-    'alpha',
-    'forgetfulnessBaseLambda',
-    'vectorSimilarityThreshold',
-    'dedupSimilarityThreshold',
-    'dedupJaccardThreshold',
-    'autoHideEnabled',
-    'entityWindowSize',
-    'embeddingWindowSize',
-    'topEntitiesCount',
-    'entityBoostWeight',
-    'communityDetectionInterval',
-];
-
-export async function handleResetSettings() {
-    if (
-        !confirm(
-            'Restore default math and threshold values? Your connection profiles and chat data will not be affected.'
-        )
-    ) {
-        return;
-    }
-
-    const extension_settings = getDeps().getExtensionSettings();
-    const currentSettings = extension_settings[extensionName] || {};
-
-    // Save preserved values
-    const preserved = {};
-    for (const key of PRESERVED_KEYS) {
-        if (key in currentSettings) {
-            preserved[key] = currentSettings[key];
-        }
-    }
-
-    // Reset each fine-tune setting to default
-    for (const key of RESETTABLE_KEYS) {
-        if (key in defaultSettings) {
-            setSetting(key, defaultSettings[key]);
-        }
-    }
-
-    // Restore preserved values
-    Object.assign(extension_settings[extensionName], preserved);
-
-    // Always enable debug after reset
-    extension_settings[extensionName].debugMode = true;
-
-    // Save
-    getDeps().saveSettingsDebounced();
-
-    // Update UI
-    updateUI();
-
-    showToast('success', 'Fine-tune values restored to defaults. Connection settings preserved.');
-}
-
-async function backfillEmbeddings() {
-    if (!isEmbeddingsEnabled()) {
-        showToast('warning', 'Configure Ollama URL and embedding model first');
-        return;
-    }
-
-    const { backfillAllEmbeddings } = await import('../embeddings.js');
-    const result = await backfillAllEmbeddings();
-
-    if (result.total > 0) {
-        showToast(
-            'success',
-            `Generated ${result.total} embeddings (${result.memories}m, ${result.nodes}n, ${result.communities}c)`
-        );
-    } else if (result.skipped) {
-        showToast('info', 'All items already have embeddings');
-    } else {
-        showToast('warning', 'No embeddings generated - check connection');
-    }
-
-    refreshAllUI();
 }
 
 // =============================================================================
@@ -700,56 +286,7 @@ function bindUIElements() {
     });
 
     $('#openvault_embedding_source').on('change', async function () {
-        const value = $(this).val();
-
-        // Reset old strategy before switching to prevent VRAM leak
-        try {
-            const currentSettings = getDeps().getExtensionSettings();
-            const oldSource = currentSettings?.[extensionName]?.embeddingSource;
-
-            if (oldSource && oldSource !== value) {
-                const oldStrategy = getStrategy(oldSource);
-                if (oldStrategy && typeof oldStrategy.reset === 'function') {
-                    await oldStrategy.reset();
-                }
-            }
-        } catch (err) {
-            logWarn('Failed to reset old embedding strategy: ' + err.message);
-        }
-
-        // Persist the model selection
-        setSetting('embeddingSource', value);
-
-        // Auto-populate prefix fields from model defaults
-        const prefixes = embeddingModelPrefixes[value] || embeddingModelPrefixes._default;
-        setSetting('embeddingQueryPrefix', prefixes.queryPrefix);
-        setSetting('embeddingDocPrefix', prefixes.docPrefix);
-        $('#openvault_embedding_query_prefix').val(prefixes.queryPrefix);
-        $('#openvault_embedding_doc_prefix').val(prefixes.docPrefix);
-
-        // Invalidate stale embeddings if model changed
-        const data = getOpenVaultData();
-        if (data) {
-            const { invalidateStaleEmbeddings } = await import('../embeddings/migration.js');
-            const { saveOpenVaultData } = await import('../store/chat-data.js');
-            const wiped = await invalidateStaleEmbeddings(data, value);
-            if (wiped > 0) {
-                await saveOpenVaultData();
-                showToast('info', `Embedding model changed. Re-embedding ${wiped} vectors in background.`);
-                // Auto-trigger comprehensive re-embedding in background
-                import('../embeddings.js')
-                    .then(({ backfillAllEmbeddings }) => {
-                        backfillAllEmbeddings({ silent: true })
-                            .then(() => refreshAllUI())
-                            .catch(() => {});
-                    })
-                    .catch(() => {});
-                refreshAllUI();
-            }
-        }
-
-        $('#openvault_ollama_settings').toggle(value === 'ollama');
-        updateEmbeddingStatusDisplay(getEmbeddingStatus());
+        await handleEmbeddingSourceChange($(this).val());
     });
 
     // Profile selectors

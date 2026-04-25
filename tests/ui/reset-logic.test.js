@@ -77,7 +77,7 @@ describe('handleResetSettings', () => {
     });
 
     it('preserves connection settings on reset', async () => {
-        const { handleResetSettings } = await import('../../src/ui/settings.js');
+        const { handleResetSettings } = await import('../../src/ui/actions.js');
         await handleResetSettings();
 
         const settings = mockExtensionSettings.openvault;
@@ -97,7 +97,7 @@ describe('handleResetSettings', () => {
     });
 
     it('resets fine-tune settings to defaults', async () => {
-        const { handleResetSettings } = await import('../../src/ui/settings.js');
+        const { handleResetSettings } = await import('../../src/ui/actions.js');
         await handleResetSettings();
 
         const settings = mockExtensionSettings.openvault;
@@ -115,7 +115,7 @@ describe('handleResetSettings', () => {
     });
 
     it('enables debug mode after reset', async () => {
-        const { handleResetSettings } = await import('../../src/ui/settings.js');
+        const { handleResetSettings } = await import('../../src/ui/actions.js');
         await handleResetSettings();
 
         expect(mockExtensionSettings.openvault.debugMode).toBe(true);
@@ -123,7 +123,7 @@ describe('handleResetSettings', () => {
 
     it('returns early if user cancels confirmation', async () => {
         global.confirm.mockReturnValue(false);
-        const { handleResetSettings } = await import('../../src/ui/settings.js');
+        const { handleResetSettings } = await import('../../src/ui/actions.js');
 
         await handleResetSettings();
 
