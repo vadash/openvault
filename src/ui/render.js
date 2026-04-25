@@ -27,6 +27,18 @@ export {
     renderEntityList,
     renderWorldTab,
 } from './entity-browser.js';
+
+// Import memory browser functions (needed for backward compatibility aliases)
+import {
+    bindMemoryListEvents,
+    nextPage,
+    populateFilter,
+    prevPage,
+    renderMemoryList,
+    resetAndRender,
+    resetMemoryBrowserPage,
+} from './memory-browser.js';
+
 // Re-export memory browser functions
 export {
     bindMemoryListEvents,
@@ -36,7 +48,7 @@ export {
     renderMemoryList,
     resetAndRender,
     resetMemoryBrowserPage,
-} from './memory-browser.js';
+};
 
 // =============================================================================
 // Browser Orchestration Layer

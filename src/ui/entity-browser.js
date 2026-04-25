@@ -487,4 +487,4 @@ export function bindEntityBrowserEvents() {
     });
 }
 
-export { initEntityEventBindings, renderEntityList, renderWorldTab, bindEntityBrowserEvents };
+export { initEntityEventBindings, renderEntityList, renderWorldTab };
