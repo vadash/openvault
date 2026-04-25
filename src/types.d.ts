@@ -408,7 +408,10 @@ export type IDFCache = {
 
 export type ExtractionContextParams = {
     messagesText: string;
-    names: string[];
+    names: {
+        char: string;
+        user: string;
+    };
     charDesc: string;
     personaDesc: string;
     preamble: string;

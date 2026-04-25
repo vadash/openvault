@@ -42,7 +42,7 @@ vi.mock('../../src/reflection/reflect.js', async (importOriginal) => {
     };
 });
 
-import { synthesizeReflections } from '../../src/extraction/extract.js';
+import { synthesizeReflections } from '../../src/extraction/stages/enrichment.js';
 import { generateReflections } from '../../src/reflection/reflect.js';
 
 // ── Settings defaults ──
