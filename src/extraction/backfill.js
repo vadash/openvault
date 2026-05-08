@@ -9,6 +9,7 @@
 
 /** @typedef {import('../types').ExtractionOptions} ExtractionOptions */
 
+import { extensionName } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { deleteItemsFromST, isStVectorSource, syncItemsToST } from '../services/st-vector.js';
 import { isWorkerRunning, operationState } from '../state.js';
@@ -189,7 +190,7 @@ export async function extractAllMessages(optionsOrCallback) {
     } = opts;
 
     const deps = getDeps();
-    const settings = deps.getExtensionSettings()[require('../constants.js').extensionName];
+    const settings = deps.getExtensionSettings()[extensionName];
     const tokenBudget = settings?.extractionTokenBudget || 2000;
 
     // Get initial batch count for progress reporting
@@ -364,9 +365,4 @@ export async function extractAllMessages(optionsOrCallback) {
     }
 
     return { messagesProcessed, eventsCreated: totalEvents };
-}
-
-// Helper function to get extension name dynamically
-function _getExtensionName() {
-    return require('../constants.js').extensionName;
 }
