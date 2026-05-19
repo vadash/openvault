@@ -12,8 +12,6 @@ All extension state lives within SillyTavern's `context.chatMetadata.openvault`.
 {
   schema_version: number,      // Tracks migration state (Current: 2)
   embedding_model_id: string,  // Tracks which model generated stored embeddings
-  st_vector_source: string,    // ST Vector source used for last sync (e.g., 'openrouter')
-  st_vector_model: string,     // ST Vector model used for last sync
   
   memories: [{                 // Both events and reflections
     id: string, 
@@ -41,13 +39,13 @@ All extension state lives within SillyTavern's `context.chatMetadata.openvault`.
       [normKey: string]: { 
         name: string, type: "PERSON"|"PLACE"|"ORGANIZATION"|"OBJECT"|"CONCEPT", 
         description: string, mentions: number, aliases?: string[], 
-        embedding_b64: string, _st_synced?: boolean 
+        embedding_b64: string
       } 
     },
     edges: { 
       "src__tgt": { 
         source: string, target: string, description: string, weight: number, 
-        _descriptionTokens: number, _st_synced?: boolean 
+        _descriptionTokens: number
       } 
     },
     _edgesNeedingConsolidation: string[] // Edge keys pending LLM summarization
@@ -56,7 +54,7 @@ All extension state lives within SillyTavern's `context.chatMetadata.openvault`.
   communities: { 
     [communityId: string]: { 
       title: string, summary: string, findings: string[], nodeKeys: string[], 
-      embedding_b64: string, _st_synced?: boolean 
+      embedding_b64: string
     } 
   },
   
@@ -125,5 +123,5 @@ See `src/retrieval/CLAUDE.md` for score-first soft balancing (context budgeting)
 
 ## 5. EMBEDDING MISMATCH PROTECTION
 - **Trigger:** On `CHAT_CHANGED` and Settings Dropdown change.
-- **Logic:** Compares `embedding_model_id` (e.g., `multilingual-e5-small`) and ST Vector fingerprint (`source` + `model`) against current settings.
-- **Action:** If a mismatch is detected, `invalidateStaleEmbeddings()` bulk-wipes all `embedding_b64` and `_st_synced` flags across memories, nodes, and communities. Background worker auto-triggers `backfillAllEmbeddings({ silent: true })` to regenerate them.
+- **Logic:** Compares `embedding_model_id` (e.g., `multilingual-e5-small`) against current settings.
+- **Action:** If a mismatch is detected, `invalidateStaleEmbeddings()` bulk-wipes all `embedding_b64` across memories, nodes, and communities. Background worker auto-triggers `backfillAllEmbeddings({ silent: true })` to regenerate them.

@@ -267,12 +267,11 @@ async function selectFormatAndInject(memoriesToUse, data, ctx) {
             worldQueryEmbedding = await getQueryEmbedding(userMessages || ctx.recentContext?.slice(-500));
         }
         // Always call retrieveWorldContext - it handles macro intent detection
-        // even when embeddings are null (e.g., for st_vector source)
         const worldResult = retrieveWorldContext(
             worldCommunities,
             data.global_world_state || null,
             userMessages || '',
-            worldQueryEmbedding, // May be null for st_vector
+            worldQueryEmbedding, // May be null if embeddings disabled
             ctx.worldContextBudget,
             selectionResult.communityIds || null // ST Vector community IDs from scoring
         );

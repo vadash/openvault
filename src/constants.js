@@ -72,7 +72,7 @@ export const defaultSettings = {
     // Concurrency settings (Phase 2 parallelism)
     maxConcurrency: 1, // Default to 1 to protect local/VRAM-bound LLM users
     // Embedding settings (Local RAG)
-    embeddingSource: 'multilingual-e5-small', // model name, 'ollama', or 'st_vector'
+    embeddingSource: 'multilingual-e5-small', // model name or 'ollama'
     ollamaUrl: '',
     embeddingModel: '',
     embeddingQueryPrefix: '', // Empty by default — e5-small works best without prefixes

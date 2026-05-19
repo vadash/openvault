@@ -14,10 +14,6 @@ For event dedup thresholds see `src/extraction/CLAUDE.md`.
   - *Phase 1:* Reserve `minRepresentation` (20%) per chronological bucket (Old/Mid/Recent). Fill with highest-scoring memories from each.
   - *Phase 2:* Remaining 40% allocated purely by score regardless of bucket.
 
-### ST Vector Retrieval
-- **`selectRelevantMemoriesWithST` returns all item types.** Build lookup maps for memories, graph nodes (`graphNodes`), AND communities. Results include `communityIds` field for downstream world context injection.
-- **Community retrieval uses scoring-layer IDs in ST Vector mode.** `retrieveWorldContext` accepts `stCommunityIds` parameter — communities pre-selected by the scoring layer. Returns empty when no IDs provided (avoids duplicate local embedding computation).
-
 ### Scoring Safety
 - **Clamp at consumption, not storage.** `calculateScore()` applies `Math.min`/`Math.max` clamping at the top of the function as a runtime safety net. Don't rely solely on Zod constraints — settings can be corrupted or tampered with.
 - **Guard vector normalization denominators.** The formula `(vectorSimilarity - threshold) / (1 - threshold)` appears in 3 locations. All use `denominator = 1 - threshold; denominator > 0 ? ... : 0` to prevent division-by-zero when `threshold >= 1.0`.

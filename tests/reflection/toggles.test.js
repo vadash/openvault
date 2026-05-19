@@ -111,7 +111,6 @@ describe('synthesizeReflections with generation toggle', () => {
         // Mock generateReflections to return empty reflections
         generateReflections.mockResolvedValue({
             reflections: [],
-            stChanges: { toUpsert: [], toDelete: [] },
         });
 
         await synthesizeReflections(mockData, ['TestChar'], mockSettings);
@@ -329,7 +328,6 @@ describe('integration: reflection toggles', () => {
         // Mock generateReflections to return empty reflections
         generateReflections.mockResolvedValue({
             reflections: [],
-            stChanges: { toUpsert: [], toDelete: [] },
         });
 
         await synthesizeReflections(mockData, ['TestChar'], mockSettings);

@@ -33,4 +33,3 @@
 - **Always provide `saveChatConditional` in deps.** `setupTestContext({ deps: { saveChatConditional: vi.fn() } })` — updateEntity/deleteEntity call this.
 - **Reset graph data per test.** Set `data.graph = { nodes: {}, edges: {}, _mergeRedirects: {} }` in `beforeEach` to avoid cross-test leakage.
 - **Use `buildMockGraphNode()` for entity nodes.** Prefer the factory for consistency. Exception: merge/collision tests where inline objects make the specific field combinations under test more visible.
-- **Verify ST sync shapes.** When testing `stChanges`, assert on property types: `expect(result.stChanges.toDelete[0]).toHaveProperty('hash')` and `expect(typeof result.stChanges.toDelete[0].hash).toBe('number')`

@@ -416,6 +416,13 @@ describe('mergeOrInsertEntity', () => {
 });
 
 describe('cross-script merge', () => {
+    let graphData;
+    const mockSettings = { entityMergeSimilarityThreshold: 0.8 };
+
+    beforeEach(() => {
+        graphData = { nodes: {}, edges: {} };
+    });
+
     it.each([
         {
             desc: 'merges Cyrillic PERSON matching main character via transliteration',
@@ -450,7 +457,6 @@ describe('cross-script merge', () => {
             inputType: 'OBJECT',
             inputDesc: 'Some object named Сузи',
             expectedKey: 'сузи',
-            expectedSyncText: '[OV_ID:сузи] Some object named Сузи',
             expectedAlias: undefined,
             expectedRedirectSource: undefined,
             expectedRedirectTarget: undefined,
@@ -464,7 +470,6 @@ describe('cross-script merge', () => {
             inputType: 'PERSON',
             inputDesc: 'Some person',
             expectedKey: 'сузи',
-            expectedSyncText: '[OV_ID:сузи] Some person',
             expectedAlias: undefined,
             expectedRedirectSource: undefined,
             expectedRedirectTarget: undefined,
@@ -483,7 +488,6 @@ describe('cross-script merge', () => {
             inputType: 'PERSON',
             inputDesc: 'Подруга',
             expectedKey: 'mina',
-            expectedSyncText: '[OV_ID:mina] A friend | Подруга',
             expectedAlias: 'Мина',
             expectedRedirectSource: 'мина',
             expectedRedirectTarget: 'mina',
@@ -502,7 +506,6 @@ describe('cross-script merge', () => {
             inputType: 'PERSON',
             inputDesc: 'A friend',
             expectedKey: 'мина',
-            expectedSyncText: '[OV_ID:мина] Подруга | A friend',
             expectedAlias: 'Mina',
             expectedRedirectSource: 'mina',
             expectedRedirectTarget: 'мина',
@@ -521,7 +524,6 @@ describe('cross-script merge', () => {
             inputType: 'PERSON',
             inputDesc: 'Mother',
             expectedKey: 'мама',
-            expectedSyncText: '[OV_ID:мама] Mother',
             expectedAlias: undefined,
             expectedRedirectSource: undefined,
             expectedRedirectTarget: undefined,
@@ -544,7 +546,6 @@ describe('cross-script merge', () => {
             inputType: 'PERSON',
             inputDesc: 'Подруга',
             expectedKey: 'mina',
-            expectedSyncText: '[OV_ID:mina] A friend | Подруга',
             expectedAlias: 'Мина',
             expectedRedirectSource: 'мина',
             expectedRedirectTarget: 'mina',
@@ -563,7 +564,6 @@ describe('cross-script merge', () => {
             inputType: 'PERSON',
             inputDesc: 'Королева',
             expectedKey: 'elizabeth',
-            expectedSyncText: '[OV_ID:elizabeth] Queen | Королева',
             expectedAlias: 'Элизабет',
             expectedRedirectSource: 'элизабет',
             expectedRedirectTarget: 'elizabeth',
@@ -574,7 +574,6 @@ describe('cross-script merge', () => {
         inputType,
         inputDesc,
         expectedKey,
-        expectedSyncText,
         expectedAlias,
         expectedRedirectSource,
         expectedRedirectTarget,
@@ -582,14 +581,11 @@ describe('cross-script merge', () => {
     }) => {
         setup();
 
-        const { key, stChanges } = await mergeOrInsertEntity(graphData, inputName, inputType, inputDesc, 3, {
+        const { key } = await mergeOrInsertEntity(graphData, inputName, inputType, inputDesc, 3, {
             entityMergeSimilarityThreshold: 0.95,
         });
 
         expect(key).toBe(expectedKey);
-        expect(stChanges.toSync).toHaveLength(1);
-        expect(stChanges.toSync[0].text).toBe(expectedSyncText);
-        expect(stChanges.toDelete).toHaveLength(0);
 
         if (expectedAlias) {
             expect(graphData.nodes[key].aliases).toContain(expectedAlias);
@@ -639,33 +635,42 @@ describe('cross-script merge', () => {
     });
 });
 
-it('returns key when creating a new entity', async () => {
-    const { getDocumentEmbedding } = await import('../../src/embeddings.js');
-    getDocumentEmbedding.mockResolvedValue([0.5, 0.5, 0.5]);
+describe('mergeOrInsertEntity - return values', () => {
+    let graphData;
+    const mockSettings = { entityMergeSimilarityThreshold: 0.8 };
 
-    const { key } = await mergeOrInsertEntity(graphData, 'Dragon', 'PERSON', 'A fire beast', 3, mockSettings);
-    expect(key).toBe('dragon');
-});
+    beforeEach(() => {
+        graphData = { nodes: {}, edges: {} };
+    });
 
-it('returns key on fast path (exact key match)', async () => {
-    const { getDocumentEmbedding } = await import('../../src/embeddings.js');
-    getDocumentEmbedding.mockResolvedValue(null);
+    it('returns key when creating a new entity', async () => {
+        const { getDocumentEmbedding } = await import('../../src/embeddings.js');
+        getDocumentEmbedding.mockResolvedValue([0.5, 0.5, 0.5]);
 
-    upsertEntity(graphData, 'Castle', 'PLACE', 'A fortress');
-    const { key } = await mergeOrInsertEntity(graphData, 'castle', 'PLACE', 'Updated', 3, mockSettings);
-    expect(key).toBe('castle');
-});
+        const { key } = await mergeOrInsertEntity(graphData, 'Dragon', 'PERSON', 'A fire beast', 3, mockSettings);
+        expect(key).toBe('dragon');
+    });
 
-it('returns key on semantic merge path (existing node updated)', async () => {
-    const { getDocumentEmbedding } = await import('../../src/embeddings.js');
-    getDocumentEmbedding.mockResolvedValue([0.9, 0.1, 0]);
+    it('returns key on fast path (exact key match)', async () => {
+        const { getDocumentEmbedding } = await import('../../src/embeddings.js');
+        getDocumentEmbedding.mockResolvedValue(null);
 
-    upsertEntity(graphData, 'Dragon', 'PERSON', 'A creature');
-    graphData.nodes.dragon.embedding = [0.9, 0.1, 0];
+        upsertEntity(graphData, 'Castle', 'PLACE', 'A fortress');
+        const { key } = await mergeOrInsertEntity(graphData, 'castle', 'PLACE', 'Updated', 3, mockSettings);
+        expect(key).toBe('castle');
+    });
 
-    const { key } = await mergeOrInsertEntity(graphData, 'Draco', 'PERSON', 'Another name', 3, mockSettings);
-    // PERSON can merge on high similarity alone
-    expect(key).toBe('dragon');
+    it('returns key on semantic merge path (existing node updated)', async () => {
+        const { getDocumentEmbedding } = await import('../../src/embeddings.js');
+        getDocumentEmbedding.mockResolvedValue([0.9, 0.1, 0]);
+
+        upsertEntity(graphData, 'Dragon', 'PERSON', 'A creature');
+        graphData.nodes.dragon.embedding = [0.9, 0.1, 0];
+
+        const { key } = await mergeOrInsertEntity(graphData, 'Draco', 'PERSON', 'Another name', 3, mockSettings);
+        // PERSON can merge on high similarity alone
+        expect(key).toBe('dragon');
+    });
 });
 
 describe('edge creation with semantic merge', () => {
@@ -917,14 +922,10 @@ describe('consolidateEdges', () => {
 
         const mockSettings = { consolidationTokenThreshold: 500 };
 
-        const { count, stChanges } = await consolidateEdges(graph, mockSettings);
+        const { count } = await consolidateEdges(graph, mockSettings);
         expect(count).toBe(1);
         expect(graph.edges.alice__bob.description).toBe('From strangers to battle allies');
         expect(graph._edgesNeedingConsolidation).toHaveLength(0);
-        // stChanges contains the consolidated edge for ST sync
-        expect(stChanges.toSync).toHaveLength(1);
-        expect(stChanges.toSync[0].text).toBe('[OV_ID:edge_alice_bob] From strangers to battle allies');
-        expect(stChanges.toSync[0].item).toBe(graph.edges.alice__bob);
     });
 
     it('returns 0 count and empty stChanges when no edges need consolidation', async () => {
@@ -1068,11 +1069,10 @@ describe('Edge Consolidation (BM25-only mode)', () => {
         };
         graph._edgesNeedingConsolidation = ['alice__bob'];
 
-        const { count, stChanges } = await consolidateEdges(graph, {});
+        const { count } = await consolidateEdges(graph, {});
         expect(count).toBe(1);
         expect(graph.edges.alice__bob.description).toBe('Consolidated relationship');
         expect(graph._edgesNeedingConsolidation).toHaveLength(0);
-        expect(stChanges.toSync).toHaveLength(1);
     });
 
     it('consolidates multiple edges in parallel with maxConcurrency > 1', async () => {
@@ -1101,12 +1101,11 @@ describe('Edge Consolidation (BM25-only mode)', () => {
         };
         graph._edgesNeedingConsolidation = ['alice__bob', 'alice__carol'];
 
-        const { count, stChanges } = await consolidateEdges(graph, {});
+        const { count } = await consolidateEdges(graph, {});
         expect(count).toBe(2);
         expect(graph.edges.alice__bob.description).toBe('Relationship A');
         expect(graph.edges.alice__carol.description).toBe('Relationship B');
         expect(graph._edgesNeedingConsolidation).toHaveLength(0);
-        expect(stChanges.toSync).toHaveLength(2);
     });
 
     it('queues old edge hash for deletion when consolidating', async () => {
@@ -1122,19 +1121,11 @@ describe('Edge Consolidation (BM25-only mode)', () => {
             description: 'Old bloated description | Seg2 | Seg3 | Seg4 | Seg5 | Seg6',
             weight: 6,
             _descriptionTokens: 600,
-            _st_synced: true,
         };
         graph._edgesNeedingConsolidation = ['alice__bob'];
 
-        const { count, stChanges } = await consolidateEdges(graph, {});
+        const { count } = await consolidateEdges(graph, {});
 
         expect(count).toBe(1);
-        expect(stChanges.toSync).toHaveLength(1);
-        // Old edge should be queued for deletion
-        expect(stChanges.toDelete).toHaveLength(1);
-        expect(stChanges.toDelete[0]).toHaveProperty('hash');
-        expect(typeof stChanges.toDelete[0].hash).toBe('number');
-        // toDelete hash should differ from toSync hash (old vs new description)
-        expect(stChanges.toDelete[0].hash).not.toBe(stChanges.toSync[0].hash);
     });
 });

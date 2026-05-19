@@ -15,13 +15,11 @@ Extraction uses delta approach — focuses on NEW entities or CHANGES, not re-de
 - **Token Overlap Guard**: Strips EN+RU stopwords (via `stopword` lib). Short keys (<=4 chars) use lower thresholds.
 - **Aliases**: Absorbed name pushed to surviving node's `aliases` array.
 - **Redirects**: Transient `_mergeRedirects` map routes edges from old node key to merged key.
-- **stChanges**: `mergeOrInsertEntity()` returns `{ key, stChanges: { toSync, toDelete } }`. New nodes push to `toSync`; semantic merge deletions push to `toDelete`. Use `syncNode(key)` helper for the `[OV_ID:${key}] ${description}` + `cyrb53` boilerplate. See `src/store/CLAUDE.md` for stChanges contract.
 
 ## EDGE CONSOLIDATION
 - **Trigger**: `_descriptionTokens > 150` → queued in `_edgesNeedingConsolidation`.
 - **Jaccard Guard (Append-time)**: Before `old | new` append, if Jaccard similarity >= 0.6 the new description is dropped (weight still increments). Uses `tokenize` stemmer from `retrieval/math.js`.
 - **Batch Processing**: `consolidateEdges()` processes up to 10 edges per community detection run. LLM compresses pipe-separated descriptions into single summary (<100 tokens), re-embedded.
-- **Vector Lifecycle**: On consolidation, push old hash to `stChanges.toDelete` before overwriting, then push new hash to `toSync`.
 
 ## GRAPHRAG COMMUNITIES (`communities.js`)
 - **Trigger**: Every 50 messages during extraction.

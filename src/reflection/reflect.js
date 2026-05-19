@@ -257,7 +257,7 @@ export async function generateReflections(characterName, allMemories, characterS
     if (shouldSkip) {
         logDebug(`Reflection: ${skipReason} for ${characterName}`);
         // Note: Caller should reset importance_sum for this character
-        return { reflections: [], stChanges: { toSync: [] } };
+        return { reflections: [] };
     }
 
     // Single unified reflection call (replaces Step 1 + Step 2)

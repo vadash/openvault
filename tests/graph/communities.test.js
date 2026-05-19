@@ -736,13 +736,11 @@ describe('updateCommunitySummaries — dissolved community toDelete', () => {
                 nodeKeys: ['a', 'b'],
                 title: 'Old Community 0',
                 summary: 'Summary for community 0',
-                _st_synced: true,
             },
             C1: {
                 nodeKeys: ['c', 'd'],
                 title: 'Old Community 1',
                 summary: 'Summary for community 1',
-                _st_synced: true,
             },
         };
 

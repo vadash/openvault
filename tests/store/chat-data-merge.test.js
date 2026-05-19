@@ -61,7 +61,6 @@ describe('mergeEntities', () => {
                 mentions: 5,
                 aliases: ['alias1', 'alias2'],
                 type: 'PERSON',
-                _st_synced: true,
             };
             mockGraph.nodes.target = {
                 name: 'Target Entity',
@@ -69,7 +68,6 @@ describe('mergeEntities', () => {
                 mentions: 10,
                 aliases: ['alias3'],
                 type: 'PERSON',
-                _st_synced: true,
             };
         });
 
@@ -158,7 +156,6 @@ describe('mergeEntities', () => {
                 target: 'charlie',
                 weight: 3,
                 description: 'Source knows Charlie',
-                _st_synced: true,
             };
         });
 
@@ -182,14 +179,12 @@ describe('mergeEntities', () => {
                 target: 'charlie',
                 weight: 3,
                 description: 'Source knows Charlie',
-                _st_synced: true,
             };
             mockGraph.edges.target__charlie = {
                 source: 'target',
                 target: 'charlie',
                 weight: 5,
                 description: 'Target knows Charlie',
-                _st_synced: true,
             };
         });
 
@@ -218,7 +213,6 @@ describe('mergeEntities', () => {
                 target: 'target',
                 weight: 3,
                 description: 'Source knows Target',
-                _st_synced: true,
             };
 
             const _result = await mergeEntities('source', 'target', mockGraph);
