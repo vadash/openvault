@@ -19,8 +19,8 @@ import {
 import { getDeps } from '../deps.js';
 import {
     getEmbeddingStatus,
-    getStrategy,
     isEmbeddingsEnabled,
+    resetPipeline,
     setEmbeddingStatusCallback,
     testOllamaConnection,
 } from '../embeddings.js';
@@ -702,19 +702,16 @@ function bindUIElements() {
     $('#openvault_embedding_source').on('change', async function () {
         const value = $(this).val();
 
-        // Reset old strategy before switching to prevent VRAM leak
+        // Reset pipeline before switching to prevent VRAM leak
         try {
             const currentSettings = getDeps().getExtensionSettings();
             const oldSource = currentSettings?.[extensionName]?.embeddingSource;
 
             if (oldSource && oldSource !== value) {
-                const oldStrategy = getStrategy(oldSource);
-                if (oldStrategy && typeof oldStrategy.reset === 'function') {
-                    await oldStrategy.reset();
-                }
+                await resetPipeline();
             }
         } catch (err) {
-            logWarn('Failed to reset old embedding strategy: ' + err.message);
+            logWarn('Failed to reset embedding pipeline: ' + err.message);
         }
 
         // Persist the model selection
