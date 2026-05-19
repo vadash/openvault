@@ -34,7 +34,6 @@ describe('mergeEntities', () => {
             const result = await mergeEntities('entity1', 'entity1', mockGraph);
 
             expect(result.success).toBe(false);
-            expect(result.stChanges).toBeUndefined();
         });
 
         it('rejects when source does not exist', async () => {
@@ -119,14 +118,6 @@ describe('mergeEntities', () => {
             await mergeEntities('source', 'target', mockGraph);
 
             expect(mockGraph._mergeRedirects.source).toBe('target');
-        });
-
-        it('returns stChanges with toDelete for source node', async () => {
-            const result = await mergeEntities('source', 'target', mockGraph);
-
-            expect(result.success).toBe(true);
-            expect(result.stChanges).toBeDefined();
-            expect(result.stChanges.toDelete.length).toBeGreaterThan(0);
         });
     });
 
@@ -230,126 +221,10 @@ describe('mergeEntities', () => {
                 _st_synced: true,
             };
 
-            const result = await mergeEntities('source', 'target', mockGraph);
+            const _result = await mergeEntities('source', 'target', mockGraph);
 
             expect(mockGraph.edges.source__target).toBeUndefined();
             expect(mockGraph.edges.target__target).toBeUndefined();
-            expect(result.stChanges.toDelete.length).toBeGreaterThan(0);
-        });
-    });
-
-    describe('ST Vector Storage sync', () => {
-        it('returns toSync for surviving target node after merge', async () => {
-            const saveFn = vi.fn(async () => true);
-            setupTestContext({
-                context: {
-                    chatMetadata: {
-                        openvault: {
-                            schema_version: 3,
-                            memories: [],
-                            character_states: {},
-                            processed_message_ids: [],
-                            graph: {
-                                nodes: {
-                                    alice: {
-                                        name: 'Alice',
-                                        type: 'PERSON',
-                                        description: 'A young woman',
-                                        mentions: 3,
-                                        aliases: [],
-                                    },
-                                    bob: {
-                                        name: 'Bob',
-                                        type: 'PERSON',
-                                        description: 'A tall man',
-                                        mentions: 2,
-                                        aliases: [],
-                                        _st_synced: true,
-                                    },
-                                },
-                                edges: {},
-                                _mergeRedirects: {},
-                            },
-                        },
-                    },
-                },
-                deps: { saveChatConditional: saveFn },
-            });
-
-            const { mergeEntities: mergeEntitiesImported } = await import('../../src/store/chat-data.js');
-            const result = await mergeEntitiesImported('bob', 'alice');
-
-            expect(result.success).toBe(true);
-            expect(result.stChanges.toDelete).toBeDefined();
-            expect(result.stChanges.toDelete.length).toBeGreaterThan(0);
-            // The bug: toSync is missing for the surviving node
-            expect(result.stChanges.toSync).toBeDefined();
-            expect(result.stChanges.toSync.length).toBeGreaterThan(0);
-        });
-
-        it('queues rewritten edge for re-sync in toSync after merge', async () => {
-            const saveFn = vi.fn(async () => true);
-            const testGraph = {
-                nodes: {
-                    alice: {
-                        name: 'Alice',
-                        type: 'PERSON',
-                        description: 'A young woman',
-                        mentions: 3,
-                        aliases: [],
-                        _st_synced: true,
-                    },
-                    bob: {
-                        name: 'Bob',
-                        type: 'PERSON',
-                        description: 'A tall man',
-                        mentions: 2,
-                        aliases: [],
-                        _st_synced: true,
-                    },
-                    charlie: {
-                        name: 'Charlie',
-                        type: 'PERSON',
-                        description: 'Quiet guy',
-                        mentions: 1,
-                        aliases: [],
-                    },
-                },
-                edges: {
-                    alice__charlie: {
-                        source: 'alice',
-                        target: 'charlie',
-                        weight: 2,
-                        description: 'Alice mentors Charlie',
-                        _st_synced: true,
-                    },
-                },
-                _mergeRedirects: {},
-            };
-            setupTestContext({
-                context: {
-                    chatMetadata: {
-                        openvault: {
-                            schema_version: 3,
-                            memories: [],
-                            character_states: {},
-                            processed_message_ids: [],
-                            graph: testGraph,
-                        },
-                    },
-                },
-                deps: { saveChatConditional: saveFn },
-            });
-
-            const { mergeEntities: mergeEntitiesImported } = await import('../../src/store/chat-data.js');
-            const result = await mergeEntitiesImported('alice', 'bob');
-
-            expect(result.success).toBe(true);
-            // The rewritten edge bob__charlie must be in toSync
-            // Note: edge ID format uses single underscore: edge_bob_charlie
-            const edgeSync = result.stChanges.toSync.find((s) => s.text.includes('edge_bob_charlie'));
-            expect(edgeSync).toBeDefined();
-            expect(edgeSync.item).toBe(testGraph.edges.bob__charlie); // same object reference
         });
     });
 });

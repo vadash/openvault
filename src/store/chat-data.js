@@ -3,7 +3,6 @@
 import {
     CHARACTERS_KEY,
     CONSOLIDATION,
-    EMBEDDING_SOURCES,
     GRAPH_JACCARD_DUPLICATE_THRESHOLD,
     MEMORIES_KEY,
     METADATA_KEY,
@@ -12,10 +11,9 @@ import {
 import { getDeps } from '../deps.js';
 import { createEmptyGraph, normalizeKey } from '../graph/graph.js';
 import { record } from '../perf/store.js';
-import { purgeSTCollection } from '../services/st-vector.js';
 import { showToast } from '../utils/dom.js';
-import { cyrb53, deleteEmbedding } from '../utils/embedding-codec.js';
-import { logDebug, logError, logInfo, logWarn } from '../utils/logging.js';
+import { deleteEmbedding } from '../utils/embedding-codec.js';
+import { logDebug, logError, logWarn } from '../utils/logging.js';
 import { yieldToMain } from '../utils/st-helpers.js';
 import { mergeDescriptions } from '../utils/text.js';
 import { countTokens } from '../utils/tokens.js';
@@ -107,7 +105,7 @@ export function generateId() {
  * Update a memory by ID.
  * @param {string} id - Memory ID to update
  * @param {MemoryUpdate} updates - Fields to update
- * @returns {Promise<{success: boolean, stChanges?: {toSync?: {hash: number, text: string, item: Memory}[]}}>} Result with success flag and optional ST Vector changes
+ * @returns {Promise<{success: boolean}>} Result with success flag
  */
 export async function updateMemory(id, updates) {
     const data = getOpenVaultData();
@@ -133,27 +131,20 @@ export async function updateMemory(id, updates) {
         }
     }
 
-    const stChanges = {};
-
-    // If summary changed, invalidate embedding and queue for re-sync
+    // If summary changed, invalidate embedding
     if (summaryChanged) {
         deleteEmbedding(memory);
-        const text = memory.summary || '';
-        stChanges.toSync = [{ hash: cyrb53(text), text, item: memory }];
     }
 
     await getDeps().saveChatConditional();
     logDebug(`Updated memory ${id}${summaryChanged ? ' (embedding invalidated)' : ''}`);
-    return {
-        success: true,
-        stChanges: Object.keys(stChanges).length > 0 ? stChanges : undefined,
-    };
+    return { success: true };
 }
 
 /**
  * Delete a memory by ID.
  * @param {string} id - Memory ID to delete
- * @returns {Promise<{success: boolean, stChanges?: {toDelete: {hash: number}[]}}>} Result with success flag and optional ST Vector changes
+ * @returns {Promise<{success: boolean}>} Result with success flag
  */
 export async function deleteMemory(id) {
     const data = getOpenVaultData();
@@ -168,29 +159,17 @@ export async function deleteMemory(id) {
         return { success: false };
     }
 
-    const memory = data[MEMORIES_KEY][idx];
-    const stChanges = {};
-
-    // Queue for ST Vector deletion if previously synced
-    if (memory._st_synced) {
-        const text = memory.summary || '';
-        stChanges.toDelete = [{ hash: cyrb53(text) }];
-    }
-
     data[MEMORIES_KEY].splice(idx, 1);
     await getDeps().saveChatConditional();
     logDebug(`Deleted memory ${id}`);
-    return {
-        success: true,
-        stChanges: Object.keys(stChanges).length > 0 ? stChanges : undefined,
-    };
+    return { success: true };
 }
 
 /**
  * Update an entity's fields. Handles rename by rewriting edges and merge redirects.
  * @param {string} key - Current normalized entity key
  * @param {Object} updates - { name?, type?, description?, aliases? }
- * @returns {Promise<{key: string, stChanges?: {toDelete?: {hash: number}[], toSync?: {hash: number, text: string, item: any}[]}}|null>} Result with new key and optional ST Vector changes, null on failure
+ * @returns {Promise<{key: string}|null>} Result with new key, null on failure
  */
 export async function updateEntity(key, updates) {
     const { saveChatConditional } = getDeps();
@@ -215,15 +194,6 @@ export async function updateEntity(key, updates) {
     }
 
     if (newKey !== key) {
-        // Track old hash for ST Vector deletion if synced
-        const toDelete = [];
-        if (node._st_synced) {
-            // Calculate hash using same format as insertion in graph.js:486:
-            // [OV_ID:key] description (no fallback to name)
-            const text = `[OV_ID:${key}] ${node.description}`;
-            toDelete.push({ hash: cyrb53(text) });
-        }
-
         // Create new node with updated fields
         graph.nodes[newKey] = {
             ...node,
@@ -254,11 +224,6 @@ export async function updateEntity(key, updates) {
             if (needsRewrite) {
                 const newEdgeKey = `${newSource}__${newTarget}`;
 
-                // Queue old edge for ST Vector deletion if synced
-                if (edge._st_synced) {
-                    toDelete.push({ hash: cyrb53(`[OV_ID:edge_${edge.source}_${edge.target}] ${edge.description}`) });
-                }
-
                 delete graph.edges[edgeKey];
                 const newEdge = {
                     ...edge,
@@ -287,10 +252,7 @@ export async function updateEntity(key, updates) {
         deleteEmbedding(graph.nodes[newKey]);
 
         await saveChatConditional();
-        return {
-            key: newKey,
-            stChanges: toDelete.length > 0 ? { toDelete } : undefined,
-        };
+        return { key: newKey };
     } else {
         // Simple field update, no rename
         Object.assign(node, {
@@ -306,22 +268,14 @@ export async function updateEntity(key, updates) {
 
         await saveChatConditional();
 
-        // Return stChanges for ST Vector sync if description changed
-        const toSync = [];
-        if (updates.description !== undefined) {
-            const text = `[OV_ID:${key}] ${node.description}`;
-            toSync.push({ hash: cyrb53(text), text, item: node });
-        }
-
-        return { key, stChanges: toSync.length > 0 ? { toSync } : undefined };
+        return { key };
     }
 }
 
 /**
  * Delete an entity and all its edges and merge redirects.
- * Also deletes from ST Vector storage if _st_synced to prevent orphan embeddings.
  * @param {string} key - Normalized entity key
- * @returns {Promise<{success: boolean, stChanges?: {toDelete: {hash: number}[]}}>}
+ * @returns {Promise<{success: boolean}>}
  */
 export async function deleteEntity(key) {
     const { saveChatConditional } = getDeps();
@@ -331,15 +285,6 @@ export async function deleteEntity(key) {
     if (!node) {
         logWarn(`Cannot delete entity: ${key} not found`);
         return { success: false };
-    }
-
-    // Track ST Vector items to delete (prevent orphan embeddings)
-    const toDelete = [];
-    if (node._st_synced) {
-        // Calculate hash using same format as insertion in graph.js:486:
-        // [OV_ID:key] description (no fallback to name)
-        const text = `[OV_ID:${key}] ${node.description}`;
-        toDelete.push({ hash: cyrb53(text) });
     }
 
     // Delete the node
@@ -363,10 +308,7 @@ export async function deleteEntity(key) {
 
     await saveChatConditional();
 
-    return {
-        success: true,
-        stChanges: toDelete.length > 0 ? { toDelete } : undefined,
-    };
+    return { success: true };
 }
 
 /**
@@ -395,25 +337,6 @@ export async function deleteCurrentChatData() {
     }
     if (unhiddenCount > 0) {
         logDebug(`Unhid ${unhiddenCount} messages after memory clear`);
-    }
-
-    // Purge ST Vector Storage if using st_vector
-    const settings = getDeps().getExtensionSettings()?.openvault;
-    if (settings?.embeddingSource === EMBEDDING_SOURCES.ST_VECTOR) {
-        const chatId = getCurrentChatId();
-        if (chatId) {
-            try {
-                const purged = await purgeSTCollection(chatId);
-                if (!purged) {
-                    logWarn('Failed to purge ST collection during chat data deletion', new Error('Purge failed'));
-                } else {
-                    logInfo(`Purged ST Vector collection for cleared chat: ${chatId}`);
-                }
-            } catch (err) {
-                logWarn('Failed to purge ST collection during chat data deletion', err);
-                // Don't fail the whole operation - OpenVault data is already cleared
-            }
-        }
     }
 
     delete context.chatMetadata[METADATA_KEY];
@@ -462,7 +385,7 @@ export function incrementGraphMessageCount(count) {
  * @param {string} sourceKey - Entity to absorb (will be deleted)
  * @param {string} targetKey - Entity that survives
  * @param {Object} graph - The graph object (defaults to current graph from deps)
- * @returns {Promise<{ success: boolean, stChanges?: { toDelete: { hash: number }[], toSync?: { hash: number, text: string, item: any }[] } }>}
+ * @returns {Promise<{ success: boolean }>}
  */
 export async function mergeEntities(sourceKey, targetKey, graph = null) {
     const { saveChatConditional } = getDeps();
@@ -484,9 +407,6 @@ export async function mergeEntities(sourceKey, targetKey, graph = null) {
     if (!sourceNode || !targetNode) {
         return { success: false };
     }
-
-    const toDelete = [];
-    const toSync = [];
 
     // 1. Combine node data onto target
     targetNode.mentions += sourceNode.mentions;
@@ -527,9 +447,6 @@ export async function mergeEntities(sourceKey, targetKey, graph = null) {
 
         // Self-loop check: delete if would be target->target
         if (newSource === newTarget) {
-            if (edge._st_synced) {
-                toDelete.push({ hash: cyrb53(`[OV_ID:edge_${edge.source}_${edge.target}] ${edge.description}`) });
-            }
             delete g.edges[oldKey];
             continue;
         }
@@ -564,58 +481,25 @@ export async function mergeEntities(sourceKey, targetKey, graph = null) {
             // Invalidate embedding since description changed
             deleteEmbedding(existingEdge);
 
-            // Collect hash for old edge deletion
-            if (edge._st_synced) {
-                toDelete.push({ hash: cyrb53(`[OV_ID:edge_${edge.source}_${edge.target}] ${edge.description}`) });
-            }
-
-            // Queue merged edge for re-sync
-            const mergedEdgeId = `edge_${newSource}_${newTarget}`;
-            const mergedEdgeText = `[OV_ID:${mergedEdgeId}] ${existingEdge.description}`;
-            toSync.push({ hash: cyrb53(mergedEdgeText), text: mergedEdgeText, item: existingEdge });
-
             delete g.edges[oldKey];
         } else if (newKey !== oldKey) {
             // No collision: rewrite edge
-            if (edge._st_synced) {
-                toDelete.push({ hash: cyrb53(`[OV_ID:edge_${edge.source}_${edge.target}] ${edge.description}`) });
-            }
             edge.source = newSource;
             edge.target = newTarget;
             deleteEmbedding(edge);
             g.edges[newKey] = edge;
             delete g.edges[oldKey];
-
-            // Queue rewritten edge for re-sync
-            const rewrittenEdgeId = `edge_${newSource}_${newTarget}`;
-            const rewrittenEdgeText = `[OV_ID:${rewrittenEdgeId}] ${edge.description}`;
-            toSync.push({ hash: cyrb53(rewrittenEdgeText), text: rewrittenEdgeText, item: edge });
         }
     }
 
     // 4. Cleanup
-    // Collect hash for source node deletion
-    if (sourceNode._st_synced) {
-        toDelete.push({ hash: cyrb53(`[OV_ID:${sourceKey}] ${sourceNode.description}`) });
-    }
-
     delete g.nodes[sourceKey];
 
     // Invalidate target embedding since description changed
     deleteEmbedding(targetNode);
 
-    // If source or target was synced, queue target for sync
-    // (absorbing a synced entity or updating an already-synced one)
-    if (sourceNode._st_synced || targetNode._st_synced) {
-        const text = `[OV_ID:${targetKey}] ${targetNode.description}`;
-        toSync.push({ hash: cyrb53(text), text, item: targetNode });
-    }
-
     // 5. Save
     await saveChatConditional();
 
-    return {
-        success: true,
-        stChanges: { toDelete, toSync },
-    };
+    return { success: true };
 }

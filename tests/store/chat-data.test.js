@@ -322,57 +322,6 @@ describe('store/chat-data', () => {
         });
     });
 
-    describe('updateMemory — stChanges', () => {
-        it('returns stChanges with toSync when summary changes', async () => {
-            const saveFn = vi.fn(async () => true);
-            setDeps({
-                console: mockConsole,
-                getContext: () => mockContext,
-                getExtensionSettings: () => ({
-                    [extensionName]: { debugMode: true },
-                }),
-                saveChatConditional: saveFn,
-            });
-
-            // First create a memory
-            const data = getOpenVaultData();
-            data[MEMORIES_KEY] = [{ id: 'mem1', summary: 'Old summary', importance: 5 }];
-
-            const result = await updateMemory('mem1', { summary: 'New summary' });
-
-            // Bug: updateMemory returns boolean, not stChanges object
-            expect(result).not.toBe(true);
-            expect(result).toHaveProperty('stChanges');
-            expect(result.stChanges.toSync).toBeDefined();
-            expect(result.stChanges.toSync.length).toBeGreaterThan(0);
-        });
-    });
-
-    describe('deleteMemory — stChanges', () => {
-        it('returns stChanges with toDelete when memory had embedding', async () => {
-            const saveFn = vi.fn(async () => true);
-            setDeps({
-                console: mockConsole,
-                getContext: () => mockContext,
-                getExtensionSettings: () => ({
-                    [extensionName]: { debugMode: true },
-                }),
-                saveChatConditional: saveFn,
-            });
-
-            const data = getOpenVaultData();
-            data[MEMORIES_KEY] = [{ id: 'mem1', summary: 'A memory to delete', importance: 5, _st_synced: true }];
-
-            const result = await deleteMemory('mem1');
-
-            // Bug: deleteMemory returns boolean, not stChanges object
-            expect(result).not.toBe(true);
-            expect(result).toHaveProperty('stChanges');
-            expect(result.stChanges.toDelete).toBeDefined();
-            expect(result.stChanges.toDelete.length).toBeGreaterThan(0);
-        });
-    });
-
     describe('deleteCurrentChatData', () => {
         it('deletes openvault key from chatMetadata', async () => {
             mockContext.chatMetadata[METADATA_KEY] = {
@@ -390,102 +339,7 @@ describe('store/chat-data', () => {
             expect(mockContext.chatMetadata[METADATA_KEY]).toBeUndefined();
         });
 
-        it('purges ST Vector collection when using st_vector', async () => {
-            mockContext.chatMetadata[METADATA_KEY] = {
-                [MEMORIES_KEY]: [{ id: '1' }],
-            };
-            mockContext.chatId = 'test-chat-456';
 
-            const mockFetch = vi.fn().mockResolvedValue({ ok: true });
-
-            setDeps({
-                console: mockConsole,
-                getContext: () => mockContext,
-                getExtensionSettings: () => ({
-                    [extensionName]: {
-                        debugMode: true,
-                        embeddingSource: 'st_vector',
-                    },
-                }),
-                saveChatConditional: vi.fn().mockResolvedValue(undefined),
-                fetch: mockFetch,
-                getRequestHeaders: () => ({ 'X-CSRF-Token': 'test-token' }),
-            });
-
-            await deleteCurrentChatData();
-
-            // Verify purge was called via fetch
-            const fetchCalls = mockFetch.mock.calls;
-            const purgeCall = fetchCalls.find((call) => call[0] === '/api/vector/purge');
-            expect(purgeCall).toBeDefined();
-            expect(JSON.parse(purgeCall[1].body)).toMatchObject({
-                collectionId: expect.stringContaining('test-chat-456'),
-            });
-        });
-
-        it('does not purge ST collection when using local embeddings', async () => {
-            mockContext.chatMetadata[METADATA_KEY] = {
-                [MEMORIES_KEY]: [{ id: '1' }],
-            };
-            mockContext.chatId = 'test-chat-789';
-
-            const mockFetch = vi.fn().mockResolvedValue({ ok: true });
-
-            setDeps({
-                console: mockConsole,
-                getContext: () => mockContext,
-                getExtensionSettings: () => ({
-                    [extensionName]: {
-                        debugMode: true,
-                        embeddingSource: 'multilingual-e5-small',
-                    },
-                }),
-                saveChatConditional: vi.fn().mockResolvedValue(undefined),
-                fetch: mockFetch,
-            });
-
-            await deleteCurrentChatData();
-
-            // Verify no purge call was made
-            const purgeCalls = mockFetch.mock.calls.filter((call) => call[0] === '/api/vector/purge');
-            expect(purgeCalls).toHaveLength(0);
-        });
-
-        it('continues with OpenVault data clearing even if ST purge fails', async () => {
-            mockContext.chatMetadata[METADATA_KEY] = {
-                [MEMORIES_KEY]: [{ id: '1' }],
-            };
-            mockContext.chatId = 'test-chat-fail';
-
-            const mockSave = vi.fn().mockResolvedValue(undefined);
-
-            setDeps({
-                console: mockConsole,
-                getContext: () => mockContext,
-                getExtensionSettings: () => ({
-                    [extensionName]: {
-                        debugMode: true,
-                        embeddingSource: 'st_vector',
-                    },
-                }),
-                saveChatConditional: mockSave,
-                fetch: vi.fn().mockRejectedValue(new Error('Network error')),
-                getRequestHeaders: () => ({ 'X-CSRF-Token': 'test-token' }),
-            });
-
-            // Should not throw
-            const result = await deleteCurrentChatData();
-            expect(result).toBe(true);
-
-            // Verify OpenVault data was still cleared
-            expect(mockContext.chatMetadata[METADATA_KEY]).toBeUndefined();
-
-            // Verify warning was logged
-            expect(mockConsole.warn).toHaveBeenCalledWith(
-                expect.stringContaining('Failed to purge ST collection'),
-                expect.any(Error)
-            );
-        });
 
         it('only unhides messages tagged by OpenVault, preserves ST-native hidden messages', async () => {
             mockContext.chatMetadata[METADATA_KEY] = {
@@ -762,29 +616,6 @@ describe('updateEntity', () => {
         expect(data.graph._mergeRedirects[oldKey]).toBe(newKey);
     });
 
-    it('should return stChanges.toDelete when renaming synced entity', async () => {
-        const data = getOpenVaultData();
-        const oldKey = normalizeKey('Marcus Hale');
-        const newKey = normalizeKey('Marcus the Brave');
-
-        data.graph.nodes[oldKey] = buildMockGraphNode({
-            name: 'Marcus Hale',
-            type: 'PERSON',
-            description: 'A soldier',
-            _st_synced: true,
-        });
-
-        const result = await updateEntity(oldKey, {
-            name: 'Marcus the Brave',
-        });
-
-        expect(result.key).toBe(newKey);
-        expect(result.stChanges?.toDelete).toBeDefined();
-        expect(result.stChanges.toDelete.length).toBe(1);
-        expect(result.stChanges.toDelete[0]).toHaveProperty('hash');
-        expect(typeof result.stChanges.toDelete[0].hash).toBe('number');
-    });
-
     it('should update existing redirects that point to oldKey on rename', async () => {
         const data = getOpenVaultData();
         const oldKey = normalizeKey('Marcus Hale');
@@ -848,30 +679,5 @@ describe('updateEntity', () => {
 
         expect(result.key).toBe(key);
         expect(data.graph.nodes[key].aliases).toEqual(['masked figure', 'the stranger']);
-    });
-
-    it('returns toSync when updating description without rename', async () => {
-        const saveFn = vi.fn(async () => true);
-        setDeps({
-            getContext: () => mockContext,
-            saveChatConditional: saveFn,
-        });
-        const data = getOpenVaultData();
-        data.graph.nodes.alice = {
-            name: 'Alice',
-            type: 'PERSON',
-            description: 'Old description',
-            mentions: 1,
-            aliases: [],
-        };
-
-        const result = await updateEntity('alice', { description: 'New description' });
-
-        expect(result).not.toBeNull();
-        expect(result.key).toBe('alice');
-        // Bug: no stChanges returned for simple field update
-        expect(result.stChanges).toBeDefined();
-        expect(result.stChanges.toSync).toBeDefined();
-        expect(result.stChanges.toSync.length).toBeGreaterThan(0);
     });
 });

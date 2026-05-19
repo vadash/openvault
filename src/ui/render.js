@@ -97,10 +97,6 @@ function filterBySearch(memories, query) {
 async function deleteMemory(id) {
     const deleted = await deleteMemoryAction(id);
     if (deleted.success) {
-        if (deleted.stChanges) {
-            const { applySyncChanges } = await import('../extraction/extract.js');
-            await applySyncChanges(deleted.stChanges);
-        }
         renderMemoryList();
         populateCharacterFilter();
         refreshStats();
@@ -142,10 +138,6 @@ async function saveEdit(id, btnElement) {
 
     const updated = await updateMemoryAction(id, { summary, importance, temporal_anchor, is_transient });
     if (updated.success) {
-        if (updated.stChanges) {
-            const { applySyncChanges } = await import('../extraction/extract.js');
-            await applySyncChanges(updated.stChanges);
-        }
         const memory = getMemoryById(id);
         if (memory && !hasEmbedding(memory) && isEmbeddingsEnabled()) {
             const embedding = await getDocumentEmbedding(summary);
@@ -586,12 +578,6 @@ async function saveEntityEdit(key, btn) {
         // Clear edit state (use old key and new key for rename case)
         entityEditState.delete(key);
 
-        // Sync ST Vector changes (re-sync on rename, delete old hashes)
-        if (result.stChanges) {
-            const { applySyncChanges } = await import('../extraction/extract.js');
-            await applySyncChanges(result.stChanges);
-        }
-
         // Replace with updated view card (use newKey if renamed)
         const graph = getOpenVaultData().graph;
         const entity = graph.nodes[result.key];
@@ -632,12 +618,6 @@ async function deleteEntityAction(key) {
 
         // Remove from DOM
         $(`.openvault-entity-card[data-key="${key}"]`).remove();
-
-        // Clean up ST Vector if needed
-        if (result.stChanges) {
-            const { applySyncChanges } = await import('../extraction/extract.js');
-            await applySyncChanges(result.stChanges);
-        }
 
         showToast('success', 'Entity deleted');
         refreshStats();
@@ -789,12 +769,6 @@ async function confirmEntityMerge(sourceKey) {
         if (!result.success) {
             showToast('error', 'Failed to merge entities');
             return;
-        }
-
-        // Sync ST Vector changes (delete removed, re-sync surviving node)
-        if (result.stChanges) {
-            const { applySyncChanges } = await import('../extraction/extract.js');
-            await applySyncChanges(result.stChanges);
         }
 
         // Re-render the entity list
