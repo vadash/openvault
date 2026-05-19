@@ -19,8 +19,6 @@ export type Memory = {
     archived?: boolean | undefined;
     temporal_anchor?: (string | null) | undefined;
     is_transient?: boolean | undefined;
-    _st_synced?: boolean | undefined;
-    _proxyVectorScore?: number | undefined;
 };
 
 export type GraphNode = {
@@ -31,7 +29,6 @@ export type GraphNode = {
     embedding?: number[] | undefined;
     embedding_b64?: string | undefined;
     aliases?: string[] | undefined;
-    _st_synced?: boolean | undefined;
 };
 
 export type GraphEdge = {
@@ -42,7 +39,6 @@ export type GraphEdge = {
     _descriptionTokens?: number | undefined;
     embedding?: number[] | undefined;
     embedding_b64?: string | undefined;
-    _st_synced?: boolean | undefined;
 };
 
 export type GraphData = {
@@ -55,7 +51,6 @@ export type GraphData = {
             embedding?: number[] | undefined;
             embedding_b64?: string | undefined;
             aliases?: string[] | undefined;
-            _st_synced?: boolean | undefined;
         };
     };
     edges: {
@@ -67,7 +62,6 @@ export type GraphData = {
             _descriptionTokens?: number | undefined;
             embedding?: number[] | undefined;
             embedding_b64?: string | undefined;
-            _st_synced?: boolean | undefined;
         };
     };
     _mergeRedirects?: {
@@ -110,8 +104,6 @@ export type ScoredMemory = {
         archived?: boolean | undefined;
         temporal_anchor?: (string | null) | undefined;
         is_transient?: boolean | undefined;
-        _st_synced?: boolean | undefined;
-        _proxyVectorScore?: number | undefined;
     };
     score: number;
     breakdown: {
@@ -229,8 +221,6 @@ export type OpenVaultData = {
         archived?: boolean | undefined;
         temporal_anchor?: (string | null) | undefined;
         is_transient?: boolean | undefined;
-        _st_synced?: boolean | undefined;
-        _proxyVectorScore?: number | undefined;
     }[] | undefined;
     characters?: {
         [key: string]: {
@@ -250,7 +240,6 @@ export type OpenVaultData = {
                 embedding?: number[] | undefined;
                 embedding_b64?: string | undefined;
                 aliases?: string[] | undefined;
-                _st_synced?: boolean | undefined;
             };
         };
         edges: {
@@ -262,7 +251,6 @@ export type OpenVaultData = {
                 _descriptionTokens?: number | undefined;
                 embedding?: number[] | undefined;
                 embedding_b64?: string | undefined;
-                _st_synced?: boolean | undefined;
             };
         };
         _mergeRedirects?: {
@@ -293,12 +281,6 @@ export type OpenVaultData = {
     embedding_model_id?: string | undefined;
 };
 
-export type StVectorItem = {
-    hash: number;
-    text: string;
-    index?: number | undefined;
-};
-
 export type ScoringConfig = {
     forgetfulnessBaseLambda: number;
     forgetfulnessImportance5Floor: number;
@@ -307,7 +289,7 @@ export type ScoringConfig = {
     vectorSimilarityThreshold: number;
     alpha: number;
     combinedBoostWeight: number;
-    embeddingSource: "local" | "ollama" | "st_vector";
+    embeddingSource: "local" | "ollama";
     transientDecayMultiplier: number | undefined;
 };
 
@@ -331,62 +313,6 @@ export type GraphExtraction = {
         relation: string;
         description: string;
     }[];
-};
-
-export type StSyncChanges = {
-    toSync?: {
-        hash: number;
-        text: string;
-        item: {
-            id: string;
-            summary: string;
-            importance: number;
-            embedding?: number[] | undefined;
-            message_id: number;
-            timestamp: number;
-            witnesses?: string[] | undefined;
-            type?: ("event" | "reflection" | "global_synthesis") | undefined;
-            level?: number | undefined;
-            tokens: string[];
-            message_ids?: number[] | undefined;
-            message_fingerprints?: string[] | undefined;
-            mentions?: number | undefined;
-            retrieval_hits?: number | undefined;
-            archived?: boolean | undefined;
-            temporal_anchor?: (string | null) | undefined;
-            is_transient?: boolean | undefined;
-            _st_synced?: boolean | undefined;
-            _proxyVectorScore?: number | undefined;
-        } | {
-            name: string;
-            type: "PERSON" | "PLACE" | "ORGANIZATION" | "OBJECT" | "CONCEPT";
-            description: string;
-            mentions: number;
-            embedding?: number[] | undefined;
-            embedding_b64?: string | undefined;
-            aliases?: string[] | undefined;
-            _st_synced?: boolean | undefined;
-        } | {
-            source: string;
-            target: string;
-            description: string;
-            weight: number;
-            _descriptionTokens?: number | undefined;
-            embedding?: number[] | undefined;
-            embedding_b64?: string | undefined;
-            _st_synced?: boolean | undefined;
-        } | {
-            id: string;
-            title: string;
-            summary: string;
-            entities?: string[] | undefined;
-            findings?: string[] | undefined;
-            last_updated?: number | undefined;
-        };
-    }[] | undefined;
-    toDelete?: {
-        hash: number;
-    }[] | undefined;
 };
 
 export type ExtractionOptions = {
@@ -440,188 +366,15 @@ export type GenerateReflectionsResult = {
         archived?: boolean | undefined;
         temporal_anchor?: (string | null) | undefined;
         is_transient?: boolean | undefined;
-        _st_synced?: boolean | undefined;
-        _proxyVectorScore?: number | undefined;
     }[];
-    stChanges: {
-        toSync?: {
-            hash: number;
-            text: string;
-            item: {
-                id: string;
-                summary: string;
-                importance: number;
-                embedding?: number[] | undefined;
-                message_id: number;
-                timestamp: number;
-                witnesses?: string[] | undefined;
-                type?: ("event" | "reflection" | "global_synthesis") | undefined;
-                level?: number | undefined;
-                tokens: string[];
-                message_ids?: number[] | undefined;
-                message_fingerprints?: string[] | undefined;
-                mentions?: number | undefined;
-                retrieval_hits?: number | undefined;
-                archived?: boolean | undefined;
-                temporal_anchor?: (string | null) | undefined;
-                is_transient?: boolean | undefined;
-                _st_synced?: boolean | undefined;
-                _proxyVectorScore?: number | undefined;
-            } | {
-                name: string;
-                type: "PERSON" | "PLACE" | "ORGANIZATION" | "OBJECT" | "CONCEPT";
-                description: string;
-                mentions: number;
-                embedding?: number[] | undefined;
-                embedding_b64?: string | undefined;
-                aliases?: string[] | undefined;
-                _st_synced?: boolean | undefined;
-            } | {
-                source: string;
-                target: string;
-                description: string;
-                weight: number;
-                _descriptionTokens?: number | undefined;
-                embedding?: number[] | undefined;
-                embedding_b64?: string | undefined;
-                _st_synced?: boolean | undefined;
-            } | {
-                id: string;
-                title: string;
-                summary: string;
-                entities?: string[] | undefined;
-                findings?: string[] | undefined;
-                last_updated?: number | undefined;
-            };
-        }[] | undefined;
-        toDelete?: {
-            hash: number;
-        }[] | undefined;
-    };
 };
 
 export type ConsolidateEdgesResult = {
     count: number;
-    stChanges: {
-        toSync?: {
-            hash: number;
-            text: string;
-            item: {
-                id: string;
-                summary: string;
-                importance: number;
-                embedding?: number[] | undefined;
-                message_id: number;
-                timestamp: number;
-                witnesses?: string[] | undefined;
-                type?: ("event" | "reflection" | "global_synthesis") | undefined;
-                level?: number | undefined;
-                tokens: string[];
-                message_ids?: number[] | undefined;
-                message_fingerprints?: string[] | undefined;
-                mentions?: number | undefined;
-                retrieval_hits?: number | undefined;
-                archived?: boolean | undefined;
-                temporal_anchor?: (string | null) | undefined;
-                is_transient?: boolean | undefined;
-                _st_synced?: boolean | undefined;
-                _proxyVectorScore?: number | undefined;
-            } | {
-                name: string;
-                type: "PERSON" | "PLACE" | "ORGANIZATION" | "OBJECT" | "CONCEPT";
-                description: string;
-                mentions: number;
-                embedding?: number[] | undefined;
-                embedding_b64?: string | undefined;
-                aliases?: string[] | undefined;
-                _st_synced?: boolean | undefined;
-            } | {
-                source: string;
-                target: string;
-                description: string;
-                weight: number;
-                _descriptionTokens?: number | undefined;
-                embedding?: number[] | undefined;
-                embedding_b64?: string | undefined;
-                _st_synced?: boolean | undefined;
-            } | {
-                id: string;
-                title: string;
-                summary: string;
-                entities?: string[] | undefined;
-                findings?: string[] | undefined;
-                last_updated?: number | undefined;
-            };
-        }[] | undefined;
-        toDelete?: {
-            hash: number;
-        }[] | undefined;
-    };
 };
 
 export type MergeEntityResult = {
     key: string;
-    stChanges: {
-        toSync?: {
-            hash: number;
-            text: string;
-            item: {
-                id: string;
-                summary: string;
-                importance: number;
-                embedding?: number[] | undefined;
-                message_id: number;
-                timestamp: number;
-                witnesses?: string[] | undefined;
-                type?: ("event" | "reflection" | "global_synthesis") | undefined;
-                level?: number | undefined;
-                tokens: string[];
-                message_ids?: number[] | undefined;
-                message_fingerprints?: string[] | undefined;
-                mentions?: number | undefined;
-                retrieval_hits?: number | undefined;
-                archived?: boolean | undefined;
-                temporal_anchor?: (string | null) | undefined;
-                is_transient?: boolean | undefined;
-                _st_synced?: boolean | undefined;
-                _proxyVectorScore?: number | undefined;
-            } | {
-                name: string;
-                type: "PERSON" | "PLACE" | "ORGANIZATION" | "OBJECT" | "CONCEPT";
-                description: string;
-                mentions: number;
-                embedding?: number[] | undefined;
-                embedding_b64?: string | undefined;
-                aliases?: string[] | undefined;
-                _st_synced?: boolean | undefined;
-            } | {
-                source: string;
-                target: string;
-                description: string;
-                weight: number;
-                _descriptionTokens?: number | undefined;
-                embedding?: number[] | undefined;
-                embedding_b64?: string | undefined;
-                _st_synced?: boolean | undefined;
-            } | {
-                id: string;
-                title: string;
-                summary: string;
-                entities?: string[] | undefined;
-                findings?: string[] | undefined;
-                last_updated?: number | undefined;
-            };
-        }[] | undefined;
-        toDelete?: {
-            hash: number;
-        }[] | undefined;
-    };
-};
-
-export type StVectorQueryResult = {
-    id: string;
-    hash: number;
-    text: string;
 };
 
 export type LLMConfig = {
@@ -664,7 +417,7 @@ export type RetrievalContext = {
         vectorSimilarityThreshold: number;
         alpha: number;
         combinedBoostWeight: number;
-        embeddingSource: "local" | "ollama" | "st_vector";
+        embeddingSource: "local" | "ollama";
         transientDecayMultiplier: number | undefined;
     };
     queryConfig: {
@@ -683,7 +436,6 @@ export type RetrievalContext = {
             embedding?: number[] | undefined;
             embedding_b64?: string | undefined;
             aliases?: string[] | undefined;
-            _st_synced?: boolean | undefined;
         };
     } | undefined;
     graphEdges?: {
@@ -695,7 +447,6 @@ export type RetrievalContext = {
             _descriptionTokens?: number | undefined;
             embedding?: number[] | undefined;
             embedding_b64?: string | undefined;
-            _st_synced?: boolean | undefined;
         };
     } | undefined;
     communities?: {
@@ -726,8 +477,6 @@ export type RetrievalContext = {
         archived?: boolean | undefined;
         temporal_anchor?: (string | null) | undefined;
         is_transient?: boolean | undefined;
-        _st_synced?: boolean | undefined;
-        _proxyVectorScore?: number | undefined;
     }[] | undefined;
     idfCache?: {
         memoryCount: number;
@@ -791,8 +540,6 @@ export type PromptContext = {
         archived?: boolean | undefined;
         temporal_anchor?: (string | null) | undefined;
         is_transient?: boolean | undefined;
-        _st_synced?: boolean | undefined;
-        _proxyVectorScore?: number | undefined;
     }[] | undefined;
     charDesc?: string | undefined;
     personaDesc?: string | undefined;
@@ -823,8 +570,6 @@ export type BasePromptParams = {
             archived?: boolean | undefined;
             temporal_anchor?: (string | null) | undefined;
             is_transient?: boolean | undefined;
-            _st_synced?: boolean | undefined;
-            _proxyVectorScore?: number | undefined;
         }[] | undefined;
         charDesc?: string | undefined;
         personaDesc?: string | undefined;
@@ -859,8 +604,6 @@ export type GraphPromptParams = {
             archived?: boolean | undefined;
             temporal_anchor?: (string | null) | undefined;
             is_transient?: boolean | undefined;
-            _st_synced?: boolean | undefined;
-            _proxyVectorScore?: number | undefined;
         }[] | undefined;
         charDesc?: string | undefined;
         personaDesc?: string | undefined;
@@ -880,7 +623,6 @@ export type EdgeConsolidationParams = {
         _descriptionTokens?: number | undefined;
         embedding?: number[] | undefined;
         embedding_b64?: string | undefined;
-        _st_synced?: boolean | undefined;
     };
     preamble: string;
     prefill: string;
@@ -907,8 +649,6 @@ export type ReflectionPromptParams = {
         archived?: boolean | undefined;
         temporal_anchor?: (string | null) | undefined;
         is_transient?: boolean | undefined;
-        _st_synced?: boolean | undefined;
-        _proxyVectorScore?: number | undefined;
     }[];
     preamble: string;
     prefill: string;

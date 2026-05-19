@@ -34,8 +34,6 @@ export const MemorySchema = z.object({
     archived: z.boolean().optional(),
     temporal_anchor: z.string().nullable().optional(),
     is_transient: z.boolean().optional(),
-    _st_synced: z.boolean().optional(),
-    _proxyVectorScore: z.number().optional(),
 });
 
 // --- Graph Schemas ---
@@ -48,7 +46,6 @@ export const GraphNodeSchema = z.object({
     embedding: z.array(z.number()).optional(),
     embedding_b64: z.string().optional(),
     aliases: z.array(z.string()).optional(),
-    _st_synced: z.boolean().optional(),
 });
 
 export const GraphEdgeSchema = z.object({
@@ -59,7 +56,6 @@ export const GraphEdgeSchema = z.object({
     _descriptionTokens: z.number().optional(),
     embedding: z.array(z.number()).optional(),
     embedding_b64: z.string().optional(),
-    _st_synced: z.boolean().optional(),
 });
 
 export const GraphDataSchema = z.object({
@@ -174,14 +170,6 @@ export const OpenVaultDataSchema = z.object({
     embedding_model_id: z.string().optional(),
 });
 
-// --- StVectorItem Schema ---
-
-export const StVectorItemSchema = z.object({
-    hash: z.number(),
-    text: z.string(),
-    index: z.number().optional(),
-});
-
 // --- Config Schemas ---
 
 export const ScoringConfigSchema = z.object({
@@ -192,7 +180,7 @@ export const ScoringConfigSchema = z.object({
     vectorSimilarityThreshold: z.number().min(0).max(0.99),
     alpha: z.number().min(0).max(1),
     combinedBoostWeight: z.number().min(0).max(100),
-    embeddingSource: z.enum(['local', 'ollama', 'st_vector']),
+    embeddingSource: z.enum(['local', 'ollama']),
     transientDecayMultiplier: z.number().positive().max(50).optional().default(5.0),
 });
 
@@ -223,26 +211,6 @@ export const GraphExtractionSchema = z.object({
             description: z.string(),
         })
     ),
-});
-
-// ST Vector sync changes
-export const StSyncChangesSchema = z.object({
-    toSync: z
-        .array(
-            z.object({
-                hash: z.number(),
-                text: z.string(),
-                item: z.union([MemorySchema, GraphNodeSchema, GraphEdgeSchema, CommunitySummarySchema]),
-            })
-        )
-        .optional(),
-    toDelete: z
-        .array(
-            z.object({
-                hash: z.number(),
-            })
-        )
-        .optional(),
 });
 
 // Extraction phase options
@@ -282,26 +250,16 @@ export const ExtractionLLMOptionsSchema = z.object({
 // Return value from generateReflections
 export const GenerateReflectionsResultSchema = z.object({
     reflections: z.array(MemorySchema),
-    stChanges: StSyncChangesSchema,
 });
 
 // Return value from consolidateEdges
 export const ConsolidateEdgesResultSchema = z.object({
     count: z.number(),
-    stChanges: StSyncChangesSchema,
 });
 
 // Return value from mergeOrInsertEntity
 export const MergeEntityResultSchema = z.object({
     key: z.string(),
-    stChanges: StSyncChangesSchema,
-});
-
-// ST Vector query result
-export const StVectorQueryResultSchema = z.object({
-    id: z.string(),
-    hash: z.number(),
-    text: z.string(),
 });
 
 // LLM configuration preset

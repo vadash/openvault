@@ -143,7 +143,6 @@ export const embeddingModelPrefixes = {
 export const EMBEDDING_SOURCES = Object.freeze({
     LOCAL: 'local',
     OLLAMA: 'ollama',
-    ST_VECTOR: 'st_vector',
 });
 
 // Timeout constants
@@ -156,9 +155,6 @@ export const MEMORIES_PER_PAGE = 20;
 // Two-pass retrieval: maximum memories to calculate vector similarity on
 // After fast-pass (Base + BM25), only top N get expensive cosine similarity
 export const VECTOR_PASS_LIMIT = 200;
-
-/** Over-fetch multiplier for ST Vector Storage candidate retrieval */
-export const OVER_FETCH_MULTIPLIER = 3;
 
 /** Max trimmed candidates to include in debug export (highest-scoring memories cut by budget) */
 export const DEBUG_TRIMMED_CANDIDATES = 10;
@@ -342,11 +338,3 @@ export const MAIN_CHARACTER_ATTENUATION = 0.05;
  *  Prevents hallucinated/swiped AI responses from being extracted before the user can review.
  *  Emergency Cut and backfill bypass this. */
 export const SWIPE_PROTECTION_TAIL_MESSAGES = 1;
-
-// ============== ST API Endpoints ==============
-export const ST_API_ENDPOINTS = Object.freeze({
-    INSERT: '/api/vector/insert',
-    DELETE: '/api/vector/delete',
-    PURGE: '/api/vector/purge',
-    QUERY: '/api/vector/query',
-});
