@@ -14,42 +14,6 @@ describe('TRANSFORMERS_MODELS config', () => {
     });
 });
 
-describe('generateEmbeddingsForMemories', () => {
-    let _originalGetDeps;
-
-    beforeEach(async () => {
-        // Import and save original getDeps
-        const depsModule = await import('../../src/deps.js');
-        _originalGetDeps = depsModule.getDeps;
-
-        // Mock getDeps to return enabled settings
-        const mockDeps = {
-            getExtensionSettings: vi.fn(() => ({
-                openvault: {
-                    embeddingSource: 'multilingual-e5-small',
-                    embeddingQueryPrefix: 'query: ',
-                    embeddingDocPrefix: 'passage: ',
-                },
-            })),
-            console: {
-                error: vi.fn(),
-                warn: vi.fn(),
-                log: vi.fn(),
-            },
-        };
-        vi.spyOn(depsModule, 'getDeps').mockReturnValue(mockDeps);
-    });
-
-    afterEach(() => {
-        vi.restoreAllMocks();
-    });
-
-    it.skip('generateEmbeddingsForMemories stores embedding as Base64 via setEmbedding', async () => {
-        // Test skipped due to complex CDN mocking requirements
-        // The actual function is tested via integration tests
-    });
-});
-
 describe('getQueryEmbedding abort signal', () => {
     beforeEach(async () => {
         const depsModule = await import('../../src/deps.js');
