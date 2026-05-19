@@ -389,30 +389,30 @@ describe('mergeOrInsertEntity', () => {
         expect(key).toBe('fortress');
         expect(Object.keys(graphData.nodes)).toHaveLength(2);
     });
-});
 
-it('persists alias when semantic merge occurs', async () => {
-    const { getDocumentEmbedding } = await import('../../src/embeddings.js');
-    getDocumentEmbedding.mockResolvedValue([0.9, 0.1, 0]);
+    it('persists alias when semantic merge occurs', async () => {
+        const { getDocumentEmbedding } = await import('../../src/embeddings.js');
+        getDocumentEmbedding.mockResolvedValue([0.9, 0.1, 0]);
 
-    upsertEntity(graphData, 'Vova', 'PERSON', 'A young man');
-    graphData.nodes.vova.embedding = [0.9, 0.1, 0];
+        upsertEntity(graphData, 'Vova', 'PERSON', 'A young man');
+        graphData.nodes.vova.embedding = [0.9, 0.1, 0];
 
-    await mergeOrInsertEntity(graphData, 'Vova (aka Lily)', 'PERSON', 'Also Vova', 3, mockSettings);
+        await mergeOrInsertEntity(graphData, 'Vova (aka Lily)', 'PERSON', 'Also Vova', 3, mockSettings);
 
-    expect(graphData.nodes.vova.aliases).toBeDefined();
-    expect(graphData.nodes.vova.aliases).toContain('Vova (aka Lily)');
-});
+        expect(graphData.nodes.vova.aliases).toBeDefined();
+        expect(graphData.nodes.vova.aliases).toContain('Vova (aka Lily)');
+    });
 
-it('does not add alias on exact key match (fast path)', async () => {
-    const { getDocumentEmbedding } = await import('../../src/embeddings.js');
-    getDocumentEmbedding.mockResolvedValue(null);
+    it('does not add alias on exact key match (fast path)', async () => {
+        const { getDocumentEmbedding } = await import('../../src/embeddings.js');
+        getDocumentEmbedding.mockResolvedValue(null);
 
-    upsertEntity(graphData, 'Castle', 'PLACE', 'A fortress');
-    await mergeOrInsertEntity(graphData, 'castle', 'PLACE', 'Updated', 3, mockSettings);
+        upsertEntity(graphData, 'Castle', 'PLACE', 'A fortress');
+        await mergeOrInsertEntity(graphData, 'castle', 'PLACE', 'Updated', 3, mockSettings);
 
-    // Fast path: same key, no alias needed
-    expect(graphData.nodes.castle.aliases).toBeUndefined();
+        // Fast path: same key, no alias needed
+        expect(graphData.nodes.castle.aliases).toBeUndefined();
+    });
 });
 
 describe('cross-script merge', () => {

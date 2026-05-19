@@ -35,6 +35,35 @@ export function loadSettings() {
         structuredClone(defaultSettings),
         extensionSettings[extensionName] || {}
     );
+
+    // Migration check: ST Vector storage has been removed
+    const settings = extensionSettings[extensionName];
+    if (settings.embeddingSource === 'st_vector') {
+        const console = deps.getContext().console;
+        const toastr = deps.getContext().toastr;
+
+        // Log detailed error to console
+        if (console) {
+            console.error(
+                'OpenVault: ST Vector storage has been removed. ' +
+                    'Maintaining two parallel storage systems (local + ST Vectra DB) was unsustainable ' +
+                    'due to fragile sync and subpar similarity quality. Local embeddings now provide ' +
+                    'full cosine similarity control. If you need ST Vector, switch to the stable_23 branch.'
+            );
+        }
+
+        // Show toast notification
+        if (toastr) {
+            toastr.error(
+                'ST Vector storage has been removed. Your embedding source has been automatically reset to the local model. See F12 console for details.',
+                'OpenVault Migration',
+                { timeOut: 10000, extendedTimeOut: 20000, preventDuplicates: true }
+            );
+        }
+
+        // Auto-reset to default local model
+        settings.embeddingSource = 'multilingual-e5-small';
+    }
 }
 
 /**
