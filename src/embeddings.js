@@ -7,140 +7,7 @@ import { hasEmbedding, setEmbedding } from './utils/embedding-codec.js';
 import { logDebug, logError, logInfo } from './utils/logging.js';
 
 // =============================================================================
-// Strategy Classes (from src/embeddings/strategies.js)
-// =============================================================================
-
-// =============================================================================
-// Base Strategy Interface
-// =============================================================================
-
-/**
- * OpenVault Embeddings
- *
- * Local vector embeddings via Transformers.js or Ollama for semantic similarity search.
- * Supports multiple embedding models with lazy loading.
- *
- * Base class for embedding strategies.
- * Subclasses must implement all required methods.
- */
-class EmbeddingStrategy {
-    /**
-     * Get the unique identifier for this strategy
-     * @returns {string} Strategy identifier
-     */
-    getId() {
-        throw new Error('getId() must be implemented by subclass');
-    }
-
-    /**
-     * Check if this strategy is configured and ready to use
-     * @returns {boolean} True if strategy is enabled
-     */
-    isEnabled() {
-        throw new Error('isEnabled() must be implemented by subclass');
-    }
-
-    /**
-     * Get human-readable status description
-     * @returns {string} Status description
-     */
-    getStatus() {
-        throw new Error('getStatus() must be implemented by subclass');
-    }
-
-    /**
-     * Get embedding vector for text
-     * @param {string} text - Text to embed
-     * @param {Object} options - Options
-     * @param {AbortSignal} options.signal - AbortSignal
-     * @returns {Promise<Float32Array|null>} Embedding vector or null if unavailable
-     */
-    async getEmbedding(_text, _options = {}) {
-        throw new Error('getEmbedding() must be implemented by subclass');
-    }
-
-    /**
-     * Get query embedding (with query-side prefix for asymmetric search)
-     * @param {string} text - Query text
-     * @param {Object} options - Options
-     * @param {AbortSignal} options.signal - AbortSignal
-     * @returns {Promise<Float32Array|null>} Embedding vector or null
-     */
-    async getQueryEmbedding(_text, _options = {}) {
-        throw new Error('getQueryEmbedding() must be implemented by subclass');
-    }
-
-    /**
-     * Get document embedding (with doc-side prefix for asymmetric search)
-     * @param {string} text - Document text
-     * @param {Object} options - Options
-     * @param {AbortSignal} options.signal - AbortSignal
-     * @returns {Promise<Float32Array|null>} Embedding vector or null
-     */
-    async getDocumentEmbedding(_text, _options = {}) {
-        throw new Error('getDocumentEmbedding() must be implemented by subclass');
-    }
-
-    /**
-     * Reset any cached state (e.g., loaded models)
-     * @returns {Promise<void>}
-     */
-    async reset() {
-        // Default: no-op
-    }
-
-    /**
-     * Insert items into external vector storage (storage-backed strategies only).
-     * @param {Array<{hash: number, text: string}>} _items - Items to insert
-     * @param {Object} _options - Options
-     * @returns {Promise<boolean>} True if successful, false if not supported
-     */
-    async insertItems(_items, _options = {}) {
-        return false;
-    }
-
-    /**
-     * Search items in external vector storage (storage-backed strategies only).
-     * @param {string} _query - Search text
-     * @param {number} _topK - Number of results
-     * @param {number} _threshold - Similarity threshold
-     * @param {Object} _options - Options
-     * @returns {Promise<Array<{id: string, hash: number, text: string}>|null>} Results or null if not supported
-     */
-    async searchItems(_query, _topK, _threshold, _options = {}) {
-        return null;
-    }
-
-    /**
-     * Delete items from external vector storage.
-     * @param {number[]} _hashes - Hashes to delete
-     * @param {Object} _options - Options
-     * @returns {Promise<boolean>}
-     */
-    async deleteItems(_hashes, _options = {}) {
-        return false;
-    }
-
-    /**
-     * Purge entire collection from external storage.
-     * @param {Object} _options - Options
-     * @returns {Promise<boolean>}
-     */
-    async purgeCollection(_options = {}) {
-        return false;
-    }
-
-    /**
-     * Whether this strategy uses external vector storage (vs local embeddings).
-     * @returns {boolean}
-     */
-    usesExternalStorage() {
-        return false;
-    }
-}
-
-// =============================================================================
-// Transformers.js Strategy
+// Transformers.js Models Configuration
 // =============================================================================
 
 const TRANSFORMERS_MODELS = {
@@ -171,6 +38,10 @@ const TRANSFORMERS_MODELS = {
     },
 };
 
+// =============================================================================
+// Transformers.js Pipeline Management
+// =============================================================================
+
 let webGPUSupported = null;
 
 async function isWebGPUAvailable() {
@@ -197,253 +68,111 @@ async function isWebGPUAvailable() {
     }
 }
 
-class TransformersStrategy extends EmbeddingStrategy {
-    #cachedPipeline = null;
-    #cachedModelId = null;
-    #cachedDevice = null;
-    #loadingPromise = null;
-    #statusCallback = null;
-    #currentModelKey = null;
+// Cached pipeline state
+let cachedPipeline = null;
+let cachedModelKey = null;
+let cachedDevice = null;
+let loadingPromise = null;
+let statusCallback = null;
 
-    constructor() {
-        super();
-        this.#currentModelKey = 'multilingual-e5-small';
+/**
+ * Set the status callback for embedding loading updates
+ * @param {Function} callback - Status callback function
+ */
+export function setEmbeddingStatusCallback(callback) {
+    statusCallback = callback;
+}
+
+function updateStatus(status) {
+    if (statusCallback) {
+        statusCallback(status);
+    }
+    logDebug(`Embedding status: ${status}`);
+}
+
+async function loadPipeline(modelKey) {
+    const modelConfig = TRANSFORMERS_MODELS[modelKey];
+    if (!modelConfig) {
+        throw new Error(`Unknown model: ${modelKey}`);
     }
 
-    getId() {
-        return 'transformers';
+    if (cachedPipeline && cachedModelKey === modelKey) {
+        return cachedPipeline;
     }
 
-    setModelKey(modelKey) {
-        this.#currentModelKey = modelKey;
+    if (loadingPromise && cachedModelKey === modelKey) {
+        return loadingPromise;
     }
 
-    getModelKey() {
-        return this.#currentModelKey;
+    if (cachedModelKey !== modelKey) {
+        cachedPipeline = null;
     }
+    cachedModelKey = modelKey;
 
-    setStatusCallback(callback) {
-        this.#statusCallback = callback;
-    }
+    updateStatus(`Loading ${modelKey}...`);
 
-    isEnabled() {
-        return !!TRANSFORMERS_MODELS[this.#currentModelKey];
-    }
+    loadingPromise = (async () => {
+        try {
+            const useWebGPU = await isWebGPUAvailable();
 
-    getStatus() {
-        const modelConfig = TRANSFORMERS_MODELS[this.#currentModelKey];
-        if (!modelConfig) {
-            return 'Unknown model';
-        }
+            // Check if model requires WebGPU
+            if (modelConfig.requiresWebGPU && !useWebGPU) {
+                throw new Error(`${modelKey} requires WebGPU which is not available`);
+            }
 
-        const shortName = this.#currentModelKey.split('-').slice(0, 2).join('-');
+            const device = useWebGPU ? 'webgpu' : 'wasm';
+            const dtype = useWebGPU ? modelConfig.dtypeWebGPU : modelConfig.dtypeWASM;
 
-        if (this.#cachedPipeline && this.#cachedModelId === this.#currentModelKey) {
-            const deviceLabel = this.#cachedDevice === 'webgpu' ? 'WebGPU' : 'WASM';
-            return `${shortName} (${deviceLabel}) ✓`;
-        }
+            logDebug(`Loading ${modelKey} with ${device} (${dtype})`);
 
-        if (this.#loadingPromise && this.#cachedModelId === this.#currentModelKey) {
-            return `Loading ${shortName}...`;
-        }
+            const { pipeline } = await cdnImport('@huggingface/transformers');
 
-        return `${shortName}`;
-    }
-
-    async #loadPipeline(modelKey) {
-        const modelConfig = TRANSFORMERS_MODELS[modelKey];
-        if (!modelConfig) {
-            throw new Error(`Unknown model: ${modelKey}`);
-        }
-
-        if (this.#cachedPipeline && this.#cachedModelId === modelKey) {
-            return this.#cachedPipeline;
-        }
-
-        if (this.#loadingPromise && this.#cachedModelId === modelKey) {
-            return this.#loadingPromise;
-        }
-
-        if (this.#cachedModelId !== modelKey) {
-            this.#cachedPipeline = null;
-        }
-        this.#cachedModelId = modelKey;
-
-        this.#updateStatus(`Loading ${modelKey}...`);
-
-        this.#loadingPromise = (async () => {
-            try {
-                const useWebGPU = await isWebGPUAvailable();
-
-                // Check if model requires WebGPU
-                if (modelConfig.requiresWebGPU && !useWebGPU) {
-                    throw new Error(`${modelKey} requires WebGPU which is not available`);
-                }
-
-                const device = useWebGPU ? 'webgpu' : 'wasm';
-                const dtype = useWebGPU ? modelConfig.dtypeWebGPU : modelConfig.dtypeWASM;
-
-                logDebug(`Loading ${modelKey} with ${device} (${dtype})`);
-
-                const { pipeline } = await cdnImport('@huggingface/transformers');
-
-                let lastReportedPct = 0;
-                const pipe = await pipeline('feature-extraction', modelConfig.name, {
-                    device,
-                    dtype,
-                    progress_callback: (progress) => {
-                        if (progress.status === 'progress' && progress.total) {
-                            const pct = Math.round((progress.loaded / progress.total) * 100);
-                            if (pct >= lastReportedPct + 25) {
-                                lastReportedPct = Math.floor(pct / 25) * 25;
-                                this.#updateStatus(`Loading ${modelKey}: ${lastReportedPct}%`);
-                            }
+            let lastReportedPct = 0;
+            const pipe = await pipeline('feature-extraction', modelConfig.name, {
+                device,
+                dtype,
+                progress_callback: (progress) => {
+                    if (progress.status === 'progress' && progress.total) {
+                        const pct = Math.round((progress.loaded / progress.total) * 100);
+                        if (pct >= lastReportedPct + 25) {
+                            lastReportedPct = Math.floor(pct / 25) * 25;
+                            updateStatus(`Loading ${modelKey}: ${lastReportedPct}%`);
                         }
-                    },
-                });
-
-                this.#cachedPipeline = pipe;
-                this.#cachedDevice = device;
-                const deviceLabel = useWebGPU ? 'WebGPU' : 'WASM';
-                this.#updateStatus(`${modelKey} (${deviceLabel}) ✓`);
-                return pipe;
-            } catch (error) {
-                this.#updateStatus(`Failed to load ${modelKey}`);
-                this.#cachedPipeline = null;
-                this.#cachedDevice = null;
-                this.#loadingPromise = null;
-                throw error;
-            }
-        })();
-
-        return this.#loadingPromise;
-    }
-
-    #updateStatus(status) {
-        if (this.#statusCallback) {
-            this.#statusCallback(status);
-        }
-        logDebug(`Embedding status: ${status}`);
-    }
-
-    async #embed(text, prefix, { signal } = {}) {
-        if (!text || text.trim().length === 0) {
-            return null;
-        }
-
-        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-
-        try {
-            const pipe = await this.#loadPipeline(this.#currentModelKey);
-            const input = prefix ? `${prefix}${text.trim()}` : text.trim();
-            const output = await pipe(input, { pooling: 'mean', normalize: true, signal });
-            return output.data instanceof Float32Array ? output.data : new Float32Array(output.data);
-        } catch (error) {
-            if (error.name === 'AbortError') throw error;
-            logError('Transformers embedding failed', error, {
-                modelName: this.#currentModelKey,
-                textSnippet: text?.slice(0, 100),
+                    }
+                },
             });
-            return null;
+
+            cachedPipeline = pipe;
+            cachedDevice = device;
+            const deviceLabel = useWebGPU ? 'WebGPU' : 'WASM';
+            updateStatus(`${modelKey} (${deviceLabel}) ✓`);
+            return pipe;
+        } catch (error) {
+            updateStatus(`Failed to load ${modelKey}`);
+            cachedPipeline = null;
+            cachedDevice = null;
+            loadingPromise = null;
+            throw error;
         }
-    }
+    })();
 
-    async getQueryEmbedding(text, { signal, prefix = '' } = {}) {
-        return this.#embed(text, prefix, { signal });
-    }
+    return loadingPromise;
+}
 
-    async getDocumentEmbedding(text, { signal, prefix = '' } = {}) {
-        return this.#embed(text, prefix, { signal });
-    }
-
-    async reset() {
-        this.#cachedPipeline = null;
-        this.#cachedModelId = null;
-        this.#cachedDevice = null;
-        this.#loadingPromise = null;
-    }
+/**
+ * Reset the cached pipeline (useful for model switches or error recovery)
+ * @returns {Promise<void>}
+ */
+export async function resetPipeline() {
+    cachedPipeline = null;
+    cachedModelKey = null;
+    cachedDevice = null;
+    loadingPromise = null;
 }
 
 // =============================================================================
-// Ollama Strategy
+// Ollama Embedding Functions
 // =============================================================================
-
-class OllamaStrategy extends EmbeddingStrategy {
-    getId() {
-        return EMBEDDING_SOURCES.OLLAMA;
-    }
-
-    #getSettings() {
-        const settings = getDeps().getExtensionSettings()[extensionName];
-        return {
-            url: settings?.ollamaUrl,
-            model: settings?.embeddingModel,
-        };
-    }
-
-    isEnabled() {
-        const { url, model } = this.#getSettings();
-        return !!(url && model);
-    }
-
-    getStatus() {
-        const { url, model } = this.#getSettings();
-        if (url && model) {
-            return `Ollama: ${model}`;
-        }
-        return 'Ollama: Not configured';
-    }
-
-    async getEmbedding(text, { signal, url, model } = {}) {
-        // #getSettings() no longer called here — url/model injected by wrapper
-
-        if (!url || !model) {
-            return null;
-        }
-
-        if (!text || text.trim().length === 0) {
-            return null;
-        }
-
-        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-
-        try {
-            const cleanUrl = url.replace(/\/+$/, '');
-            const response = await getDeps().fetch(`${cleanUrl}/api/embeddings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: model,
-                    prompt: text.trim(),
-                }),
-                signal,
-            });
-
-            if (!response.ok) {
-                logDebug(`Ollama embedding request failed: ${response.status} ${response.statusText}`);
-                return null;
-            }
-
-            const data = await response.json();
-            return data.embedding ? new Float32Array(data.embedding) : null;
-        } catch (error) {
-            if (error.name === 'AbortError') throw error;
-            logError('Ollama embedding failed', error, {
-                modelName: model,
-                textSnippet: text?.slice(0, 100),
-            });
-            return null;
-        }
-    }
-
-    async getQueryEmbedding(text, options = {}) {
-        return this.getEmbedding(text, options);
-    }
-
-    async getDocumentEmbedding(text, options = {}) {
-        return this.getEmbedding(text, options);
-    }
-}
 
 /**
  * Test Ollama connection by fetching model list
@@ -464,117 +193,81 @@ export async function testOllamaConnection(url) {
     return true;
 }
 
-// =============================================================================
-// ST Vector Storage Strategy
-// =============================================================================
-
-class StVectorStrategy extends EmbeddingStrategy {
-    getId() {
-        return EMBEDDING_SOURCES.ST_VECTOR;
-    }
-
-    isEnabled() {
-        // ST Vector Storage is always considered available if selected
-        return true;
-    }
-
-    getStatus() {
-        return 'ST Vector Storage';
-    }
-
-    // No local embeddings — ST handles embedding generation
-    async getQueryEmbedding(_text, _options = {}) {
+async function getOllamaEmbedding(text, url, model, signal) {
+    if (!url || !model) {
         return null;
     }
 
-    async getDocumentEmbedding(_text, _options = {}) {
+    if (!text || text.trim().length === 0) {
         return null;
     }
 
-    usesExternalStorage() {
-        return true;
-    }
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-    async insertItems(items, _options = {}) {
-        const { syncItemsToST } = await import('./services/st-vector.js');
-        const { getCurrentChatId } = await import('./store/chat-data.js');
-        const chatId = getCurrentChatId() || 'default';
-        return syncItemsToST(items, chatId);
-    }
+    try {
+        const cleanUrl = url.replace(/\/+$/, '');
+        const response = await getDeps().fetch(`${cleanUrl}/api/embeddings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: model,
+                prompt: text.trim(),
+            }),
+            signal,
+        });
 
-    async searchItems(query, topK, threshold, _options = {}) {
-        const { querySTVector } = await import('./services/st-vector.js');
-        const { getCurrentChatId } = await import('./store/chat-data.js');
-        const chatId = getCurrentChatId() || 'default';
-        return querySTVector(query, topK, threshold, chatId);
-    }
-
-    async deleteItems(hashes, _options = {}) {
-        const { deleteItemsFromST } = await import('./services/st-vector.js');
-        const { getCurrentChatId } = await import('./store/chat-data.js');
-        const chatId = getCurrentChatId() || 'default';
-        return deleteItemsFromST(hashes, chatId);
-    }
-
-    async purgeCollection(_options = {}) {
-        const { purgeSTCollection } = await import('./services/st-vector.js');
-        const { getCurrentChatId } = await import('./store/chat-data.js');
-        const chatId = getCurrentChatId() || 'default';
-        return purgeSTCollection(chatId);
-    }
-}
-
-// =============================================================================
-// Strategy Registry
-// =============================================================================
-
-const strategies = {
-    'multilingual-e5-small': new TransformersStrategy(),
-    'bge-small-en-v1.5': new TransformersStrategy(),
-    'embeddinggemma-300m': new TransformersStrategy(),
-    [EMBEDDING_SOURCES.OLLAMA]: new OllamaStrategy(),
-    [EMBEDDING_SOURCES.ST_VECTOR]: new StVectorStrategy(),
-};
-
-// Configure model-specific transformers strategies
-strategies['multilingual-e5-small'].setModelKey('multilingual-e5-small');
-strategies['bge-small-en-v1.5'].setModelKey('bge-small-en-v1.5');
-strategies['embeddinggemma-300m'].setModelKey('embeddinggemma-300m');
-
-/**
- * Get the strategy for a given source key
- * @param {string} source - Source key (e.g., 'ollama', 'multilingual-e5-small')
- * @returns {EmbeddingStrategy} Strategy instance
- */
-function getStrategy(source) {
-    return strategies[source] || strategies['multilingual-e5-small'];
-}
-
-/**
- * Get all available source keys
- * @returns {string[]} Array of source keys
- */
-function _getAvailableSources() {
-    return Object.keys(strategies);
-}
-
-/**
- * Set the status callback for all strategies
- * @param {Function} callback - Status callback
- */
-function setGlobalStatusCallback(callback) {
-    Object.values(strategies).forEach((strategy) => {
-        if (strategy.setStatusCallback) {
-            strategy.setStatusCallback(callback);
+        if (!response.ok) {
+            logDebug(`Ollama embedding request failed: ${response.status} ${response.statusText}`);
+            return null;
         }
-    });
+
+        const data = await response.json();
+        return data.embedding ? new Float32Array(data.embedding) : null;
+    } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        logError('Ollama embedding failed', error, {
+            modelName: model,
+            textSnippet: text?.slice(0, 100),
+        });
+        return null;
+    }
 }
 
+// =============================================================================
+// Local Transformers.js Embedding Functions
+// =============================================================================
+
+async function getTransformersEmbedding(text, modelKey, prefix, { signal } = {}) {
+    if (!text || text.trim().length === 0) {
+        return null;
+    }
+
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+
+    try {
+        const pipe = await loadPipeline(modelKey);
+        const input = prefix ? `${prefix}${text.trim()}` : text.trim();
+        const output = await pipe(input, { pooling: 'mean', normalize: true, signal });
+        return output.data instanceof Float32Array ? output.data : new Float32Array(output.data);
+    } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        logError('Transformers embedding failed', error, {
+            modelName: modelKey,
+            textSnippet: text?.slice(0, 100),
+        });
+        return null;
+    }
+}
+
+// =============================================================================
+// Public API - Embedding Functions
+// =============================================================================
+
 /**
- * Get the optimal chunk size for the currently configured embedding strategy
+ * Get the optimal chunk size for the currently configured embedding model
  * @returns {number} Optimal chunk size in characters
  */
-function getOptimalChunkSize() {
+export function getOptimalChunkSize() {
     const settings = getDeps().getExtensionSettings()[extensionName];
     const source = settings.embeddingSource;
 
@@ -592,18 +285,6 @@ function getOptimalChunkSize() {
     return 1000;
 }
 
-// =============================================================================
-// Public API - Strategy Delegation
-// =============================================================================
-
-/**
- * Set callback for embedding status updates
- * @param {Function} callback - Function(status: string) to call on status change
- */
-export function setEmbeddingStatusCallback(callback) {
-    setGlobalStatusCallback(callback);
-}
-
 /**
  * Get current embedding model status
  * @returns {string} Current status
@@ -611,8 +292,32 @@ export function setEmbeddingStatusCallback(callback) {
 export function getEmbeddingStatus() {
     const settings = getDeps().getExtensionSettings()[extensionName];
     const source = settings.embeddingSource;
-    const strategy = getStrategy(source);
-    return strategy.getStatus();
+
+    if (TRANSFORMERS_MODELS[source]) {
+        const _modelConfig = TRANSFORMERS_MODELS[source];
+        const shortName = source.split('-').slice(0, 2).join('-');
+
+        if (cachedPipeline && cachedModelKey === source) {
+            const deviceLabel = cachedDevice === 'webgpu' ? 'WebGPU' : 'WASM';
+            return `${shortName} (${deviceLabel}) ✓`;
+        }
+
+        if (loadingPromise && cachedModelKey === source) {
+            return `Loading ${shortName}...`;
+        }
+
+        return `${shortName}`;
+    }
+
+    if (source === EMBEDDING_SOURCES.OLLAMA) {
+        const { ollamaUrl, embeddingModel } = settings;
+        if (ollamaUrl && embeddingModel) {
+            return `Ollama: ${embeddingModel}`;
+        }
+        return 'Ollama: Not configured';
+    }
+
+    return 'Unknown';
 }
 
 /**
@@ -622,8 +327,17 @@ export function getEmbeddingStatus() {
 export function isEmbeddingsEnabled() {
     const settings = getDeps().getExtensionSettings()[extensionName];
     const source = settings.embeddingSource;
-    const strategy = getStrategy(source);
-    return strategy.isEnabled();
+
+    if (TRANSFORMERS_MODELS[source]) {
+        return true;
+    }
+
+    if (source === EMBEDDING_SOURCES.OLLAMA) {
+        const { ollamaUrl, embeddingModel } = settings;
+        return !!(ollamaUrl && embeddingModel);
+    }
+
+    return false;
 }
 
 // LRU cache for embedding results to avoid redundant API calls
@@ -639,7 +353,7 @@ export function clearEmbeddingCache() {
 }
 
 /**
- * Get query embedding (with query prefix applied by strategy)
+ * Get query embedding (with query prefix applied)
  * @param {string} text - Query text
  * @param {Object} options - Options
  * @param {AbortSignal} options.signal - AbortSignal
@@ -650,7 +364,7 @@ export async function getQueryEmbedding(text, { signal } = {}) {
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
     if (!text) return null;
 
-    // Check cache (query prefix is applied inside strategy, so cache on raw text + 'q:' prefix)
+    // Check cache (query prefix is applied, so cache on raw text + 'q:' prefix)
     const cacheKey = `q:${text}`;
     if (embeddingCache.has(cacheKey)) {
         const value = embeddingCache.get(cacheKey);
@@ -661,24 +375,28 @@ export async function getQueryEmbedding(text, { signal } = {}) {
 
     const settings = getDeps().getExtensionSettings()[extensionName];
     const source = settings.embeddingSource;
-    const strategy = getStrategy(source);
-    const result = await strategy.getQueryEmbedding(text, {
-        signal,
-        prefix: settings.embeddingQueryPrefix,
-        url: settings.ollamaUrl,
-        model: settings.embeddingModel,
-    });
+    let result;
 
-    if (embeddingCache.size >= MAX_CACHE_SIZE) {
+    if (TRANSFORMERS_MODELS[source]) {
+        result = await getTransformersEmbedding(text, source, settings.embeddingQueryPrefix, { signal });
+    } else if (source === EMBEDDING_SOURCES.OLLAMA) {
+        const { ollamaUrl, embeddingModel } = settings;
+        const prefixedText = settings.embeddingQueryPrefix ? `${settings.embeddingQueryPrefix}${text}` : text;
+        result = await getOllamaEmbedding(prefixedText, ollamaUrl, embeddingModel, signal);
+    } else {
+        result = null;
+    }
+
+    if (result && embeddingCache.size >= MAX_CACHE_SIZE) {
         const firstKey = embeddingCache.keys().next().value;
         if (firstKey !== undefined) embeddingCache.delete(firstKey);
     }
-    embeddingCache.set(cacheKey, result);
+    if (result) embeddingCache.set(cacheKey, result);
     return result;
 }
 
 /**
- * Get document embedding (with doc prefix applied by strategy)
+ * Get document embedding (with doc prefix applied)
  * @param {string} summary - Memory summary text
  * @param {Object} options - Options
  * @param {AbortSignal} options.signal - AbortSignal
@@ -699,19 +417,23 @@ export async function getDocumentEmbedding(summary, { signal } = {}) {
 
     const settings = getDeps().getExtensionSettings()[extensionName];
     const source = settings.embeddingSource;
-    const strategy = getStrategy(source);
-    const result = await strategy.getDocumentEmbedding(summary, {
-        signal,
-        prefix: settings.embeddingDocPrefix,
-        url: settings.ollamaUrl,
-        model: settings.embeddingModel,
-    });
+    let result;
 
-    if (embeddingCache.size >= MAX_CACHE_SIZE) {
+    if (TRANSFORMERS_MODELS[source]) {
+        result = await getTransformersEmbedding(summary, source, settings.embeddingDocPrefix, { signal });
+    } else if (source === EMBEDDING_SOURCES.OLLAMA) {
+        const { ollamaUrl, embeddingModel } = settings;
+        const prefixedText = settings.embeddingDocPrefix ? `${settings.embeddingDocPrefix}${summary}` : summary;
+        result = await getOllamaEmbedding(prefixedText, ollamaUrl, embeddingModel, signal);
+    } else {
+        result = null;
+    }
+
+    if (result && embeddingCache.size >= MAX_CACHE_SIZE) {
         const firstKey = embeddingCache.keys().next().value;
         if (firstKey !== undefined) embeddingCache.delete(firstKey);
     }
-    embeddingCache.set(cacheKey, result);
+    if (result) embeddingCache.set(cacheKey, result);
     return result;
 }
 
@@ -762,15 +484,16 @@ export async function generateEmbeddingsForMemories(memories, { signal } = {}) {
 
     const settings = getDeps().getExtensionSettings()[extensionName];
     const source = settings.embeddingSource;
-    const strategy = getStrategy(source);
 
     const embeddings = await processInBatches(validMemories, 5, async (m) => {
-        return strategy.getDocumentEmbedding(m.summary, {
-            signal,
-            prefix: settings.embeddingDocPrefix,
-            url: settings.ollamaUrl,
-            model: settings.embeddingModel,
-        });
+        if (TRANSFORMERS_MODELS[source]) {
+            return getTransformersEmbedding(m.summary, source, settings.embeddingDocPrefix, { signal });
+        } else if (source === EMBEDDING_SOURCES.OLLAMA) {
+            const { ollamaUrl, embeddingModel } = settings;
+            const prefixedText = settings.embeddingDocPrefix ? `${settings.embeddingDocPrefix}${m.summary}` : m.summary;
+            return getOllamaEmbedding(prefixedText, ollamaUrl, embeddingModel, signal);
+        }
+        return null;
     });
 
     let count = 0;
@@ -809,18 +532,19 @@ export async function enrichEventsWithEmbeddings(events, { signal } = {}) {
     const t0 = performance.now();
     const settings = getDeps().getExtensionSettings()[extensionName];
     const source = settings.embeddingSource;
-    const strategy = getStrategy(source);
 
     const embeddings = await processInBatches(validEvents, 5, async (e) => {
         if (settings?.debugMode) {
             logDebug(`Embedding doc: "${e.summary}"`);
         }
-        return strategy.getDocumentEmbedding(e.summary, {
-            signal,
-            prefix: settings.embeddingDocPrefix,
-            url: settings.ollamaUrl,
-            model: settings.embeddingModel,
-        });
+        if (TRANSFORMERS_MODELS[source]) {
+            return getTransformersEmbedding(e.summary, source, settings.embeddingDocPrefix, { signal });
+        } else if (source === EMBEDDING_SOURCES.OLLAMA) {
+            const { ollamaUrl, embeddingModel } = settings;
+            const prefixedText = settings.embeddingDocPrefix ? `${settings.embeddingDocPrefix}${e.summary}` : e.summary;
+            return getOllamaEmbedding(prefixedText, ollamaUrl, embeddingModel, signal);
+        }
+        return null;
     });
 
     let count = 0;
@@ -869,69 +593,6 @@ export async function backfillAllEmbeddings({ signal, silent = false } = {}) {
 
     const settings = getDeps().getExtensionSettings()[extensionName];
     const source = settings.embeddingSource;
-    const strategy = getStrategy(source);
-
-    // ST Vector Storage branch: sync items instead of generating local embeddings
-    if (strategy.usesExternalStorage()) {
-        const { cyrb53, isStSynced, markStSynced } = await import('./utils/embedding-codec.js');
-        const BATCH_SIZE = 100;
-
-        const allItems = [];
-
-        // Collect unsynced memories
-        for (const m of data[MEMORIES_KEY] || []) {
-            if (m.summary && !isStSynced(m)) {
-                allItems.push({ item: m, text: `[OV_ID:${m.id}] ${m.summary}` });
-            }
-        }
-
-        // Collect unsynced graph nodes
-        for (const [name, node] of Object.entries(data.graph?.nodes || {})) {
-            if (!isStSynced(node)) {
-                allItems.push({ item: node, text: `[OV_ID:${name}] ${node.description}` });
-            }
-        }
-
-        // Collect unsynced communities
-        for (const [id, community] of Object.entries(data.communities || {})) {
-            if (community.summary && !isStSynced(community)) {
-                allItems.push({ item: community, text: `[OV_ID:${id}] ${community.summary}` });
-            }
-        }
-
-        if (allItems.length === 0) {
-            return { memories: 0, nodes: 0, communities: 0, total: 0, skipped: true };
-        }
-
-        if (!silent) showToast('info', `Syncing ${allItems.length} items to ST Vector Storage...`);
-
-        let synced = 0;
-        for (let i = 0; i < allItems.length; i += BATCH_SIZE) {
-            const batch = allItems.slice(i, i + BATCH_SIZE);
-            const stItems = batch.map(({ text }) => ({
-                hash: cyrb53(text),
-                text,
-                index: 0,
-            }));
-            const success = await strategy.insertItems(stItems);
-            if (success) {
-                for (const { item } of batch) {
-                    markStSynced(item);
-                    synced++;
-                }
-            }
-        }
-
-        if (synced > 0) {
-            // Stamp ST fingerprint so mismatch detection works on next load
-            const { stampStVectorFingerprint } = await import('./embeddings/migration.js');
-            stampStVectorFingerprint(data);
-
-            await saveOpenVaultData();
-        }
-
-        return { memories: synced, nodes: 0, communities: 0, total: synced, skipped: false };
-    }
 
     // Count what needs embedding
     const memories = (data[MEMORIES_KEY] || []).filter((m) => m.summary && !hasEmbedding(m));
@@ -953,17 +614,16 @@ export async function backfillAllEmbeddings({ signal, silent = false } = {}) {
         // 2. Graph node embeddings
         let nodeCount = 0;
         if (nodes.length > 0) {
-            const settings = getDeps().getExtensionSettings()[extensionName];
-            const source = settings.embeddingSource;
-            const strategy = getStrategy(source);
-
             const nodeEmbeddings = await processInBatches(nodes, 5, async (n) => {
-                return strategy.getDocumentEmbedding(`${n.type}: ${n.name} - ${n.description}`, {
-                    signal,
-                    prefix: settings.embeddingDocPrefix,
-                    url: settings.ollamaUrl,
-                    model: settings.embeddingModel,
-                });
+                const text = `${n.type}: ${n.name} - ${n.description}`;
+                if (TRANSFORMERS_MODELS[source]) {
+                    return getTransformersEmbedding(text, source, settings.embeddingDocPrefix, { signal });
+                } else if (source === EMBEDDING_SOURCES.OLLAMA) {
+                    const { ollamaUrl, embeddingModel } = settings;
+                    const prefixedText = settings.embeddingDocPrefix ? `${settings.embeddingDocPrefix}${text}` : text;
+                    return getOllamaEmbedding(prefixedText, ollamaUrl, embeddingModel, signal);
+                }
+                return null;
             });
             for (let i = 0; i < nodes.length; i++) {
                 if (nodeEmbeddings[i]) {
@@ -1008,6 +668,4 @@ export async function backfillAllEmbeddings({ signal, silent = false } = {}) {
 // Exports
 // =============================================================================
 
-export { getStrategy };
 export { TRANSFORMERS_MODELS };
-export { getOptimalChunkSize };

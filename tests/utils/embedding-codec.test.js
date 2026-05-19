@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getEmbedding, hasEmbedding, setEmbedding } from '../../src/utils/embedding-codec.js';
+import { deleteEmbedding, getEmbedding, hasEmbedding, setEmbedding } from '../../src/utils/embedding-codec.js';
 
 describe('setEmbedding + getEmbedding roundtrip', () => {
     it('encodes to Base64 and decodes back to Float32Array', () => {
@@ -50,5 +50,31 @@ describe('hasEmbedding', () => {
         const obj = {};
         setEmbedding(obj, [0.1]);
         expect(hasEmbedding(obj)).toBe(true);
+    });
+
+    it('returns true for legacy embedding array', () => {
+        const obj = { embedding: [0.1, 0.2, 0.3] };
+        expect(hasEmbedding(obj)).toBe(true);
+    });
+
+    it('returns false when no embedding present', () => {
+        const obj = {};
+        expect(hasEmbedding(obj)).toBe(false);
+    });
+});
+
+describe('deleteEmbedding', () => {
+    it('removes both embedding formats', () => {
+        const obj = { embedding_b64: 'abc123', embedding: [0.1, 0.2] };
+        deleteEmbedding(obj);
+        expect(obj.embedding_b64).toBeUndefined();
+        expect(obj.embedding).toBeUndefined();
+    });
+
+    it('handles object with no embedding gracefully', () => {
+        const obj = {};
+        expect(() => deleteEmbedding(obj)).not.toThrow();
+        expect(obj.embedding_b64).toBeUndefined();
+        expect(obj.embedding).toBeUndefined();
     });
 });

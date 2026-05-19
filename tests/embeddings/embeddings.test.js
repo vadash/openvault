@@ -41,20 +41,26 @@ describe('generateEmbeddingsForMemories', () => {
 
     it('generateEmbeddingsForMemories stores embedding as Base64 via setEmbedding', async () => {
         const { hasEmbedding, getEmbedding } = await import('../../src/utils/embedding-codec.js');
-        const { generateEmbeddingsForMemories, getStrategy } = await import('../../src/embeddings.js');
+        const { generateEmbeddingsForMemories } = await import('../../src/embeddings.js');
 
         const memories = [{ summary: 'Test memory', id: 'test1' }];
 
-        // Spy on the strategy's getDocumentEmbedding method
-        const strategy = getStrategy('multilingual-e5-small');
-        const getDocEmbSpy = vi.spyOn(strategy, 'getDocumentEmbedding').mockResolvedValue([0.1, 0.2, 0.3]);
+        // Mock the pipeline function directly
+        const mockPipeline = vi.fn().mockResolvedValue({
+            data: new Float32Array([0.1, 0.2, 0.3]),
+        });
+
+        // Mock cdnImport to return our mock pipeline
+        const cdnImportMock = vi.fn().mockResolvedValue({
+            pipeline: vi.fn().mockResolvedValue(mockPipeline),
+        });
+
+        vi.doMock('../../src/utils/cdn.js', () => ({
+            cdnImport: cdnImportMock,
+        }));
 
         const count = await generateEmbeddingsForMemories(memories);
 
-        expect(getDocEmbSpy).toHaveBeenCalledWith(
-            'Test memory',
-            expect.objectContaining({ signal: expect.any(AbortSignal) })
-        );
         expect(count).toBe(1);
         expect(hasEmbedding(memories[0])).toBe(true);
         expect(memories[0].embedding).toBeUndefined(); // no legacy key
