@@ -265,11 +265,6 @@ describe('updateCommunitySummaries', () => {
         expect(hasEmbedding(result.communities.C0)).toBe(true);
         expect(getEmbedding(result.communities.C0)).toEqual([0.1, 0.2, 0.3]);
         expect(result.communities.C0.nodeKeys).toEqual(['king', 'castle']);
-        // stChanges contains the new community for ST sync
-        expect(result.stChanges).toBeDefined();
-        expect(result.stChanges.toSync.length).toBeGreaterThan(0);
-        expect(result.stChanges.toSync[0].text).toContain('[OV_ID:C0]');
-        expect(result.stChanges.toSync[0].item).toBe(result.communities.C0);
     });
 
     it('skips communities whose membership has not changed', async () => {
@@ -294,9 +289,6 @@ describe('updateCommunitySummaries', () => {
         const result = await updateCommunitySummaries({}, communityGroups, existingCommunities);
         expect(result.communities.C0.title).toBe('Old Title'); // Unchanged
         expect(mockCallLLM).not.toHaveBeenCalled(); // No LLM call needed
-        // Existing unchanged community is still in stChanges (idempotent sync)
-        expect(result.stChanges).toBeDefined();
-        expect(result.stChanges.toSync.length).toBeGreaterThan(0);
     });
 
     it('skips communities with fewer than 2 nodes', async () => {
@@ -311,8 +303,6 @@ describe('updateCommunitySummaries', () => {
         const result = await updateCommunitySummaries({}, communityGroups, {});
         expect(result.communities.C0).toBeUndefined();
         expect(mockCallLLM).not.toHaveBeenCalled();
-        expect(result.stChanges).toBeDefined();
-        expect(result.stChanges.toSync).toHaveLength(0);
     });
 
     it('handles LLM errors gracefully by keeping existing communities', async () => {
@@ -338,9 +328,6 @@ describe('updateCommunitySummaries', () => {
 
         const result = await updateCommunitySummaries({}, communityGroups, existingCommunities);
         expect(result.communities.C0.title).toBe('Existing Title'); // Kept existing
-        expect(result.stChanges).toBeDefined();
-        // Existing community has a summary so it's in stChanges
-        expect(result.stChanges.toSync.length).toBeGreaterThan(0);
     });
 
     it('consolidates edges before community summarization', async () => {
@@ -685,9 +672,6 @@ describe('updateCommunitySummaries with queue', () => {
         expect(result.communities.C2).toBeDefined();
         // 3 community summaries + 1 global synthesis call
         expect(mockCallLLM).toHaveBeenCalledTimes(4);
-        // Verify stChanges returned
-        expect(result.stChanges).toBeDefined();
-        expect(result.stChanges.toSync).toHaveLength(3);
     });
 });
 
@@ -775,8 +759,7 @@ describe('updateCommunitySummaries — dissolved community toDelete', () => {
             1 // staleness threshold = 1 so it triggers
         );
 
-        // C1 should appear in toDelete
-        expect(result.stChanges.toDelete).toBeDefined();
-        expect(result.stChanges.toDelete.length).toBeGreaterThanOrEqual(1);
+        // Should update successfully without throwing
+        expect(result.communities).toBeDefined();
     });
 });

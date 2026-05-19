@@ -25,7 +25,7 @@ import {
     resolveExtractionPrefill,
     resolveOutputLanguage,
 } from '../prompts/index.js';
-import { cyrb53, hasEmbedding, setEmbedding } from '../utils/embedding-codec.js';
+import { hasEmbedding, setEmbedding } from '../utils/embedding-codec.js';
 import { logDebug } from '../utils/logging.js';
 import { createLadderQueue } from '../utils/queue.js';
 
@@ -201,7 +201,7 @@ function sameMembers(a, b) {
  * @param {number} currentMessageCount - Current graph message count for staleness detection
  * @param {number} stalenessThreshold - Message count threshold for forced re-summarization
  * @param {boolean} isSingleCommunity - Whether Louvain produced only one community
- * @returns {Promise<{ communities: Object, global_world_state: Object|null, stChanges: Object }>} Updated communities, optional global state, and ST sync changes
+ * @returns {Promise<{ communities: Object, global_world_state: Object|null }>} Updated communities and optional global state
  */
 export async function updateCommunitySummaries(
     _graphData,
@@ -291,23 +291,6 @@ export async function updateCommunitySummaries(
 
     await Promise.all(promises);
 
-    // Build change set for ST sync (orchestrator handles network I/O)
-    const stChanges = { toSync: [], toDelete: [] };
-    for (const [id, community] of Object.entries(updatedCommunities)) {
-        if (community.summary) {
-            const text = `[OV_ID:${id}] ${community.summary}`;
-            stChanges.toSync.push({ hash: cyrb53(text), text, item: community });
-        }
-    }
-
-    // Detect dissolved communities — present in existing but absent in updated
-    for (const [id, community] of Object.entries(existingCommunities)) {
-        if (!updatedCommunities[id] && community._st_synced) {
-            const text = `[OV_ID:${id}] ${community.summary || ''}`;
-            stChanges.toDelete.push({ hash: cyrb53(text) });
-        }
-    }
-
     const communityCount = Object.keys(updatedCommunities).length;
     record('llm_communities', performance.now() - t0, `${communityCount} communities`);
 
@@ -321,7 +304,6 @@ export async function updateCommunitySummaries(
     return {
         communities: updatedCommunities,
         global_world_state: globalState,
-        stChanges,
     };
 }
 

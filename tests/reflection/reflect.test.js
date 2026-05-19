@@ -193,16 +193,6 @@ describe('generateReflections', () => {
             expect(r.witnesses).toEqual(['Alice']);
         }
     });
-
-    it('returns stChanges with sync items for each reflection', async () => {
-        const { reflections, stChanges } = await generateReflections(characterName, allMemories, characterStates);
-        expect(stChanges.toSync).toHaveLength(reflections.length);
-        for (let i = 0; i < reflections.length; i++) {
-            expect(stChanges.toSync[i].text).toContain(`[OV_ID:${reflections[i].id}]`);
-            expect(stChanges.toSync[i].item).toBe(reflections[i]);
-            expect(stChanges.toSync[i].hash).toBeDefined();
-        }
-    });
 });
 
 describe('filterDuplicateReflections', () => {

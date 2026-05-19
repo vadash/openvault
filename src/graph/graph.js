@@ -32,7 +32,7 @@ import {
     resolveOutputLanguage,
 } from '../prompts/index.js';
 import { cosineSimilarity, tokenize } from '../retrieval/math.js';
-import { cyrb53, getEmbedding, hasEmbedding, setEmbedding } from '../utils/embedding-codec.js';
+import { getEmbedding, hasEmbedding, setEmbedding } from '../utils/embedding-codec.js';
 import { logDebug, logError } from '../utils/logging.js';
 import { createLadderQueue } from '../utils/queue.js';
 import { stemWord } from '../utils/stemmer.js';
@@ -409,26 +409,15 @@ export function shouldMergeEntities(cosine, threshold, tokensA, keyA, keyB, type
  * @param {string} description - Entity description
  * @param {number} cap - Description segment cap
  * @param {Object} _settings - Extension settings
- * @returns {Promise<MergeEntityResult>} The key of the node and ST sync changes
+ * @returns {Promise<{key: string}>} The key of the node
  */
 export async function mergeOrInsertEntity(graphData, name, type, description, cap, _settings) {
     const key = normalizeKey(name);
-    const stChanges = { toSync: [], toDelete: [] };
-
-    /** Push updated node to stChanges.toSync */
-    const syncNode = (nodeKey) => {
-        const n = graphData.nodes[nodeKey];
-        if (n) {
-            const t = `[OV_ID:${nodeKey}] ${n.description}`;
-            stChanges.toSync.push({ hash: cyrb53(t), text: t, item: n });
-        }
-    };
 
     // Fast path: exact key match
     if (graphData.nodes[key]) {
         upsertEntity(graphData, name, type, description, cap);
-        syncNode(key);
-        return { key, stChanges };
+        return { key };
     }
 
     // Universal cross-script merge: if this is a PERSON entity, check all existing
@@ -461,8 +450,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
                 if (key !== existingKey) {
                     graphData._mergeRedirects[key] = existingKey;
                 }
-                syncNode(existingKey);
-                return { key: existingKey, stChanges };
+                return { key: existingKey };
             }
         }
     }
@@ -477,8 +465,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
 
     if (!newEmbedding) {
         upsertEntity(graphData, name, type, description, cap);
-        syncNode(key);
-        return { key, stChanges };
+        return { key };
     }
 
     const threshold = ENTITY_MERGE_THRESHOLD;
@@ -532,33 +519,27 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
         if (key !== bestMatch) {
             graphData._mergeRedirects[key] = bestMatch;
         }
-        syncNode(bestMatch);
-        return { key: bestMatch, stChanges };
+        return { key: bestMatch };
     }
 
     // No match: create new node with embedding
     upsertEntity(graphData, name, type, description, cap);
     setEmbedding(graphData.nodes[key], newEmbedding);
 
-    const node = graphData.nodes[key];
-    const text = `[OV_ID:${key}] ${node.description}`;
-    stChanges.toSync.push({ hash: cyrb53(text), text, item: node });
-
-    return { key, stChanges };
+    return { key };
 }
 
 /**
  * Consolidate graph edges that have exceeded token budget.
  * @param {GraphData} graphData - The graph object
  * @param {Object} _settings - Extension settings
- * @returns {Promise<ConsolidateEdgesResult>} Consolidation result
+ * @returns {Promise<{count: number}>} Consolidation result with count of processed edges
  */
 export async function consolidateEdges(graphData, _settings) {
     if (!graphData._edgesNeedingConsolidation?.length) {
-        return { count: 0, stChanges: { toSync: [], toDelete: [] } };
+        return { count: 0 };
     }
 
-    const stChanges = { toSync: [], toDelete: [] };
     const toProcess = graphData._edgesNeedingConsolidation.slice(0, CONSOLIDATION.MAX_CONSOLIDATION_BATCH);
 
     const deps = getDeps();
@@ -581,13 +562,6 @@ export async function consolidateEdges(graphData, _settings) {
 
                     const result = parseConsolidationResponse(response);
                     if (result.consolidated_description) {
-                        // Queue old embedding for ST deletion before overwrite
-                        if (edge._st_synced) {
-                            const oldEdgeId = `edge_${edge.source}_${edge.target}`;
-                            const oldText = `[OV_ID:${oldEdgeId}] ${edge.description}`;
-                            stChanges.toDelete.push({ hash: cyrb53(oldText) });
-                        }
-
                         edge.description = result.consolidated_description;
                         edge._descriptionTokens = countTokens(result.consolidated_description);
 
@@ -598,11 +572,6 @@ export async function consolidateEdges(graphData, _settings) {
                             );
                             setEmbedding(edge, newEmbedding);
                         }
-
-                        // Return edge for ST sync (orchestrator handles bulk I/O)
-                        const edgeId = `edge_${edge.source}_${edge.target}`;
-                        const text = `[OV_ID:${edgeId}] ${edge.description}`;
-                        stChanges.toSync.push({ hash: cyrb53(text), text, item: edge });
 
                         return edgeKey;
                     }
@@ -622,5 +591,5 @@ export async function consolidateEdges(graphData, _settings) {
         (key) => !successfulKeys.includes(key)
     );
 
-    return { count: successfulKeys.length, stChanges };
+    return { count: successfulKeys.length };
 }

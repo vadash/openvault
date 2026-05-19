@@ -5,7 +5,6 @@
 /** @typedef {import('../types').Relationship} Relationship */
 /** @typedef {import('../types').ExtractedEvent} ExtractedEvent */
 /** @typedef {import('../types').GraphExtraction} GraphExtraction */
-/** @typedef {import('../types').StSyncChanges} StSyncChanges */
 /** @typedef {import('../types').ExtractionOptions} ExtractionOptions */
 /** @typedef {import('../types').ExtractionContextParams} ExtractionContextParams */
 /** @typedef {import('../types').ExtractionLLMOptions} ExtractionLLMOptions */
@@ -24,7 +23,6 @@ import {
     COMMUNITY_STALENESS_THRESHOLD,
     CONSOLIDATION,
     EDGE_DESCRIPTION_CAP,
-    EMBEDDING_SOURCES,
     ENTITY_DESCRIPTION_CAP,
     ENTITY_TYPES,
     extensionName,
@@ -52,7 +50,6 @@ import {
 } from '../prompts/index.js';
 import { accumulateImportance, generateReflections, shouldReflect } from '../reflection/reflect.js';
 import { calculateIDF, cosineSimilarity, tokenize } from '../retrieval/math.js';
-import { deleteItemsFromST, isStVectorSource, syncItemsToST } from '../services/st-vector.js';
 import { getSettings } from '../settings.js';
 import { clearAllLocks, isWorkerRunning, operationState } from '../state.js';
 import {
@@ -64,7 +61,7 @@ import {
     saveOpenVaultData,
 } from '../store/chat-data.js';
 import { showToast } from '../utils/dom.js';
-import { cyrb53, getEmbedding, hasEmbedding, isStSynced, markStSynced } from '../utils/embedding-codec.js';
+import { getEmbedding, hasEmbedding } from '../utils/embedding-codec.js';
 import { logDebug, logError, logInfo } from '../utils/logging.js';
 import { createLadderQueue } from '../utils/queue.js';
 import { isExtensionEnabled, safeSetExtensionPrompt, yieldToMain } from '../utils/st-helpers.js';
@@ -112,35 +109,6 @@ async function rpmDelay(settings, label = 'Rate limit') {
         await new Promise((r) => setTimeout(r, sleepTime));
     }
     lastApiCallTime = Date.now();
-}
-
-/**
- * Apply ST Vector Storage sync changes from domain function return values.
- * Handles both sync (insert) and delete operations in bulk.
- * @param {StSyncChanges} stChanges
- * @returns {Promise<void>}
- */
-export async function applySyncChanges(stChanges) {
-    if (!isStVectorSource()) return;
-    const chatId = getCurrentChatId();
-    let requiresSave = false;
-    if (stChanges.toSync?.length > 0) {
-        const items = stChanges.toSync.map((c) => ({ hash: c.hash, text: c.text, index: 0 }));
-        const success = await syncItemsToST(items, chatId);
-        if (success) {
-            for (const c of stChanges.toSync) markStSynced(c.item);
-            requiresSave = true;
-        }
-    }
-    if (stChanges.toDelete?.length > 0) {
-        await deleteItemsFromST(
-            stChanges.toDelete.map((c) => c.hash),
-            chatId
-        );
-    }
-    if (requiresSave) {
-        await saveOpenVaultData();
-    }
 }
 
 // =============================================================================
@@ -622,7 +590,7 @@ export async function synthesizeReflections(data, characterNames, settings, opti
     // Check if reflection generation is enabled
     if (!getSettings('reflectionGenerationEnabled', true)) {
         logDebug('[Extraction] Reflection generation disabled, skipping Phase 2');
-        return { stChanges: { toUpsert: [], toDelete: [] } };
+        return;
     }
 
     const reflectionThreshold = settings.reflectionThreshold;
@@ -643,7 +611,7 @@ export async function synthesizeReflections(data, characterNames, settings, opti
                         // we don't want to retry immediately (to avoid token burning)
                         data.reflection_state[characterName].importance_sum = 0;
 
-                        const { reflections, stChanges } = await generateReflections(
+                        const { reflections } = await generateReflections(
                             characterName,
                             data[MEMORIES_KEY] || [],
                             data[CHARACTERS_KEY] || {}
@@ -651,7 +619,6 @@ export async function synthesizeReflections(data, characterNames, settings, opti
                         if (reflections.length > 0) {
                             addMemories(reflections);
                         }
-                        await applySyncChanges(stChanges);
                     })
                     .catch((error) => {
                         if (error.name === 'AbortError') throw error;
@@ -683,11 +650,10 @@ async function synthesizeCommunities(data, settings, characterName, userName) {
         if (communityResult) {
             // Consolidate bloated edges before summarization
             if (data.graph._edgesNeedingConsolidation?.length > 0) {
-                const { count: consolidated, stChanges: edgeChanges } = await consolidateEdges(data.graph, settings);
+                const { count: consolidated } = await consolidateEdges(data.graph, settings);
                 if (consolidated > 0) {
                     logDebug(`Consolidated ${consolidated} graph edges before community summarization`);
                 }
-                await applySyncChanges(edgeChanges);
             }
 
             const groups = buildCommunityGroups(data.graph, communityResult.communities);
@@ -705,7 +671,6 @@ async function synthesizeCommunities(data, settings, characterName, userName) {
             if (communityUpdateResult.global_world_state) {
                 data.global_world_state = communityUpdateResult.global_world_state;
             }
-            await applySyncChanges(communityUpdateResult.stChanges);
             logDebug(`Community detection: ${communityResult.count} communities found`);
         }
     } catch (error) {
@@ -856,27 +821,16 @@ async function enrichAndDedupEvents(
  * @param {Entity[]} entities - Entities from graph extraction
  * @param {Relationship[]} relationships - Relationships from graph extraction
  * @param {Object} settings - Extension settings
- * @returns {Promise<{graphSyncChanges: StSyncChanges}>}
+ * @returns {Promise<void>}
  */
 async function processGraphUpdates(graphData, entities, relationships, settings) {
-    const graphSyncChanges = { toSync: [], toDelete: [] };
-
     if (entities?.length) {
         const entityCap = ENTITY_DESCRIPTION_CAP;
         const t0Merge = performance.now();
         const existingNodeCount = Object.keys(graphData.nodes).length;
         for (const entity of entities) {
             if (entity.name === 'Unknown') continue;
-            const { stChanges: entityChanges } = await mergeOrInsertEntity(
-                graphData,
-                entity.name,
-                entity.type,
-                entity.description,
-                entityCap,
-                settings
-            );
-            graphSyncChanges.toSync.push(...entityChanges.toSync);
-            graphSyncChanges.toDelete.push(...entityChanges.toDelete);
+            await mergeOrInsertEntity(graphData, entity.name, entity.type, entity.description, entityCap, settings);
         }
         record('entity_merge', performance.now() - t0Merge, `${entities.length}×${existingNodeCount} nodes`);
     }
@@ -891,7 +845,6 @@ async function processGraphUpdates(graphData, entities, relationships, settings)
 
     // Clean up runtime-only merge redirects (don't persist to storage)
     delete graphData._mergeRedirects;
-    return { graphSyncChanges };
 }
 
 /**
@@ -1006,19 +959,10 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         // Stamp embedding model ID on first successful embedding generation
         if (events.length > 0 && !data.embedding_model_id && events.some((e) => hasEmbedding(e))) {
             data.embedding_model_id = settings.embeddingSource;
-            if (settings.embeddingSource === EMBEDDING_SOURCES.ST_VECTOR) {
-                const { stampStVectorFingerprint } = await import('../embeddings/migration.js');
-                stampStVectorFingerprint(data);
-            }
         }
 
         // Stage 4: Graph updates
-        const { graphSyncChanges } = await processGraphUpdates(
-            data.graph,
-            graphResult.entities,
-            graphResult.relationships,
-            settings
-        );
+        await processGraphUpdates(data.graph, graphResult.entities, graphResult.relationships, settings);
         incrementGraphMessageCount(messages.length);
 
         // ===== PHASE 1 COMMIT: Events + Graph are done =====
@@ -1042,17 +986,6 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         if (!phase1Saved && targetChatId) {
             throw new Error('Chat changed during extraction');
         }
-
-        // Sync events + graph to ST Vector Storage (single applySyncChanges call)
-        const eventSyncChanges = { toSync: [], toDelete: [] };
-        for (const e of events.filter((e) => !isStSynced(e))) {
-            const text = `[OV_ID:${e.id}] ${e.summary}`;
-            eventSyncChanges.toSync.push({ hash: cyrb53(text), text, item: e });
-        }
-        await applySyncChanges({
-            toSync: [...eventSyncChanges.toSync, ...graphSyncChanges.toSync],
-            toDelete: [...graphSyncChanges.toDelete],
-        });
 
         // ===== PHASE 2: Enrichment (non-critical) =====
         try {

@@ -36,7 +36,7 @@ import {
 } from '../prompts/index.js';
 import { cosineSimilarity, tokenize } from '../retrieval/math.js';
 import { generateId } from '../store/chat-data.js';
-import { cyrb53, getEmbedding, hasEmbedding } from '../utils/embedding-codec.js';
+import { getEmbedding, hasEmbedding } from '../utils/embedding-codec.js';
 import { logDebug } from '../utils/logging.js';
 import { sortMemoriesBySequence } from '../utils/text.js';
 
@@ -199,7 +199,7 @@ export function shouldSkipReflectionGeneration(
  * @param {string} characterName
  * @param {Array} allMemories - Full memory stream
  * @param {Object} characterStates - For POV filtering
- * @returns {Promise<{reflections: Array, stChanges: import('../types.d.ts').StSyncChanges}>} Reflections and ST sync changes
+ * @returns {Promise<{reflections: Array}>} Generated reflections
  */
 export async function generateReflections(characterName, allMemories, characterStates) {
     const t0 = performance.now();
@@ -236,7 +236,7 @@ export async function generateReflections(characterName, allMemories, characterS
 
     if (recentMemories.length < 3) {
         logDebug(`Reflection: ${characterName} has too few accessible memories (${recentMemories.length}), skipping`);
-        return { reflections: [], stChanges: { toSync: [] } };
+        return { reflections: [] };
     }
 
     // Get existing reflections for this character
@@ -341,12 +341,6 @@ export async function generateReflections(characterName, allMemories, characterS
         `Reflection: Generated ${toAdd.length} reflections for ${characterName} (${newReflections.length - toAdd.length} filtered)`
     );
 
-    const stChanges = { toSync: [] };
-    for (const r of toAdd) {
-        const text = `[OV_ID:${r.id}] ${r.summary}`;
-        stChanges.toSync.push({ hash: cyrb53(text), text, item: r });
-    }
-
     record('llm_reflection', performance.now() - t0);
-    return { reflections: toAdd, stChanges };
+    return { reflections: toAdd };
 }

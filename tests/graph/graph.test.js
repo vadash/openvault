@@ -327,12 +327,8 @@ describe('mergeOrInsertEntity', () => {
         getDocumentEmbedding.mockResolvedValue(null);
 
         upsertEntity(graphData, 'Castle', 'PLACE', 'A fortress');
-        const { key, stChanges } = await mergeOrInsertEntity(graphData, 'castle', 'PLACE', 'Updated', 3, mockSettings);
+        const { key } = await mergeOrInsertEntity(graphData, 'castle', 'PLACE', 'Updated', 3, mockSettings);
         expect(key).toBe('castle');
-        expect(stChanges.toSync).toHaveLength(1); // Updated node should be synced
-        expect(stChanges.toSync[0].text).toBe('[OV_ID:castle] A fortress | Updated');
-        expect(stChanges.toSync[0].item).toBe(graphData.nodes.castle);
-        expect(stChanges.toDelete).toHaveLength(0);
         expect(graphData.nodes.castle.mentions).toBe(2);
         expect(Object.keys(graphData.nodes)).toHaveLength(1);
     });
@@ -344,11 +340,8 @@ describe('mergeOrInsertEntity', () => {
         upsertEntity(graphData, 'Castle', 'PLACE', 'A fortress');
         graphData.nodes.castle.embedding = [1, 0, 0];
 
-        const { key, stChanges } = await mergeOrInsertEntity(graphData, 'Dragon', 'PERSON', 'A beast', 3, mockSettings);
+        const { key } = await mergeOrInsertEntity(graphData, 'Dragon', 'PERSON', 'A beast', 3, mockSettings);
         expect(key).toBe('dragon');
-        expect(stChanges.toSync).toHaveLength(1); // New node should be synced
-        expect(stChanges.toSync[0].text).toBe('[OV_ID:dragon] A beast');
-        expect(stChanges.toDelete).toHaveLength(0);
         expect(Object.keys(graphData.nodes)).toHaveLength(2);
     });
 
@@ -360,19 +353,9 @@ describe('mergeOrInsertEntity', () => {
         upsertEntity(graphData, 'Dragon', 'PERSON', 'A creature');
         graphData.nodes.dragon.embedding = [0.9, 0.1, 0];
 
-        const { key, stChanges } = await mergeOrInsertEntity(
-            graphData,
-            'Draco',
-            'PERSON',
-            'Another name',
-            3,
-            mockSettings
-        );
+        const { key } = await mergeOrInsertEntity(graphData, 'Draco', 'PERSON', 'Another name', 3, mockSettings);
         // PERSON can merge on high similarity alone (names are unique identifiers)
         expect(key).toBe('dragon');
-        expect(stChanges.toSync).toHaveLength(1); // Updated node should be synced
-        expect(stChanges.toSync[0].text).toBe('[OV_ID:dragon] A creature | Another name');
-        expect(stChanges.toDelete).toHaveLength(0);
         expect(graphData.nodes.dragon.mentions).toBe(2);
         expect(Object.keys(graphData.nodes)).toHaveLength(1);
     });
@@ -384,7 +367,7 @@ describe('mergeOrInsertEntity', () => {
         upsertEntity(graphData, 'Castle', 'PLACE', 'A fortress');
         graphData.nodes.castle.embedding = [1, 0, 0];
 
-        const { key, stChanges } = await mergeOrInsertEntity(
+        const { key } = await mergeOrInsertEntity(
             graphData,
             'Castle',
             'PERSON',
@@ -394,9 +377,6 @@ describe('mergeOrInsertEntity', () => {
         );
         // Fast-path key match fires first regardless of type
         expect(key).toBe('castle');
-        expect(stChanges.toSync).toHaveLength(1); // Updated node should be synced
-        expect(stChanges.toSync[0].text).toBe('[OV_ID:castle] A fortress | A person named Castle');
-        expect(stChanges.toDelete).toHaveLength(0);
         expect(graphData.nodes.castle.type).toBe('PLACE'); // Original type preserved
     });
 
@@ -405,323 +385,287 @@ describe('mergeOrInsertEntity', () => {
         getDocumentEmbedding.mockResolvedValue(null);
 
         upsertEntity(graphData, 'Castle', 'PLACE', 'A fortress');
-        const { key, stChanges } = await mergeOrInsertEntity(
-            graphData,
-            'Fortress',
-            'PLACE',
-            'A stronghold',
-            3,
-            mockSettings
-        );
+        const { key } = await mergeOrInsertEntity(graphData, 'Fortress', 'PLACE', 'A stronghold', 3, mockSettings);
         expect(key).toBe('fortress');
-        expect(stChanges.toSync).toHaveLength(1); // New node should be synced
-        expect(stChanges.toSync[0].text).toBe('[OV_ID:fortress] A stronghold');
-        expect(stChanges.toDelete).toHaveLength(0);
         expect(Object.keys(graphData.nodes)).toHaveLength(2);
     });
+});
 
-    it('persists alias when semantic merge occurs', async () => {
-        const { getDocumentEmbedding } = await import('../../src/embeddings.js');
-        getDocumentEmbedding.mockResolvedValue([0.9, 0.1, 0]);
+it('persists alias when semantic merge occurs', async () => {
+    const { getDocumentEmbedding } = await import('../../src/embeddings.js');
+    getDocumentEmbedding.mockResolvedValue([0.9, 0.1, 0]);
 
-        upsertEntity(graphData, 'Vova', 'PERSON', 'A young man');
-        graphData.nodes.vova.embedding = [0.9, 0.1, 0];
+    upsertEntity(graphData, 'Vova', 'PERSON', 'A young man');
+    graphData.nodes.vova.embedding = [0.9, 0.1, 0];
 
-        await mergeOrInsertEntity(graphData, 'Vova (aka Lily)', 'PERSON', 'Also Vova', 3, mockSettings);
+    await mergeOrInsertEntity(graphData, 'Vova (aka Lily)', 'PERSON', 'Also Vova', 3, mockSettings);
 
-        expect(graphData.nodes.vova.aliases).toBeDefined();
-        expect(graphData.nodes.vova.aliases).toContain('Vova (aka Lily)');
-    });
+    expect(graphData.nodes.vova.aliases).toBeDefined();
+    expect(graphData.nodes.vova.aliases).toContain('Vova (aka Lily)');
+});
 
-    it('does not add alias on exact key match (fast path)', async () => {
-        const { getDocumentEmbedding } = await import('../../src/embeddings.js');
-        getDocumentEmbedding.mockResolvedValue(null);
+it('does not add alias on exact key match (fast path)', async () => {
+    const { getDocumentEmbedding } = await import('../../src/embeddings.js');
+    getDocumentEmbedding.mockResolvedValue(null);
 
-        upsertEntity(graphData, 'Castle', 'PLACE', 'A fortress');
-        await mergeOrInsertEntity(graphData, 'castle', 'PLACE', 'Updated', 3, mockSettings);
+    upsertEntity(graphData, 'Castle', 'PLACE', 'A fortress');
+    await mergeOrInsertEntity(graphData, 'castle', 'PLACE', 'Updated', 3, mockSettings);
 
-        // Fast path: same key, no alias needed
-        expect(graphData.nodes.castle.aliases).toBeUndefined();
-    });
+    // Fast path: same key, no alias needed
+    expect(graphData.nodes.castle.aliases).toBeUndefined();
+});
 
-    describe('cross-script merge', () => {
-        it.each([
-            {
-                desc: 'merges Cyrillic PERSON matching main character via transliteration',
-                setup: () => {
-                    graphData.nodes.suzy = {
-                        name: 'Suzy',
-                        type: 'PERSON',
-                        description: 'Main character',
-                        mentions: 28,
-                    };
-                },
-                inputName: 'Сузи',
-                inputType: 'PERSON',
-                inputDesc: 'Главная героиня',
-                expectedKey: 'suzy',
-                expectedSyncText: '[OV_ID:suzy] Main character | Главная героиня',
-                expectedAlias: 'Сузи',
-                expectedRedirectSource: 'сузи',
-                expectedRedirectTarget: 'suzy',
+describe('cross-script merge', () => {
+    it.each([
+        {
+            desc: 'merges Cyrillic PERSON matching main character via transliteration',
+            setup: () => {
+                graphData.nodes.suzy = {
+                    name: 'Suzy',
+                    type: 'PERSON',
+                    description: 'Main character',
+                    mentions: 28,
+                };
             },
-            {
-                desc: 'does not cross-script merge non-PERSON entities',
-                setup: () => {
-                    graphData.nodes.suzy = {
-                        name: 'Suzy',
-                        type: 'PERSON',
-                        description: 'Main character',
-                        mentions: 28,
-                    };
-                },
-                inputName: 'Сузи',
-                inputType: 'OBJECT',
-                inputDesc: 'Some object named Сузи',
-                expectedKey: 'сузи',
-                expectedSyncText: '[OV_ID:сузи] Some object named Сузи',
-                expectedAlias: undefined,
-                expectedRedirectSource: undefined,
-                expectedRedirectTarget: undefined,
+            inputName: 'Сузи',
+            inputType: 'PERSON',
+            inputDesc: 'Главная героиня',
+            expectedKey: 'suzy',
+            expectedSyncText: '[OV_ID:suzy] Main character | Главная героиня',
+            expectedAlias: 'Сузи',
+            expectedRedirectSource: 'сузи',
+            expectedRedirectTarget: 'suzy',
+        },
+        {
+            desc: 'does not cross-script merge non-PERSON entities',
+            setup: () => {
+                graphData.nodes.suzy = {
+                    name: 'Suzy',
+                    type: 'PERSON',
+                    description: 'Main character',
+                    mentions: 28,
+                };
             },
-            {
-                desc: 'creates new node when no existing PERSON nodes match cross-script',
-                setup: () => {
-                    // No existing nodes
-                },
-                inputName: 'Сузи',
-                inputType: 'PERSON',
-                inputDesc: 'Some person',
-                expectedKey: 'сузи',
-                expectedSyncText: '[OV_ID:сузи] Some person',
-                expectedAlias: undefined,
-                expectedRedirectSource: undefined,
-                expectedRedirectTarget: undefined,
+            inputName: 'Сузи',
+            inputType: 'OBJECT',
+            inputDesc: 'Some object named Сузи',
+            expectedKey: 'сузи',
+            expectedSyncText: '[OV_ID:сузи] Some object named Сузи',
+            expectedAlias: undefined,
+            expectedRedirectSource: undefined,
+            expectedRedirectTarget: undefined,
+        },
+        {
+            desc: 'creates new node when no existing PERSON nodes match cross-script',
+            setup: () => {
+                // No existing nodes
             },
-            {
-                desc: 'merges secondary character Cyrillic variant into existing Latin PERSON node',
-                setup: () => {
-                    graphData.nodes.mina = {
-                        name: 'Mina',
-                        type: 'PERSON',
-                        description: 'A friend',
-                        mentions: 5,
-                    };
-                },
-                inputName: 'Мина',
-                inputType: 'PERSON',
-                inputDesc: 'Подруга',
-                expectedKey: 'mina',
-                expectedSyncText: '[OV_ID:mina] A friend | Подруга',
-                expectedAlias: 'Мина',
-                expectedRedirectSource: 'мина',
-                expectedRedirectTarget: 'mina',
+            inputName: 'Сузи',
+            inputType: 'PERSON',
+            inputDesc: 'Some person',
+            expectedKey: 'сузи',
+            expectedSyncText: '[OV_ID:сузи] Some person',
+            expectedAlias: undefined,
+            expectedRedirectSource: undefined,
+            expectedRedirectTarget: undefined,
+        },
+        {
+            desc: 'merges secondary character Cyrillic variant into existing Latin PERSON node',
+            setup: () => {
+                graphData.nodes.mina = {
+                    name: 'Mina',
+                    type: 'PERSON',
+                    description: 'A friend',
+                    mentions: 5,
+                };
             },
-            {
-                desc: 'merges Latin PERSON into existing Cyrillic node (reverse direction)',
-                setup: () => {
-                    graphData.nodes.мина = {
-                        name: 'Мина',
-                        type: 'PERSON',
-                        description: 'Подруга',
-                        mentions: 5,
-                    };
-                },
-                inputName: 'Mina',
-                inputType: 'PERSON',
-                inputDesc: 'A friend',
-                expectedKey: 'мина',
-                expectedSyncText: '[OV_ID:мина] Подруга | A friend',
-                expectedAlias: 'Mina',
-                expectedRedirectSource: 'mina',
-                expectedRedirectTarget: 'мина',
+            inputName: 'Мина',
+            inputType: 'PERSON',
+            inputDesc: 'Подруга',
+            expectedKey: 'mina',
+            expectedSyncText: '[OV_ID:mina] A friend | Подруга',
+            expectedAlias: 'Мина',
+            expectedRedirectSource: 'мина',
+            expectedRedirectTarget: 'mina',
+        },
+        {
+            desc: 'merges Latin PERSON into existing Cyrillic node (reverse direction)',
+            setup: () => {
+                graphData.nodes.мина = {
+                    name: 'Мина',
+                    type: 'PERSON',
+                    description: 'Подруга',
+                    mentions: 5,
+                };
             },
-            {
-                desc: 'does NOT merge short names with distance=2 (stricter threshold)',
-                setup: () => {
-                    graphData.nodes.kaya = {
-                        name: 'Kaya',
-                        type: 'PERSON',
-                        description: 'A friend',
-                        mentions: 5,
-                    };
-                },
-                inputName: 'Мама',
-                inputType: 'PERSON',
-                inputDesc: 'Mother',
-                expectedKey: 'мама',
-                expectedSyncText: '[OV_ID:мама] Mother',
-                expectedAlias: undefined,
-                expectedRedirectSource: undefined,
-                expectedRedirectTarget: undefined,
-                additionalAssertions: (_result) => {
-                    expect(graphData.nodes.мама).toBeDefined();
-                    expect(graphData.nodes.kaya.aliases).toBeUndefined();
-                },
+            inputName: 'Mina',
+            inputType: 'PERSON',
+            inputDesc: 'A friend',
+            expectedKey: 'мина',
+            expectedSyncText: '[OV_ID:мина] Подруга | A friend',
+            expectedAlias: 'Mina',
+            expectedRedirectSource: 'mina',
+            expectedRedirectTarget: 'мина',
+        },
+        {
+            desc: 'does NOT merge short names with distance=2 (stricter threshold)',
+            setup: () => {
+                graphData.nodes.kaya = {
+                    name: 'Kaya',
+                    type: 'PERSON',
+                    description: 'A friend',
+                    mentions: 5,
+                };
             },
-            {
-                desc: 'merges short names with distance=1 (within stricter threshold)',
-                setup: () => {
-                    graphData.nodes.mina = {
-                        name: 'Mina',
-                        type: 'PERSON',
-                        description: 'A friend',
-                        mentions: 5,
-                    };
-                },
-                inputName: 'Мина',
-                inputType: 'PERSON',
-                inputDesc: 'Подруга',
-                expectedKey: 'mina',
-                expectedSyncText: '[OV_ID:mina] A friend | Подруга',
-                expectedAlias: 'Мина',
-                expectedRedirectSource: 'мина',
-                expectedRedirectTarget: 'mina',
+            inputName: 'Мама',
+            inputType: 'PERSON',
+            inputDesc: 'Mother',
+            expectedKey: 'мама',
+            expectedSyncText: '[OV_ID:мама] Mother',
+            expectedAlias: undefined,
+            expectedRedirectSource: undefined,
+            expectedRedirectTarget: undefined,
+            additionalAssertions: (_result) => {
+                expect(graphData.nodes.мама).toBeDefined();
+                expect(graphData.nodes.kaya.aliases).toBeUndefined();
             },
-            {
-                desc: 'merges longer names with distance=2 (standard threshold)',
-                setup: () => {
-                    graphData.nodes.elizabeth = {
-                        name: 'Elizabeth',
-                        type: 'PERSON',
-                        description: 'Queen',
-                        mentions: 10,
-                    };
-                },
-                inputName: 'Элизабет',
-                inputType: 'PERSON',
-                inputDesc: 'Королева',
-                expectedKey: 'elizabeth',
-                expectedSyncText: '[OV_ID:elizabeth] Queen | Королева',
-                expectedAlias: 'Элизабет',
-                expectedRedirectSource: 'элизабет',
-                expectedRedirectTarget: 'elizabeth',
+        },
+        {
+            desc: 'merges short names with distance=1 (within stricter threshold)',
+            setup: () => {
+                graphData.nodes.mina = {
+                    name: 'Mina',
+                    type: 'PERSON',
+                    description: 'A friend',
+                    mentions: 5,
+                };
             },
-        ])('$desc', async ({
-            setup,
-            inputName,
-            inputType,
-            inputDesc,
-            expectedKey,
-            expectedSyncText,
-            expectedAlias,
-            expectedRedirectSource,
-            expectedRedirectTarget,
-            additionalAssertions,
-        }) => {
-            setup();
+            inputName: 'Мина',
+            inputType: 'PERSON',
+            inputDesc: 'Подруга',
+            expectedKey: 'mina',
+            expectedSyncText: '[OV_ID:mina] A friend | Подруга',
+            expectedAlias: 'Мина',
+            expectedRedirectSource: 'мина',
+            expectedRedirectTarget: 'mina',
+        },
+        {
+            desc: 'merges longer names with distance=2 (standard threshold)',
+            setup: () => {
+                graphData.nodes.elizabeth = {
+                    name: 'Elizabeth',
+                    type: 'PERSON',
+                    description: 'Queen',
+                    mentions: 10,
+                };
+            },
+            inputName: 'Элизабет',
+            inputType: 'PERSON',
+            inputDesc: 'Королева',
+            expectedKey: 'elizabeth',
+            expectedSyncText: '[OV_ID:elizabeth] Queen | Королева',
+            expectedAlias: 'Элизабет',
+            expectedRedirectSource: 'элизабет',
+            expectedRedirectTarget: 'elizabeth',
+        },
+    ])('$desc', async ({
+        setup,
+        inputName,
+        inputType,
+        inputDesc,
+        expectedKey,
+        expectedSyncText,
+        expectedAlias,
+        expectedRedirectSource,
+        expectedRedirectTarget,
+        additionalAssertions,
+    }) => {
+        setup();
 
-            const { key, stChanges } = await mergeOrInsertEntity(graphData, inputName, inputType, inputDesc, 3, {
-                entityMergeSimilarityThreshold: 0.95,
-            });
-
-            expect(key).toBe(expectedKey);
-            expect(stChanges.toSync).toHaveLength(1);
-            expect(stChanges.toSync[0].text).toBe(expectedSyncText);
-            expect(stChanges.toDelete).toHaveLength(0);
-
-            if (expectedAlias) {
-                expect(graphData.nodes[key].aliases).toContain(expectedAlias);
-            } else {
-                expect(graphData.nodes[key].aliases).toBeUndefined();
-            }
-
-            if (expectedRedirectSource && expectedRedirectTarget) {
-                expect(graphData._mergeRedirects?.[expectedRedirectSource]).toBe(expectedRedirectTarget);
-            }
-
-            additionalAssertions?.({ key, stChanges, graphData });
+        const { key, stChanges } = await mergeOrInsertEntity(graphData, inputName, inputType, inputDesc, 3, {
+            entityMergeSimilarityThreshold: 0.95,
         });
 
-        it('does NOT merge cross-script PERSON entities via semantic similarity alone', async () => {
-            // Regression test: "Alice" (Latin) and "Боб" (Cyrillic Bob) should NOT merge
-            // even if embeddings are nearly identical (similar descriptions).
-            // Cross-script PERSON merges should ONLY happen via transliteration match.
-            const { getDocumentEmbedding } = await import('../../src/embeddings.js');
-
-            // Setup: existing Cyrillic PERSON with embedding
-            graphData.nodes.мария = {
-                name: 'Мария',
-                type: 'PERSON',
-                description: 'A character involved in roleplay dynamics',
-                mentions: 10,
-            };
-            graphData.nodes.мария.embedding_b64 = 'AAAAAPo/AAAAAA'; // mock embedding
-
-            // Mock embedding to return nearly identical vector (simulating similar descriptions)
-            getDocumentEmbedding.mockResolvedValue([1.0, 0.9, 0.8]);
-
-            // Act: insert Latin "Rose" - different name, different script, similar description
-            const { key, stChanges } = await mergeOrInsertEntity(
-                graphData,
-                'Rose',
-                'PERSON',
-                'A character involved in similar roleplay dynamics',
-                3,
-                mockSettings
-            );
-
-            // Assert: should NOT merge - different scripts without transliteration match
-            expect(key).toBe('rose');
-            expect(graphData.nodes.rose).toBeDefined();
-            expect(graphData.nodes.мария.aliases).toBeUndefined(); // Rose not added as alias
-            expect(stChanges.toSync).toHaveLength(1); // New node created
-        });
-    });
-
-    it('returns stChanges.toSync with new node when creating a new entity', async () => {
-        const { getDocumentEmbedding } = await import('../../src/embeddings.js');
-        getDocumentEmbedding.mockResolvedValue([0.5, 0.5, 0.5]);
-
-        const { key, stChanges } = await mergeOrInsertEntity(
-            graphData,
-            'Dragon',
-            'PERSON',
-            'A fire beast',
-            3,
-            mockSettings
-        );
-        expect(key).toBe('dragon');
+        expect(key).toBe(expectedKey);
         expect(stChanges.toSync).toHaveLength(1);
-        expect(stChanges.toSync[0].text).toBe('[OV_ID:dragon] A fire beast');
-        expect(stChanges.toSync[0].item).toBe(graphData.nodes.dragon);
-        expect(stChanges.toSync[0].hash).toBeDefined();
+        expect(stChanges.toSync[0].text).toBe(expectedSyncText);
         expect(stChanges.toDelete).toHaveLength(0);
+
+        if (expectedAlias) {
+            expect(graphData.nodes[key].aliases).toContain(expectedAlias);
+        } else {
+            expect(graphData.nodes[key].aliases).toBeUndefined();
+        }
+
+        if (expectedRedirectSource && expectedRedirectTarget) {
+            expect(graphData._mergeRedirects?.[expectedRedirectSource]).toBe(expectedRedirectTarget);
+        }
+
+        additionalAssertions?.({ key, graphData });
     });
 
-    it('returns stChanges with updated node on fast path (exact key match)', async () => {
+    it('does NOT merge cross-script PERSON entities via semantic similarity alone', async () => {
+        // Regression test: "Alice" (Latin) and "Боб" (Cyrillic Bob) should NOT merge
+        // even if embeddings are nearly identical (similar descriptions).
+        // Cross-script PERSON merges should ONLY happen via transliteration match.
         const { getDocumentEmbedding } = await import('../../src/embeddings.js');
-        getDocumentEmbedding.mockResolvedValue(null);
 
-        upsertEntity(graphData, 'Castle', 'PLACE', 'A fortress');
-        const { key, stChanges } = await mergeOrInsertEntity(graphData, 'castle', 'PLACE', 'Updated', 3, mockSettings);
-        expect(key).toBe('castle');
-        expect(stChanges.toSync).toHaveLength(1); // Updated node should be synced
-        expect(stChanges.toSync[0].text).toBe('[OV_ID:castle] A fortress | Updated');
-        expect(stChanges.toDelete).toHaveLength(0);
-    });
+        // Setup: existing Cyrillic PERSON with embedding
+        graphData.nodes.мария = {
+            name: 'Мария',
+            type: 'PERSON',
+            description: 'A character involved in roleplay dynamics',
+            mentions: 10,
+        };
+        graphData.nodes.мария.embedding_b64 = 'AAAAAPo/AAAAAA'; // mock embedding
 
-    it('returns stChanges with updated node on semantic merge path (existing node updated)', async () => {
-        const { getDocumentEmbedding } = await import('../../src/embeddings.js');
-        getDocumentEmbedding.mockResolvedValue([0.9, 0.1, 0]);
+        // Mock embedding to return nearly identical vector (simulating similar descriptions)
+        getDocumentEmbedding.mockResolvedValue([1.0, 0.9, 0.8]);
 
-        upsertEntity(graphData, 'Dragon', 'PERSON', 'A creature');
-        graphData.nodes.dragon.embedding = [0.9, 0.1, 0];
-
-        const { key, stChanges } = await mergeOrInsertEntity(
+        // Act: insert Latin "Rose" - different name, different script, similar description
+        const { key } = await mergeOrInsertEntity(
             graphData,
-            'Draco',
+            'Rose',
             'PERSON',
-            'Another name',
+            'A character involved in similar roleplay dynamics',
             3,
             mockSettings
         );
-        // PERSON can merge on high similarity alone
-        expect(key).toBe('dragon');
-        expect(stChanges.toSync).toHaveLength(1); // Updated node should be synced
-        expect(stChanges.toSync[0].text).toBe('[OV_ID:dragon] A creature | Another name');
-        expect(stChanges.toDelete).toHaveLength(0);
+
+        // Assert: should NOT merge - different scripts without transliteration match
+        expect(key).toBe('rose');
+        expect(graphData.nodes.rose).toBeDefined();
+        expect(graphData.nodes.мария.aliases).toBeUndefined(); // Rose not added as alias
     });
+});
+
+it('returns key when creating a new entity', async () => {
+    const { getDocumentEmbedding } = await import('../../src/embeddings.js');
+    getDocumentEmbedding.mockResolvedValue([0.5, 0.5, 0.5]);
+
+    const { key } = await mergeOrInsertEntity(graphData, 'Dragon', 'PERSON', 'A fire beast', 3, mockSettings);
+    expect(key).toBe('dragon');
+});
+
+it('returns key on fast path (exact key match)', async () => {
+    const { getDocumentEmbedding } = await import('../../src/embeddings.js');
+    getDocumentEmbedding.mockResolvedValue(null);
+
+    upsertEntity(graphData, 'Castle', 'PLACE', 'A fortress');
+    const { key } = await mergeOrInsertEntity(graphData, 'castle', 'PLACE', 'Updated', 3, mockSettings);
+    expect(key).toBe('castle');
+});
+
+it('returns key on semantic merge path (existing node updated)', async () => {
+    const { getDocumentEmbedding } = await import('../../src/embeddings.js');
+    getDocumentEmbedding.mockResolvedValue([0.9, 0.1, 0]);
+
+    upsertEntity(graphData, 'Dragon', 'PERSON', 'A creature');
+    graphData.nodes.dragon.embedding = [0.9, 0.1, 0];
+
+    const { key } = await mergeOrInsertEntity(graphData, 'Draco', 'PERSON', 'Another name', 3, mockSettings);
+    // PERSON can merge on high similarity alone
+    expect(key).toBe('dragon');
 });
 
 describe('edge creation with semantic merge', () => {
@@ -1001,9 +945,8 @@ describe('consolidateEdges', () => {
             _edgesNeedingConsolidation: [],
         };
 
-        const { count, stChanges } = await consolidateEdges(graph, {});
+        const { count } = await consolidateEdges(graph, {});
         expect(count).toBe(0);
-        expect(stChanges.toSync).toHaveLength(0);
     });
 
     it('respects MAX_CONSOLIDATION_BATCH limit', async () => {
@@ -1035,11 +978,10 @@ describe('consolidateEdges', () => {
             graph._edgesNeedingConsolidation.push(`${src}__${tgt}`);
         }
 
-        const { count, stChanges } = await consolidateEdges(graph, {});
+        const { count } = await consolidateEdges(graph, {});
         // Should only process 10 (MAX_CONSOLIDATION_BATCH), 5 should remain
         expect(count).toBe(10);
         expect(graph._edgesNeedingConsolidation).toHaveLength(5);
-        expect(stChanges.toSync).toHaveLength(10);
     });
 });
 
