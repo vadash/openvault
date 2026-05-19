@@ -339,8 +339,6 @@ describe('store/chat-data', () => {
             expect(mockContext.chatMetadata[METADATA_KEY]).toBeUndefined();
         });
 
-
-
         it('only unhides messages tagged by OpenVault, preserves ST-native hidden messages', async () => {
             mockContext.chatMetadata[METADATA_KEY] = {
                 [MEMORIES_KEY]: [{ id: '1' }],

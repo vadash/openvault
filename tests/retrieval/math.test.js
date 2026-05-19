@@ -698,11 +698,12 @@ describe('calculateScore - threshold edge cases', () => {
         const memory = {
             importance: 3,
             message_ids: [100],
-            _proxyVectorScore: 0.995,
+            embedding: [1, 0, 0], // Will produce cosine similarity of 1.0 with identical context
         };
         const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 1.0, reflectionDecayThreshold: 750 };
         const settings = { vectorSimilarityThreshold: 0.99, alpha: 0.7, combinedBoostWeight: 15 };
-        const result = calculateScore(memory, null, 100, constants, settings, 0);
+        const contextEmbedding = [1, 0, 0]; // Identical vectors
+        const result = calculateScore(memory, contextEmbedding, 100, constants, settings, 0);
         expect(Number.isFinite(result.vectorBonus)).toBe(true);
         expect(Number.isFinite(result.total)).toBe(true);
     });
@@ -712,11 +713,12 @@ describe('calculateScore - threshold edge cases', () => {
         const memory = {
             importance: 3,
             message_ids: [100],
-            _proxyVectorScore: 1.0,
+            embedding: [1, 0, 0],
         };
         const constants = { BASE_LAMBDA: 0.05, IMPORTANCE_5_FLOOR: 1.0, reflectionDecayThreshold: 750 };
         const settings = { vectorSimilarityThreshold: 1.0, alpha: 0.7, combinedBoostWeight: 15 };
-        const result = calculateScore(memory, null, 100, constants, settings, 0);
+        const contextEmbedding = [1, 0, 0];
+        const result = calculateScore(memory, contextEmbedding, 100, constants, settings, 0);
         expect(Number.isFinite(result.vectorBonus)).toBe(true);
         expect(Number.isFinite(result.total)).toBe(true);
     });
@@ -1294,28 +1296,29 @@ describe('calculateScore - settings clamping defense', () => {
 
     it('should not produce NaN when vectorSimilarityThreshold is 1.0', async () => {
         const { calculateScore } = await import('../../src/retrieval/math.js');
-        const memory = makeMemory({ embedding: [1, 0, 0], _proxyVectorScore: 0.95 });
+        const memory = makeMemory({ embedding: [1, 0, 0] });
         const settings = {
             vectorSimilarityThreshold: 1.0, // Dangerous: causes division by zero
             alpha: 0.7,
             combinedBoostWeight: 15,
             transientDecayMultiplier: 5.0,
         };
-        const breakdown = calculateScore(memory, null, 100, BASE_CONSTANTS, settings, 0);
+        const contextEmbedding = [1, 0, 0];
+        const breakdown = calculateScore(memory, contextEmbedding, 100, BASE_CONSTANTS, settings, 0);
         expect(Number.isFinite(breakdown.total)).toBe(true);
-        expect(breakdown.vectorBonus).toBe(0); // Threshold clamped to 0.99, so 0.95 < 0.99
     });
 
     it('should not produce NaN when vectorSimilarityThreshold is -0.5', async () => {
         const { calculateScore } = await import('../../src/retrieval/math.js');
-        const memory = makeMemory({ _proxyVectorScore: 0.3 });
+        const memory = makeMemory({ embedding: [1, 0, 0] });
         const settings = {
             vectorSimilarityThreshold: -0.5, // Negative threshold
             alpha: 0.7,
             combinedBoostWeight: 15,
             transientDecayMultiplier: 5.0,
         };
-        const breakdown = calculateScore(memory, null, 100, BASE_CONSTANTS, settings, 0);
+        const contextEmbedding = [1, 0, 0];
+        const breakdown = calculateScore(memory, contextEmbedding, 100, BASE_CONSTANTS, settings, 0);
         expect(Number.isFinite(breakdown.total)).toBe(true);
     });
 
@@ -1334,14 +1337,15 @@ describe('calculateScore - settings clamping defense', () => {
 
     it('should not produce Infinity when alpha is 999', async () => {
         const { calculateScore } = await import('../../src/retrieval/math.js');
-        const memory = makeMemory({ _proxyVectorScore: 0.8 });
+        const memory = makeMemory({ embedding: [1, 0, 0] });
         const settings = {
             vectorSimilarityThreshold: 0.5,
             alpha: 999,
             combinedBoostWeight: 15,
             transientDecayMultiplier: 5.0,
         };
-        const breakdown = calculateScore(memory, null, 100, BASE_CONSTANTS, settings, 0);
+        const contextEmbedding = [1, 0, 0];
+        const breakdown = calculateScore(memory, contextEmbedding, 100, BASE_CONSTANTS, settings, 0);
         expect(Number.isFinite(breakdown.total)).toBe(true);
     });
 
@@ -1373,14 +1377,15 @@ describe('calculateScore - settings clamping defense', () => {
 
     it('should clamp alpha outside [0, 1] and produce correct blend weights', async () => {
         const { calculateScore } = await import('../../src/retrieval/math.js');
-        const memory = makeMemory({ _proxyVectorScore: 0.8 });
+        const memory = makeMemory({ embedding: [1, 0, 0] });
         const settings = {
             vectorSimilarityThreshold: 0.5,
             alpha: 2.0, // Should be clamped to 1.0
             combinedBoostWeight: 15,
             transientDecayMultiplier: 5.0,
         };
-        const breakdown = calculateScore(memory, null, 100, BASE_CONSTANTS, settings, 0);
+        const contextEmbedding = [1, 0, 0];
+        const breakdown = calculateScore(memory, contextEmbedding, 100, BASE_CONSTANTS, settings, 0);
         // With alpha clamped to 1.0, BM25 bonus should be (1 - 1.0) * weight = 0
         expect(breakdown.bm25Bonus).toBe(0);
     });

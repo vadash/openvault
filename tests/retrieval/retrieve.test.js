@@ -126,13 +126,20 @@ describe('selectRelevantMemories with soft balance', () => {
     });
 });
 
-describe('ST Vector retrieval with graph nodes', () => {
-    it('should look up graph nodes from ST Vector results', async () => {
+describe('Local embedding retrieval with graph nodes', () => {
+    it('should score memories using local cosine similarity', async () => {
         const { selectRelevantMemories } = await import('../../src/retrieval/scoring.js');
-        const embeddingsModule = await import('../../src/embeddings.js');
 
         const memories = [
-            { id: 'memory1', summary: 'Test memory', importance: 5, type: 'event', message_ids: [100], sequence: 1000 },
+            {
+                id: 'memory1',
+                summary: 'Test memory about Alice',
+                importance: 5,
+                type: 'event',
+                message_ids: [100],
+                sequence: 1000,
+                embedding: [0.5, 0.5, 0.5],
+            },
         ];
 
         const mockCtx = {
@@ -153,7 +160,7 @@ describe('ST Vector retrieval with graph nodes', () => {
                 vectorSimilarityThreshold: 0.5,
                 alpha: 0.7,
                 combinedBoostWeight: 15,
-                embeddingSource: 'st_vector',
+                embeddingSource: 'multilingual-e5-small',
                 transientDecayMultiplier: undefined,
             },
             queryConfig: {
@@ -166,26 +173,11 @@ describe('ST Vector retrieval with graph nodes', () => {
             },
         };
 
-        // Mock getStrategy to return a mock ST Vector strategy
-        const mockStrategy = {
-            usesExternalStorage: vi.fn().mockReturnValue(true),
-            searchItems: vi.fn().mockResolvedValue([
-                { id: 'memory1', hash: 123, text: '[OV_ID:memory1] Test' },
-                { id: 'Alice', hash: 456, text: '[OV_ID:Alice] A brave warrior' },
-            ]),
-        };
-
-        vi.spyOn(embeddingsModule, 'getStrategy').mockReturnValue(mockStrategy);
-
         const result = await selectRelevantMemories(memories, mockCtx);
 
-        // Verify ST Vector was called
-        expect(mockStrategy.searchItems).toHaveBeenCalled();
-        // Verify memory was retrieved (graph nodes are looked up but not returned in memory results)
+        // Verify memory was retrieved using local embeddings
         expect(result.memories.length).toBe(1);
         expect(result.memories[0].id).toBe('memory1');
-
-        vi.restoreAllMocks();
     });
 });
 
