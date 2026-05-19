@@ -928,7 +928,7 @@ describe('consolidateEdges', () => {
         expect(graph._edgesNeedingConsolidation).toHaveLength(0);
     });
 
-    it('returns 0 count and empty stChanges when no edges need consolidation', async () => {
+    it('returns 0 count when no edges need consolidation', async () => {
         const graph = {
             nodes: {
                 alice: { name: 'Alice', type: 'PERSON', description: 'test', mentions: 1 },

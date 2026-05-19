@@ -28,7 +28,6 @@ All extension state lives within SillyTavern's `context.chatMetadata.openvault`.
     characters_involved: string[], 
     witnesses: string[],
     embedding_b64: string,     // Base64 Float32Array (Replaces legacy `embedding: number[]`)
-    _st_synced?: boolean,      // True if pushed to ST Vector storage
     archived: boolean,         // True if replaced by newer reflection (ignored in retrieval)
     mentions?: number,         // Frequency boost multiplier (increments on dedup overlap)
     retrieval_hits?: number    // Dampens exponential decay (frequently recalled = slower fade)
