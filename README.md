@@ -102,27 +102,28 @@ Everything stays on your machine. The in-browser embedding model means no text g
 
 ## Version History
 
-- **23.00** - CoD https://arxiv.org/abs/2502.18600
-- **22.00** - Fixed a lot of bugs. Reduced tests count by 1/3. I record all backfill log. Feed it to ai studio and modify prompt/code. It never be perfect but we can make it good enough
-- **21.00** - Provides a manual mechanism to merge two entities
-- **20.00** - Entity editing, deletion, and alias management with tab restructure from "World" to "Entities" + "Communities"
-- **19.00** - Exclude the last N complete turns from extraction batches so hallucinated/swiped AI responses dont enter the memory
-- **18.50** - Rewrite examples with sonnet
-- **17.00** - Add commitment/preference to memory, add real time tracking. New type of memories - transient with faster decay
-- **16.00** - Improved LLM answer parsing
-- **15.50** - Added data schema versioning for easier migrations
-- **15.00** - Major refactoring, bug fixes
-- **14.00** - Emergency Cut button (prune chat history while keeping key events)
-- **13.50** - Compatibility with other chat-altering extensions
-- **13.00** - Support for all ST vectorization sources
-- **12.50** - Customizable injection positions
-- **12.00** - UI revamp (protecting users from over-tuning)
-- **11.50** - Fixed memory balance distribution
-- **11.00** - Test refactoring, prep for additional languages
-- **10.50** - Fixed hairball cluster bug
-- **10.00** - Parallel request support
-- **9.50** - Group play PoV fixes
-- **9.00** - Stable single-character RP release
+- **24** - Removed ST vector support. Maintaining 2 version of logic introduce complexity and bugs.
+- **23** - CoD https://arxiv.org/abs/2502.18600
+- **22** - Fixed a lot of bugs. Reduced tests count by 1/3. I record all backfill log. Feed it to ai studio and modify prompt/code. It never be perfect but we can make it good enough
+- **21** - Provides a manual mechanism to merge two entities
+- **20** - Entity editing, deletion, and alias management with tab restructure from "World" to "Entities" + "Communities"
+- **19** - Exclude the last N complete turns from extraction batches so hallucinated/swiped AI responses dont enter the memory
+- **18.5** - Rewrite examples with sonnet
+- **17** - Add commitment/preference to memory, add real time tracking. New type of memories - transient with faster decay
+- **16** - Improved LLM answer parsing
+- **15.5** - Added data schema versioning for easier migrations
+- **15** - Major refactoring, bug fixes
+- **14** - Emergency Cut button (prune chat history while keeping key events)
+- **13.5** - Compatibility with other chat-altering extensions
+- **13** - Support for all ST vectorization sources
+- **12.5** - Customizable injection positions
+- **12** - UI revamp (protecting users from over-tuning)
+- **11.5** - Fixed memory balance distribution
+- **11** - Test refactoring, prep for additional languages
+- **10.5** - Fixed hairball cluster bug
+- **10** - Parallel request support
+- **9.5** - Group play PoV fixes
+- **9** - Stable single-character RP release
 
 ## Free models
 
