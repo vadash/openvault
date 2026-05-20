@@ -393,6 +393,10 @@ export function shouldMergeEntities(cosine, threshold, tokensA, keyA, keyB, type
     // PERSON entities: names are unique identifiers, high similarity is sufficient
     if (type === ENTITY_TYPES.PERSON && cosine >= threshold) return true;
 
+    // PLACE entities: extremely high cosine similarity (>0.94) bypasses token overlap
+    // This catches cross-script matches like "Квартира Стейси" ↔ "Stacy's Apartment"
+    if (type === ENTITY_TYPES.PLACE && cosine > 0.94) return true;
+
     // All other types: always require token overlap confirmation
     // This prevents false merges when embeddings are inflated by shared context
     if (cosine < threshold - 0.1) return false;
@@ -420,15 +424,15 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
         return { key };
     }
 
-    // Universal cross-script merge: if this is a PERSON entity, check all existing
-    // PERSON nodes for transliteration matches to prevent cross-script duplicates
-    // (e.g., "Мина" vs "Mina", "Сузи" vs "Suzy").
-    if (type === ENTITY_TYPES.PERSON) {
+    // Universal cross-script merge: if this is a PERSON, PLACE, or ORGANIZATION entity,
+    // check all existing nodes of the same type for transliteration matches to prevent
+    // cross-script duplicates (e.g., "Мина" vs "Mina", "Квартира Стейси" vs "Stacy's Apartment").
+    if (type === ENTITY_TYPES.PERSON || type === ENTITY_TYPES.PLACE || type === ENTITY_TYPES.ORGANIZATION) {
         const CYRILLIC_RE = /\p{Script=Cyrillic}/u;
         const keyIsCyrillic = CYRILLIC_RE.test(key);
 
         for (const [existingKey, node] of Object.entries(graphData.nodes)) {
-            if (node.type !== ENTITY_TYPES.PERSON) continue;
+            if (node.type !== type) continue;
 
             const existingIsCyrillic = CYRILLIC_RE.test(existingKey);
             if (keyIsCyrillic === existingIsCyrillic) continue; // same script, skip
@@ -484,10 +488,10 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
     }
 
     for (const [existingKey, existingEmbedding] of existingEmbeddings) {
-        // Cross-script PERSON merge guard: if both are PERSONs in different scripts,
+        // Cross-script merge guard: if both are PERSON/PLACE/ORGANIZATION entities in different scripts,
         // they should only merge via transliteration match (handled earlier), not semantic similarity.
         // Prevents false merges like "Alice" -> "Мария" where descriptions are similar but names are different.
-        if (type === ENTITY_TYPES.PERSON) {
+        if (type === ENTITY_TYPES.PERSON || type === ENTITY_TYPES.PLACE || type === ENTITY_TYPES.ORGANIZATION) {
             const CYRILLIC_RE = /\p{Script=Cyrillic}/u;
             const keyIsCyrillic = CYRILLIC_RE.test(key);
             const existingIsCyrillic = CYRILLIC_RE.test(existingKey);
