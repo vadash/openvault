@@ -336,6 +336,14 @@ export function safeParseJSON(input, options = {}) {
         return { success: false, error, errorContext: context };
     }
 
+    // Fast-fail for router failover mock response
+    if (typeof input === 'string' && input.trim().toLowerCase() === 'error') {
+        const error = new Error('Router failover triggered');
+        const context = { tier: 0, originalLength, error };
+        onError?.(context);
+        return { success: false, error, errorContext: context };
+    }
+
     // Already an object/array - return as-is
     if (typeof input === 'object') {
         return { success: true, data: input };
