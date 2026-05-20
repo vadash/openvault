@@ -24,7 +24,7 @@ IMPORTANT: Extract entities and relationships even when no events are extracted.
 <draft_process>
 Think step by step, but only keep a minimal draft for each step, with 8 words at most per step. Use symbols: -> for causation/actions, + for conjunction, != for contrast. Write your work inside<think> tags BEFORE outputting the JSON:
 
-Step 1: Scan -> list Entity(type) mentioned or implied.
+Step 1: Identify max 5 core entities. STOP searching after 5. Do NOT list every concept.
 Step 2: Validate types (${Object.values(ENTITY_TYPES).join(', ')}); skip mundane.
 Step 3: Map Entity(type) + Entity(type); rel: nature/direction.
 Step 4: Verify every source/target in relationships matches Entity name.
