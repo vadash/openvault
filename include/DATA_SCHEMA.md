@@ -10,7 +10,7 @@ All extension state lives within SillyTavern's `context.chatMetadata.openvault`.
 
 ```typescript
 {
-  schema_version: number,      // Tracks migration state (Current: 2)
+  schema_version: number,      // Tracks migration state (Current: 7)
   embedding_model_id: string,  // Tracks which model generated stored embeddings
   
   memories: [{                 // Both events and reflections
@@ -45,18 +45,12 @@ All extension state lives within SillyTavern's `context.chatMetadata.openvault`.
         _descriptionTokens: number
       } 
     },
+    _mergeRedirects: { [oldKey: string]: string },  // Entity rename redirect chains
     _edgesNeedingConsolidation: string[] // Edge keys pending LLM summarization
   },
   
-  communities: { 
-    [communityId: string]: { 
-      title: string, summary: string, findings: string[], nodeKeys: string[], 
-      embedding_b64: string
-    } 
-  },
-  
   global_world_state: { 
-    summary: string, last_updated: number, community_count: number 
+    summary: string, last_updated: number 
   },
   
   character_states: { 
@@ -112,8 +106,8 @@ IDF is cached in `chatMetadata.openvault.idf_cache` at extraction time. The corp
 - **Layer 2 (Corpus-Grounded):** User-message stems that exist in the established corpus vocabulary. 3x boost.
 - **Layer 3 (Non-Grounded):** User-message stems NOT in corpus vocabulary. 2x boost (preserves scene context).
 
-## 4. GRAPH MERGE, COMMUNITIES, DEDUP
-See `src/graph/CLAUDE.md` for semantic merge 4-guard system, edge consolidation, Louvain communities, hairball prevention.
+## 4. GRAPH MERGE, WORLD STATE, DEDUP
+See `src/graph/CLAUDE.md` for semantic merge 4-guard system, edge consolidation, top-K world state selection.
 See `src/extraction/CLAUDE.md` for event dedup thresholds.
 See `src/retrieval/CLAUDE.md` for score-first soft balancing (context budgeting).
 

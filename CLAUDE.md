@@ -32,11 +32,13 @@ Domain-specific rules live in subdirectory CLAUDE.md files (auto-discovered by C
 - `src/store/` — State management, stChanges contract, migrations
 - `src/store/migrations/` — Schema versioning, rollback patterns
 - `src/extraction/` — Background worker, turn boundaries, swipe protection, backfill
-- `src/graph/` — Semantic merge, edge consolidation, Louvain communities
+- `src/graph/` — Semantic merge, edge consolidation, top-K world state
 - `src/reflection/` — Reflection pipeline, accumulator, 3-tier dedup
 - `src/retrieval/` — Context budgeting, world context intent routing, query building
-- `src/services/` — ST Vector REST API, CSRF, collection isolation
+- `src/services/` — (Deprecated — service code removed, local-only embeddings)
 - `src/prompts/` — Prompt topology, `<think/>` tags, bilingual schemas
+- `src/injection/` — Macro registration, extension prompt slot management
+- `src/embeddings/` — Embedding migration, model fingerprint validation
 - `src/ui/` — Progressive disclosure, DOM patterns, payload calculator
 - `src/perf/` — Metrics store, sync vs async instrumentation
 - `src/utils/` — Codecs, logging, stemmers, AIMD queue

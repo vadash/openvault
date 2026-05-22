@@ -5,7 +5,7 @@ Prompt modules are organized by domain:
 - `events/` - Event extraction prompts (role, rules, schema, examples)
 - `graph/` - Graph entity extraction prompts
 - `reflection/` - Reflection synthesis prompts
-- `communities/` - Community summarization prompts
+- `world-state/` - World state synthesis prompts
 - `shared/` - Cross-domain formatters (`format-examples.js`, `formatters.js`, `preambles.js`, `rules.js`)
 
 Each domain follows the same structure: `builder.js` (assembles messages), `role.js`, `rules.js`, `schema.js`, `examples/{en,ru}.js` (bilingual few-shot).
