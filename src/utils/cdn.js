@@ -37,9 +37,6 @@
  */
 const CDN_VERSIONS = Object.freeze({
     '@huggingface/transformers': '4.0.1',
-    graphology: '0.26.0',
-    'graphology-communities-louvain': '2.0.2',
-    'graphology-operators': '1.6.1',
     zod: '4.3.6',
     'cyrillic-to-translit-js': '3.2.1',
     'p-queue': '8.0.0',

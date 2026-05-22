@@ -96,7 +96,7 @@ export const defaultSettings = {
     maxInsightsPerReflection: 3,
     // World context settings
     worldContextBudget: 2000,
-    communityDetectionInterval: 100,
+    worldStateInterval: 100,
     // Entity settings
     // Query context settings (previously only in QUERY_CONTEXT_DEFAULTS)
     entityWindowSize: 10, // messages to scan for entities
@@ -207,8 +207,8 @@ export const ENTITY_DESCRIPTION_CAP = 3;
 /** Entity graph: max description segments per edge (FIFO eviction) */
 export const EDGE_DESCRIPTION_CAP = 5;
 
-/** Community detection: messages before summaries are stale */
-export const COMMUNITY_STALENESS_THRESHOLD = 100;
+/** World state: number of top entities to include in state summary */
+export const WORLD_STATE_ENTITY_COUNT = 20;
 
 /** Alpha-blend scoring: max boost weight (BM25 + vector) */
 export const COMBINED_BOOST_WEIGHT = 15;
@@ -264,7 +264,7 @@ export const UI_DEFAULT_HINTS = {
     reflectionThreshold: defaultSettings.reflectionThreshold,
     maxInsightsPerReflection: defaultSettings.maxInsightsPerReflection,
     worldContextBudget: defaultSettings.worldContextBudget,
-    communityDetectionInterval: defaultSettings.communityDetectionInterval,
+    worldStateInterval: defaultSettings.worldStateInterval,
     // Decay & forgetfulness curve tuning
     forgetfulnessBaseLambda: defaultSettings.forgetfulnessBaseLambda,
     maxReflectionLevel: defaultSettings.maxReflectionLevel,
@@ -323,16 +323,6 @@ export const CONSOLIDATION = {
 // Maximum number of recent memories to consider as reflection candidates.
 // Reducing from 100 to 50 cuts reflection prompt size without losing signal quality.
 export const REFLECTION_CANDIDATE_LIMIT = 50;
-
-// Maximum number of communities per chunk in map-reduce global synthesis.
-// Sets larger than this are chunked into regional summaries before final reduction.
-export const GLOBAL_SYNTHESIS_CHUNK_SIZE = 10;
-
-// Attenuation factor for main character edges during Louvain community detection.
-// Edges involving User/Char are multiplied by this value instead of being dropped,
-// preventing object orphaning in hub-and-spoke topologies (closed-room RPs)
-// while still breaking hairball gravity in open-world RPs.
-export const MAIN_CHARACTER_ATTENUATION = 0.05;
 
 /** Number of complete turns (User+Bot pairs) to exclude from the tail of extraction batches.
  *  Prevents hallucinated/swiped AI responses from being extracted before the user can review.

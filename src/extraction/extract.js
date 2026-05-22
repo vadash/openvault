@@ -20,7 +20,6 @@
 
 import {
     CHARACTERS_KEY,
-    COMMUNITY_STALENESS_THRESHOLD,
     CONSOLIDATION,
     defaultSettings,
     EDGE_DESCRIPTION_CAP,
@@ -662,7 +661,7 @@ async function synthesizeCommunities(data, settings, characterName, userName) {
             }
 
             const groups = buildCommunityGroups(data.graph, communityResult.communities);
-            const stalenessThreshold = COMMUNITY_STALENESS_THRESHOLD;
+            const stalenessThreshold = 100;
             const isSingleCommunity = communityResult.count === 1;
             const communityUpdateResult = await updateCommunitySummaries(
                 data.graph,
