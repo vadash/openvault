@@ -97,7 +97,7 @@ export async function refreshStats() {
         $('#openvault_stat_characters').text('0');
         $('#openvault_stat_reflections').text('0');
         $('#openvault_stat_entities').text('0');
-        $('#openvault_stat_communities').text('0');
+        $('#openvault_stat_world_state').text('-');
         // Update progress
         $('#openvault_batch_progress_fill').css('width', '0%');
         $('#openvault_batch_progress_label').text('No chat');
@@ -115,13 +115,10 @@ export async function refreshStats() {
     const reflectionCount = memories.filter((m) => m.type === 'reflection').length;
     const nodes = Object.values(data.graph?.nodes || {});
     const edges = Object.keys(data.graph?.edges || {});
-    const communities = Object.values(data.communities || {});
+    const worldState = data.global_world_state || null;
 
-    // Count ALL embeddings: memories + graph nodes + communities
-    const embeddingCount =
-        memories.filter((m) => hasEmbedding(m)).length +
-        nodes.filter((n) => hasEmbedding(n)).length +
-        communities.filter((c) => hasEmbedding(c)).length;
+    // Count ALL embeddings: memories + graph nodes
+    const embeddingCount = memories.filter((m) => hasEmbedding(m)).length + nodes.filter((n) => hasEmbedding(n)).length;
 
     // Update stat cards
     $('#openvault_stat_events').text(eventCount);
@@ -129,7 +126,7 @@ export async function refreshStats() {
     $('#openvault_stat_characters').text(charCount);
     $('#openvault_stat_reflections').text(reflectionCount);
     $('#openvault_stat_entities').text(nodes.length);
-    $('#openvault_stat_communities').text(communities.length);
+    $('#openvault_stat_world_state').text(worldState?.summary ? '✓' : '-');
     $('#openvault_stat_graph_edges').text(edges.length);
 
     // Calculate batch progress (token-based)

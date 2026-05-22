@@ -79,10 +79,10 @@ export const LLM_CONFIGS = {
         timeoutMs: 180000,
         getJsonSchema: getUnifiedReflectionJsonSchema,
     },
-    community: {
+    worldState: {
         profileSettingKey: 'extractionProfile',
         maxTokens: 8000,
-        errorContext: 'Community summarization',
+        errorContext: 'World state synthesis',
         timeoutMs: 180000,
         getJsonSchema: getCommunitySummaryJsonSchema,
     },

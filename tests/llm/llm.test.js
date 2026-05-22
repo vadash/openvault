@@ -19,14 +19,14 @@ describe('LLM_CONFIGS reflection configs', () => {
     });
 });
 
-describe('LLM_CONFIGS community config', () => {
-    it('has community config', () => {
-        expect(LLM_CONFIGS.community).toBeDefined();
-        expect(LLM_CONFIGS.community.profileSettingKey).toBe('extractionProfile');
-        expect(LLM_CONFIGS.community.maxTokens).toBe(8000);
-        expect(LLM_CONFIGS.community.errorContext).toBe('Community summarization');
-        expect(LLM_CONFIGS.community.timeoutMs).toBe(180000);
-        expect(LLM_CONFIGS.community.getJsonSchema).toBeInstanceOf(Function);
+describe('LLM_CONFIGS world state config', () => {
+    it('has worldState config', () => {
+        expect(LLM_CONFIGS.worldState).toBeDefined();
+        expect(LLM_CONFIGS.worldState.profileSettingKey).toBe('extractionProfile');
+        expect(LLM_CONFIGS.worldState.maxTokens).toBe(8000);
+        expect(LLM_CONFIGS.worldState.errorContext).toBe('World state synthesis');
+        expect(LLM_CONFIGS.worldState.timeoutMs).toBe(180000);
+        expect(LLM_CONFIGS.worldState.getJsonSchema).toBeInstanceOf(Function);
     });
 });
 
@@ -55,8 +55,8 @@ describe('LLM_CONFIGS timeout values', () => {
         expect(LLM_CONFIGS.reflection.timeoutMs).toBe(180000);
     });
 
-    it('community has 180s timeout', () => {
-        expect(LLM_CONFIGS.community.timeoutMs).toBe(180000);
+    it('worldState has 180s timeout', () => {
+        expect(LLM_CONFIGS.worldState.timeoutMs).toBe(180000);
     });
 
     it('edge_consolidation stays at 60s', () => {

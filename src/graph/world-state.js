@@ -72,7 +72,7 @@ export function selectTopEntities(graphData, count = WORLD_STATE_ENTITY_COUNT) {
 export async function generateWorldState(entities, edges, preamble, outputLanguage, prefill) {
     const deps = getDeps();
     const prompt = buildGlobalWorldStatePrompt(entities, edges, preamble, outputLanguage, prefill);
-    const response = await callLLM(prompt, LLM_CONFIGS.community, { structured: true });
+    const response = await callLLM(prompt, LLM_CONFIGS.worldState, { structured: true });
     const parsed = parseGlobalSynthesisResponse(response);
 
     return {

@@ -252,28 +252,20 @@ export function renderReflectionProgress(reflectionState, threshold) {
 }
 
 /**
- * Render a single community as an accordion item.
- * @param {string} id - Community ID (e.g., "C0")
- * @param {Object} community - { title, summary, findings, nodeKeys }
+ * Render the world state summary as a card.
+ * @param {Object} worldState - { summary, last_updated }
  * @returns {string} HTML
  */
-export function renderCommunityAccordion(id, community) {
-    const memberCount = community.nodeKeys?.length || 0;
-    const findings = (community.findings || []).map((f) => `<li>${escapeHtml(f)}</li>`).join('');
-    const members = (community.nodeKeys || []).map((k) => escapeHtml(k)).join(', ');
+export function renderWorldStateCard(worldState) {
+    const lastUpdated = worldState.last_updated ? new Date(worldState.last_updated).toLocaleString() : 'Unknown';
 
     return `
-        <details class="openvault-community-item">
-            <summary>
-                <span class="openvault-community-title">${escapeHtml(community.title || id)}</span>
-                <span class="openvault-community-badge">${memberCount} entities</span>
-            </summary>
-            <div class="openvault-community-content">
-                <p>${escapeHtml(community.summary || 'No summary')}</p>
-                ${findings ? `<ul class="openvault-community-findings">${findings}</ul>` : ''}
-                <small class="openvault-community-members">Members: ${members}</small>
+        <div class="openvault-world-state-card">
+            <div class="openvault-world-state-content">
+                <p>${escapeHtml(worldState.summary || 'No summary')}</p>
+                <small class="openvault-world-state-timestamp">Last updated: ${escapeHtml(lastUpdated)}</small>
             </div>
-        </details>
+        </div>
     `;
 }
 

@@ -308,22 +308,16 @@ function buildGraphExport(graph, entities) {
 }
 
 /**
- * Build communities export (embeddings stripped).
- * @param {Object} communities
+ * Build world state export.
+ * @param {Object} worldState
  * @returns {Object}
  */
-function buildCommunitiesExport(communities) {
-    if (!communities) return { count: 0, details: {} };
-    const details = {};
-    for (const [id, comm] of Object.entries(communities)) {
-        details[id] = {
-            title: comm.title,
-            summary: comm.summary,
-            findings: comm.findings,
-            nodeCount: comm.nodes?.length || 0,
-        };
-    }
-    return { count: Object.keys(communities).length, details };
+function buildWorldStateExport(worldState) {
+    if (!worldState) return null;
+    return {
+        summary: worldState.summary,
+        lastUpdated: worldState.last_updated,
+    };
 }
 
 /**
@@ -352,7 +346,7 @@ export function buildExportPayload() {
     const memories = data[MEMORIES_KEY] || [];
     const characterStates = data[CHARACTERS_KEY] || {};
     const graph = data.graph || {};
-    const communities = data.communities || {};
+    const worldState = data.global_world_state || null;
 
     // Cached retrieval debug data
     const cached = getLastRetrievalDebug();
@@ -410,7 +404,7 @@ export function buildExportPayload() {
             memories: buildMemoryStats(memories),
             characterStates: buildCharacterSummary(characterStates),
             graph: buildGraphExport(graph, queryEntities),
-            communities: buildCommunitiesExport(communities),
+            worldState: buildWorldStateExport(worldState),
         },
 
         // Settings: only values that differ from defaults

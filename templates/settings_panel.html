@@ -20,9 +20,9 @@
                     <i class="fa-solid fa-diagram-project"></i>
                     <span>Ents</span>
                 </button>
-                <button class="openvault-tab-btn" data-tab="communities">
-                    <i class="fa-solid fa-circle-nodes"></i>
-                    <span>Comms</span>
+                <button class="openvault-tab-btn" data-tab="world">
+                    <i class="fa-solid fa-globe"></i>
+                    <span>World</span>
                 </button>
                 <button class="openvault-tab-btn" data-tab="advanced">
                     <i class="fa-solid fa-sliders"></i>
@@ -98,9 +98,9 @@
                         <div class="stat-label">Entities</div>
                     </div>
                     <div class="openvault-stat-card">
-                        <div class="stat-icon"><i class="fa-solid fa-circle-nodes"></i></div>
-                        <div class="stat-value" id="openvault_stat_communities">0</div>
-                        <div class="stat-label">Communities</div>
+                        <div class="stat-icon"><i class="fa-solid fa-globe"></i></div>
+                        <div class="stat-value" id="openvault_stat_world_state">-</div>
+                        <div class="stat-label">World State</div>
                     </div>
                     <div class="openvault-stat-card">
                         <div class="stat-icon"><i class="fa-solid fa-share-nodes"></i></div>
@@ -457,23 +457,22 @@
             </div>
 
             <!-- ================================================================
-                 TAB 4: COMMUNITIES (Read-only)
+                 TAB 4: WORLD (Read-only)
                  ================================================================ -->
-            <div class="openvault-tab-content" data-tab="communities">
+            <div class="openvault-tab-content" data-tab="world">
 
-                <!-- Communities Browser -->
+                <!-- World State Browser -->
                 <div class="openvault-card">
                     <div class="openvault-card-header">
                         <span class="openvault-card-title">
-                            <i class="fa-solid fa-circle-nodes"></i> Communities
+                            <i class="fa-solid fa-globe"></i> World State
                         </span>
-                        <span class="openvault-card-badge" id="openvault_community_count">0</span>
                     </div>
                     <div class="openvault-help-text" style="padding: 10px; font-size: 0.85em; color: var(--SmartThemeEmColor);">
-                        AI-discovered groups of related people, places, and concepts
+                        AI-synthesized summary of the story's world state
                     </div>
-                    <div id="openvault_community_list" class="openvault-community-list">
-                        <p class="openvault-placeholder">No communities detected yet</p>
+                    <div id="openvault_world_state_list" class="openvault-world-state-list">
+                        <p class="openvault-placeholder">No world state generated yet</p>
                     </div>
                 </div>
 

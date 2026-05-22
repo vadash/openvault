@@ -262,7 +262,7 @@ export async function updateCommunitySummaries(
                         outputLanguage,
                         prefill
                     );
-                    const response = await callLLM(prompt, LLM_CONFIGS.community, { structured: true });
+                    const response = await callLLM(prompt, LLM_CONFIGS.worldState, { structured: true });
                     const parsed = parseCommunitySummaryResponse(response);
                     const embedding = await getQueryEmbedding(parsed.summary);
                     const community = {
@@ -321,7 +321,7 @@ export async function synthesizeInChunks(communityList, preamble, outputLanguage
     if (communityList.length <= GLOBAL_SYNTHESIS_CHUNK_SIZE) {
         // Small set: single-pass (current behavior)
         const prompt = buildGlobalSynthesisPrompt(communityList, preamble, outputLanguage, prefill);
-        const response = await callLLM(prompt, LLM_CONFIGS.community, { structured: true });
+        const response = await callLLM(prompt, LLM_CONFIGS.worldState, { structured: true });
         return parseGlobalSynthesisResponse(response).global_summary;
     }
 
@@ -339,7 +339,7 @@ export async function synthesizeInChunks(communityList, preamble, outputLanguage
             ladderQueue
                 .add(async () => {
                     const prompt = buildGlobalSynthesisPrompt(chunk, preamble, outputLanguage, prefill);
-                    const response = await callLLM(prompt, LLM_CONFIGS.community, { structured: true });
+                    const response = await callLLM(prompt, LLM_CONFIGS.worldState, { structured: true });
                     return parseGlobalSynthesisResponse(response).global_summary;
                 })
                 .catch((err) => {
@@ -360,7 +360,7 @@ export async function synthesizeInChunks(communityList, preamble, outputLanguage
         findings: [],
     }));
     const reducePrompt = buildGlobalSynthesisPrompt(pseudoCommunities, preamble, outputLanguage, prefill);
-    const reduceResponse = await callLLM(reducePrompt, LLM_CONFIGS.community, { structured: true });
+    const reduceResponse = await callLLM(reducePrompt, LLM_CONFIGS.worldState, { structured: true });
     return parseGlobalSynthesisResponse(reduceResponse).global_summary;
 }
 

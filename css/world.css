@@ -58,53 +58,21 @@
     white-space: nowrap;
 }
 
-/* Communities */
-.openvault-community-item {
-    border: 1px solid var(--SmartThemeBorderColor, #333);
+/* World State */
+.openvault-world-state-card {
+    padding: 12px;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.2));
     border-radius: 6px;
-    margin-bottom: 8px;
-    overflow: hidden;
 }
 
-.openvault-community-item summary {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px;
-    cursor: pointer;
-    font-weight: 500;
-}
-
-.openvault-community-title {
-    flex: 1;
-}
-
-.openvault-community-badge {
-    font-size: 0.8em;
-    color: var(--SmartThemeEmColor, #888);
-    margin-left: 8px;
-}
-
-.openvault-community-content {
-    padding: 0 12px 12px;
-    font-size: 0.9em;
-}
-
-.openvault-community-content p {
+.openvault-world-state-content p {
     margin: 0 0 8px;
+    line-height: 1.5;
 }
 
-.openvault-community-findings {
-    margin: 4px 0 8px;
-    padding-left: 20px;
-}
-
-.openvault-community-findings li {
-    margin-bottom: 4px;
-}
-
-.openvault-community-members {
+.openvault-world-state-timestamp {
     color: var(--SmartThemeEmColor, #888);
+    font-size: 0.85em;
 }
 
 /* Entities */

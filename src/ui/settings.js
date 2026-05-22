@@ -454,7 +454,7 @@ const RESETTABLE_KEYS = [
     'embeddingWindowSize',
     'topEntitiesCount',
     'entityBoostWeight',
-    'communityDetectionInterval',
+    'worldStateInterval',
 ];
 
 export async function handleResetSettings() {
@@ -777,7 +777,7 @@ function bindUIElements() {
     bindSetting('world_context_budget', 'worldContextBudget', 'int', (v) =>
         updateWordsDisplay(v, 'openvault_world_context_budget_words')
     );
-    bindSetting('community_interval', 'communityDetectionInterval');
+    bindSetting('world_state_interval', 'worldStateInterval');
 
     // Forgetfulness curve settings
     bindSetting('forgetfulness_lambda', 'forgetfulnessBaseLambda', 'float');
@@ -1051,8 +1051,8 @@ export function updateUI() {
     $('#openvault_world_context_budget_value').text(settings.worldContextBudget);
     updateWordsDisplay(settings.worldContextBudget, 'openvault_world_context_budget_words');
 
-    $('#openvault_community_interval').val(settings.communityDetectionInterval);
-    $('#openvault_community_interval_value').text(settings.communityDetectionInterval);
+    $('#openvault_world_state_interval').val(settings.worldStateInterval);
+    $('#openvault_world_state_interval_value').text(settings.worldStateInterval);
 
     // =========================================================================
     // NEW: Sync 7 previously-unbound settings to their HTML elements.

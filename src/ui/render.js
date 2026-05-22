@@ -30,13 +30,13 @@ import { renderPerfTab, updateBudgetIndicators } from './settings.js';
 import { refreshStats } from './status.js';
 import {
     renderCharacterState,
-    renderCommunityAccordion,
     renderEntityCard,
     renderEntityEdit,
     renderEntityMergePicker,
     renderMemoryEdit,
     renderMemoryItem,
     renderReflectionProgress,
+    renderWorldStateCard,
 } from './templates.js';
 
 // DOM Selectors
@@ -351,22 +351,18 @@ function renderReflectionProgressSection() {
 
 let entitySearchTimeout = null;
 
-function renderCommunityList() {
-    const $container = $('#openvault_community_list');
-    const $count = $('#openvault_community_count');
+function renderWorldStateList() {
+    const $container = $('#openvault_world_state_list');
     const data = getOpenVaultData();
 
-    const communities = data?.communities || {};
-    const ids = Object.keys(communities);
+    const worldState = data?.global_world_state || null;
 
-    $count.text(ids.length);
-
-    if (ids.length === 0) {
-        $container.html('<p class="openvault-placeholder">No communities detected yet</p>');
+    if (!worldState || !worldState.summary) {
+        $container.html('<p class="openvault-placeholder">No world state generated yet</p>');
         return;
     }
 
-    const html = ids.map((id) => renderCommunityAccordion(id, communities[id])).join('');
+    const html = renderWorldStateCard(worldState);
     $container.html(html);
 }
 
@@ -394,7 +390,7 @@ function renderEntityList() {
 }
 
 function renderWorldTab() {
-    renderCommunityList();
+    renderWorldStateList();
     renderEntityList();
 }
 

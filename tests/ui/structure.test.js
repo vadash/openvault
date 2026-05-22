@@ -80,7 +80,7 @@ describe('UI structure', () => {
         });
     });
 
-    describe('Tab Structure (Entities + Communities)', () => {
+    describe('Tab Structure (Entities + World)', () => {
         it('has Entity browser with search and type filter', () => {
             const entitiesMatch = html.match(
                 /<div class="openvault-tab-content[^"]*" data-tab="entities">([\s\S]*?)<div class="openvault-tab-content"/i
@@ -92,13 +92,12 @@ describe('UI structure', () => {
             expect(entitiesHtml).toContain('openvault_entity_count');
         });
 
-        it('has Communities browser in its own tab', () => {
-            const communitiesMatch = html.match(
-                /<div class="openvault-tab-content[^"]*" data-tab="communities">([\s\S]*?)<\/div>\s*<\/div>\s*<!-- =/i
+        it('has World State browser in its own tab', () => {
+            const worldMatch = html.match(
+                /<div class="openvault-tab-content[^"]*" data-tab="world">([\s\S]*?)<\/div>\s*<\/div>\s*<!-- =/i
             );
-            const communitiesHtml = communitiesMatch ? communitiesMatch[1] : '';
-            expect(communitiesHtml).toContain('openvault_community_list');
-            expect(communitiesHtml).toContain('openvault_community_count');
+            const worldHtml = worldMatch ? worldMatch[1] : '';
+            expect(worldHtml).toContain('openvault_world_state_list');
         });
 
         it('has correct entity type options', () => {

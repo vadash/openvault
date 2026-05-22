@@ -3,10 +3,10 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { describe, expect, it } from 'vitest';
 import {
-    renderCommunityAccordion,
     renderEntityCard,
     renderMemoryItem,
     renderReflectionProgress,
+    renderWorldStateCard,
 } from '../../src/ui/templates.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -99,61 +99,32 @@ describe('ui/templates', () => {
         });
     });
 
-    describe('renderCommunityAccordion', () => {
-        it('renders community title and member count', () => {
-            const community = {
-                title: 'The Royal Court',
-                summary: 'King Aldric rules from the Castle.',
-                findings: ['The King is powerful', 'The Guard is loyal'],
-                nodeKeys: ['king aldric', 'castle', 'royal guard'],
+    describe('renderWorldStateCard', () => {
+        it('renders world state summary', () => {
+            const worldState = {
+                summary: 'The kingdom is ruled by King Aldric from the Castle.',
+                last_updated: Date.now(),
             };
-            const html = renderCommunityAccordion('C0', community);
-            expect(html).toContain('The Royal Court');
-            expect(html).toContain('3 entities');
+            const html = renderWorldStateCard(worldState);
+            expect(html).toContain('The kingdom is ruled by King Aldric from the Castle.');
         });
 
-        it('renders summary and findings', () => {
-            const community = {
-                title: 'Court',
-                summary: 'A powerful court.',
-                findings: ['Finding one', 'Finding two'],
-                nodeKeys: ['a'],
+        it('renders timestamp', () => {
+            const now = Date.now();
+            const worldState = {
+                summary: 'Test summary',
+                last_updated: now,
             };
-            const html = renderCommunityAccordion('C0', community);
-            expect(html).toContain('A powerful court.');
-            expect(html).toContain('Finding one');
-            expect(html).toContain('Finding two');
-            expect(html).toContain('<li>');
+            const html = renderWorldStateCard(worldState);
+            expect(html).toContain('Last updated:');
         });
 
-        it('renders member list', () => {
-            const community = {
-                title: 'Test',
-                summary: 'Test',
-                findings: [],
-                nodeKeys: ['alice', 'bob'],
+        it('handles missing timestamp', () => {
+            const worldState = {
+                summary: 'Test summary',
             };
-            const html = renderCommunityAccordion('C0', community);
-            expect(html).toContain('alice');
-            expect(html).toContain('bob');
-        });
-
-        it('uses community ID as fallback title', () => {
-            const community = { summary: 'No title', findings: [], nodeKeys: [] };
-            const html = renderCommunityAccordion('C5', community);
-            expect(html).toContain('C5');
-        });
-
-        it('handles empty findings', () => {
-            const community = { title: 'Test', summary: 'Test', findings: [], nodeKeys: [] };
-            const html = renderCommunityAccordion('C0', community);
-            expect(html).not.toContain('<ul');
-        });
-
-        it('shows 0 entities for empty nodeKeys', () => {
-            const community = { title: 'Test', summary: 'Test', findings: [], nodeKeys: [] };
-            const html = renderCommunityAccordion('C0', community);
-            expect(html).toContain('0 entities');
+            const html = renderWorldStateCard(worldState);
+            expect(html).toContain('Last updated: Unknown');
         });
     });
 
