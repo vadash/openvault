@@ -197,7 +197,7 @@ export function selectMemoriesWithSoftBalance(scoredMemories, tokenBudget, chatL
         for (const memory of bucketCandidates[bucketName]) {
             if (selectedIds.has(memory.id)) continue;
             const memTokens = countTokens(memory.summary || '');
-            if (bucketTokens + memTokens > quotaBudget) break;
+            if (bucketTokens + memTokens > quotaBudget) continue;
             selected.push(memory);
             selectedIds.add(memory.id);
             totalTokens += memTokens;

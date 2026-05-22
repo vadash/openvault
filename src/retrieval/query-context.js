@@ -5,7 +5,7 @@
  * Uses graph-anchored stem matching to detect known entities.
  */
 
-import { CORPUS_GROUNDED_BOOST_RATIO, NON_GROUNDED_BOOST_RATIO } from '../constants.js';
+import { CORPUS_GROUNDED_BOOST_RATIO, NON_GROUNDED_BOOST_RATIO, QUERY_CONTEXT_DEFAULTS } from '../constants.js';
 import { getOptimalChunkSize } from '../embeddings.js';
 import { logDebug } from '../utils/logging.js';
 import { stemName, stemWord } from '../utils/stemmer.js';
@@ -149,7 +149,7 @@ export function buildEmbeddingQuery(messages, extractedEntities, queryConfig) {
  */
 export function buildBM25Tokens(userMessage, extractedEntities, corpusVocab = null, meta = null, queryConfig) {
     const tokens = [];
-    const settings = queryConfig;
+    const settings = { ...QUERY_CONTEXT_DEFAULTS, ...queryConfig };
 
     // Layer 0: Multi-word entities (exact phrases, un-tokenized, added ONCE)
     // Layer 1: Single-word entities (stems, with 5x boost)
