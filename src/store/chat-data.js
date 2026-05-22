@@ -173,6 +173,30 @@ export async function deleteMemory(id) {
 }
 
 /**
+ * Delete all memories of a given type.
+ * @param {string} type - Memory type to delete (e.g., 'reflection', 'world', 'character')
+ * @returns {Promise<number>} Count of deleted memories
+ */
+export async function deleteMemoriesByType(type) {
+    const data = getOpenVaultData();
+    if (!data) {
+        return 0;
+    }
+
+    const memories = data[MEMORIES_KEY] || [];
+    const beforeLength = memories.length;
+    data[MEMORIES_KEY] = memories.filter((/** @type {Memory} */ m) => m.type !== type);
+    const deletedCount = beforeLength - data[MEMORIES_KEY].length;
+
+    if (deletedCount > 0) {
+        await getDeps().saveChatConditional();
+        logDebug(`Deleted ${deletedCount} memories of type '${type}'`);
+    }
+
+    return deletedCount;
+}
+
+/**
  * Update an entity's fields. Handles rename by rewriting edges and merge redirects.
  * @param {string} key - Current normalized entity key
  * @param {Object} updates - { name?, type?, description?, aliases? }

@@ -332,6 +332,104 @@ describe('store/chat-data', () => {
         });
     });
 
+    describe('deleteMemoriesByType', () => {
+        let mockSave;
+
+        beforeEach(() => {
+            mockSave = vi.fn().mockResolvedValue(undefined);
+            setDeps({
+                console: mockConsole,
+                getContext: () => mockContext,
+                getExtensionSettings: () => ({
+                    [extensionName]: { debugMode: true },
+                }),
+                saveChatConditional: mockSave,
+            });
+        });
+
+        it('deletes only memories of the specified type', async () => {
+            mockContext.chatMetadata[METADATA_KEY] = {
+                [MEMORIES_KEY]: [
+                    { id: 'mem1', type: 'reflection' },
+                    { id: 'mem2', type: 'world' },
+                    { id: 'mem3', type: 'reflection' },
+                    { id: 'mem4', type: 'character' },
+                ],
+            };
+            const { deleteMemoriesByType } = await import('../../src/store/chat-data.js');
+            const count = await deleteMemoriesByType('reflection');
+            expect(count).toBe(2);
+            expect(mockContext.chatMetadata[METADATA_KEY][MEMORIES_KEY]).toEqual([
+                { id: 'mem2', type: 'world' },
+                { id: 'mem4', type: 'character' },
+            ]);
+        });
+
+        it('preserves memories of other types', async () => {
+            mockContext.chatMetadata[METADATA_KEY] = {
+                [MEMORIES_KEY]: [
+                    { id: 'mem1', type: 'reflection' },
+                    { id: 'mem2', type: 'world' },
+                    { id: 'mem3', type: 'character' },
+                ],
+            };
+            const { deleteMemoriesByType } = await import('../../src/store/chat-data.js');
+            await deleteMemoriesByType('reflection');
+            expect(mockContext.chatMetadata[METADATA_KEY][MEMORIES_KEY]).toEqual([
+                { id: 'mem2', type: 'world' },
+                { id: 'mem3', type: 'character' },
+            ]);
+        });
+
+        it('preserves reflection_state accumulators', async () => {
+            mockContext.chatMetadata[METADATA_KEY] = {
+                [MEMORIES_KEY]: [{ id: 'mem1', type: 'reflection' }],
+                reflection_state: { accumulator: 'some-data' },
+            };
+            const { deleteMemoriesByType } = await import('../../src/store/chat-data.js');
+            await deleteMemoriesByType('reflection');
+            expect(mockContext.chatMetadata[METADATA_KEY].reflection_state).toEqual({
+                accumulator: 'some-data',
+            });
+        });
+
+        it('returns count of deleted memories', async () => {
+            mockContext.chatMetadata[METADATA_KEY] = {
+                [MEMORIES_KEY]: [
+                    { id: 'mem1', type: 'reflection' },
+                    { id: 'mem2', type: 'reflection' },
+                    { id: 'mem3', type: 'reflection' },
+                ],
+            };
+            const { deleteMemoriesByType } = await import('../../src/store/chat-data.js');
+            const count = await deleteMemoriesByType('reflection');
+            expect(count).toBe(3);
+        });
+
+        it('returns 0 when no memories of that type exist', async () => {
+            mockContext.chatMetadata[METADATA_KEY] = {
+                [MEMORIES_KEY]: [
+                    { id: 'mem1', type: 'world' },
+                    { id: 'mem2', type: 'character' },
+                ],
+            };
+            const { deleteMemoriesByType } = await import('../../src/store/chat-data.js');
+            const count = await deleteMemoriesByType('reflection');
+            expect(count).toBe(0);
+            expect(mockContext.chatMetadata[METADATA_KEY][MEMORIES_KEY]).toHaveLength(2);
+        });
+
+        it('handles empty memories array', async () => {
+            mockContext.chatMetadata[METADATA_KEY] = {
+                [MEMORIES_KEY]: [],
+            };
+            const { deleteMemoriesByType } = await import('../../src/store/chat-data.js');
+            const count = await deleteMemoriesByType('reflection');
+            expect(count).toBe(0);
+            expect(mockContext.chatMetadata[METADATA_KEY][MEMORIES_KEY]).toEqual([]);
+        });
+    });
+
     describe('deleteCurrentChatData', () => {
         it('deletes openvault key from chatMetadata', async () => {
             mockContext.chatMetadata[METADATA_KEY] = {
