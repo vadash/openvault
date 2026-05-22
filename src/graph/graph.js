@@ -36,7 +36,7 @@ import { getEmbedding, hasEmbedding, setEmbedding } from '../utils/embedding-cod
 import { logDebug, logError } from '../utils/logging.js';
 import { createLadderQueue } from '../utils/queue.js';
 import { stemWord } from '../utils/stemmer.js';
-import { ALL_STOPWORDS } from '../utils/stopwords.js';
+import { getAllStopwords } from '../utils/stopwords.js';
 import { jaccardSimilarity } from '../utils/text.js';
 import { countTokens } from '../utils/tokens.js';
 import { levenshteinDistance, transliterateCyrToLat } from '../utils/transliterate.js';
@@ -191,9 +191,9 @@ export function upsertEntity(graphData, name, type, description, cap = 3) {
  * @param {string} description - Relationship description
  * @param {number} [cap=5] - Maximum number of description segments to retain
  * @param {Object} [settings=null] - Optional settings for consolidation behavior
- * @returns {void}
+ * @returns {Promise<void>}
  */
-export function upsertRelationship(graphData, source, target, description, cap = 5, settings = null) {
+export async function upsertRelationship(graphData, source, target, description, cap = 5, settings = null) {
     const srcKey = _resolveKey(graphData, source);
     const tgtKey = _resolveKey(graphData, target);
 
@@ -229,7 +229,7 @@ export function upsertRelationship(graphData, source, target, description, cap =
         }
 
         // Track token count after update
-        existing._descriptionTokens = countTokens(existing.description);
+        existing._descriptionTokens = await countTokens(existing.description);
 
         // Mark for consolidation if over threshold
         const threshold = settings?.consolidationTokenThreshold ?? CONSOLIDATION.TOKEN_THRESHOLD;
@@ -242,7 +242,7 @@ export function upsertRelationship(graphData, source, target, description, cap =
             target: tgtKey,
             description,
             weight: 1,
-            _descriptionTokens: countTokens(description),
+            _descriptionTokens: await countTokens(description),
         };
         graphData.edges[edgeKey] = newEdge;
 
@@ -295,9 +295,9 @@ function _initGraphState(data) {
  * @param {number} [minOverlapRatio=0.5] - Minimum overlap ratio
  * @param {string} [keyA=''] - Original key A for substring check
  * @param {string} [keyB=''] - Original key B for substring check
- * @returns {boolean}
+ * @returns {Promise<boolean>}
  */
-export function hasSufficientTokenOverlap(
+export async function hasSufficientTokenOverlap(
     tokensA,
     tokensB,
     minOverlapRatio = ENTITY_TOKEN_OVERLAP_MIN_RATIO,
@@ -345,6 +345,7 @@ export function hasSufficientTokenOverlap(
     }
 
     // Filter out common adjectives/stop words
+    const ALL_STOPWORDS = await getAllStopwords();
     const significantA = new Set([...tokensA].filter((t) => !ALL_STOPWORDS.has(t.toLowerCase())));
     const significantB = new Set([...tokensB].filter((t) => !ALL_STOPWORDS.has(t.toLowerCase())));
 
@@ -387,9 +388,9 @@ export function hasSufficientTokenOverlap(
  * @param {string} keyA - Entity A's normalized key
  * @param {string} keyB - Entity B's normalized key
  * @param {"PERSON" | "PLACE" | "ORGANIZATION" | "OBJECT" | "CONCEPT"} [type='OBJECT'] - Entity type
- * @returns {boolean}
+ * @returns {Promise<boolean>}
  */
-export function shouldMergeEntities(cosine, threshold, tokensA, keyA, keyB, type = ENTITY_TYPES.OBJECT) {
+export async function shouldMergeEntities(cosine, threshold, tokensA, keyA, keyB, type = ENTITY_TYPES.OBJECT) {
     // PERSON entities: names are unique identifiers, high similarity is sufficient
     if (type === ENTITY_TYPES.PERSON && cosine >= threshold) return true;
 
@@ -402,7 +403,7 @@ export function shouldMergeEntities(cosine, threshold, tokensA, keyA, keyB, type
     if (cosine < threshold - 0.1) return false;
 
     const tokensB = new Set(keyB.split(/\s+/));
-    return hasSufficientTokenOverlap(tokensA, tokensB, GRAPH_JACCARD_DUPLICATE_THRESHOLD, keyA, keyB);
+    return await hasSufficientTokenOverlap(tokensA, tokensB, GRAPH_JACCARD_DUPLICATE_THRESHOLD, keyA, keyB);
 }
 
 /**
@@ -501,7 +502,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
         }
 
         const sim = cosineSimilarity(newEmbedding, existingEmbedding);
-        if (!shouldMergeEntities(sim, threshold, newTokens, key, existingKey, type)) {
+        if (!(await shouldMergeEntities(sim, threshold, newTokens, key, existingKey, type))) {
             continue;
         }
         if (sim > bestScore) {
@@ -567,7 +568,7 @@ export async function consolidateEdges(graphData, _settings) {
                     const result = parseConsolidationResponse(response);
                     if (result.consolidated_description) {
                         edge.description = result.consolidated_description;
-                        edge._descriptionTokens = countTokens(result.consolidated_description);
+                        edge._descriptionTokens = await countTokens(result.consolidated_description);
 
                         // Re-embed for accurate RAG (only if embeddings enabled)
                         if (isEmbeddingsEnabled()) {

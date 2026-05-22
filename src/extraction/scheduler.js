@@ -56,12 +56,12 @@ export function getUnextractedMessageIds(chat, processedFps) {
  * @param {Object[]} chat - Chat messages array
  * @param {Object} data - OpenVault data object
  * @param {number} tokenBudget - Token budget for extraction
- * @returns {Object} Progress data: { unextractedTokens, extractionPct, extractionBudget }
+ * @returns {Promise<Object>} Progress data: { unextractedTokens, extractionPct, extractionBudget }
  */
-export function getExtractionBudgetProgress(chat, data, tokenBudget, maxTurns = Infinity) {
+export async function getExtractionBudgetProgress(chat, data, tokenBudget, maxTurns = Infinity) {
     const processedFps = getProcessedFingerprints(data);
     const unextractedIds = getUnextractedMessageIds(chat, processedFps);
-    const unextractedTokens = getTokenSum(chat, unextractedIds);
+    const unextractedTokens = await getTokenSum(chat, unextractedIds);
     const extractionPct = Math.min((unextractedTokens / tokenBudget) * 100, 100);
     const unextractedTurns = countTurns(chat, unextractedIds);
     const turnPct = maxTurns === Infinity ? 0 : Math.min((unextractedTurns / maxTurns) * 100, 100);
@@ -73,12 +73,12 @@ export function getExtractionBudgetProgress(chat, data, tokenBudget, maxTurns = 
  * @param {Object[]} chat - Chat messages array
  * @param {Object} data - OpenVault data object
  * @param {number} tokenBudget - Token budget for extraction
- * @returns {boolean} True if at least one complete batch is ready
+ * @returns {Promise<boolean>} True if at least one complete batch is ready
  */
-export function isBatchReady(chat, data, tokenBudget, maxTurns = Infinity) {
+export async function isBatchReady(chat, data, tokenBudget, maxTurns = Infinity) {
     const processedFps = getProcessedFingerprints(data);
     const unextractedIds = getUnextractedMessageIds(chat, processedFps);
-    return getTokenSum(chat, unextractedIds) >= tokenBudget || countTurns(chat, unextractedIds) >= maxTurns;
+    return (await getTokenSum(chat, unextractedIds)) >= tokenBudget || countTurns(chat, unextractedIds) >= maxTurns;
 }
 
 /**
@@ -141,13 +141,13 @@ export function trimTailTurns(chat, messageIds, turnsToTrim) {
  * @param {Object} data - OpenVault data object
  * @param {number} tokenBudget - Token budget for extraction
  * @param {boolean} [isEmergencyCut=false] - If true, bypass token budget and extract all unextracted messages
- * @returns {number[]|null} Array of message IDs for next batch, or null if no complete batch ready
+ * @returns {Promise<number[]|null>} Array of message IDs for next batch, or null if no complete batch ready
  */
-export function getNextBatch(chat, data, tokenBudget, isEmergencyCut = false, maxTurns = Infinity) {
+export async function getNextBatch(chat, data, tokenBudget, isEmergencyCut = false, maxTurns = Infinity) {
     const processedFps = getProcessedFingerprints(data);
     const unextractedIds = getUnextractedMessageIds(chat, processedFps);
 
-    const totalTokens = getTokenSum(chat, unextractedIds);
+    const totalTokens = await getTokenSum(chat, unextractedIds);
     // Emergency Cut bypasses token budget - extract all unextracted messages
     if (!isEmergencyCut && totalTokens < tokenBudget && countTurns(chat, unextractedIds) < maxTurns) {
         return null;
@@ -159,7 +159,7 @@ export function getNextBatch(chat, data, tokenBudget, isEmergencyCut = false, ma
 
     for (const id of unextractedIds) {
         accumulated.push(id);
-        currentSum += getMessageTokenCount(chat, id);
+        currentSum += await getMessageTokenCount(chat, id);
 
         if (!isEmergencyCut && (currentSum >= tokenBudget || countTurns(chat, accumulated) >= maxTurns)) {
             break;
@@ -227,12 +227,12 @@ export function getBackfillStats(chat, data, _tokenBudget) {
  * @param {Object} data - OpenVault data object
  * @param {number} tokenBudget - Token budget for extraction
  * @param {boolean} [isEmergencyCut=false] - If true, bypass token budget and extract all unextracted messages
- * @returns {{messageIds: number[], batchCount: number}}
+ * @returns {Promise<{messageIds: number[], batchCount: number}>}
  */
-export function getBackfillMessageIds(chat, data, tokenBudget, isEmergencyCut = false) {
+export async function getBackfillMessageIds(chat, data, tokenBudget, isEmergencyCut = false) {
     const processedFps = getProcessedFingerprints(data);
     const allUnextracted = getUnextractedMessageIds(chat, processedFps);
-    const totalTokens = getTokenSum(chat, allUnextracted);
+    const totalTokens = await getTokenSum(chat, allUnextracted);
 
     // Emergency Cut bypasses token budget - extract all unextracted messages
     if (!isEmergencyCut && totalTokens < tokenBudget) {
@@ -246,7 +246,7 @@ export function getBackfillMessageIds(chat, data, tokenBudget, isEmergencyCut = 
     let batchCount = 0;
 
     for (const id of allUnextracted) {
-        currentSum += getMessageTokenCount(chat, id);
+        currentSum += await getMessageTokenCount(chat, id);
         messageIds.push(id);
 
         if (currentSum >= tokenBudget) {
@@ -259,7 +259,7 @@ export function getBackfillMessageIds(chat, data, tokenBudget, isEmergencyCut = 
     if (!isEmergencyCut && currentSum > 0 && currentSum < tokenBudget) {
         while (messageIds.length > 0 && currentSum > 0) {
             const removed = messageIds.pop();
-            currentSum -= getMessageTokenCount(chat, removed);
+            currentSum -= await getMessageTokenCount(chat, removed);
         }
     }
 
@@ -274,7 +274,7 @@ export function getBackfillMessageIds(chat, data, tokenBudget, isEmergencyCut = 
             let sum = 0;
             batchCount = 0;
             for (const id of messageIds) {
-                sum += getMessageTokenCount(chat, id);
+                sum += await getMessageTokenCount(chat, id);
                 if (sum >= tokenBudget) {
                     batchCount++;
                     sum = 0;

@@ -19,19 +19,26 @@ import { record } from '../perf/store.js';
 import { getEmbedding, hasEmbedding } from '../utils/embedding-codec.js';
 import { yieldToMain } from '../utils/st-helpers.js';
 import { stemWord } from '../utils/stemmer.js';
-import { ALL_STOPWORDS } from '../utils/stopwords.js';
+import { getAllStopwords } from '../utils/stopwords.js';
+
+/** @type {Set<string> | null} */
+let _cachedStopwords = null;
 
 /**
  * Tokenize text into lowercase words, filtering stop words
  * @param {string} text - Text to tokenize
- * @returns {string[]} Array of tokens
+ * @returns {Promise<string[]>} Array of tokens
  */
-export function tokenize(/** @type {string} */ text) {
+export async function tokenize(/** @type {string} */ text) {
     if (!text) return [];
+    // Lazy-load stopwords on first call
+    if (_cachedStopwords === null) {
+        _cachedStopwords = await getAllStopwords();
+    }
     // \p{L} matches any Unicode letter (supports Cyrillic, Latin, CJK, etc.)
     // Using 'gu' flag for Unicode-aware matching
     return (text.toLowerCase().match(/[\p{L}0-9_]+/gu) || [])
-        .filter((word) => word.length > 2 && !ALL_STOPWORDS.has(word))
+        .filter((word) => word.length > 2 && !_cachedStopwords.has(word))
         .map(stemWord)
         .filter((word) => word.length > 2); // Post-stem length filter (e.g. "боюсь" → "бо" filtered)
 }

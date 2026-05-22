@@ -440,9 +440,9 @@ export function updateIDFCache(data, _graphNodes = {}) {
  * Select relevant memories for extraction context using hybrid recency/importance
  * @param {Object} data - OpenVault data object
  * @param {Object} settings - Extension settings
- * @returns {Object[]} Selected memories sorted chronologically
+ * @returns {Promise<Object[]>} Selected memories sorted chronologically
  */
-export function selectMemoriesForExtraction(data, settings) {
+export async function selectMemoriesForExtraction(data, settings) {
     const allMemories = data[MEMORIES_KEY] || [];
     const totalBudget = settings.extractionRearviewTokens;
     const recencyBudget = Math.floor(totalBudget * 0.25);
@@ -467,7 +467,7 @@ export function selectMemoriesForExtraction(data, settings) {
     // Calculate remaining budget after importance selection
     let usedImportanceBudget = 0;
     for (const m of importanceMemories) {
-        usedImportanceBudget += countTokens(m.summary);
+        usedImportanceBudget += await countTokens(m.summary);
         selectedIds.add(m.id);
     }
 
@@ -843,7 +843,7 @@ async function processGraphUpdates(graphData, entities, relationships, settings)
         const edgeCap = EDGE_DESCRIPTION_CAP;
         for (const rel of relationships) {
             if (rel.source === 'Unknown' || rel.target === 'Unknown') continue;
-            upsertRelationship(graphData, rel.source, rel.target, rel.description, edgeCap);
+            await upsertRelationship(graphData, rel.source, rel.target, rel.description, edgeCap);
         }
     }
 
@@ -885,7 +885,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
 
     if (!messageIds || messageIds.length === 0) {
         // Defensive: use scheduler to get next batch if no IDs provided
-        const batch = getNextBatch(
+        const batch = await getNextBatch(
             chat,
             data,
             settings?.extractionTokenBudget || 2000,
@@ -938,7 +938,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         };
 
         // Stage 1: Event extraction (LLM call)
-        const existingMemories = selectMemoriesForExtraction(data, settings);
+        const existingMemories = await selectMemoriesForExtraction(data, settings);
         const { events: rawEvents } = await fetchEventsFromLLM(contextParams, existingMemories, abortSignal);
 
         // Stage 2: Graph extraction (LLM call)

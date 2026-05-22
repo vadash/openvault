@@ -73,7 +73,38 @@ describe('countTokens', () => {
     it('exports countTokens function', async () => {
         const { countTokens } = await import('../../src/utils/tokens.js');
         expect(typeof countTokens).toBe('function');
-        expect(countTokens('hello world')).toBeGreaterThan(0);
+        expect(await countTokens('hello world')).toBeGreaterThan(0);
+    });
+
+    it('falls back to rough estimate when CDN is unavailable', async () => {
+        // Mock cdnImport to throw for gpt-tokenizer
+        vi.doMock('../../src/utils/cdn.js', async () => {
+            const actual = await vi.importActual('../../src/utils/cdn.js');
+            return {
+                ...actual,
+                cdnImport: async (spec) => {
+                    if (spec === 'gpt-tokenizer/encoding/o200k_base') {
+                        throw new Error('CDN unavailable');
+                    }
+                    return actual.cdnImport(spec);
+                },
+            };
+        });
+
+        // Reset modules to pick up the mock
+        vi.resetModules();
+        await global.registerCdnOverrides();
+        const { countTokens: countTokensFallback } = await import('../../src/utils/tokens.js');
+
+        // 'hello world'.length = 11, Math.ceil(11 / 4) = 3
+        expect(await countTokensFallback('hello world')).toBe(3);
+        expect(await countTokensFallback('hi')).toBe(1); // 2 chars -> 1 token
+        expect(await countTokensFallback('')).toBe(0); // empty -> 0 tokens
+
+        // Clean up: restore original
+        vi.doUnmock('../../src/utils/cdn.js');
+        vi.resetModules();
+        await global.registerCdnOverrides();
     });
 });
 
@@ -86,7 +117,7 @@ describe('getMessageTokenCount', () => {
     it('computes token count for a message', async () => {
         const { getMessageTokenCount } = await import('../../src/utils/tokens.js');
         const chat = [{ mes: 'Hello, how are you today?', is_user: true }];
-        const count = getMessageTokenCount(chat, 0);
+        const count = await getMessageTokenCount(chat, 0);
         expect(count).toBeGreaterThan(0);
         expect(Number.isInteger(count)).toBe(true);
     });
@@ -94,16 +125,44 @@ describe('getMessageTokenCount', () => {
     it('returns cached count on second call', async () => {
         const { getMessageTokenCount } = await import('../../src/utils/tokens.js');
         const chat = [{ mes: 'Test message for caching', is_user: true }];
-        const count1 = getMessageTokenCount(chat, 0);
-        const count2 = getMessageTokenCount(chat, 0);
+        const count1 = await getMessageTokenCount(chat, 0);
+        const count2 = await getMessageTokenCount(chat, 0);
         expect(count1).toBe(count2);
     });
 
     it('handles empty or missing message text', async () => {
         const { getMessageTokenCount } = await import('../../src/utils/tokens.js');
         const chat = [{ mes: '', is_user: true }, { is_user: false }];
-        expect(getMessageTokenCount(chat, 0)).toBe(0);
-        expect(getMessageTokenCount(chat, 1)).toBe(0);
+        expect(await getMessageTokenCount(chat, 0)).toBe(0);
+        expect(await getMessageTokenCount(chat, 1)).toBe(0);
+    });
+
+    it('falls back to rough estimate when CDN is unavailable', async () => {
+        // Mock cdnImport to throw for gpt-tokenizer
+        vi.doMock('../../src/utils/cdn.js', async () => {
+            const actual = await vi.importActual('../../src/utils/cdn.js');
+            return {
+                ...actual,
+                cdnImport: async (spec) => {
+                    if (spec === 'gpt-tokenizer/encoding/o200k_base') {
+                        throw new Error('CDN unavailable');
+                    }
+                    return actual.cdnImport(spec);
+                },
+            };
+        });
+
+        vi.resetModules();
+        await global.registerCdnOverrides();
+        const { getMessageTokenCount: getMessageTokenCountFallback } = await import('../../src/utils/tokens.js');
+        const chat = [{ mes: 'hello world', is_user: true }];
+        // 'hello world'.length = 11, Math.ceil(11 / 4) = 3
+        expect(await getMessageTokenCountFallback(chat, 0)).toBe(3);
+
+        // Clean up
+        vi.doUnmock('../../src/utils/cdn.js');
+        vi.resetModules();
+        await global.registerCdnOverrides();
     });
 });
 
@@ -120,14 +179,14 @@ describe('getTokenSum', () => {
             { mes: 'How are you doing today?', is_user: false },
             { mes: 'Great thanks', is_user: true },
         ];
-        const total = getTokenSum(chat, [0, 1, 2]);
+        const total = await getTokenSum(chat, [0, 1, 2]);
         expect(total).toBeGreaterThan(0);
         expect(Number.isInteger(total)).toBe(true);
     });
 
     it('returns 0 for empty index list', async () => {
         const { getTokenSum } = await import('../../src/utils/tokens.js');
-        expect(getTokenSum([], [])).toBe(0);
+        expect(await getTokenSum([], [])).toBe(0);
     });
 });
 
@@ -135,10 +194,10 @@ describe('clearTokenCache', () => {
     it('clears the cache so counts are recomputed', async () => {
         const { getMessageTokenCount, clearTokenCache } = await import('../../src/utils/tokens.js');
         const chat = [{ mes: 'Cached message', is_user: true }];
-        getMessageTokenCount(chat, 0);
+        await getMessageTokenCount(chat, 0);
         clearTokenCache();
         // After clear, should recompute (same result, but from scratch)
-        const count = getMessageTokenCount(chat, 0);
+        const count = await getMessageTokenCount(chat, 0);
         expect(count).toBeGreaterThan(0);
     });
 });

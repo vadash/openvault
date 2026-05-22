@@ -2,18 +2,51 @@
 import { cdnImport } from './cdn.js';
 import { cyrb53 } from './embedding-codec.js';
 
-const { countTokens: _countTokens } = await cdnImport('gpt-tokenizer/encoding/o200k_base');
+let _countTokens = null;
+
+/**
+ * Lazy-load the tokenizer from CDN. Falls back to null on failure.
+ * @returns {Promise<(text: string) => number> | null}
+ */
+async function getTokenizer() {
+    if (_countTokens) {
+        return _countTokens;
+    }
+    try {
+        const module = await cdnImport('gpt-tokenizer/encoding/o200k_base');
+        if (module?.countTokens) {
+            _countTokens = module.countTokens;
+            return _countTokens;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Rough fallback token estimate when CDN is unavailable.
+ * Assumes ~4 characters per token.
+ * @param {string} text - Input text
+ * @returns {number} Rough token count
+ */
+function roughTokenCount(text) {
+    return Math.ceil((text || '').length / 4);
+}
 
 const MAX_CACHE_SIZE = 2000;
 const tokenCache = new Map();
 
 /**
  * Count tokens in a text string using gpt-tokenizer.
+ * Falls back to rough estimate if CDN is unavailable.
  * @param {string} text - Input text
- * @returns {number} Token count
+ * @returns {Promise<number>} Token count
  */
-export function countTokens(text) {
-    return (text || '').length === 0 ? 0 : _countTokens(text);
+export async function countTokens(text) {
+    if ((text || '').length === 0) return 0;
+    const fn = await getTokenizer();
+    return fn ? fn(text) : roughTokenCount(text);
 }
 
 /**
@@ -28,9 +61,9 @@ export function clearTokenCache() {
  * Get token count for a single message. Uses in-memory LRU cache.
  * @param {Array<{mes?: string}>} chat - Chat array
  * @param {number} index - Message index
- * @returns {number} Token count
+ * @returns {Promise<number>} Token count
  */
-export function getMessageTokenCount(chat, index) {
+export async function getMessageTokenCount(chat, index) {
     const text = chat[index]?.mes || '';
     const key = String(cyrb53(text));
 
@@ -41,7 +74,7 @@ export function getMessageTokenCount(chat, index) {
         return value;
     }
 
-    const count = text.length === 0 ? 0 : _countTokens(text);
+    const count = text.length === 0 ? 0 : await countTokens(text);
 
     if (tokenCache.size >= MAX_CACHE_SIZE) {
         const oldest = tokenCache.keys().next().value;
@@ -55,12 +88,12 @@ export function getMessageTokenCount(chat, index) {
  * Sum token counts for a list of message indices.
  * @param {Array<{mes?: string}>} chat - Chat array
  * @param {number[]} indices - Message indices
- * @returns {number} Total tokens
+ * @returns {Promise<number>} Total tokens
  */
-export function getTokenSum(chat, indices) {
+export async function getTokenSum(chat, indices) {
     let total = 0;
     for (const i of indices) {
-        total += getMessageTokenCount(chat, i);
+        total += await getMessageTokenCount(chat, i);
     }
     return total;
 }

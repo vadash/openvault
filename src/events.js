@@ -61,7 +61,7 @@ export async function autoHideOldMessages() {
         }
 
         // Sum visible tokens
-        const totalVisibleTokens = getTokenSum(chat, visibleIndices);
+        const totalVisibleTokens = await getTokenSum(chat, visibleIndices);
         if (totalVisibleTokens <= visibleChatBudget) return;
 
         // Calculate excess
@@ -78,7 +78,7 @@ export async function autoHideOldMessages() {
             if (!processedFps.has(getFingerprint(chat[idx]))) continue;
 
             toHide.push(idx);
-            accumulated += getMessageTokenCount(chat, idx);
+            accumulated += await getMessageTokenCount(chat, idx);
         }
 
         // Snap to turn boundary
