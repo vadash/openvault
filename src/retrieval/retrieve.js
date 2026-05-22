@@ -191,7 +191,7 @@ export function injectContext(memoryText, reflectionText = '', worldText = '') {
     // Mutating its properties (not reassigning the binding) is intentional
     // and updates the macro return values in-place.
     cachedContent.memory = memoryText || '';
-    cachedContent.reflection = reflectionText || '';
+    cachedContent.reflections = reflectionText || '';
     cachedContent.world = worldText || '';
 
     // Get position settings with defaults - using getSettings for proper fallback chain
@@ -245,7 +245,7 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
     if (!relevantMemories || relevantMemories.length === 0) {
         // Clear cachedContent and world context if no memories found
         cachedContent.memory = '';
-        cachedContent.reflection = '';
+        cachedContent.reflections = '';
         cachedContent.world = '';
         injectContext('', '', '');
         return null;
@@ -320,7 +320,7 @@ export async function retrieveAndInjectContext() {
     if (!isExtensionEnabled()) {
         logDebug('OpenVault disabled, skipping retrieval');
         cachedContent.memory = '';
-        cachedContent.reflection = '';
+        cachedContent.reflections = '';
         cachedContent.world = '';
         injectContext('', '', '');
         return null;
@@ -333,7 +333,7 @@ export async function retrieveAndInjectContext() {
     if (!chat || chat.length === 0) {
         logDebug('No chat to retrieve context for');
         cachedContent.memory = '';
-        cachedContent.reflection = '';
+        cachedContent.reflections = '';
         cachedContent.world = '';
         injectContext('', '', '');
         return null;
@@ -343,7 +343,7 @@ export async function retrieveAndInjectContext() {
     if (!data) {
         logDebug('No chat context available');
         cachedContent.memory = '';
-        cachedContent.reflection = '';
+        cachedContent.reflections = '';
         cachedContent.world = '';
         injectContext('', '', '');
         return null;
@@ -353,7 +353,7 @@ export async function retrieveAndInjectContext() {
     if (memories.length === 0) {
         logDebug('No memories stored yet');
         cachedContent.memory = '';
-        cachedContent.reflection = '';
+        cachedContent.reflections = '';
         cachedContent.world = '';
         injectContext('', '', '');
         return null;
@@ -443,7 +443,7 @@ export async function updateInjection(pendingUserMessage = '') {
     // Clear injection if disabled or not in automatic mode
     if (!isExtensionEnabled()) {
         cachedContent.memory = '';
-        cachedContent.reflection = '';
+        cachedContent.reflections = '';
         cachedContent.world = '';
         injectContext('', '', '');
         return;
@@ -453,7 +453,7 @@ export async function updateInjection(pendingUserMessage = '') {
     const context = deps.getContext();
     if (!context.chat || context.chat.length === 0) {
         cachedContent.memory = '';
-        cachedContent.reflection = '';
+        cachedContent.reflections = '';
         cachedContent.world = '';
         injectContext('', '', '');
         return;
@@ -462,7 +462,7 @@ export async function updateInjection(pendingUserMessage = '') {
     const data = getOpenVaultData();
     if (!data) {
         cachedContent.memory = '';
-        cachedContent.reflection = '';
+        cachedContent.reflections = '';
         cachedContent.world = '';
         injectContext('', '', '');
         return;
@@ -471,7 +471,7 @@ export async function updateInjection(pendingUserMessage = '') {
 
     if (memories.length === 0) {
         cachedContent.memory = '';
-        cachedContent.reflection = '';
+        cachedContent.reflections = '';
         cachedContent.world = '';
         injectContext('', '', '');
         return;
@@ -501,7 +501,7 @@ export async function updateInjection(pendingUserMessage = '') {
 
     if (memoriesToUse.length === 0) {
         cachedContent.memory = '';
-        cachedContent.reflection = '';
+        cachedContent.reflections = '';
         cachedContent.world = '';
         injectContext('', '', '');
         return;
@@ -517,7 +517,7 @@ export async function updateInjection(pendingUserMessage = '') {
 
     if (!result) {
         cachedContent.memory = '';
-        cachedContent.reflection = '';
+        cachedContent.reflections = '';
         cachedContent.world = '';
         injectContext('', '', '');
         return;

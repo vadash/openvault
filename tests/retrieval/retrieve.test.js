@@ -479,6 +479,106 @@ describe('injectContext with 3-stream architecture', () => {
         expect(memoryCall).toBeDefined();
         expect(reflectionCall).toBeDefined();
     });
+
+    it('should populate cachedContent.reflections after selectFormatAndInject runs', async () => {
+        const { selectFormatAndInject } = await import('../../src/retrieval/retrieve.js');
+        const { cachedContent } = await import('../../src/injection/macros.js');
+
+        const mockMemories = [
+            { id: '1', type: 'event', summary: 'Test memory', importance: 3, embedding: [0.5, 0.5] },
+            { id: '2', type: 'reflection', summary: 'Test reflection content', importance: 4, embedding: [0.5, 0.5] },
+        ];
+
+        const mockData = {
+            characters: { Test: { current_emotion: 'neutral' } },
+            communities: {},
+        };
+
+        const mockCtx = {
+            primaryCharacter: 'Test',
+            activeCharacters: [],
+            headerName: 'Scene',
+            finalTokens: 1000,
+            chatLength: 100,
+            userMessages: 'test',
+            recentContext: 'test context',
+            worldContextBudget: 100,
+            queryConfig: {
+                entityWindowSize: 10,
+                embeddingWindowSize: 5,
+                recencyDecayFactor: 0.09,
+                topEntitiesCount: 5,
+                entityBoostWeight: 5.0,
+                exactPhraseBoostWeight: 10.0,
+            },
+            scoringConfig: {
+                forgetfulnessBaseLambda: 0.05,
+                forgetfulnessImportance5Floor: undefined,
+                reflectionDecayThreshold: undefined,
+                vectorSimilarityThreshold: 0.5,
+                alpha: 0.7,
+                combinedBoostWeight: 15,
+                embeddingSource: 'ollama',
+                transientDecayMultiplier: undefined,
+            },
+        };
+
+        await selectFormatAndInject(mockMemories, mockData, mockCtx);
+
+        // Verify cachedContent.reflections is populated with the expected reflection text
+        expect(cachedContent.reflections).toBeDefined();
+        expect(typeof cachedContent.reflections).toBe('string');
+        // The reflection text should contain content from the reflection memory
+        expect(cachedContent.reflections.length).toBeGreaterThan(0);
+    });
+
+    it('should set cachedContent.reflections to empty string when no reflections', async () => {
+        const { selectFormatAndInject } = await import('../../src/retrieval/retrieve.js');
+        const { cachedContent } = await import('../../src/injection/macros.js');
+
+        const mockMemories = [
+            { id: '1', type: 'event', summary: 'Test memory only', importance: 3, embedding: [0.5, 0.5] },
+        ];
+
+        const mockData = {
+            characters: { Test: { current_emotion: 'neutral' } },
+            communities: {},
+        };
+
+        const mockCtx = {
+            primaryCharacter: 'Test',
+            activeCharacters: [],
+            headerName: 'Scene',
+            finalTokens: 1000,
+            chatLength: 100,
+            userMessages: 'test',
+            recentContext: 'test context',
+            worldContextBudget: 100,
+            queryConfig: {
+                entityWindowSize: 10,
+                embeddingWindowSize: 5,
+                recencyDecayFactor: 0.09,
+                topEntitiesCount: 5,
+                entityBoostWeight: 5.0,
+                exactPhraseBoostWeight: 10.0,
+            },
+            scoringConfig: {
+                forgetfulnessBaseLambda: 0.05,
+                forgetfulnessImportance5Floor: undefined,
+                reflectionDecayThreshold: undefined,
+                vectorSimilarityThreshold: 0.5,
+                alpha: 0.7,
+                combinedBoostWeight: 15,
+                embeddingSource: 'ollama',
+                transientDecayMultiplier: undefined,
+            },
+        };
+
+        await selectFormatAndInject(mockMemories, mockData, mockCtx);
+
+        // When no reflections exist, cachedContent.reflections should be empty string
+        expect(cachedContent.reflections).toBe('');
+    });
 });
 
 describe('buildRetrievalContext', () => {
