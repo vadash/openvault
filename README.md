@@ -102,7 +102,7 @@ Everything stays on your machine. The in-browser embedding model means no text g
 
 ## Version History
 
-- **24** - Removed ST vector support. Maintaining 2 version of logic introduce complexity and bugs.
+- **24** - Removed ST vector support. Maintaining 2 version of logic introduce complexity and bugs. UI -> Adv -> Injections added disable toggles if u dont wanna inject char thoughts and community info
 - **23** - CoD https://arxiv.org/abs/2502.18600
 - **22** - Fixed a lot of bugs. Reduced tests count by 1/3. I record all backfill log. Feed it to ai studio and modify prompt/code. It never be perfect but we can make it good enough
 - **21** - Provides a manual mechanism to merge two entities
