@@ -45,10 +45,11 @@ Replace the Louvain community detection pipeline with a top-K entity selection a
 - Sort `graphData.nodes` by `mentions` descending
 - Take top `count` (default 20, configurable via `WORLD_STATE_ENTITY_COUNT`)
 - Collect edges where both source and target are in the selected set
-- Returns `{ entities: [{key, name, type, description, mentions}], edges: [{sourceName, targetName, description, weight}] }`
+- Edge key-to-name resolution: `graphData.nodes[edge.source]?.name || edge.source` — never leak raw normalized keys into prompts
+- Returns `{ entities: [{key, name, type, description, mentions}], edges: [{sourceName, targetName, sourceType, targetType, description, weight}] }`
 
 **`generateWorldState(entities, edges, preamble, outputLanguage, prefill)`**
-- Formats entity list + edges into a single prompt (new dedicated prompt or adapted from existing)
+- Formats entity list + edges into a single prompt via new `buildGlobalWorldStatePrompt` (replaces both `buildCommunitySummaryPrompt` and `buildGlobalSynthesisPrompt`)
 - Single LLM call (no map-reduce, no chunking)
 - Parses structured response: `{ title, summary, findings }`
 - Returns `{ summary: string, last_updated: number }`
@@ -61,13 +62,15 @@ Replace the Louvain community detection pipeline with a top-K entity selection a
 **Local intent (rewritten):**
 - Score all entities by `cosineSimilarity(queryEmbedding, entityEmbedding)`
 - Sort descending, select top-K within `tokenBudget`
-- For each selected entity, include description + top 3 edges (by weight) where the other endpoint exists
+- For each selected entity, include description + top 3 edges (by weight) where the other endpoint exists in the graph
+- Edges include endpoint type inline even if the other entity wasn't in the top-K (acts as lightweight path traversal): `[Relationship] Nadia → Warehouse (PLACE): Uses it to stash illicit cargo`
 - Format: `## Entity Name (TYPE)\nDescription\nRelationships: ...`
 
 ### Changed: `src/extraction/extract.js`
 
 `synthesizeCommunities()` → `synthesizeWorldState()`:
-1. Run edge consolidation if `_edgesNeedingConsolidation` has entries (preserved, decoupled from community detection)
+1. **Cold start guard:** Return early if `data.graph.nodes` is empty — no LLM call on new/empty chats
+2. Run edge consolidation if `_edgesNeedingConsolidation` has entries (preserved, decoupled from community detection)
 2. Call `selectTopEntities()` to pick top entities
 3. Call `generateWorldState()` — single LLM call
 4. Store result in `data.global_world_state`
@@ -88,9 +91,10 @@ Replace the Louvain community detection pipeline with a top-K entity selection a
 
 ### Migration (new schema version)
 
-- Delete `data.communities`
-- Remove `community_count` from `data.global_world_state`
+- Delete `data.communities` entirely (safe — no downstream consumer after this change)
+- Remove `community_count` from `data.global_world_state`; initialize `global_world_state` to `null` if it was never set
 - Rename `communityDetectionInterval` → `worldStateInterval` in settings
+- Delete legacy community-related prompts from `src/prompts/` if no longer referenced
 
 ### UI Changes
 
@@ -109,6 +113,6 @@ Replace the Louvain community detection pipeline with a top-K entity selection a
 ## Testing Strategy
 
 - `tests/graph/world-state.test.js`: `selectTopEntities` sorting, count limit, edge filtering; `generateWorldState` prompt building, LLM call, response parsing
-- `tests/retrieval/world-context.test.js`: Entity-based vector retrieval, token budget enforcement, macro intent routing (mostly unchanged)
+- `tests/retrieval/world-context.test.js`: Entity-based vector retrieval, token budget enforcement, edge endpoint type inlining, macro intent routing (mostly unchanged)
 - Update `tests/extraction/extract.test.js`: Mock new `synthesizeWorldState` instead of `synthesizeCommunities`
 - Migration test: Verify community data cleaned up, settings renamed
