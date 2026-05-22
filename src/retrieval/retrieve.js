@@ -274,17 +274,18 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
 
     // Prepare world context for injection
     let worldText = '';
-    const worldCommunities = data.communities;
+    const graphData = data.graph;
     const worldPosition = getSettings('injection.world.position', defaultSettings.injection.world.position);
     const worldDisabled = worldPosition === -2;
-    if (worldCommunities && Object.keys(worldCommunities).length > 0 && !worldDisabled) {
+    const hasGraphNodes = graphData?.nodes && Object.keys(graphData.nodes).length > 0;
+    if (hasGraphNodes && !worldDisabled) {
         let worldQueryEmbedding = null;
         if (isEmbeddingsEnabled()) {
             worldQueryEmbedding = await getQueryEmbedding(userMessages || ctx.recentContext?.slice(-500));
         }
         // Always call retrieveWorldContext - it handles macro intent detection
         const worldResult = retrieveWorldContext(
-            worldCommunities,
+            graphData,
             data.global_world_state || null,
             userMessages || '',
             worldQueryEmbedding,

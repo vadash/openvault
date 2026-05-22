@@ -30,7 +30,6 @@ import {
 } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { enrichEventsWithEmbeddings } from '../embeddings.js';
-import { buildCommunityGroups, detectCommunities, updateCommunitySummaries } from '../graph/communities.js';
 import {
     consolidateEdges,
     expandMainCharacterKeys,
@@ -39,6 +38,7 @@ import {
     normalizeKey,
     upsertRelationship,
 } from '../graph/graph.js';
+import { generateWorldState, selectTopEntities } from '../graph/world-state.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
 import { record } from '../perf/store.js';
 import {
@@ -644,41 +644,41 @@ export async function synthesizeReflections(data, characterNames, settings, opti
  * @param {string} characterName - Main character name (for main character key derivation)
  * @param {string} userName - User name (for main character key derivation)
  */
-async function synthesizeCommunities(data, settings, characterName, userName) {
+async function synthesizeWorldState(data, settings, characterName, userName) {
     try {
-        const baseKeys = [normalizeKey(characterName), normalizeKey(userName)];
-        const mainCharacterKeys = expandMainCharacterKeys(baseKeys, data.graph.nodes || {});
-        const crossScriptKeys = findCrossScriptCharacterKeys(baseKeys, data.graph.nodes || {});
-        mainCharacterKeys.push(...crossScriptKeys.filter((k) => !mainCharacterKeys.includes(k)));
-        const communityResult = detectCommunities(data.graph, mainCharacterKeys);
-        if (communityResult) {
-            // Consolidate bloated edges before summarization
-            if (data.graph._edgesNeedingConsolidation?.length > 0) {
-                const { count: consolidated } = await consolidateEdges(data.graph, settings);
-                if (consolidated > 0) {
-                    logDebug(`Consolidated ${consolidated} graph edges before community summarization`);
-                }
-            }
+        const nodes = data.graph?.nodes || {};
+        const nodeKeys = Object.keys(nodes);
 
-            const groups = buildCommunityGroups(data.graph, communityResult.communities);
-            const stalenessThreshold = 100;
-            const isSingleCommunity = communityResult.count === 1;
-            const communityUpdateResult = await updateCommunitySummaries(
-                data.graph,
-                groups,
-                data.communities || {},
-                data.graph_message_count || 0,
-                stalenessThreshold,
-                isSingleCommunity
-            );
-            data.communities = communityUpdateResult.communities;
-            if (communityUpdateResult.global_world_state) {
-                data.global_world_state = communityUpdateResult.global_world_state;
-            }
-            logDebug(`Community detection: ${communityResult.count} communities found`);
+        if (nodeKeys.length === 0) {
+            logDebug('World state synthesis: skipping (empty graph, cold start)');
+            return;
         }
+
+        const baseKeys = [normalizeKey(characterName), normalizeKey(userName)];
+        const mainCharacterKeys = expandMainCharacterKeys(baseKeys, nodes);
+        const crossScriptKeys = findCrossScriptCharacterKeys(baseKeys, nodes);
+        mainCharacterKeys.push(...crossScriptKeys.filter((k) => !mainCharacterKeys.includes(k)));
+
+        if (mainCharacterKeys.length === 0) {
+            logDebug('World state synthesis: skipping (no main characters found)');
+            return;
+        }
+
+        const consolidated = await consolidateEdges(data.graph, settings);
+        if (consolidated.count > 0) {
+            logDebug(`World state synthesis: consolidated ${consolidated.count} edges`);
+        }
+
+        const { entities, edges } = selectTopEntities(data.graph, settings.worldStateEntityCount);
+        const preamble = resolveExtractionPreamble(settings);
+        const outputLanguage = resolveOutputLanguage(settings);
+        const prefill = resolveExtractionPrefill(settings);
+        const result = await generateWorldState(entities, edges, preamble, outputLanguage, prefill);
+
+        data.global_world_state = result;
+        logDebug(`World state synthesis: complete (${entities.length} entities)`);
     } catch (error) {
-        logError('Community detection error', error);
+        logError('World state synthesis error', error);
     }
 }
 
@@ -1014,12 +1014,12 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
                 await synthesizeReflections(data, [...characters], settings, { abortSignal });
             }
 
-            // Stage 6: Community detection (interval check)
-            const communityInterval = settings.communityDetectionInterval;
+            // Stage 6: World state synthesis (interval check)
+            const worldStateInterval = settings.worldStateInterval;
             const prevCount = (data.graph_message_count || 0) - messages.length;
             const currCount = data.graph_message_count || 0;
-            if (Math.floor(currCount / communityInterval) > Math.floor(prevCount / communityInterval)) {
-                await synthesizeCommunities(data, settings, characterName, userName);
+            if (Math.floor(currCount / worldStateInterval) > Math.floor(prevCount / worldStateInterval)) {
+                await synthesizeWorldState(data, settings, characterName, userName);
             }
 
             // Final save — Phase 2 enrichment persisted
@@ -1069,7 +1069,7 @@ export async function runPhase2Enrichment(data, settings, targetChatId, options 
         await synthesizeReflections(data, characterNames, settings, { abortSignal });
 
         const context = getDeps().getContext();
-        await synthesizeCommunities(data, settings, context.name2, context.name1);
+        await synthesizeWorldState(data, settings, context.name2, context.name1);
 
         // Update IDF cache before save — reflections may have been added
         updateIDFCache(data, data.graph?.nodes);
