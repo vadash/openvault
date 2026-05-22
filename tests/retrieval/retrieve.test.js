@@ -495,3 +495,11 @@ describe('buildRetrievalContext', () => {
         expect(ctx.scoringConfig.transientDecayMultiplier).toBe(defaultSettings.transientDecayMultiplier);
     });
 });
+
+describe('defaultSettings.injection.reflections', () => {
+    it('should have reflections with position: 1 and depth: 4 defaults', () => {
+        expect(defaultSettings.injection.reflections).toBeDefined();
+        expect(defaultSettings.injection.reflections.position).toBe(1);
+        expect(defaultSettings.injection.reflections.depth).toBe(4);
+    });
+});

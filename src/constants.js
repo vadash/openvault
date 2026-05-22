@@ -122,6 +122,7 @@ export const defaultSettings = {
     // Injection settings
     injection: {
         memory: { position: 1, depth: 4 },
+        reflections: { position: 1, depth: 4 },
         world: { position: 1, depth: 4 },
     },
 };

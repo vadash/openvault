@@ -22,6 +22,7 @@
 import {
     CHARACTERS_KEY,
     COMBINED_BOOST_WEIGHT,
+    defaultSettings,
     extensionName,
     IMPORTANCE_5_FLOOR,
     MEMORIES_KEY,
@@ -185,9 +186,6 @@ export function buildRetrievalContext(opts = {}) {
  * @param {string} [worldText] - World context to inject
  */
 export function injectContext(memoryText, reflectionText = '', worldText = '') {
-    const deps = getDeps();
-    const settings = deps.getExtensionSettings()[extensionName];
-
     // Always update cachedContent for macro access
     // NOTE: cachedContent is a live object reference from macros.js.
     // Mutating its properties (not reassigning the binding) is intentional
@@ -196,14 +194,16 @@ export function injectContext(memoryText, reflectionText = '', worldText = '') {
     cachedContent.reflection = reflectionText || '';
     cachedContent.world = worldText || '';
 
-    // Get position settings with defaults
-    // Use injection.memory settings as fallback for reflections (Task 3 adds dedicated settings)
-    const memoryPosition = settings?.injection?.memory?.position ?? 1;
-    const memoryDepth = settings?.injection?.memory?.depth ?? 4;
-    const reflectionPosition = settings?.injection?.reflections?.position ?? memoryPosition;
-    const reflectionDepth = settings?.injection?.reflections?.depth ?? memoryDepth;
-    const worldPosition = settings?.injection?.world?.position ?? 1;
-    const worldDepth = settings?.injection?.world?.depth ?? 4;
+    // Get position settings with defaults - using getSettings for proper fallback chain
+    const memoryPosition = getSettings('injection.memory.position', defaultSettings.injection.memory.position);
+    const memoryDepth = getSettings('injection.memory.depth', defaultSettings.injection.memory.depth);
+    const reflectionPosition = getSettings(
+        'injection.reflections.position',
+        defaultSettings.injection.reflections.position
+    );
+    const reflectionDepth = getSettings('injection.reflections.depth', defaultSettings.injection.reflections.depth);
+    const worldPosition = getSettings('injection.world.position', defaultSettings.injection.world.position);
+    const worldDepth = getSettings('injection.world.depth', defaultSettings.injection.world.depth);
 
     // Inject memory content
     if (!memoryText) {
