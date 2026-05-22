@@ -14,15 +14,13 @@ All extension state lives within SillyTavern's `context.chatMetadata.openvault`.
   embedding_model_id: string,  // Tracks which model generated stored embeddings
   
   memories: [{                 // Both events and reflections
-    id: string, 
-    type: "event" | "reflection", 
-    summary: string, 
+    id: string,
+    type: "event" | "reflection",
+    summary: string,
     importance: 1 | 2 | 3 | 4 | 5,
     tokens: string[],          // Pre-computed stemmed BM25 tokens
     message_ids?: number[],    // For events: Source ST message indices
     source_ids?: string[],     // For reflections: Cited evidence memory IDs
-    level?: number,            // Reflection hierarchy: 1 (from events), 2+ (from reflections)
-    parent_ids?: string[],     // For level 2+: IDs of synthesized child reflections
     temporal_anchor: string | null, // Extracted timestamp (e.g., "Friday, 3:40 PM")
     is_transient: boolean,     // True for short-term intentions (decays ~5x faster)
     characters_involved: string[], 
@@ -105,7 +103,6 @@ All extension state lives within SillyTavern's `context.chatMetadata.openvault`.
 - **Formula:** `Importance * e^(-Lambda * Distance)`.
 - **Hit Damping:** `hitDamping = max(0.5, 1/(1 + retrieval_hits × 0.1))`. Frequently retrieved memories decay up to 50% slower.
 - **Importance Floor:** Importance 5 has a soft floor of `1.0`. It never decays to zero.
-- **Level-Aware Reflection Decay:** Higher-level reflections (Level 2+) decay 2x slower per level (`reflectionLevelMultiplier`). Applies linearly after 750 messages.
 - **Transient Decay:** Short-term intentions (`is_transient: true`) multiply Lambda by 5.0. They fade ~5x faster than durable facts.
 
 ### 4-Tier BM25 Keyword Matching

@@ -109,8 +109,6 @@ export const defaultSettings = {
     // Reflections older than this many messages get a linear penalty (down to 0.25x).
     // 750 gives medium-length chats (~700 msgs) breathing room before decay kicks in.
     maxReflectionsPerCharacter: 50,
-    maxReflectionLevel: 3, // Maximum reflection tree depth
-    reflectionLevelMultiplier: 2.0, // Decay slows by 2x per level
     // Bucket balance settings (score-first budgeting with soft chronological balancing)
     bucketMinRepresentation: 0.2, // 20% minimum per bucket
     bucketSoftBalanceBudget: 0.05, // 5% budget for soft balancing
@@ -267,8 +265,6 @@ export const UI_DEFAULT_HINTS = {
     worldStateInterval: defaultSettings.worldStateInterval,
     // Decay & forgetfulness curve tuning
     forgetfulnessBaseLambda: defaultSettings.forgetfulnessBaseLambda,
-    maxReflectionLevel: defaultSettings.maxReflectionLevel,
-    reflectionLevelMultiplier: defaultSettings.reflectionLevelMultiplier,
     bucketMinRepresentation: defaultSettings.bucketMinRepresentation,
     bucketSoftBalanceBudget: defaultSettings.bucketSoftBalanceBudget,
     // Reflection count limit
