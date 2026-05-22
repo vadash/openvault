@@ -823,4 +823,50 @@ describe('updateEntity', () => {
         expect(mergedEdge.description).toContain('teammates');
         expect(data.graph.edges[`${entityC}__${entityA}`]).toBeUndefined();
     });
+
+    it('should block rename to a name that exists in _mergeRedirects', async () => {
+        const data = getOpenVaultData();
+        const marcusKey = normalizeKey('Marcus Hale');
+        const bobKey = normalizeKey('Bob');
+
+        data.graph.nodes[marcusKey] = buildMockGraphNode({
+            name: 'Marcus Hale',
+            type: 'PERSON',
+            description: 'A soldier',
+        });
+        // Simulate prior merge: Bob was merged into someone else
+        data.graph._mergeRedirects[bobKey] = marcusKey;
+
+        const result = await updateEntity(marcusKey, { name: 'Bob' });
+
+        expect(result).toBeNull();
+        expect(data.graph.nodes[marcusKey]).toBeDefined();
+    });
+
+    it('should flatten redirect chains when renaming through merged keys', async () => {
+        const data = getOpenVaultData();
+        const aliceKey = normalizeKey('Alice');
+        const daveKey = normalizeKey('Dave');
+
+        // Alice is a real node
+        data.graph.nodes[aliceKey] = buildMockGraphNode({
+            name: 'Alice',
+            type: 'PERSON',
+            description: 'A character',
+        });
+
+        // Simulate a redirect chain: bob → alice, charlie → alice
+        // (bob and charlie were both merged into alice)
+        data.graph._mergeRedirects[normalizeKey('Bob')] = aliceKey;
+        data.graph._mergeRedirects[normalizeKey('Charlie')] = aliceKey;
+
+        // Rename alice → dave
+        const result = await updateEntity(aliceKey, { name: 'Dave' });
+
+        expect(result.key).toBe(daveKey);
+        // Both bob and charlie should now point directly to dave
+        expect(data.graph._mergeRedirects[normalizeKey('Bob')]).toBe(daveKey);
+        expect(data.graph._mergeRedirects[normalizeKey('Charlie')]).toBe(daveKey);
+        expect(data.graph._mergeRedirects[aliceKey]).toBe(daveKey);
+    });
 });

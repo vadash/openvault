@@ -222,6 +222,10 @@ export async function updateEntity(key, updates) {
             logWarn(`Cannot rename to '${newName}': entity already exists`);
             return null;
         }
+        if (graph._mergeRedirects?.[newKey] !== undefined) {
+            logWarn(`Cannot rename to '${newName}': name is a merged/redirected entity`);
+            return null;
+        }
     }
 
     if (newKey !== key) {
@@ -298,9 +302,10 @@ export async function updateEntity(key, updates) {
         if (!graph._mergeRedirects) graph._mergeRedirects = {};
         graph._mergeRedirects[key] = newKey;
 
-        // Fix any existing redirects that still point to oldKey.
-        // _resolveKey() is non-recursive, so chained redirects
-        // (A → oldKey → newKey) would resolve A to a deleted node.
+        // Flatten redirect chains: update ALL redirects whose final
+        // destination was the old key to point directly to newKey.
+        // This prevents stale chains (A → B → oldKey) from accumulating
+        // intermediates that reference deleted nodes.
         for (const [rk, rv] of Object.entries(graph._mergeRedirects)) {
             if (rv === key && rk !== key) {
                 graph._mergeRedirects[rk] = newKey;
