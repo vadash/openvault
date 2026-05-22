@@ -2,9 +2,25 @@ import { cdnImport } from './cdn.js';
 
 // @ts-check
 
-// @ts-expect-error - No types available for CDN import
-const CyrillicToTranslit = (await cdnImport('cyrillic-to-translit-js')).default;
-const translit = new CyrillicToTranslit({ preset: 'ru' });
+/** @type {import('cyrillic-to-translit-js').default | null} */
+let _translit = null;
+
+/**
+ * Lazy-load transliterator on first use.
+ * @returns {Promise<typeof _translit>}
+ */
+async function getTranslit() {
+    if (_translit) return _translit;
+    try {
+        // @ts-expect-error - No types available for CDN import
+        const CyrillicToTranslit = (await cdnImport('cyrillic-to-translit-js')).default;
+        _translit = new CyrillicToTranslit({ preset: 'ru' });
+        return _translit;
+    } catch {
+        // CDN unavailable: return null, callers will use fallback
+        return null;
+    }
+}
 
 export const CYRILLIC_RE = /\p{Script=Cyrillic}/u;
 
@@ -14,10 +30,15 @@ export const CYRILLIC_RE = /\p{Script=Cyrillic}/u;
  * Result is always lowercased for key comparison.
  *
  * @param {string} str - Input string (may contain Cyrillic)
- * @returns {string} Lowercased Latin transliteration
+ * @returns {Promise<string>} Lowercased Latin transliteration
  */
-export function transliterateCyrToLat(str) {
+export async function transliterateCyrToLat(str) {
     if (!str) return '';
+    const translit = await getTranslit();
+    if (!translit) {
+        // CDN unavailable: return lowercase only (no translit)
+        return str.toLowerCase();
+    }
     return translit.transform(str).toLowerCase();
 }
 
@@ -58,9 +79,9 @@ export function levenshteinDistance(a, b) {
  * @param {string} name - Character name to resolve (may be Cyrillic or Latin)
  * @param {string[]} canonicalNames - Known canonical character names
  * @param {number} [maxDistance=2] - Maximum Levenshtein distance for fuzzy matching
- * @returns {string|null} Matching canonical name, or null if no match
+ * @returns {Promise<string|null>} Matching canonical name, or null if no match
  */
-export function resolveCharacterName(name, canonicalNames, maxDistance = 2) {
+export async function resolveCharacterName(name, canonicalNames, maxDistance = 2) {
     const lower = name.toLowerCase().replace(/\s+/g, ' ').trim();
 
     // Exact case-insensitive match
@@ -68,12 +89,21 @@ export function resolveCharacterName(name, canonicalNames, maxDistance = 2) {
         if (canonical.toLowerCase() === lower) return canonical;
     }
 
+    const translit = await getTranslit();
+    if (!translit) {
+        // CDN unavailable: only exact case-insensitive match (already done above)
+        return null;
+    }
+
     // Cross-script match via transliteration
     const isCyrillic = CYRILLIC_RE.test(lower);
     if (isCyrillic) {
-        const translit = transliterateCyrToLat(lower);
+        const transliterated = await transliterateCyrToLat(lower);
         for (const canonical of canonicalNames) {
-            if (!CYRILLIC_RE.test(canonical) && levenshteinDistance(translit, canonical.toLowerCase()) <= maxDistance) {
+            if (
+                !CYRILLIC_RE.test(canonical) &&
+                levenshteinDistance(transliterated, canonical.toLowerCase()) <= maxDistance
+            ) {
                 return canonical;
             }
         }
@@ -81,7 +111,7 @@ export function resolveCharacterName(name, canonicalNames, maxDistance = 2) {
         for (const canonical of canonicalNames) {
             if (
                 CYRILLIC_RE.test(canonical) &&
-                levenshteinDistance(transliterateCyrToLat(canonical.toLowerCase()), lower) <= maxDistance
+                levenshteinDistance(await transliterateCyrToLat(canonical.toLowerCase()), lower) <= maxDistance
             ) {
                 return canonical;
             }
