@@ -46,7 +46,6 @@ const {
     CharacterDataSchema,
     ReflectionStateSchema,
     GlobalWorldStateSchema,
-    CommunitySummarySchema,
     OpenVaultDataSchema,
     ScoringConfigSchema,
     QueryConfigSchema,
@@ -72,8 +71,6 @@ const {
     GraphPromptParamsSchema,
     EdgeConsolidationParamsSchema,
     ReflectionPromptParamsSchema,
-    CommunitySummaryParamsSchema,
-    GlobalSynthesisParamsSchema,
 } = await import('../src/store/schemas.js');
 
 // --- 4. Map: Type Name -> Zod Schema ---
@@ -92,7 +89,6 @@ const typeMappings = [
     { name: 'CharacterData', schema: CharacterDataSchema },
     { name: 'ReflectionState', schema: ReflectionStateSchema },
     { name: 'GlobalWorldState', schema: GlobalWorldStateSchema },
-    { name: 'CommunitySummary', schema: CommunitySummarySchema },
     { name: 'OpenVaultData', schema: OpenVaultDataSchema },
     { name: 'ScoringConfig', schema: ScoringConfigSchema },
     { name: 'QueryConfig', schema: QueryConfigSchema },
@@ -118,8 +114,6 @@ const typeMappings = [
     { name: 'GraphPromptParams', schema: GraphPromptParamsSchema },
     { name: 'EdgeConsolidationParams', schema: EdgeConsolidationParamsSchema },
     { name: 'ReflectionPromptParams', schema: ReflectionPromptParamsSchema },
-    { name: 'CommunitySummaryParams', schema: CommunitySummaryParamsSchema },
-    { name: 'GlobalSynthesisParams', schema: GlobalSynthesisParamsSchema },
 ];
 
 // --- 5. Generate the .d.ts file ---

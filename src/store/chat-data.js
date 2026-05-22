@@ -37,13 +37,12 @@ export function getOpenVaultData() {
     }
     if (!context.chatMetadata[METADATA_KEY]) {
         context.chatMetadata[METADATA_KEY] = {
-            schema_version: 4,
+            schema_version: 6,
             [MEMORIES_KEY]: [],
             [CHARACTERS_KEY]: {},
             [PROCESSED_MESSAGES_KEY]: [],
             reflection_state: {},
             graph: createEmptyGraph(),
-            communities: {},
             graph_message_count: 0,
             settings: {
                 injection: {

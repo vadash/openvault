@@ -2,14 +2,16 @@ import { migrateToV2 } from './v2.js';
 import { migrateToV3 } from './v3.js';
 import { migrateToV4 } from './v4.js';
 import { migrateToV5 } from './v5.js';
+import { migrateToV6 } from './v6.js';
 
-export const CURRENT_SCHEMA_VERSION = 5;
+export const CURRENT_SCHEMA_VERSION = 6;
 
 const MIGRATIONS = [
     { version: 2, run: migrateToV2 },
     { version: 3, run: migrateToV3 },
     { version: 4, run: migrateToV4 },
     { version: 5, run: migrateToV5 },
+    { version: 6, run: migrateToV6 },
 ];
 
 /**

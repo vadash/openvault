@@ -145,16 +145,6 @@ export const ReflectionStateSchema = z.object({
 export const GlobalWorldStateSchema = z.object({
     summary: z.string(),
     last_updated: z.number(),
-    community_count: z.number(),
-});
-
-export const CommunitySummarySchema = z.object({
-    id: z.string(),
-    title: z.string(),
-    summary: z.string(),
-    entities: z.array(z.string()).optional(),
-    findings: z.array(z.string()).optional(),
-    last_updated: z.number().optional(),
 });
 
 export const OpenVaultDataSchema = z.object({
@@ -163,7 +153,6 @@ export const OpenVaultDataSchema = z.object({
     characters: z.record(z.string(), CharacterDataSchema).optional(),
     processed_messages: z.array(z.string()).optional(),
     graph: GraphDataSchema.optional(),
-    communities: z.record(z.string(), CommunitySummarySchema).optional(),
     reflection_state: ReflectionStateSchema.optional(),
     graph_message_count: z.number().optional(),
     global_world_state: GlobalWorldStateSchema.optional(),
@@ -303,7 +292,6 @@ export const RetrievalContextSchema = z.object({
     queryConfig: QueryConfigSchema,
     graphNodes: z.record(z.string(), GraphNodeSchema).optional(),
     graphEdges: z.record(z.string(), GraphEdgeSchema).optional(),
-    communities: z.record(z.string(), CommunitySummarySchema).optional(),
     allAvailableMemories: z.array(MemorySchema).optional(),
     idfCache: IDFCacheSchema.optional(),
     chatFingerprintMap: z.map(z.string(), z.number()).nullable().optional(),
@@ -387,23 +375,6 @@ export const EdgeConsolidationParamsSchema = z.object({
 export const ReflectionPromptParamsSchema = z.object({
     characterName: z.string(),
     recentMemories: z.array(MemorySchema),
-    preamble: z.string(),
-    prefill: z.string(),
-    outputLanguage: z.enum(['auto', 'en', 'ru']).optional(),
-});
-
-// Community summary prompt parameters
-export const CommunitySummaryParamsSchema = z.object({
-    nodeLines: z.array(z.string()),
-    edgeLines: z.array(z.string()),
-    preamble: z.string(),
-    prefill: z.string(),
-    outputLanguage: z.enum(['auto', 'en', 'ru']).optional(),
-});
-
-// Global synthesis prompt parameters
-export const GlobalSynthesisParamsSchema = z.object({
-    communities: z.array(CommunitySummarySchema),
     preamble: z.string(),
     prefill: z.string(),
     outputLanguage: z.enum(['auto', 'en', 'ru']).optional(),

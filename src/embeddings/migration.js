@@ -5,7 +5,7 @@ import { deleteEmbedding, hasEmbedding } from '../utils/embedding-codec.js';
 import { logDebug, logInfo } from '../utils/logging.js';
 
 /**
- * Count total embeddings across memories, graph nodes, and communities.
+ * Count total embeddings across memories, graph nodes, and edges.
  * @param {Object} data - OpenVault chat data
  * @returns {number}
  */
@@ -19,9 +19,6 @@ function _countEmbeddings(data) {
     }
     for (const edge of Object.values(data.graph?.edges || {})) {
         if (hasEmbedding(edge)) count++;
-    }
-    for (const community of Object.values(data.communities || {})) {
-        if (hasEmbedding(community)) count++;
     }
     return count;
 }
@@ -75,13 +72,6 @@ export async function invalidateStaleEmbeddings(data, currentModelId) {
     for (const edge of Object.values(data.graph?.edges || {})) {
         if (hasEmbedding(edge)) {
             deleteEmbedding(edge);
-            count++;
-        }
-    }
-
-    for (const community of Object.values(data.communities || {})) {
-        if (hasEmbedding(community)) {
-            deleteEmbedding(community);
             count++;
         }
     }

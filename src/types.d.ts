@@ -189,16 +189,6 @@ export type ReflectionState = {
 export type GlobalWorldState = {
     summary: string;
     last_updated: number;
-    community_count: number;
-};
-
-export type CommunitySummary = {
-    id: string;
-    title: string;
-    summary: string;
-    entities?: string[] | undefined;
-    findings?: string[] | undefined;
-    last_updated?: number | undefined;
 };
 
 export type OpenVaultData = {
@@ -258,16 +248,6 @@ export type OpenVaultData = {
         } | undefined;
         _edgesNeedingConsolidation?: string[] | undefined;
     } | undefined;
-    communities?: {
-        [key: string]: {
-            id: string;
-            title: string;
-            summary: string;
-            entities?: string[] | undefined;
-            findings?: string[] | undefined;
-            last_updated?: number | undefined;
-        };
-    } | undefined;
     reflection_state?: {
         lastMessageId?: number | undefined;
         reflectionCount?: number | undefined;
@@ -276,7 +256,6 @@ export type OpenVaultData = {
     global_world_state?: {
         summary: string;
         last_updated: number;
-        community_count: number;
     } | undefined;
     embedding_model_id?: string | undefined;
 };
@@ -447,16 +426,6 @@ export type RetrievalContext = {
             _descriptionTokens?: number | undefined;
             embedding?: number[] | undefined;
             embedding_b64?: string | undefined;
-        };
-    } | undefined;
-    communities?: {
-        [key: string]: {
-            id: string;
-            title: string;
-            summary: string;
-            entities?: string[] | undefined;
-            findings?: string[] | undefined;
-            last_updated?: number | undefined;
         };
     } | undefined;
     allAvailableMemories?: {
@@ -649,28 +618,6 @@ export type ReflectionPromptParams = {
         archived?: boolean | undefined;
         temporal_anchor?: (string | null) | undefined;
         is_transient?: boolean | undefined;
-    }[];
-    preamble: string;
-    prefill: string;
-    outputLanguage?: ("auto" | "en" | "ru") | undefined;
-};
-
-export type CommunitySummaryParams = {
-    nodeLines: string[];
-    edgeLines: string[];
-    preamble: string;
-    prefill: string;
-    outputLanguage?: ("auto" | "en" | "ru") | undefined;
-};
-
-export type GlobalSynthesisParams = {
-    communities: {
-        id: string;
-        title: string;
-        summary: string;
-        entities?: string[] | undefined;
-        findings?: string[] | undefined;
-        last_updated?: number | undefined;
     }[];
     preamble: string;
     prefill: string;
