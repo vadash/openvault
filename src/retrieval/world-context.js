@@ -43,7 +43,7 @@ export function retrieveWorldContext(communities, globalState, userMessagesStrin
     // Intent-based routing: check for macro intent first
     if (detectMacroIntent(userMessagesString) && globalState?.summary) {
         return {
-            text: `<world_context>\n${globalState.summary}\n</world_context>`,
+            text: `<world_context>\n[This is background knowledge about the world, its communities, and broader context the character is aware of]\n${globalState.summary}\n</world_context>`,
             communityIds: [],
             isMacroIntent: true,
         };
@@ -89,7 +89,10 @@ export function retrieveWorldContext(communities, globalState, userMessagesStrin
         return { text: '', communityIds: [], isMacroIntent: false };
     }
 
-    const text = '<world_context>\n' + selected.map((s) => s.entry).join('\n\n') + '\n</world_context>';
+    const text =
+        '<world_context>\n[This is background knowledge about the world, its communities, and broader context the character is aware of]\n' +
+        selected.map((s) => s.entry).join('\n\n') +
+        '\n</world_context>';
 
     return {
         text,

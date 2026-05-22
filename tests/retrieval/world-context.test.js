@@ -51,6 +51,14 @@ describe('retrieveWorldContext', () => {
         expect(result.text).toContain('<world_context>');
         expect(result.text).toContain('</world_context>');
     });
+
+    it('includes framing comment in local-mode output', () => {
+        const queryEmbedding = [0.9, 0.1, 0.0];
+        const result = retrieveWorldContext(communities, null, '', queryEmbedding, 2000);
+        expect(result.text).toContain(
+            '[This is background knowledge about the world, its communities, and broader context the character is aware of]'
+        );
+    });
 });
 
 describe('detectMacroIntent', () => {
@@ -142,5 +150,17 @@ describe('retrieveWorldContext with intent routing', () => {
         const result = retrieveWorldContext({}, globalState, userMessages, queryEmbedding, 2000);
 
         expect(result.text).toContain('Global narrative...');
+    });
+
+    it('includes framing comment in macro-intent output', () => {
+        const globalState = { summary: 'Global narrative...' };
+        const userMessages = 'Summarize everything';
+        const queryEmbedding = new Float32Array([0.1]);
+
+        const result = retrieveWorldContext({}, globalState, userMessages, queryEmbedding, 2000);
+
+        expect(result.text).toContain(
+            '[This is background knowledge about the world, its communities, and broader context the character is aware of]'
+        );
     });
 });
