@@ -274,7 +274,9 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
     // Prepare world context for injection
     let worldText = '';
     const worldCommunities = data.communities;
-    if (worldCommunities && Object.keys(worldCommunities).length > 0) {
+    const worldPosition = getSettings('injection.world.position', defaultSettings.injection.world.position);
+    const worldDisabled = worldPosition === -2;
+    if (worldCommunities && Object.keys(worldCommunities).length > 0 && !worldDisabled) {
         let worldQueryEmbedding = null;
         if (isEmbeddingsEnabled()) {
             worldQueryEmbedding = await getQueryEmbedding(userMessages || ctx.recentContext?.slice(-500));
@@ -364,8 +366,12 @@ export async function retrieveAndInjectContext() {
 
         // Filter to memories from hidden messages only (visible messages are already in context)
         const hiddenMemories = _getHiddenMemories(chat, memories);
-        // Include reflections (which have no message_ids) in candidate set - respecting user toggle
-        const includeReflections = getSettings('reflectionInjectionEnabled', true);
+        // Include reflections (which have no message_ids) in candidate set - respecting position setting
+        const reflectionsPosition = getSettings(
+            'injection.reflections.position',
+            defaultSettings.injection.reflections.position
+        );
+        const includeReflections = reflectionsPosition !== -2;
         const reflections = includeReflections ? memories.filter((m) => m.type === 'reflection') : [];
         const candidateMemories = _deduplicateById([...hiddenMemories, ...reflections]);
 
@@ -481,8 +487,12 @@ export async function updateInjection(pendingUserMessage = '') {
 
     // Filter to memories from hidden messages only (visible messages are already in context)
     const hiddenMemories = _getHiddenMemories(context.chat, memories);
-    // Include reflections (which have no message_ids) in candidate set - respecting user toggle
-    const includeReflections = getSettings('reflectionInjectionEnabled', true);
+    // Include reflections (which have no message_ids) in candidate set - respecting position setting
+    const reflectionsPosition = getSettings(
+        'injection.reflections.position',
+        defaultSettings.injection.reflections.position
+    );
+    const includeReflections = reflectionsPosition !== -2;
     const reflections = includeReflections ? memories.filter((m) => m.type === 'reflection') : [];
     const candidateMemories = _deduplicateById([...hiddenMemories, ...reflections]);
 

@@ -22,6 +22,7 @@ import {
     CHARACTERS_KEY,
     COMMUNITY_STALENESS_THRESHOLD,
     CONSOLIDATION,
+    defaultSettings,
     EDGE_DESCRIPTION_CAP,
     ENTITY_DESCRIPTION_CAP,
     ENTITY_TYPES,
@@ -587,9 +588,13 @@ export async function filterSimilarEvents(
 export async function synthesizeReflections(data, characterNames, settings, options = {}) {
     const { abortSignal = null } = options;
 
-    // Check if reflection generation is enabled
-    if (!getSettings('reflectionGenerationEnabled', true)) {
-        logDebug('[Extraction] Reflection generation disabled, skipping Phase 2');
+    // Check if reflection generation is disabled via position -2
+    const reflectionsPosition = getSettings(
+        'injection.reflections.position',
+        defaultSettings.injection.reflections.position
+    );
+    if (reflectionsPosition === -2) {
+        logDebug('[Extraction] Reflection generation disabled (position=-2), skipping Phase 2');
         return;
     }
 

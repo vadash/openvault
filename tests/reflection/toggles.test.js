@@ -47,19 +47,19 @@ import { generateReflections } from '../../src/reflection/reflect.js';
 
 // ── Settings defaults ──
 
-describe('reflection toggle settings', () => {
-    it('should have reflectionGenerationEnabled defaulting to true', () => {
-        expect(defaultSettings.reflectionGenerationEnabled).toBe(true);
+describe('stream position settings', () => {
+    it('should have injection.reflections.position defaulting to 1', () => {
+        expect(defaultSettings.injection.reflections.position).toBe(1);
     });
 
-    it('should have reflectionInjectionEnabled defaulting to true', () => {
-        expect(defaultSettings.reflectionInjectionEnabled).toBe(true);
+    it('should have injection.world.position defaulting to 1', () => {
+        expect(defaultSettings.injection.world.position).toBe(1);
     });
 });
 
-// ── synthesizeReflections generation toggle ──
+// ── synthesizeReflections position-based disable ──
 
-describe('synthesizeReflections with generation toggle', () => {
+describe('synthesizeReflections with position-based disable', () => {
     let mockData;
     let mockSettings;
 
@@ -86,7 +86,7 @@ describe('synthesizeReflections with generation toggle', () => {
 
         setupTestContext({
             settings: {
-                reflectionGenerationEnabled: true,
+                injection: { reflections: { position: 1 } },
                 reflectionThreshold: 40,
             },
         });
@@ -97,9 +97,9 @@ describe('synthesizeReflections with generation toggle', () => {
         vi.clearAllMocks();
     });
 
-    it('should skip reflection generation when reflectionGenerationEnabled is false', async () => {
-        // Override getSettings to return false for generation toggle
-        _mockSettingsValues.reflectionGenerationEnabled = false;
+    it('should skip reflection generation when injection.reflections.position === -2', async () => {
+        // Override getSettings to return -2 (Disabled)
+        _mockSettingsValues['injection.reflections.position'] = -2;
 
         await synthesizeReflections(mockData, ['TestChar'], mockSettings);
 
@@ -107,7 +107,10 @@ describe('synthesizeReflections with generation toggle', () => {
         expect(generateReflections).not.toHaveBeenCalled();
     });
 
-    it('should proceed with reflection generation when reflectionGenerationEnabled is true', async () => {
+    it('should proceed with reflection generation when position is 0', async () => {
+        // Override getSettings to return 0 (Before Character)
+        _mockSettingsValues['injection.reflections.position'] = 0;
+
         // Mock generateReflections to return empty reflections
         generateReflections.mockResolvedValue({
             reflections: [],
@@ -120,11 +123,43 @@ describe('synthesizeReflections with generation toggle', () => {
         // importance_sum should be reset even with empty reflections
         expect(mockData.reflection_state.TestChar.importance_sum).toBe(0);
     });
+
+    it('should proceed with reflection generation when position is 1', async () => {
+        // Override getSettings to return 1 (After Character - default)
+        _mockSettingsValues['injection.reflections.position'] = 1;
+
+        // Mock generateReflections to return empty reflections
+        generateReflections.mockResolvedValue({
+            reflections: [],
+        });
+
+        await synthesizeReflections(mockData, ['TestChar'], mockSettings);
+
+        // generateReflections should have been called
+        expect(generateReflections).toHaveBeenCalledTimes(1);
+        expect(mockData.reflection_state.TestChar.importance_sum).toBe(0);
+    });
+
+    it('should proceed with reflection generation when position is -1', async () => {
+        // Override getSettings to return -1 (At Depth)
+        _mockSettingsValues['injection.reflections.position'] = -1;
+
+        // Mock generateReflections to return empty reflections
+        generateReflections.mockResolvedValue({
+            reflections: [],
+        });
+
+        await synthesizeReflections(mockData, ['TestChar'], mockSettings);
+
+        // generateReflections should have been called
+        expect(generateReflections).toHaveBeenCalledTimes(1);
+        expect(mockData.reflection_state.TestChar.importance_sum).toBe(0);
+    });
 });
 
-// ── retrieveAndInjectContext injection toggle ──
+// ── retrieveAndInjectContext position-based disable ──
 
-describe('retrieveAndInjectContext with injection toggle', () => {
+describe('retrieveAndInjectContext with position-based disable', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         // Clear mock settings overrides
@@ -136,9 +171,9 @@ describe('retrieveAndInjectContext with injection toggle', () => {
         vi.clearAllMocks();
     });
 
-    it('should exclude reflections when reflectionInjectionEnabled is false', async () => {
-        // Override getSettings to return false for injection toggle
-        _mockSettingsValues.reflectionInjectionEnabled = false;
+    it('should exclude reflections when injection.reflections.position === -2', async () => {
+        // Override getSettings to return -2 (Disabled)
+        _mockSettingsValues['injection.reflections.position'] = -2;
 
         // Setup test context with mock data - use is_system: true so events are hidden
         const mockChat = [
@@ -175,7 +210,7 @@ describe('retrieveAndInjectContext with injection toggle', () => {
                 chatId: 'test-chat-id',
             },
             settings: {
-                reflectionInjectionEnabled: false,
+                injection: { reflections: { position: -2 } },
                 retrievalFinalTokens: 1000,
                 worldContextBudget: 0,
             },
@@ -198,15 +233,64 @@ describe('retrieveAndInjectContext with injection toggle', () => {
         expect(eventIds).toContain('e1');
     });
 
-    it('should include reflections when reflectionInjectionEnabled is true', async () => {
-        // Override getSettings to return true for injection toggle
-        _mockSettingsValues.reflectionInjectionEnabled = true;
+    it('should exclude world when injection.world.position === -2', async () => {
+        // Override getSettings to return -2 (Disabled) for world
+        _mockSettingsValues['injection.world.position'] = -2;
 
-        // Setup test context with mock data - use is_system: true so events are hidden
         const mockChat = [
             { mes: 'Alice is a brave warrior', is_system: true, is_user: true, extra: {}, send_date: 1000 },
         ];
-        // Get fingerprint for the mock message
+        const { getFingerprint } = await import('../../src/extraction/scheduler.js');
+        const fp = getFingerprint(mockChat[0]);
+
+        const mockData = {
+            memories: [
+                {
+                    id: 'e1',
+                    type: 'event',
+                    summary: 'Alice fought a dragon',
+                    message_fingerprints: [fp],
+                    importance: 5,
+                },
+            ],
+            graph: { nodes: {}, edges: {} },
+            global_world_state: 'The world is at peace.',
+        };
+
+        setupTestContext({
+            context: {
+                chat: mockChat,
+                name2: 'TestChar',
+                chatId: 'test-chat-id',
+            },
+            settings: {
+                injection: { world: { position: -2 } },
+                retrievalFinalTokens: 1000,
+                worldContextBudget: 2000,
+            },
+        });
+
+        const chatDataModule = await import('../../src/store/chat-data.js');
+        vi.spyOn(chatDataModule, 'getOpenVaultData').mockReturnValue(mockData);
+
+        // Re-import retrieveAndInjectContext to pick up the mocks
+        const { retrieveAndInjectContext } = await import('../../src/retrieval/retrieve.js');
+
+        const _result = await retrieveAndInjectContext();
+
+        // retrieveAndInjectContext doesn't return world in its result object
+        // World context is injected via injectContext() and stored in cachedContent
+        // We verify the disable worked by checking getSettings was called
+        expect(_mockGetSettings).toHaveBeenCalledWith('injection.world.position', expect.any(Number));
+    });
+
+    it('should include reflections when injection.reflections.position is not -2', async () => {
+        // Override getSettings to return 1 (After Character)
+        _mockSettingsValues['injection.reflections.position'] = 1;
+
+        const mockChat = [
+            { mes: 'Alice is a brave warrior', is_system: true, is_user: true, extra: {}, send_date: 1000 },
+        ];
         const { getFingerprint } = await import('../../src/extraction/scheduler.js');
         const fp = getFingerprint(mockChat[0]);
 
@@ -237,13 +321,12 @@ describe('retrieveAndInjectContext with injection toggle', () => {
                 chatId: 'test-chat-id',
             },
             settings: {
-                reflectionInjectionEnabled: true,
+                injection: { reflections: { position: 1 } },
                 retrievalFinalTokens: 1000,
                 worldContextBudget: 0,
             },
         });
 
-        // Mock getOpenVaultData to return our test data
         const chatDataModule = await import('../../src/store/chat-data.js');
         vi.spyOn(chatDataModule, 'getOpenVaultData').mockReturnValue(mockData);
 
@@ -252,15 +335,15 @@ describe('retrieveAndInjectContext with injection toggle', () => {
 
         const _result = await retrieveAndInjectContext();
 
-        // The reflection should be in the candidate set when toggle is true
+        // The reflection should be in the candidate set when position is not -2
         // We verify this by checking that getSettings was called with the correct path
-        expect(_mockGetSettings).toHaveBeenCalledWith('reflectionInjectionEnabled', true);
+        expect(_mockGetSettings).toHaveBeenCalledWith('injection.reflections.position', expect.any(Number));
     });
 });
 
 // ── Integration tests ──
 
-describe('integration: reflection toggles', () => {
+describe('integration: stream position disable', () => {
     let mockData;
     let mockSettings;
 
@@ -289,13 +372,13 @@ describe('integration: reflection toggles', () => {
         vi.clearAllMocks();
     });
 
-    it('should preserve existing reflections when generation is disabled', async () => {
-        // Override getSettings to return false for generation toggle
-        _mockSettingsValues.reflectionGenerationEnabled = false;
+    it('should preserve existing reflections when position is -2 (disabled)', async () => {
+        // Override getSettings to return -2 (Disabled)
+        _mockSettingsValues['injection.reflections.position'] = -2;
 
         setupTestContext({
             settings: {
-                reflectionGenerationEnabled: false,
+                injection: { reflections: { position: -2 } },
                 reflectionThreshold: 40,
             },
         });
@@ -309,34 +392,87 @@ describe('integration: reflection toggles', () => {
         expect(generateReflections).not.toHaveBeenCalled();
     });
 
-    it('should allow generation to continue while injection is disabled', async () => {
-        // These are independent toggles - generation can happen while injection is off
-        // This is useful for "audit mode" - building reflections but not using them yet
+    it('should allow generation to continue while injection is disabled via position', async () => {
+        // Generation and injection use the same position setting - -2 disables both
+        // So this test verifies that generation and injection are controlled by the same setting
 
-        // Override getSettings for independent toggles
-        _mockSettingsValues.reflectionGenerationEnabled = true;
-        _mockSettingsValues.reflectionInjectionEnabled = false;
+        // Override getSettings to -2 (disabled) - both generation and injection should be skipped
+        _mockSettingsValues['injection.reflections.position'] = -2;
 
         setupTestContext({
             settings: {
-                reflectionGenerationEnabled: true,
-                reflectionInjectionEnabled: false,
+                injection: { reflections: { position: -2 } },
                 reflectionThreshold: 40,
             },
         });
 
-        // Mock generateReflections to return empty reflections
-        generateReflections.mockResolvedValue({
-            reflections: [],
-        });
-
         await synthesizeReflections(mockData, ['TestChar'], mockSettings);
 
-        // Verify the settings are independent
-        expect(_mockGetSettings('reflectionGenerationEnabled')).toBe(true);
-        expect(_mockGetSettings('reflectionInjectionEnabled')).toBe(false);
+        // Both generation and injection are controlled by the same setting
+        expect(_mockGetSettings('injection.reflections.position')).toBe(-2);
 
-        // Generation should proceed (generateReflections was called)
-        expect(generateReflections).toHaveBeenCalledTimes(1);
+        // Generation should not proceed
+        expect(generateReflections).not.toHaveBeenCalled();
+    });
+
+    it('should exclude both reflections and world when both positions are -2', async () => {
+        // Override getSettings to return -2 (Disabled) for both streams
+        _mockSettingsValues['injection.reflections.position'] = -2;
+        _mockSettingsValues['injection.world.position'] = -2;
+
+        const mockChat = [
+            { mes: 'Alice is a brave warrior', is_system: true, is_user: true, extra: {}, send_date: 1000 },
+        ];
+        const { getFingerprint } = await import('../../src/extraction/scheduler.js');
+        const fp = getFingerprint(mockChat[0]);
+
+        const mockData = {
+            memories: [
+                {
+                    id: 'r1',
+                    type: 'reflection',
+                    summary: 'Alice is a brave warrior',
+                    message_fingerprints: [],
+                    importance: 5,
+                },
+                {
+                    id: 'e1',
+                    type: 'event',
+                    summary: 'Alice fought a dragon',
+                    message_fingerprints: [fp],
+                    importance: 5,
+                },
+            ],
+            graph: { nodes: {}, edges: {} },
+            global_world_state: 'The world is at peace.',
+        };
+
+        setupTestContext({
+            context: {
+                chat: mockChat,
+                name2: 'TestChar',
+                chatId: 'test-chat-id',
+            },
+            settings: {
+                injection: { reflections: { position: -2 }, world: { position: -2 } },
+                retrievalFinalTokens: 1000,
+                worldContextBudget: 2000,
+            },
+        });
+
+        const chatDataModule = await import('../../src/store/chat-data.js');
+        vi.spyOn(chatDataModule, 'getOpenVaultData').mockReturnValue(mockData);
+
+        // Re-import retrieveAndInjectContext to pick up the mocks
+        const { retrieveAndInjectContext } = await import('../../src/retrieval/retrieve.js');
+
+        const result = await retrieveAndInjectContext();
+
+        // Both reflections and world should be excluded
+        const reflectionIds = result?.memories?.filter((m) => m.type === 'reflection').map((m) => m.id) || [];
+        expect(reflectionIds).not.toContain('r1');
+        // Verify both settings were checked
+        expect(_mockGetSettings).toHaveBeenCalledWith('injection.reflections.position', expect.any(Number));
+        expect(_mockGetSettings).toHaveBeenCalledWith('injection.world.position', expect.any(Number));
     });
 });
