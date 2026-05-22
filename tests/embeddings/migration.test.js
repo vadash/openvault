@@ -42,18 +42,13 @@ describe('migration', () => {
                     },
                     edges: {},
                 },
-                communities: {
-                    C0: { title: 'Group', embedding_b64: 'jkl' },
-                    C1: { title: 'Other' },
-                },
             };
             const result = await invalidateStaleEmbeddings(data, 'bge-small-en-v1.5');
-            expect(result).toBe(4); // 2 memories + 1 node + 1 community
+            expect(result).toBe(3); // 2 memories + 1 node
             expect(data.embedding_model_id).toBe('bge-small-en-v1.5');
             expect(data.memories[0].embedding_b64).toBeUndefined();
             expect(data.memories[1].embedding_b64).toBeUndefined();
             expect(data.graph.nodes.alice.embedding_b64).toBeUndefined();
-            expect(data.communities.C0.embedding_b64).toBeUndefined();
         });
 
         it('treats legacy chat (no tag but has embeddings) as mismatch', async () => {
@@ -159,18 +154,16 @@ describe('migration', () => {
                     nodes: { Alice: { name: 'Alice', embedding_b64: 'node1' } },
                     edges: { edge1: { source: 'A', target: 'B', embedding_b64: 'edge1' } },
                 },
-                communities: { C1: { id: 'C1', embedding_b64: 'comm1' } },
             };
 
             const result = await invalidateStaleEmbeddings(data, 'new-model');
 
-            // Should clear: 1 memory + 1 node + 1 community + 1 edge = 4
-            expect(result).toBe(4);
+            // Should clear: 1 memory + 1 node + 1 edge = 3
+            expect(result).toBe(3);
 
             expect(data.memories[0].embedding_b64).toBeUndefined();
             expect(data.graph.nodes.Alice.embedding_b64).toBeUndefined();
             expect(data.graph.edges.edge1.embedding_b64).toBeUndefined();
-            expect(data.communities.C1.embedding_b64).toBeUndefined();
         });
 
         it('should handle empty or missing edges gracefully', async () => {

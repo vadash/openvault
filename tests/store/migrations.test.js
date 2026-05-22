@@ -70,13 +70,12 @@ describe('v2 migration', () => {
         expect(data.graph.nodes[0].embedding_b64).toBeTypeOf('string');
     });
 
-    it('initializes missing graph/communities/graph_message_count/reflection_state', () => {
+    it('initializes missing graph/graph_message_count/reflection_state', () => {
         const data = {};
 
         runSchemaMigrations(data, chat);
 
         expect(data.graph).toBeDefined();
-        expect(data.communities).toBeDefined();
         expect(data.graph_message_count).toBe(0);
         expect(data.reflection_state).toEqual({});
     });
@@ -264,7 +263,7 @@ describe('v5 migration - convert reflection toggles to position -2', () => {
         const result = runSchemaMigrations(data, []);
 
         expect(result).toBe(true);
-        expect(data.schema_version).toBe(5);
+        expect(data.schema_version).toBe(6);
         expect(data.settings.injection.reflections.position).toBe(-2);
     });
 
@@ -326,7 +325,7 @@ describe('v5 migration - convert reflection toggles to position -2', () => {
         const result = runSchemaMigrations(data, []);
 
         expect(result).toBe(false);
-        expect(data.schema_version).toBe(5);
+        expect(data.schema_version).toBe(6);
     });
 
     it('is idempotent - running twice produces the same result', () => {

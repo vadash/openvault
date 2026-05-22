@@ -337,18 +337,11 @@ describe('retrieve pipeline', () => {
                         global_world_state: {
                             summary: 'Test global state - the story has progressed through several chapters',
                             last_updated: Date.now(),
-                            community_count: 2,
                         },
-                        communities: {
-                            C0: {
-                                title: 'Royal Court',
-                                summary: 'The seat of power',
-                                findings: ['The king rules wisely'],
-                                embedding: [0.5, 0.5],
-                                nodeKeys: ['alice'],
-                            },
+                        graph: {
+                            nodes: { alice: { name: 'Alice', type: 'PERSON', description: 'Main character' } },
+                            edges: {},
                         },
-                        graph: { nodes: {}, edges: {} },
                     },
                 },
                 chatId: 'test-chat',

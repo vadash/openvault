@@ -45,11 +45,10 @@ describe('store/chat-data', () => {
     describe('getOpenVaultData', () => {
         it('creates complete schema for new chats', () => {
             const data = getOpenVaultData();
-            expect(data.schema_version).toBe(4);
+            expect(data.schema_version).toBe(6);
             expect(data.memories).toEqual([]);
             expect(data.character_states).toEqual({});
             expect(data.graph).toBeDefined();
-            expect(data.communities).toEqual({});
             expect(data.graph_message_count).toBe(0);
             expect(data.processed_message_ids).toEqual([]);
             expect(data.settings.injection.reflections).toEqual({ position: 1, depth: 4 });
@@ -60,13 +59,12 @@ describe('store/chat-data', () => {
         it('creates empty data structure if none exists', () => {
             const data = getOpenVaultData();
             expect(data).toEqual({
-                schema_version: 4,
+                schema_version: 6,
                 [MEMORIES_KEY]: [],
                 [CHARACTERS_KEY]: {},
                 processed_message_ids: [],
                 reflection_state: {},
                 graph: expect.any(Object),
-                communities: {},
                 graph_message_count: 0,
                 settings: {
                     injection: {

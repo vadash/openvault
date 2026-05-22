@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildGlobalWorldStatePrompt } from '../../src/prompts/index.js';
-import { SYSTEM_PREAMBLE_CN } from '../../src/prompts/shared/preambles.js';
+import { buildGlobalWorldStatePrompt } from '../../../src/prompts/index.js';
+import { SYSTEM_PREAMBLE_CN } from '../../../src/prompts/shared/preambles.js';
 
 const PREAMBLE = SYSTEM_PREAMBLE_CN;
 const PREFILL = '<thinking>\n';

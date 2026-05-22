@@ -349,7 +349,6 @@ describe('onChatChanged embedding model mismatch detection', () => {
             embedding_model_id: 'old-model',
             memories: [{ id: '1', embedding_b64: 'abc' }],
             graph: { nodes: { alice: { name: 'Alice', type: 'CHARACTER', embedding_b64: 'def' } }, edges: {} },
-            communities: { C0: { title: 'G', embedding_b64: 'ghi' } },
         };
 
         setupTestContext({
@@ -378,7 +377,6 @@ describe('onChatChanged embedding model mismatch detection', () => {
         expect(mockData.embedding_model_id).toBe('bge-small-en-v1.5');
         expect(mockData.memories[0].embedding_b64).toBeUndefined();
         expect(mockData.graph.nodes.alice.embedding_b64).toBeUndefined();
-        expect(mockData.communities.C0.embedding_b64).toBeUndefined();
         expect(saveFn).toHaveBeenCalled();
     });
 
@@ -392,7 +390,6 @@ describe('onChatChanged embedding model mismatch detection', () => {
         expect(mockData.embedding_model_id).toBe('bge-small-en-v1.5');
         expect(mockData.memories[0].embedding_b64).toBe('abc');
         expect(mockData.graph.nodes.alice.embedding_b64).toBe('def');
-        expect(mockData.communities.C0.embedding_b64).toBe('ghi');
         expect(saveFn).not.toHaveBeenCalled();
     });
 });
@@ -476,8 +473,8 @@ describe('onChatChanged migration', () => {
         const { onChatChanged } = await import('../../src/events.js');
         await onChatChanged();
 
-        // Should have migrated through v2, v3, v4, and v5
-        expect(mockContext.chatMetadata[METADATA_KEY].schema_version).toBe(5);
+        // Should have migrated through v2, v3, v4, v5, and v6
+        expect(mockContext.chatMetadata[METADATA_KEY].schema_version).toBe(6);
         expect(mockContext.chatMetadata[METADATA_KEY][PROCESSED_MESSAGES_KEY]).toContain('1000000');
         expect(mockToast).toHaveBeenCalledWith('info', expect.stringContaining('optimized'), 'Data Migration', {});
     });

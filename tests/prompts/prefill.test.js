@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-    buildCommunitySummaryPrompt,
     buildEdgeConsolidationPrompt,
     buildEventExtractionPrompt,
-    buildGlobalSynthesisPrompt,
+    buildGlobalWorldStatePrompt,
     buildGraphExtractionPrompt,
     buildUnifiedReflectionPrompt,
     SYSTEM_PREAMBLE_CN,
@@ -31,10 +30,9 @@ describe('think tag support', () => {
                 ),
         ],
         ['UNIFIED_REFLECTION_SCHEMA', () => buildUnifiedReflectionPrompt('Alice', [], 'auto', 'auto', '{')],
-        ['COMMUNITY_SCHEMA', () => buildCommunitySummaryPrompt(['- Node'], ['- Edge'], 'auto', 'auto', '{')],
         [
-            'GLOBAL_SYNTHESIS_SCHEMA',
-            () => buildGlobalSynthesisPrompt([{ title: 'C1', summary: 'S1' }], 'auto', 'auto', '{'),
+            'WORLD_STATE_SCHEMA',
+            () => buildGlobalWorldStatePrompt(['Alice (PERSON) — Main'], ['Alice → Bob: Friend'], 'auto', 'auto', '{'),
         ],
     ])('%s allows think tags before JSON', (_, buildPrompt) => {
         const result = buildPrompt();
@@ -55,9 +53,9 @@ describe('CN preamble and assistant prefill', () => {
             names: { char: 'A', user: 'B' },
             prefill: '{',
         });
-        const communityResult = buildCommunitySummaryPrompt([], [], SYSTEM_PREAMBLE_CN, 'auto', '{');
+        const worldStateResult = buildGlobalWorldStatePrompt([], [], SYSTEM_PREAMBLE_CN, 'auto', '{');
 
-        for (const result of [eventResult, graphResult, communityResult]) {
+        for (const result of [eventResult, graphResult, worldStateResult]) {
             expect(result[0].content).toContain('<system_config>');
             expect(result[0].content).toContain('</system_config>');
         }
@@ -80,9 +78,9 @@ describe('CN preamble and assistant prefill', () => {
             names: { char: 'A', user: 'B' },
             prefill: '{',
         });
-        const communityResult = buildCommunitySummaryPrompt([], [], SYSTEM_PREAMBLE_CN, 'auto', '{');
+        const worldStateResult = buildGlobalWorldStatePrompt([], [], SYSTEM_PREAMBLE_CN, 'auto', '{');
 
-        for (const result of [graphResult, communityResult]) {
+        for (const result of [graphResult, worldStateResult]) {
             expect(result[2].role).toBe('assistant');
             expect(result[2].content).toBe('{');
         }
