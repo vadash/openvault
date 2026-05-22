@@ -7,7 +7,7 @@ import { getDeps } from '../deps.js';
  */
 export const cachedContent = {
     memory: '',
-    reflection: '',
+    reflections: '',
     world: '',
 };
 
@@ -27,8 +27,8 @@ export function initMacros() {
             description: 'OpenVault injected memory content',
             category: 'misc',
         });
-        newRegistry.registerMacro('openvault_reflection', {
-            handler: () => cachedContent.reflection,
+        newRegistry.registerMacro('openvault_reflections', {
+            handler: () => cachedContent.reflections,
             description: 'OpenVault injected reflection content',
             category: 'misc',
         });
@@ -40,7 +40,7 @@ export function initMacros() {
     } else if (context.registerMacro) {
         // Legacy API (pre-1.16.0) — accepts (name, fn) directly
         context.registerMacro('openvault_memory', () => cachedContent.memory);
-        context.registerMacro('openvault_reflection', () => cachedContent.reflection);
+        context.registerMacro('openvault_reflections', () => cachedContent.reflections);
         context.registerMacro('openvault_world', () => cachedContent.world);
     }
 }
