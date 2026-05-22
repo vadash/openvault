@@ -255,14 +255,42 @@ export async function updateEntity(key, updates) {
             if (needsRewrite) {
                 const newEdgeKey = `${newSource}__${newTarget}`;
 
-                delete graph.edges[edgeKey];
-                const newEdge = {
-                    ...edge,
-                    source: newSource,
-                    target: newTarget,
-                };
-                deleteEmbedding(newEdge);
-                graph.edges[newEdgeKey] = newEdge;
+                // Skip self-loops created by rename
+                if (newSource === newTarget) {
+                    delete graph.edges[edgeKey];
+                    continue;
+                }
+
+                // Collision check: target edge already exists
+                if (graph.edges[newEdgeKey] && edgeKey !== newEdgeKey) {
+                    const existingEdge = graph.edges[newEdgeKey];
+                    existingEdge.weight += edge.weight;
+                    existingEdge.description = mergeDescriptions(
+                        existingEdge.description,
+                        edge.description,
+                        GRAPH_JACCARD_DUPLICATE_THRESHOLD
+                    );
+                    if (existingEdge._descriptionTokens !== undefined) {
+                        existingEdge._descriptionTokens = countTokens(existingEdge.description);
+                    }
+                    if (existingEdge._descriptionTokens > CONSOLIDATION.TOKEN_THRESHOLD) {
+                        if (!graph._edgesNeedingConsolidation) graph._edgesNeedingConsolidation = [];
+                        if (!graph._edgesNeedingConsolidation.includes(newEdgeKey)) {
+                            graph._edgesNeedingConsolidation.push(newEdgeKey);
+                        }
+                    }
+                    deleteEmbedding(existingEdge);
+                    delete graph.edges[edgeKey];
+                } else {
+                    const newEdge = {
+                        ...edge,
+                        source: newSource,
+                        target: newTarget,
+                    };
+                    deleteEmbedding(newEdge);
+                    graph.edges[newEdgeKey] = newEdge;
+                    if (edgeKey !== newEdgeKey) delete graph.edges[edgeKey];
+                }
             }
         }
 

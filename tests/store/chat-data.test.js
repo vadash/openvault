@@ -786,4 +786,41 @@ describe('updateEntity', () => {
         expect(result.key).toBe(key);
         expect(data.graph.nodes[key].aliases).toEqual(['masked figure', 'the stranger']);
     });
+
+    it('should merge edges on collision during entity rename', async () => {
+        const data = getOpenVaultData();
+        const entityA = normalizeKey('Alice');
+        const entityB = normalizeKey('Bob');
+        const entityC = normalizeKey('Charlie');
+
+        data.graph.nodes[entityA] = buildMockGraphNode({ name: 'Alice', type: 'PERSON' });
+        data.graph.nodes[entityC] = buildMockGraphNode({ name: 'Charlie', type: 'PERSON' });
+
+        // C->A (will be rewritten to C->B on rename)
+        data.graph.edges[`${entityC}__${entityA}`] = {
+            source: entityC,
+            target: entityA,
+            description: 'old friends',
+            weight: 3,
+        };
+        // C->B (already exists — will collide when A is renamed to B)
+        data.graph.edges[`${entityC}__${entityB}`] = {
+            source: entityC,
+            target: entityB,
+            description: 'teammates',
+            weight: 2,
+        };
+
+        // EntityB node deleted (simulates prior merge) so rename isn't blocked
+        const result = await updateEntity(entityA, { name: 'Bob' });
+        const bobKey = normalizeKey('Bob');
+
+        expect(result.key).toBe(bobKey);
+        const mergedEdge = data.graph.edges[`${entityC}__${bobKey}`];
+        expect(mergedEdge).toBeDefined();
+        expect(mergedEdge.weight).toBe(5); // 3 + 2
+        expect(mergedEdge.description).toContain('old friends');
+        expect(mergedEdge.description).toContain('teammates');
+        expect(data.graph.edges[`${entityC}__${entityA}`]).toBeUndefined();
+    });
 });
