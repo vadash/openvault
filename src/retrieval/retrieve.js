@@ -180,10 +180,11 @@ export function buildRetrievalContext(opts = {}) {
 
 /**
  * Inject retrieved context into the prompt
- * @param {string} contextText - Formatted context to inject
+ * @param {string} memoryText - Formatted memory context to inject
+ * @param {string} [reflectionText] - Formatted reflection context to inject
  * @param {string} [worldText] - World context to inject
  */
-export function injectContext(contextText, worldText = '') {
+export function injectContext(memoryText, reflectionText = '', worldText = '') {
     const deps = getDeps();
     const settings = deps.getExtensionSettings()[extensionName];
 
@@ -191,22 +192,33 @@ export function injectContext(contextText, worldText = '') {
     // NOTE: cachedContent is a live object reference from macros.js.
     // Mutating its properties (not reassigning the binding) is intentional
     // and updates the macro return values in-place.
-    cachedContent.memory = contextText || '';
+    cachedContent.memory = memoryText || '';
+    cachedContent.reflection = reflectionText || '';
     cachedContent.world = worldText || '';
 
     // Get position settings with defaults
+    // Use injection.memory settings as fallback for reflections (Task 3 adds dedicated settings)
     const memoryPosition = settings?.injection?.memory?.position ?? 1;
     const memoryDepth = settings?.injection?.memory?.depth ?? 4;
+    const reflectionPosition = settings?.injection?.reflections?.position ?? memoryPosition;
+    const reflectionDepth = settings?.injection?.reflections?.depth ?? memoryDepth;
     const worldPosition = settings?.injection?.world?.position ?? 1;
     const worldDepth = settings?.injection?.world?.depth ?? 4;
 
     // Inject memory content
-    if (!contextText) {
+    if (!memoryText) {
         safeSetExtensionPrompt('', 'openvault', memoryPosition, memoryDepth);
-    } else if (safeSetExtensionPrompt(contextText, 'openvault', memoryPosition, memoryDepth)) {
+    } else if (safeSetExtensionPrompt(memoryText, 'openvault', memoryPosition, memoryDepth)) {
         logDebug('Context injected into prompt');
     } else {
         logDebug('Failed to inject context');
+    }
+
+    // Inject reflection content
+    if (!reflectionText) {
+        safeSetExtensionPrompt('', 'openvault_reflections', reflectionPosition, reflectionDepth);
+    } else {
+        safeSetExtensionPrompt(reflectionText, 'openvault_reflections', reflectionPosition, reflectionDepth);
     }
 
     // Inject world content
@@ -224,7 +236,7 @@ export function injectContext(contextText, worldText = '') {
  * @param {RetrievalContext} ctx - Retrieval context
  * @returns {Promise<{memories: Object[], context: string}|null>}
  */
-async function selectFormatAndInject(memoriesToUse, data, ctx) {
+export async function selectFormatAndInject(memoriesToUse, data, ctx) {
     const { primaryCharacter, activeCharacters, headerName, finalTokens, chatLength, userMessages } = ctx;
 
     const selectionResult = await selectRelevantMemories(memoriesToUse, ctx);
@@ -233,8 +245,9 @@ async function selectFormatAndInject(memoriesToUse, data, ctx) {
     if (!relevantMemories || relevantMemories.length === 0) {
         // Clear cachedContent and world context if no memories found
         cachedContent.memory = '';
+        cachedContent.reflection = '';
         cachedContent.world = '';
-        injectContext('', '');
+        injectContext('', '', '');
         return null;
     }
 
@@ -248,8 +261,8 @@ async function selectFormatAndInject(memoriesToUse, data, ctx) {
     // Get present characters (excluding POV)
     const presentCharacters = activeCharacters.filter((c) => c !== primaryCharacter);
 
-    // Format and inject memories
-    const formattedContext = formatContextForInjection(
+    // Format and inject memories - now returns { memoryText, reflectionText }
+    const { memoryText, reflectionText } = formatContextForInjection(
         relevantMemories,
         presentCharacters,
         emotionalInfo,
@@ -285,18 +298,18 @@ async function selectFormatAndInject(memoriesToUse, data, ctx) {
         }
     }
 
-    // Inject both memory and world content together
-    injectContext(formattedContext, worldText);
+    // Inject memory, reflection, and world content
+    injectContext(memoryText, reflectionText, worldText);
 
     // Cache injected context for debug export
     cacheRetrievalDebug({
-        injectedContext: formattedContext,
+        injectedContext: memoryText,
         selectedCount: relevantMemories.length,
         eventsCount: relevantMemories.filter((m) => m.type !== 'reflection').length,
         reflectionsCount: relevantMemories.filter((m) => m.type === 'reflection').length,
     });
 
-    return { memories: relevantMemories, context: formattedContext };
+    return { memories: relevantMemories, context: memoryText };
 }
 
 /**
@@ -307,8 +320,9 @@ export async function retrieveAndInjectContext() {
     if (!isExtensionEnabled()) {
         logDebug('OpenVault disabled, skipping retrieval');
         cachedContent.memory = '';
+        cachedContent.reflection = '';
         cachedContent.world = '';
-        injectContext('', '');
+        injectContext('', '', '');
         return null;
     }
 
@@ -319,8 +333,9 @@ export async function retrieveAndInjectContext() {
     if (!chat || chat.length === 0) {
         logDebug('No chat to retrieve context for');
         cachedContent.memory = '';
+        cachedContent.reflection = '';
         cachedContent.world = '';
-        injectContext('', '');
+        injectContext('', '', '');
         return null;
     }
 
@@ -328,8 +343,9 @@ export async function retrieveAndInjectContext() {
     if (!data) {
         logDebug('No chat context available');
         cachedContent.memory = '';
+        cachedContent.reflection = '';
         cachedContent.world = '';
-        injectContext('', '');
+        injectContext('', '', '');
         return null;
     }
     const memories = data[MEMORIES_KEY] || [];
@@ -337,8 +353,9 @@ export async function retrieveAndInjectContext() {
     if (memories.length === 0) {
         logDebug('No memories stored yet');
         cachedContent.memory = '';
+        cachedContent.reflection = '';
         cachedContent.world = '';
-        injectContext('', '');
+        injectContext('', '', '');
         return null;
     }
 
@@ -379,7 +396,7 @@ export async function retrieveAndInjectContext() {
             logDebug('No memories available');
             cachedContent.memory = '';
             cachedContent.world = '';
-            injectContext('', '');
+            injectContext('', '', '');
             return null;
         }
 
@@ -403,7 +420,7 @@ export async function retrieveAndInjectContext() {
             logDebug('No relevant memories found');
             cachedContent.memory = '';
             cachedContent.world = '';
-            injectContext('', '');
+            injectContext('', '', '');
             return null;
         }
 
@@ -426,8 +443,9 @@ export async function updateInjection(pendingUserMessage = '') {
     // Clear injection if disabled or not in automatic mode
     if (!isExtensionEnabled()) {
         cachedContent.memory = '';
+        cachedContent.reflection = '';
         cachedContent.world = '';
-        injectContext('', '');
+        injectContext('', '', '');
         return;
     }
 
@@ -435,24 +453,27 @@ export async function updateInjection(pendingUserMessage = '') {
     const context = deps.getContext();
     if (!context.chat || context.chat.length === 0) {
         cachedContent.memory = '';
+        cachedContent.reflection = '';
         cachedContent.world = '';
-        injectContext('', '');
+        injectContext('', '', '');
         return;
     }
 
     const data = getOpenVaultData();
     if (!data) {
         cachedContent.memory = '';
+        cachedContent.reflection = '';
         cachedContent.world = '';
-        injectContext('', '');
+        injectContext('', '', '');
         return;
     }
     const memories = data[MEMORIES_KEY] || [];
 
     if (memories.length === 0) {
         cachedContent.memory = '';
+        cachedContent.reflection = '';
         cachedContent.world = '';
-        injectContext('', '');
+        injectContext('', '', '');
         return;
     }
 
@@ -480,8 +501,9 @@ export async function updateInjection(pendingUserMessage = '') {
 
     if (memoriesToUse.length === 0) {
         cachedContent.memory = '';
+        cachedContent.reflection = '';
         cachedContent.world = '';
-        injectContext('', '');
+        injectContext('', '', '');
         return;
     }
 
@@ -495,8 +517,9 @@ export async function updateInjection(pendingUserMessage = '') {
 
     if (!result) {
         cachedContent.memory = '';
+        cachedContent.reflection = '';
         cachedContent.world = '';
-        injectContext('', '');
+        injectContext('', '', '');
         return;
     }
 

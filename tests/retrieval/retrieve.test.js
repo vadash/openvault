@@ -255,11 +255,17 @@ describe('retrieve pipeline', () => {
 
         await updateInjection();
 
+        // Check memory slot (events)
         const memoryCall = mockSetPrompt.mock.calls.find((c) => c[0] === extensionName);
         expect(memoryCall).toBeDefined();
-        const injectedText = memoryCall[1];
-        expect(injectedText).toContain('ancient library');
-        expect(injectedText).toContain('abandonment');
+        const memoryText = memoryCall[1];
+        expect(memoryText).toContain('ancient library');
+
+        // Check reflection slot (reflections)
+        const reflectionCall = mockSetPrompt.mock.calls.find((c) => c[0] === 'openvault_reflections');
+        expect(reflectionCall).toBeDefined();
+        const reflectionText = reflectionCall[1];
+        expect(reflectionText).toContain('abandonment');
     });
 
     it('empty state: no memories produces empty injection', async () => {
@@ -371,6 +377,107 @@ describe('retrieve pipeline', () => {
         expect(worldCall).toBeDefined();
         expect(worldCall[1]).toContain('world_context');
         expect(worldCall[1]).toContain('Test global state');
+    });
+});
+
+describe('injectContext with 3-stream architecture', () => {
+    let mockSetPrompt;
+
+    beforeEach(() => {
+        mockSetPrompt = vi.fn();
+        setupTestContext({
+            deps: {
+                getExtensionSettings: () => ({
+                    [extensionName]: {
+                        ...defaultSettings,
+                        enabled: true,
+                    },
+                }),
+                setExtensionPrompt: mockSetPrompt,
+                extension_prompt_types: { IN_PROMPT: 0 },
+            },
+        });
+    });
+
+    afterEach(() => {
+        resetDeps();
+        vi.clearAllMocks();
+    });
+
+    it('should call safeSetExtensionPrompt 3 times with correct slots', async () => {
+        const { injectContext } = await import('../../src/retrieval/retrieve.js');
+
+        injectContext('memory content', 'reflection content', 'world content');
+
+        expect(mockSetPrompt).toHaveBeenCalledTimes(3);
+        // setExtensionPrompt signature: (content, slot, position, depth)
+        const slots = mockSetPrompt.mock.calls.map((c) => c[0]); // c[0] is slot, c[1] is content
+        expect(slots).toContain('openvault');
+        expect(slots).toContain('openvault_reflections');
+        expect(slots).toContain('openvault_world');
+    });
+
+    it('should set empty string for openvault_reflections when reflectionText is empty', async () => {
+        const { injectContext } = await import('../../src/retrieval/retrieve.js');
+
+        injectContext('memory content', '', 'world content');
+
+        // setExtensionPrompt signature: (name, content, promptType, depth)
+        const reflectionCall = mockSetPrompt.mock.calls.find((c) => c[0] === 'openvault_reflections');
+        expect(reflectionCall).toBeDefined();
+        expect(reflectionCall[1]).toBe(''); // Empty content
+    });
+
+    it('should pass both memoryText and reflectionText to injectContext from selectFormatAndInject', async () => {
+        const { selectFormatAndInject } = await import('../../src/retrieval/retrieve.js');
+
+        const mockMemories = [
+            { id: '1', type: 'event', summary: 'Test memory', importance: 3, embedding: [0.5, 0.5] },
+            { id: '2', type: 'reflection', summary: 'Test reflection', importance: 4, embedding: [0.5, 0.5] },
+        ];
+
+        const mockData = {
+            characters: { Test: { current_emotion: 'neutral' } },
+            communities: {},
+        };
+
+        const mockCtx = {
+            primaryCharacter: 'Test',
+            activeCharacters: [],
+            headerName: 'Scene',
+            finalTokens: 1000,
+            chatLength: 100,
+            userMessages: 'test',
+            recentContext: 'test context',
+            worldContextBudget: 100,
+            queryConfig: {
+                entityWindowSize: 10,
+                embeddingWindowSize: 5,
+                recencyDecayFactor: 0.09,
+                topEntitiesCount: 5,
+                entityBoostWeight: 5.0,
+                exactPhraseBoostWeight: 10.0,
+            },
+            scoringConfig: {
+                forgetfulnessBaseLambda: 0.05,
+                forgetfulnessImportance5Floor: undefined,
+                reflectionDecayThreshold: undefined,
+                vectorSimilarityThreshold: 0.5,
+                alpha: 0.7,
+                combinedBoostWeight: 15,
+                embeddingSource: 'ollama',
+                transientDecayMultiplier: undefined,
+            },
+        };
+
+        await selectFormatAndInject(mockMemories, mockData, mockCtx);
+
+        // Verify injectContext was called with both memoryText and reflectionText
+        // setExtensionPrompt signature: (name, content, promptType, depth)
+        const memoryCall = mockSetPrompt.mock.calls.find((c) => c[0] === 'openvault');
+        const reflectionCall = mockSetPrompt.mock.calls.find((c) => c[0] === 'openvault_reflections');
+        expect(memoryCall).toBeDefined();
+        expect(reflectionCall).toBeDefined();
     });
 });
 

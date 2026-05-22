@@ -61,7 +61,7 @@ describe('Phase 2 End-to-End Integration', () => {
             const tokenBudget = 1000;
             const chatLength = 100;
 
-            const result = formatContextForInjection(
+            const { memoryText, reflectionText } = formatContextForInjection(
                 memories,
                 presentCharacters,
                 emotionalInfo,
@@ -71,21 +71,21 @@ describe('Phase 2 End-to-End Integration', () => {
             );
 
             // Should contain scene_memory with events only
-            expect(result).toContain('<scene_memory>');
-            expect(result).toContain('Alice went to the market');
-            expect(result).toContain('Alice met Bob at the fountain');
+            expect(memoryText).toContain('<scene_memory>');
+            expect(memoryText).toContain('Alice went to the market');
+            expect(memoryText).toContain('Alice met Bob at the fountain');
 
             // Should contain subconscious_drives with reflections only
-            expect(result).toContain('<subconscious_drives>');
-            expect(result).toContain('Alice secretly fears abandonment');
-            expect(result).toContain('Alice seeks validation');
+            expect(reflectionText).toContain('<subconscious_drives>');
+            expect(reflectionText).toContain('Alice secretly fears abandonment');
+            expect(reflectionText).toContain('Alice seeks validation');
 
             // Should include CRITICAL RULE text
-            expect(result).toContain('[CRITICAL RULE:');
-            expect(result).toContain('NOT consciously aware');
+            expect(reflectionText).toContain('[CRITICAL RULE:');
+            expect(reflectionText).toContain('NOT consciously aware');
 
             // Reflections should NOT be in scene_memory
-            const sceneMemoryMatch = result.match(/<scene_memory>([\s\S]*?)<\/scene_memory>/);
+            const sceneMemoryMatch = memoryText.match(/<scene_memory>([\s\S]*?)<\/scene_memory>/);
             const sceneMemoryContent = sceneMemoryMatch ? sceneMemoryMatch[1] : '';
             expect(sceneMemoryContent).not.toContain('Alice secretly fears abandonment');
             expect(sceneMemoryContent).not.toContain('Alice seeks validation');
@@ -95,20 +95,20 @@ describe('Phase 2 End-to-End Integration', () => {
             const memories = [
                 { id: 'ev_1', type: 'event', summary: 'Alice walked to the store', importance: 3, sequence: 1000 },
             ];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 1000, 100);
+            const { memoryText, reflectionText } = formatContextForInjection(memories, [], null, 'Alice', 1000, 100);
 
-            expect(result).toContain('<scene_memory>');
-            expect(result).not.toContain('<subconscious_drives>');
+            expect(memoryText).toContain('<scene_memory>');
+            expect(reflectionText).not.toContain('<subconscious_drives>');
         });
 
         it('should handle backward compatibility (memories without type field)', () => {
             // Old memories without type field should be treated as events
             const memories = [{ id: 'ev_1', summary: 'Old memory without type', importance: 3, sequence: 1000 }];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 1000, 100);
+            const { memoryText, reflectionText } = formatContextForInjection(memories, [], null, 'Alice', 1000, 100);
 
-            expect(result).toContain('<scene_memory>');
-            expect(result).toContain('Old memory without type');
-            expect(result).not.toContain('<subconscious_drives>');
+            expect(memoryText).toContain('<scene_memory>');
+            expect(memoryText).toContain('Old memory without type');
+            expect(reflectionText).not.toContain('<subconscious_drives>');
         });
     });
 
@@ -253,9 +253,9 @@ describe('Phase 2 End-to-End Integration', () => {
             ];
 
             // 2. Verify formatting separates reflections
-            const formatted = formatContextForInjection(memories, ['Bob'], null, 'Alice', 1000, 100);
-            expect(formatted).toContain('<subconscious_drives>');
-            expect(formatted).toContain('Alice feels guilt but cannot confess');
+            const { reflectionText } = formatContextForInjection(memories, ['Bob'], null, 'Alice', 1000, 100);
+            expect(reflectionText).toContain('<subconscious_drives>');
+            expect(reflectionText).toContain('Alice feels guilt but cannot confess');
 
             // 3. Simulate community detection leading to global state
             const communities = [
@@ -301,12 +301,19 @@ describe('Phase 2 End-to-End Integration', () => {
         it('should handle memories without type field (legacy data)', () => {
             const legacyMemories = [{ id: 'old_1', summary: 'Old memory', importance: 3, sequence: 1000 }];
 
-            const result = formatContextForInjection(legacyMemories, [], null, 'Alice', 1000, 100);
+            const { memoryText, reflectionText } = formatContextForInjection(
+                legacyMemories,
+                [],
+                null,
+                'Alice',
+                1000,
+                100
+            );
 
             // Should treat as events, not reflections
-            expect(result).toContain('<scene_memory>');
-            expect(result).toContain('Old memory');
-            expect(result).not.toContain('<subconscious_drives>');
+            expect(memoryText).toContain('<scene_memory>');
+            expect(memoryText).toContain('Old memory');
+            expect(reflectionText).not.toContain('<subconscious_drives>');
         });
     });
 });
