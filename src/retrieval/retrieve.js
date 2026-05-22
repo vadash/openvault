@@ -79,6 +79,7 @@ function _getHiddenMemories(chat, memories) {
         // Fall back to message_ids ONLY when fingerprints are absent (unmigrated v2 data)
         if (!m.message_ids?.length) return false;
         const minId = Math.min(...m.message_ids);
+        if (minId >= chat.length) return true; // Source messages were truncated/deleted
         return chat[minId]?.is_system;
     });
 }
@@ -286,9 +287,8 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
             worldCommunities,
             data.global_world_state || null,
             userMessages || '',
-            worldQueryEmbedding, // May be null if embeddings disabled
-            ctx.worldContextBudget,
-            selectionResult.communityIds || null // ST Vector community IDs from scoring
+            worldQueryEmbedding,
+            ctx.worldContextBudget
         );
         worldText = worldResult.text || '';
         // Cache world context result for debug export

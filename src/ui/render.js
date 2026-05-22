@@ -439,9 +439,7 @@ function initEntityEventBindings() {
 
     // Remove alias button
     $container.on('click', '.openvault-remove-alias', (e) => {
-        const key = $(e.currentTarget).data('key');
-        const alias = $(e.currentTarget).data('alias');
-        removeAliasChip(key, alias);
+        $(e.currentTarget).closest('.openvault-alias-chip').remove();
     });
 
     // Add alias button
@@ -624,16 +622,6 @@ async function deleteEntityAction(key) {
         // Update entity count
         $('#openvault_entity_count').text(Object.keys(getOpenVaultData().graph?.nodes || {}).length);
     }
-}
-
-/**
- * Remove alias chip from edit form
- * @param {string} key - Entity key
- * @param {string} alias - Alias to remove
- */
-function removeAliasChip(key, alias) {
-    const $edit = $(`.openvault-entity-edit[data-key="${key}"]`);
-    $edit.find(`.openvault-remove-alias[data-alias="${alias}"]`).closest('.openvault-alias-chip').remove();
 }
 
 /**
