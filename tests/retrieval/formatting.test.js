@@ -135,56 +135,56 @@ describe('formatting', () => {
     describe('formatContextForInjection', () => {
         // Basic structure tests
         it('formats simplified header with chat length and star legend', () => {
-            const result = formatContextForInjection([], [], null, 'Alice', 1000, 50);
-            expect(result).toContain('<scene_memory>');
-            expect(result).toContain('(#50 messages | ★=minor ★★★=notable ★★★★★=critical)');
-            expect(result).not.toContain('Current chat has');
-            expect(result).toContain('</scene_memory>');
+            const { memoryText } = formatContextForInjection([], [], null, 'Alice', 1000, 50);
+            expect(memoryText).toContain('<scene_memory>');
+            expect(memoryText).toContain('(#50 messages | ★=minor ★★★=notable ★★★★★=critical)');
+            expect(memoryText).not.toContain('Current chat has');
+            expect(memoryText).toContain('</scene_memory>');
         });
 
         it('does not show memories section when no memories', () => {
-            const result = formatContextForInjection([], [], null, 'Alice', 1000, 50);
-            expect(result).not.toContain('## The Story So Far');
-            expect(result).not.toContain('## Leading Up To This Moment');
-            expect(result).not.toContain('## Current Scene');
+            const { memoryText } = formatContextForInjection([], [], null, 'Alice', 1000, 50);
+            expect(memoryText).not.toContain('## The Story So Far');
+            expect(memoryText).not.toContain('## Leading Up To This Moment');
+            expect(memoryText).not.toContain('## Current Scene');
         });
 
         // Timeline bucket tests
         it('renders old bucket with markdown header', () => {
             const memories = [{ id: '1', summary: 'Old event', message_ids: [50], sequence: 50000, importance: 3 }];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-            expect(result).toContain('## The Story So Far');
-            expect(result).toContain('Old event');
+            expect(memoryText).toContain('## The Story So Far');
+            expect(memoryText).toContain('Old event');
         });
 
         it('renders mid bucket with markdown header', () => {
             const memories = [{ id: '1', summary: 'Mid event', message_ids: [4600], sequence: 460000, importance: 3 }];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-            expect(result).toContain('## Leading Up To This Moment');
-            expect(result).toContain('Mid event');
+            expect(memoryText).toContain('## Leading Up To This Moment');
+            expect(memoryText).toContain('Mid event');
         });
 
         it('renders recent bucket with markdown header', () => {
             const memories = [
                 { id: '1', summary: 'Recent event', message_ids: [4980], sequence: 498000, importance: 3 },
             ];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-            expect(result).toContain('## Current Scene');
-            expect(result).toContain('Recent event');
+            expect(memoryText).toContain('## Current Scene');
+            expect(memoryText).toContain('Recent event');
         });
 
         it('skips empty buckets', () => {
             const memories = [
                 { id: '1', summary: 'Recent only', message_ids: [4980], sequence: 498000, importance: 3 },
             ];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-            expect(result).not.toContain('## The Story So Far');
-            expect(result).not.toContain('## Leading Up To This Moment');
-            expect(result).toContain('## Current Scene');
+            expect(memoryText).not.toContain('## The Story So Far');
+            expect(memoryText).not.toContain('## Leading Up To This Moment');
+            expect(memoryText).toContain('## Current Scene');
         });
 
         it('renders all three buckets when populated', () => {
@@ -193,16 +193,16 @@ describe('formatting', () => {
                 { id: '2', summary: 'Mid', message_ids: [4600], sequence: 460000, importance: 3 },
                 { id: '3', summary: 'Recent', message_ids: [4980], sequence: 498000, importance: 3 },
             ];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-            expect(result).toContain('## The Story So Far');
-            expect(result).toContain('## Leading Up To This Moment');
-            expect(result).toContain('## Current Scene');
+            expect(memoryText).toContain('## The Story So Far');
+            expect(memoryText).toContain('## Leading Up To This Moment');
+            expect(memoryText).toContain('## Current Scene');
 
             // Verify order
-            const oldIndex = result.indexOf('## The Story So Far');
-            const midIndex = result.indexOf('## Leading Up To This Moment');
-            const recentIndex = result.indexOf('## Current Scene');
+            const oldIndex = memoryText.indexOf('## The Story So Far');
+            const midIndex = memoryText.indexOf('## Leading Up To This Moment');
+            const recentIndex = memoryText.indexOf('## Current Scene');
             expect(oldIndex).toBeLessThan(midIndex);
             expect(midIndex).toBeLessThan(recentIndex);
         });
@@ -210,10 +210,10 @@ describe('formatting', () => {
         // Memory formatting tests (simplified format)
         it('formats memories with stars only (no message numbers)', () => {
             const memories = [{ id: '1', summary: 'Test event', message_ids: [4980], sequence: 498000, importance: 3 }];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-            expect(result).toContain('[★★★] Test event');
-            expect(result).not.toMatch(/#\d+ \[★/); // No message numbers before stars
+            expect(memoryText).toContain('[★★★] Test event');
+            expect(memoryText).not.toMatch(/#\d+ \[★/); // No message numbers before stars
         });
 
         it('includes importance stars correctly', () => {
@@ -221,10 +221,10 @@ describe('formatting', () => {
                 { id: '1', summary: 'Minor', message_ids: [450], sequence: 450000, importance: 1 },
                 { id: '2', summary: 'Critical', message_ids: [460], sequence: 460000, importance: 5 },
             ];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
 
-            expect(result).toContain('[★] Minor');
-            expect(result).toContain('[★★★★★] Critical');
+            expect(memoryText).toContain('[★] Minor');
+            expect(memoryText).toContain('[★★★★★] Critical');
         });
 
         it('does NOT mark secret memories with [Secret] prefix (inverted logic)', () => {
@@ -238,10 +238,10 @@ describe('formatting', () => {
                     is_secret: true,
                 },
             ];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
 
-            expect(result).toContain('[★★★] Secret info');
-            expect(result).not.toContain('[Secret]');
+            expect(memoryText).toContain('[★★★] Secret info');
+            expect(memoryText).not.toContain('[Secret]');
         });
 
         // [Known] tag tests (inverted from [Secret])
@@ -313,11 +313,11 @@ describe('formatting', () => {
             ];
 
             it.each(KNOWN_TAG_CASES)('$desc', ({ memory, shouldHaveKnown }) => {
-                const result = formatContextForInjection([memory], [], null, 'Alice', 10000, 500);
+                const { memoryText } = formatContextForInjection([memory], [], null, 'Alice', 10000, 500);
                 if (shouldHaveKnown) {
-                    expect(result).toContain('[Known]');
+                    expect(memoryText).toContain('[Known]');
                 } else {
-                    expect(result).not.toContain('[Known]');
+                    expect(memoryText).not.toContain('[Known]');
                 }
             });
         });
@@ -380,7 +380,7 @@ describe('formatting', () => {
                 expectedContains,
                 checkCommaCount,
             }) => {
-                const result = formatContextForInjection(
+                const { memoryText } = formatContextForInjection(
                     memories,
                     presentCharacters,
                     emotionalInfo,
@@ -389,14 +389,14 @@ describe('formatting', () => {
                     500
                 );
                 if (expectedContains === null) {
-                    expect(result).not.toContain('Emotions:');
+                    expect(memoryText).not.toContain('Emotions:');
                 } else if (checkCommaCount !== undefined) {
-                    expect(result).toContain(expectedContains);
-                    const emotionsLine = result.match(/Emotions: (.+)/)?.[1] || '';
+                    expect(memoryText).toContain(expectedContains);
+                    const emotionsLine = memoryText.match(/Emotions: (.+)/)?.[1] || '';
                     const commaCount = (emotionsLine.match(/,/g) || []).length;
                     expect(commaCount).toBe(checkCommaCount);
                 } else {
-                    expect(result).toContain(expectedContains);
+                    expect(memoryText).toContain(expectedContains);
                 }
             });
         });
@@ -407,23 +407,23 @@ describe('formatting', () => {
                 { id: '1', summary: 'Recent event', message_ids: [450], sequence: 450000, importance: 3 },
             ];
             const presentCharacters = ['Bob'];
-            const result = formatContextForInjection(memories, presentCharacters, null, 'Alice', 10000, 500);
+            const { memoryText } = formatContextForInjection(memories, presentCharacters, null, 'Alice', 10000, 500);
 
-            expect(result).toContain('## Current Scene');
-            expect(result).toContain('Present: Bob');
+            expect(memoryText).toContain('## Current Scene');
+            expect(memoryText).toContain('Present: Bob');
 
             // Present characters should appear before memories in RECENT
-            const presentIndex = result.indexOf('Present:');
-            const memoryIndex = result.indexOf('Recent event');
+            const presentIndex = memoryText.indexOf('Present:');
+            const memoryIndex = memoryText.indexOf('Recent event');
             expect(presentIndex).toBeLessThan(memoryIndex);
         });
 
         it('formats multiple present characters', () => {
             const memories = [{ id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 }];
             const presentCharacters = ['Bob', 'Charlie', 'Dave'];
-            const result = formatContextForInjection(memories, presentCharacters, null, 'Alice', 10000, 500);
+            const { memoryText } = formatContextForInjection(memories, presentCharacters, null, 'Alice', 10000, 500);
 
-            expect(result).toContain('Present: Bob, Charlie, Dave');
+            expect(memoryText).toContain('Present: Bob, Charlie, Dave');
         });
 
         // Token budget tests
@@ -439,33 +439,33 @@ describe('formatting', () => {
                 });
             }
 
-            const result = formatContextForInjection(memories, [], null, 'Alice', 200, 500);
+            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 200, 500);
 
             // Count memories by counting star patterns
-            const memoryCount = (result.match(/\[★+\]/g) || []).length;
+            const memoryCount = (memoryText.match(/\[★+\]/g) || []).length;
             expect(memoryCount).toBeLessThan(100);
             expect(memoryCount).toBeGreaterThan(0);
         });
 
         // Edge cases
         it('handles empty memories array', () => {
-            const result = formatContextForInjection([], [], null, 'Alice', 1000, 50);
-            expect(result).toContain('<scene_memory>');
-            expect(result).toContain('</scene_memory>');
+            const { memoryText } = formatContextForInjection([], [], null, 'Alice', 1000, 50);
+            expect(memoryText).toContain('<scene_memory>');
+            expect(memoryText).toContain('</scene_memory>');
         });
 
         it('handles null memories', () => {
-            const result = formatContextForInjection(null, [], null, 'Alice', 1000, 50);
-            expect(result).toContain('<scene_memory>');
+            const { memoryText } = formatContextForInjection(null, [], null, 'Alice', 1000, 50);
+            expect(memoryText).toContain('<scene_memory>');
         });
 
         it('handles chatLength of 0', () => {
             const memories = [{ id: '1', summary: 'Event', message_ids: [5], sequence: 5000, importance: 3 }];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 0);
+            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 0);
 
             // All memories should be in RECENT when chatLength is 0
-            expect(result).toContain('## Current Scene');
-            expect(result).toContain('Event');
+            expect(memoryText).toContain('## Current Scene');
+            expect(memoryText).toContain('Event');
         });
 
         it('maintains chronological order within buckets', () => {
@@ -474,11 +474,11 @@ describe('formatting', () => {
                 { id: '2', summary: 'First', message_ids: [10], sequence: 10000, importance: 3 },
                 { id: '3', summary: 'Second', message_ids: [20], sequence: 20000, importance: 3 },
             ];
-            const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
 
-            const firstIndex = result.indexOf('First');
-            const secondIndex = result.indexOf('Second');
-            const thirdIndex = result.indexOf('Third');
+            const firstIndex = memoryText.indexOf('First');
+            const secondIndex = memoryText.indexOf('Second');
+            const thirdIndex = memoryText.indexOf('Third');
 
             expect(firstIndex).toBeLessThan(secondIndex);
             expect(secondIndex).toBeLessThan(thirdIndex);
@@ -535,11 +535,11 @@ describe('formatting', () => {
             ];
 
             it.each(GAP_SEPARATOR_CASES)('$desc', ({ memories, chatLength, expectedSeparator }) => {
-                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, chatLength);
+                const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, chatLength);
                 if (expectedSeparator === null) {
-                    expect(result).not.toMatch(/\.\.\.[^<]/);
+                    expect(memoryText).not.toMatch(/\.\.\.[^<]/);
                 } else {
-                    expect(result).toContain(expectedSeparator);
+                    expect(memoryText).toContain(expectedSeparator);
                 }
             });
         });
@@ -551,10 +551,10 @@ describe('formatting', () => {
                     { id: '1', summary: 'Event A', message_ids: [4980], sequence: 498000, importance: 3 },
                     { id: '2', summary: 'Event B', message_ids: [4983], sequence: 498300, importance: 3 },
                 ];
-                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+                const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-                expect(result).not.toContain('⤷');
-                expect(result).not.toContain('IMMEDIATELY AFTER');
+                expect(memoryText).not.toContain('⤷');
+                expect(memoryText).not.toContain('IMMEDIATELY AFTER');
             });
 
             it('does NOT add "Shortly after" for gaps 5-14 messages', () => {
@@ -562,10 +562,10 @@ describe('formatting', () => {
                     { id: '1', summary: 'Event A', message_ids: [4980], sequence: 498000, importance: 3 },
                     { id: '2', summary: 'Event B', message_ids: [4990], sequence: 499000, importance: 3 },
                 ];
-                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+                const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-                expect(result).not.toContain('⤷');
-                expect(result).not.toContain('Shortly after');
+                expect(memoryText).not.toContain('⤷');
+                expect(memoryText).not.toContain('Shortly after');
             });
 
             it('no causality hints in any bucket', () => {
@@ -573,9 +573,9 @@ describe('formatting', () => {
                     { id: '1', summary: 'Old A', message_ids: [100], sequence: 100000, importance: 3 },
                     { id: '2', summary: 'Old B', message_ids: [103], sequence: 103000, importance: 3 },
                 ];
-                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+                const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-                expect(result).not.toContain('⤷');
+                expect(memoryText).not.toContain('⤷');
             });
         });
 
@@ -592,10 +592,10 @@ describe('formatting', () => {
                         emotional_impact: { Alice: 'guilt', Bob: 'shock' },
                     },
                 ];
-                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+                const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-                expect(result).not.toContain('💔 Emotional:');
-                expect(result).toContain('[★★★★] Major event');
+                expect(memoryText).not.toContain('💔 Emotional:');
+                expect(memoryText).toContain('[★★★★] Major event');
             });
 
             it('does NOT add emotional annotation for importance 5', () => {
@@ -609,9 +609,9 @@ describe('formatting', () => {
                         emotional_impact: ['fear'],
                     },
                 ];
-                const result = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+                const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
-                expect(result).not.toContain('💔 Emotional:');
+                expect(memoryText).not.toContain('💔 Emotional:');
             });
         });
 
@@ -672,7 +672,7 @@ describe('formatting', () => {
                     characterEmotions: { Hero: 'determined', Goblin: 'terrified' },
                 };
 
-                const result = formatContextForInjection(
+                const { memoryText } = formatContextForInjection(
                     memories,
                     presentCharacters,
                     emotionalInfo,
@@ -682,36 +682,47 @@ describe('formatting', () => {
                 );
 
                 // Structure checks
-                expect(result).toContain('## The Story So Far');
-                expect(result).toContain('## Leading Up To This Moment');
-                expect(result).toContain('## Current Scene');
+                expect(memoryText).toContain('## The Story So Far');
+                expect(memoryText).toContain('## Leading Up To This Moment');
+                expect(memoryText).toContain('## Current Scene');
 
                 // Simplified header with star legend
-                expect(result).toContain('(#5000 messages | ★=minor ★★★=notable ★★★★★=critical)');
-                expect(result).not.toContain('Current chat has');
+                expect(memoryText).toContain('(#5000 messages | ★=minor ★★★=notable ★★★★★=critical)');
+                expect(memoryText).not.toContain('Current chat has');
 
                 // Gap separator in old bucket (105 -> 800 = 695 gap)
-                expect(result).toContain('...Much later...');
+                expect(memoryText).toContain('...Much later...');
 
                 // NO causality hints (removed)
-                expect(result).not.toContain('⤷');
+                expect(memoryText).not.toContain('⤷');
 
                 // NO per-memory emotional annotations (removed)
-                expect(result).not.toContain('💔 Emotional:');
+                expect(memoryText).not.toContain('💔 Emotional:');
 
                 // Character emotions in Current Scene
-                expect(result).toContain('Emotions: Hero determined, Goblin terrified');
+                expect(memoryText).toContain('Emotions: Hero determined, Goblin terrified');
 
                 // Present characters in recent
-                expect(result).toContain('Present: Goblin');
+                expect(memoryText).toContain('Present: Goblin');
 
                 // Memories should NOT have [Secret] tags (inverted)
-                expect(result).not.toContain('[Secret]');
+                expect(memoryText).not.toContain('[Secret]');
             });
         });
 
         // Subconscious Drives (reflection separation)
         describe('subconscious_drives', () => {
+            it('returns object with memoryText and reflectionText properties', () => {
+                const memories = [{ id: 'ev_1', type: 'event', summary: 'Event 1', importance: 3, sequence: 1000 }];
+                const result = formatContextForInjection(memories, [], null, 'CharacterA', 1000, 100);
+
+                expect(result).toBeInstanceOf(Object);
+                expect(result).toHaveProperty('memoryText');
+                expect(result).toHaveProperty('reflectionText');
+                expect(typeof result.memoryText).toBe('string');
+                expect(typeof result.reflectionText).toBe('string');
+            });
+
             it('separates reflections from events into different XML blocks', () => {
                 const memories = [
                     { id: 'ev_1', type: 'event', summary: 'Event 1', importance: 3, sequence: 1000 },
@@ -725,21 +736,68 @@ describe('formatting', () => {
                     },
                 ];
                 const result = formatContextForInjection(memories, [], null, 'CharacterA', 1000, 100);
-                expect(result).toContain('<scene_memory>');
-                expect(result).toContain('Event 1');
-                expect(result).toContain('Event 2');
-                expect(result).toContain('<subconscious_drives>');
-                expect(result).toContain('Insight about character');
-                const sceneMemoryMatch = result.match(/<scene_memory>([\s\S]*?)<\/scene_memory>/);
+
+                // Check structure
+                expect(result.memoryText).toContain('<scene_memory>');
+                expect(result.memoryText).toContain('Event 1');
+                expect(result.memoryText).toContain('Event 2');
+                expect(result.memoryText).not.toContain('Insight about character');
+                expect(result.memoryText).toContain('</scene_memory>');
+
+                expect(result.reflectionText).toContain('<subconscious_drives>');
+                expect(result.reflectionText).toContain('Insight about character');
+                expect(result.reflectionText).toContain('</subconscious_drives>');
+
+                // Verify reflections are NOT in memoryText
+                const sceneMemoryMatch = result.memoryText.match(/<scene_memory>([\s\S]*?)<\/scene_memory>/);
                 const sceneMemoryContent = sceneMemoryMatch ? sceneMemoryMatch[1] : '';
                 expect(sceneMemoryContent).not.toContain('Insight about character');
+            });
+
+            it('returns empty reflectionText when no reflections exist', () => {
+                const memories = [{ id: 'ev_1', type: 'event', summary: 'Event 1', importance: 3, sequence: 1000 }];
+                const result = formatContextForInjection(memories, [], null, 'Char', 1000, 100);
+
+                expect(result.memoryText).toContain('<scene_memory>');
+                expect(result.memoryText).toContain('Event 1');
+                expect(result.memoryText).toContain('</scene_memory>');
+                expect(result.reflectionText).toBe('');
             });
 
             it('omits subconscious_drives block when no reflections exist', () => {
                 const memories = [{ id: 'ev_1', type: 'event', summary: 'Event 1', importance: 3, sequence: 1000 }];
                 const result = formatContextForInjection(memories, [], null, 'Char', 1000, 100);
-                expect(result).toContain('<scene_memory>');
-                expect(result).not.toContain('<subconscious_drives>');
+                expect(result.memoryText).toContain('<scene_memory>');
+                expect(result.reflectionText).toBe('');
+                expect(result.memoryText).not.toContain('<subconscious_drives>');
+            });
+
+            it('preserves scene_memory structure with timeline buckets and star ratings', () => {
+                const memories = [
+                    // Old bucket
+                    { id: '1', summary: 'Old event', message_ids: [100], sequence: 100000, importance: 2 },
+                    { id: '2', summary: 'Another old', message_ids: [800], sequence: 800000, importance: 3 },
+                    // Mid bucket
+                    { id: '3', summary: 'Mid event', message_ids: [4550], sequence: 455000, importance: 3 },
+                    // Recent bucket
+                    { id: '4', summary: 'Recent event', message_ids: [4980], sequence: 498000, importance: 4 },
+                ];
+                const result = formatContextForInjection(memories, [], null, 'Hero', 10000, 5000);
+
+                // Verify all expected content is in memoryText
+                expect(result.memoryText).toContain('## The Story So Far');
+                expect(result.memoryText).toContain('## Leading Up To This Moment');
+                expect(result.memoryText).toContain('## Current Scene');
+                expect(result.memoryText).toContain('[★★] Old event');
+                expect(result.memoryText).toContain('[★★★] Another old');
+                expect(result.memoryText).toContain('[★★★] Mid event');
+                expect(result.memoryText).toContain('[★★★★] Recent event');
+
+                // Verify gap separators for old bucket (100 -> 800 = 700 gap)
+                expect(result.memoryText).toContain('...Much later...');
+
+                // Verify reflectionText is empty (no reflections in input)
+                expect(result.reflectionText).toBe('');
             });
         });
 
@@ -749,7 +807,7 @@ describe('formatting', () => {
                     { id: '1', summary: 'Old memory', message_ids: [100], sequence: 10000, importance: 3 },
                     { id: '2', summary: 'Recent memory', message_ids: [900], sequence: 9000, importance: 3 },
                 ];
-                const result = formatContextForInjection(
+                const { memoryText } = formatContextForInjection(
                     memories,
                     ['OtherChar'],
                     { emotion: 'neutral' },
@@ -757,8 +815,8 @@ describe('formatting', () => {
                     1000,
                     1000
                 );
-                expect(result).toContain('Old memory');
-                expect(result).toContain('Recent memory');
+                expect(memoryText).toContain('Old memory');
+                expect(memoryText).toContain('Recent memory');
             });
 
             it('should not apply 50% quota to old bucket', () => {
@@ -771,7 +829,7 @@ describe('formatting', () => {
                     importance: 3,
                 }));
 
-                const result = formatContextForInjection(
+                const { memoryText } = formatContextForInjection(
                     oldMemories,
                     [],
                     null,
@@ -781,7 +839,7 @@ describe('formatting', () => {
                 );
 
                 // Count how many old memories were included
-                const count = (result.match(/Old memory/g) || []).length;
+                const count = (memoryText.match(/Old memory/g) || []).length;
                 // With soft balance, could be more than 50% if scoring selected them
                 expect(count).toBeGreaterThan(0);
             });
@@ -860,11 +918,11 @@ describe('memory bucket order and budget', () => {
 
         const allMemories = [...oldMemories, ...recentMemories];
         // Use a very small budget that can't fit all old memories
-        const result = formatContextForInjection(allMemories, [], null, 'Test', 200, 5000);
+        const { memoryText } = formatContextForInjection(allMemories, [], null, 'Test', 200, 5000);
 
         // Count how many old memories appear vs recent
-        const oldCount = oldMemories.filter((m) => result.includes(m.summary)).length;
-        const recentCount = recentMemories.filter((m) => result.includes(m.summary)).length;
+        const oldCount = oldMemories.filter((m) => memoryText.includes(m.summary)).length;
+        const recentCount = recentMemories.filter((m) => memoryText.includes(m.summary)).length;
 
         // With the new behavior, old memories come first in the order
         // so they may consume most of the budget before recent memories are reached

@@ -100,7 +100,7 @@ export function formatContextForInjection(
     // Handle null/undefined memories
     if (!memories || !Array.isArray(memories)) {
         lines.push('</scene_memory>');
-        return lines.join('\n');
+        return { memoryText: lines.join('\n'), reflectionText: '' };
     }
 
     // Separate memories into events and reflections for different XML blocks
@@ -224,23 +224,25 @@ export function formatContextForInjection(
     }
 
     lines.push('</scene_memory>');
+    const memoryText = lines.join('\n');
 
-    // Add subconscious_drives block for reflections (if any exist)
+    // Build subconscious_drives block for reflections separately
+    let reflectionText = '';
     if (reflections.length > 0) {
-        lines.push('');
-        lines.push('<subconscious_drives>');
-        lines.push(
-            '[CRITICAL RULE: The following are hidden psychological truths. The character is NOT consciously aware of these dynamics and would NEVER speak them aloud. Use this ONLY as subtext to influence their subtle actions and emotional reactions.]'
-        );
-        lines.push('');
+        const reflectionLines = [
+            '<subconscious_drives>',
+            '[CRITICAL RULE: The following are hidden psychological truths. The character is NOT consciously aware of these dynamics and would NEVER speak them aloud. Use this ONLY as subtext to influence their subtle actions and emotional reactions.]',
+            '',
+        ];
         for (const ref of reflections) {
             const importance = ref.importance || 3;
             const stars = '\u2605'.repeat(importance);
-            lines.push(`[${stars}] ${ref.summary}`);
+            reflectionLines.push(`[${stars}] ${ref.summary}`);
         }
-        lines.push('');
-        lines.push('</subconscious_drives>');
+        reflectionLines.push('');
+        reflectionLines.push('</subconscious_drives>');
+        reflectionText = reflectionLines.join('\n');
     }
 
-    return lines.join('\n');
+    return { memoryText, reflectionText };
 }
