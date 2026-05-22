@@ -444,60 +444,28 @@ describe('BM25 with exact phrase tokens', () => {
     });
 });
 
-describe('Reflection decay with level divisor', () => {
-    it('should apply slower decay to level 2 reflections', async () => {
+describe('Reflection decay', () => {
+    it('should apply decay to reflections beyond threshold', async () => {
         const { calculateScore } = await import('../../src/retrieval/math.js');
-
-        const memoryLevel1 = {
-            type: 'reflection',
-            level: 1,
-            message_ids: [100],
-            importance: 4,
-        };
-        const memoryLevel2 = {
-            type: 'reflection',
-            level: 2,
-            message_ids: [100],
-            importance: 4,
-        };
 
         const constants = {
             BASE_LAMBDA: 0.05,
             IMPORTANCE_5_FLOOR: 1.0,
             reflectionDecayThreshold: 750,
-            reflectionLevelMultiplier: 2.0, // NEW
         };
         const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
 
-        // At distance 1000 (250 past threshold of 750):
-        // Level 1 decay: 1 - 250/(2*750) = 1 - 0.1667 = 0.833
-        // Level 2 decay: 1 - 250/(2*750*2) = 1 - 0.0833 = 0.917
-        const scoreLevel1 = calculateScore(memoryLevel1, null, 1000, constants, settings);
-        const scoreLevel2 = calculateScore(memoryLevel2, null, 1000, constants, settings);
-
-        expect(scoreLevel2.total).toBeGreaterThan(scoreLevel1.total);
-    });
-
-    it('should default to level 1 for reflections without level field', async () => {
-        const { calculateScore } = await import('../../src/retrieval/math.js');
-
-        const legacyReflection = {
+        const reflection = {
             type: 'reflection',
-            // No level field
             message_ids: [100],
             importance: 4,
         };
 
-        const constants = {
-            BASE_LAMBDA: 0.05,
-            IMPORTANCE_5_FLOOR: 1.0,
-            reflectionDecayThreshold: 750,
-            reflectionLevelMultiplier: 2.0,
-        };
-        const settings = { vectorSimilarityThreshold: 0.5, alpha: 0.5, combinedBoostWeight: 2.0 };
+        // Reflection at distance 500 (before threshold) should score higher than at distance 1000 (past threshold)
+        const scoreBeforeThreshold = calculateScore(reflection, null, 500, constants, settings);
+        const scoreAfterThreshold = calculateScore(reflection, null, 1000, constants, settings);
 
-        const score = calculateScore(legacyReflection, null, 1000, constants, settings);
-        expect(score.total).toBeGreaterThan(0); // Should not error
+        expect(scoreBeforeThreshold.total).toBeGreaterThan(scoreAfterThreshold.total);
     });
 });
 

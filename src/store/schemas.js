@@ -165,7 +165,6 @@ export const ScoringConfigSchema = z.object({
     forgetfulnessBaseLambda: z.number().min(0.001).max(1),
     forgetfulnessImportance5Floor: z.number().min(0),
     reflectionDecayThreshold: z.number().min(0),
-    reflectionLevelMultiplier: z.number().min(1).max(10),
     vectorSimilarityThreshold: z.number().min(0).max(0.99),
     alpha: z.number().min(0).max(1),
     combinedBoostWeight: z.number().min(0).max(100),
@@ -308,7 +307,6 @@ export const ForgetfulnessConstantsSchema = z.object({
     BASE_LAMBDA: z.number(),
     IMPORTANCE_5_FLOOR: z.number(),
     reflectionDecayThreshold: z.number(),
-    reflectionLevelMultiplier: z.number().optional(),
 });
 
 // Scoring settings

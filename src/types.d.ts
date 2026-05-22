@@ -264,7 +264,6 @@ export type ScoringConfig = {
     forgetfulnessBaseLambda: number;
     forgetfulnessImportance5Floor: number;
     reflectionDecayThreshold: number;
-    reflectionLevelMultiplier: number;
     vectorSimilarityThreshold: number;
     alpha: number;
     combinedBoostWeight: number;
@@ -392,7 +391,6 @@ export type RetrievalContext = {
         forgetfulnessBaseLambda: number;
         forgetfulnessImportance5Floor: number;
         reflectionDecayThreshold: number;
-        reflectionLevelMultiplier: number;
         vectorSimilarityThreshold: number;
         alpha: number;
         combinedBoostWeight: number;
@@ -466,7 +464,6 @@ export type ForgetfulnessConstants = {
     BASE_LAMBDA: number;
     IMPORTANCE_5_FLOOR: number;
     reflectionDecayThreshold: number;
-    reflectionLevelMultiplier?: number | undefined;
 };
 
 export type ScoringSettings = {

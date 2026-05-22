@@ -328,15 +328,9 @@ export function calculateScore(
 
     // === Reflection Decay ===
     // Reflections lose additional score with distance beyond threshold
-    // Higher-level reflections decay slower (level divisor)
     if (memory.type === 'reflection' && distance > constants.reflectionDecayThreshold) {
         const threshold = constants.reflectionDecayThreshold;
-        const level = memory.level || 1; // Default to level 1 for legacy
-        const multiplier = constants.reflectionLevelMultiplier || 2.0;
-        const levelDivisor = multiplier ** (level - 1);
-
-        // Decay is divided by level multiplier: level 2 decays 2x slower
-        const decayFactor = Math.max(0.25, 1 - (distance - threshold) / (2 * threshold * levelDivisor));
+        const decayFactor = Math.max(0.25, 1 - (distance - threshold) / (2 * threshold));
         total *= decayFactor;
     }
 
