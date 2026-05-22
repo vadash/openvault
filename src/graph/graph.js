@@ -27,8 +27,8 @@ import { parseConsolidationResponse } from '../extraction/structured.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
 import {
     buildEdgeConsolidationPrompt,
+    PREFILL_PRESETS,
     resolveExtractionPreamble,
-    resolveExtractionPrefill,
     resolveOutputLanguage,
 } from '../prompts/index.js';
 import { cosineSimilarity, tokenize } from '../retrieval/math.js';
@@ -550,7 +550,7 @@ export async function consolidateEdges(graphData, _settings) {
     const extensionSettings = deps.getExtensionSettings()?.[extensionName] || {};
     const preamble = resolveExtractionPreamble(extensionSettings);
     const outputLanguage = resolveOutputLanguage(extensionSettings);
-    const prefill = resolveExtractionPrefill(extensionSettings);
+    const prefill = PREFILL_PRESETS.json_only.value;
     const maxConcurrency = extensionSettings.maxConcurrency;
     const ladderQueue = await createLadderQueue(maxConcurrency);
 

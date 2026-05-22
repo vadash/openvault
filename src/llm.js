@@ -88,7 +88,7 @@ export const LLM_CONFIGS = {
     },
     edge_consolidation: {
         profileSettingKey: 'extractionProfile',
-        maxTokens: 400,
+        maxTokens: 1000,
         errorContext: 'Edge consolidation',
         timeoutMs: 60000,
         getJsonSchema: getEdgeConsolidationJsonSchema,

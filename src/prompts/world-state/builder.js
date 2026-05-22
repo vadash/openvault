@@ -17,8 +17,8 @@ import { WORLD_STATE_SCHEMA } from './schema.js';
 
 /**
  * Build the global world state synthesis prompt.
- * @param {string[]} entities - Formatted entity descriptions
- * @param {string[]} edges - Formatted relationship descriptions
+ * @param {{ name: string, type: string, description: string, mentions: number }[]} entities - Top entities from selectTopEntities
+ * @param {{ source: string, target: string, sourceType: string, targetType: string, description: string, weight: number }[]} edges - Intra-set edges from selectTopEntities
  * @param {string} preamble - System prompt preamble
  * @param {'auto'|'en'|'ru'} [outputLanguage='auto'] - Output language
  * @param {string} [prefill='<thinking>\n'] - Assistant prefill text
@@ -37,7 +37,11 @@ export function buildGlobalWorldStatePrompt(
         outputLanguage,
     });
 
-    const entityText = entities.join('\n');
+    const entityText = entities
+        .map((e) => `- ${e.name} (${e.type}): ${e.description} [Mentions: ${e.mentions}]`)
+        .join('\n');
+    const edgeText = edges.map((e) => `- ${e.source} → ${e.target}: ${e.description} [Weight: ${e.weight}]`).join('\n');
+
     const languageInstruction = resolveLanguageInstruction(entityText, outputLanguage);
     const constraints = assembleUserConstraints({
         rules: WORLD_STATE_RULES,
@@ -50,7 +54,7 @@ ${entityText}
 </world_entities>
 
 <world_relationships>
-${edges.join('\n')}
+${edgeText}
 </world_relationships>
 
 Write a comprehensive report about the current world state based on these top entities and relationships.

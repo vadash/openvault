@@ -45,9 +45,9 @@ vi.mock('../../src/prompts/index.js', () => ({
         { role: 'user', content: `Synthesize: ${edgeData.source} - ${edgeData.target}` },
         { role: 'assistant', content: '{' },
     ],
+    PREFILL_PRESETS: { json_only: { value: '{\n  "' } },
     resolveExtractionPreamble: () => 'preamble',
     resolveOutputLanguage: () => 'auto',
-    resolveExtractionPrefill: () => '{',
 }));
 
 // Mock deps module (needed by consolidateEdges for preamble/outputLanguage resolution)
