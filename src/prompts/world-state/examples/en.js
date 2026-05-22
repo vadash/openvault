@@ -1,10 +1,10 @@
 /**
- * English community and global synthesis few-shot examples.
+ * English world state few-shot examples.
  */
 
-export const COMMUNITIES = [
+export const WORLD_STATE = [
     {
-        label: 'Conspiracy cell (EN/SFW)',
+        label: 'Conspiracy convergence (EN/SFW)',
         input: `Entities
 - Investigator Renata PERSON  City watch investigator assigned to a missing persons case; reports directly to Lord Bassett
 - Lord Councilor Bassett PERSON  Noble who controls the City Watch; architect of the disappearances Renata is investigating
@@ -82,7 +82,7 @@ Relationships
 Relationships
 - Cass → Teo  Directs scenes with precision; can read his physical state accurately; consistently hits the wall of his emotional withdrawal the moment the session ends
 - Teo → Cass  Physically obedient inside sessions; deflects intimacy outside them; endings function like a door closing
-- Cass → Vera  Aware of the prior history; hasn't raised it directly; uses Vera as a pressure valve without fully naming what she's actually processing
+- Cass → Vera  Aware of the prior history; hasn't raised it directly; uses Vera as a pressure valve without fully naming what she's really processing
 - Vera → Teo  Occasional contact; emotionally accessible to him in a way that bypasses the withdrawal pattern he runs with Cass
 - Teo → Restraint Session  Seeks the sessions himself — he initiates; submission is the one context where he doesn't have to manage his own emotional output
 - Vera → Cass  Listens carefully and supports her; observes more than she says`,
@@ -94,7 +94,7 @@ Relationships
 6. 5 findings: affect regulation, relational withdrawal, Vera avoidance, apartment threshold`,
         output: `{
   "title": "Cass and Teo Power Circuit",
-  "summary": "A dominant-submissive dynamic that functions with real precision inside sessions and stalls almost completely outside them. Teo seeks the restraint sessions himself — submission is how he regulates affect, the one context where he doesn't have to manage his own emotional output — but consistently withdraws from Cass the moment sessions end. Vera, who knew Teo before Cass, retains an emotional access Cass hasn't been able to build, and Cass is using Vera as a pressure valve while carefully not naming what she's actually trying to understand.",
+  "summary": "A dominant-submissive dynamic that functions with real precision inside sessions and stalls almost completely outside them. Teo seeks the restraint sessions himself — submission is how he regulates affect, the one context where he doesn't have to manage his own emotional output — but consistently withdraws from Cass the moment sessions end. Vera, who knew Teo before Cass, retains an emotional access Cass hasn't been able to build, and Cass is using Vera as a pressure valve while carefully not naming what she's really trying to understand.",
   "findings": [
     "Teo uses submission as affect regulation rather than purely sexual expression — he initiates because the restraint session is the one space where he doesn't have to perform emotional control, which makes his compliance a form of seeking, not just yielding",
     "The post-session withdrawal is specific to Cass, not a general trait — Vera can reach him when Cass can't, which means the emotional wall is relational rather than dispositional and points to something in what the relationship with Cass represents to him",
@@ -102,40 +102,6 @@ Relationships
     "The apartment functions as a threshold Teo crosses twice in every session — inhabiting it one way inside the scene and a completely different way outside it, a split Cass has noticed and cannot yet address through the dynamic's existing vocabulary",
     "The structural tension in the relationship is that the power exchange gives Cass precise access to Teo's physical and responsive state and almost no access to his interior one — she can read his body and command it; she cannot reach the part of him that's still unavailable"
   ]
-}`,
-    },
-];
-
-export const GLOBAL_SYNTHESIS = [
-    {
-        label: 'Conspiracy convergence (EN)',
-        input: `Communities
-- Bassett Corruption Network: Renata investigates disappearances while unknowingly reporting to the man who ordered them. The only surviving evidence is in Mira's hands, held back by her rational distrust of city institutions.
-- Hollow Underground: The Hollows are an organized refugee network that Bassett has been systematically raiding. Mira leads them and holds the falsified Ledger pages — the only proof of Bassett's crimes.
-- Watch Internal Friction: Two senior Watch officers below Bassett have independently noticed anomalies in the Ledger records. Neither knows the other is looking. Neither has approached Renata.`,
-        thinking: `1. Bassett Corruption: Renata trapped inside; Hollows: Mira holds evidence, distrust
-2. Watch Friction: two officers, independent, uncoordinated Ledger anomaly inquiry
-3. All three -> Bassett from different angles; none in contact
-4. Renata + Watch officers -> same Ledger anomalies, don't know each other
-5. Race: accidental coordination vs Bassett neutralizing them one-by-one`,
-        output: `{
-  "global_summary": "A conspiracy beginning to collapse under pressure from three independent directions that haven't located each other yet. Renata investigates from inside the Watch without knowing she reports to her own suspect. Two Watch officers below Bassett are noticing Ledger anomalies in parallel without coordinating. Mira holds the only hard evidence and is waiting for a trust mechanism that hasn't arrived. Bassett's structural vulnerability is the falsified Ledger — a single point of failure that all three threads are approaching from different angles — but his positional advantage is that he sees Renata's moves in real time and can suppress any one investigation before the others converge. The trajectory is a race: accidental coordination among investigators who don't know each other exist versus Bassett identifying and cutting them individually before they find each other."
-}`,
-    },
-    {
-        label: 'Operational collapse (EN)',
-        input: `Communities
-- Cell Fracture Point: Dex's paranoia is consuming the cell's internal coherence. Dex and Solène are assessing Priya from opposite conclusions without comparing notes. The Manifesto lists every member by real name and sits in a safehouse that may already be under surveillance.
-- Revolutionary Coordination Network: The upstream network that Dex's cell feeds intelligence to. Leadership is unaware the cell's output has slowed or that the Vault may be flagged.
-- The Cartographers: A nominally neutral faction that maps contested territory and sells to multiple buyers. They have recently begun surveying the district where the Vault is located.`,
-        thinking: `1. Cell Fracture: internal breakdown, Manifesto exposed, Priya unresolved
-2. Coordination Network: upstream uninformed, no visibility into degradation
-3. Cartographers: neutral mappers, surveying Vault district, sell to multiple buyers
-4. Cartographers = external trigger; maps correlate with Vault if Priya feeds info
-5. Cell tears apart while external clock runs; Vault deadline via routine mapping
-6. Solène = deciding variable for cell survival; Priya loyalty unresolved`,
-        output: `{
-  "global_summary": "A cell tearing itself apart from inside while an external clock runs down on it from outside. Dex and Solène's unresolved split over Priya is the internal drag; the Cartographers' routine mapping of the Vault district is the external deadline no one in the cell has identified. The Revolutionary Coordination Network upstream is receiving slowed output without visibility into why and has no mechanism to apply pressure that would force the fracture to resolve. All three communities are converging on the same physical point — the Vault — through unrelated vectors: paranoid watch, potential informant activity, and neutral survey work sold to any buyer. Whether Priya is clean or not, the Vault's exposure window is closing. The Dex-Solène communication failure is the variable that determines whether the cell evacuates in time or gets caught mid-argument about who to trust."
 }`,
     },
 ];

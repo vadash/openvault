@@ -5,15 +5,10 @@
  * Consumers import from this file; internal structure is hidden.
  */
 
-// Communities
-export { buildCommunitySummaryPrompt, buildGlobalSynthesisPrompt } from './communities/builder.js';
-
 // Events
 export { buildEventExtractionPrompt } from './events/builder.js';
-
 // Graph
 export { buildEdgeConsolidationPrompt, buildGraphExtractionPrompt } from './graph/builder.js';
-
 // Reflection
 export { buildUnifiedReflectionPrompt } from './reflection/builder.js';
 // Shared
@@ -25,3 +20,5 @@ export {
     SYSTEM_PREAMBLE_CN,
     SYSTEM_PREAMBLE_EN,
 } from './shared/preambles.js';
+// World State
+export { buildGlobalWorldStatePrompt } from './world-state/builder.js';
