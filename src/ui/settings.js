@@ -858,6 +858,19 @@ function bindInjectionSettings() {
         setSetting('injection.memory.depth', depth);
     });
 
+    // Reflections position selector
+    $('#openvault_reflections_position').on('change', function () {
+        const position = parseInt($(this).val(), 10);
+        setSetting('injection.reflections.position', position);
+        updateInjectionUI('reflections');
+    });
+
+    // Reflections depth input
+    $('#openvault_reflections_depth').on('input', function () {
+        const depth = parseInt($(this).val(), 10) || 4;
+        setSetting('injection.reflections.depth', depth);
+    });
+
     // World position selector
     $('#openvault_world_position').on('change', function () {
         const position = parseInt($(this).val(), 10);
@@ -882,6 +895,16 @@ function bindInjectionSettings() {
             .catch(() => {});
     });
 
+    $('#openvault_copy_reflections_macro').on('click', () => {
+        navigator.clipboard
+            .writeText('{{openvault_reflections}}')
+            .then(
+                () => showToast('success', 'Copied {{openvault_reflections}} to clipboard'),
+                () => showToast('error', 'Failed to copy')
+            )
+            .catch(() => {});
+    });
+
     $('#openvault_copy_world_macro').on('click', () => {
         navigator.clipboard
             .writeText('{{openvault_world}}')
@@ -895,7 +918,7 @@ function bindInjectionSettings() {
 
 /**
  * Update injection settings UI visibility based on position selection.
- * @param {'memory'|'world'|'both'} type - Which injection type to update
+ * @param {'memory'|'reflections'|'world'|'both'} type - Which injection type to update
  */
 export function updateInjectionUI(type = 'both') {
     const settings = getSettings();
@@ -915,6 +938,7 @@ export function updateInjectionUI(type = 'both') {
     };
 
     if (type === 'both' || type === 'memory') updateType('memory');
+    if (type === 'both' || type === 'reflections') updateType('reflections');
     if (type === 'both' || type === 'world') updateType('world');
 }
 

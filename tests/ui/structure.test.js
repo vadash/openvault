@@ -194,4 +194,34 @@ describe('Progressive Disclosure Integration', () => {
             expect(maxTurnsIndex).toBeLessThan(rearviewIndex);
         });
     });
+
+    describe('Injection Positions section', () => {
+        it('has reflections position dropdown', () => {
+            expect(html).toContain('id="openvault_reflections_position"');
+        });
+
+        it('has reflections depth input', () => {
+            expect(html).toContain('id="openvault_reflections_depth"');
+        });
+
+        it('has reflections macro display', () => {
+            expect(html).toContain('{{openvault_reflections}}');
+        });
+
+        it('has Reflections label', () => {
+            expect(html).toContain('Reflections');
+        });
+
+        it('has reflections depth container', () => {
+            expect(html).toContain('id="openvault_reflections_depth_container"');
+        });
+
+        it('has reflections macro container', () => {
+            expect(html).toContain('id="openvault_reflections_macro_container"');
+        });
+
+        it('has reflections copy macro button', () => {
+            expect(html).toContain('id="openvault_copy_reflections_macro"');
+        });
+    });
 });
