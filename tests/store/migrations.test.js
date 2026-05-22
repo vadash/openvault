@@ -263,7 +263,7 @@ describe('v5 migration - convert reflection toggles to position -2', () => {
         const result = runSchemaMigrations(data, []);
 
         expect(result).toBe(true);
-        expect(data.schema_version).toBe(6);
+        expect(data.schema_version).toBe(7);
         expect(data.settings.injection.reflections.position).toBe(-2);
     });
 
@@ -325,7 +325,7 @@ describe('v5 migration - convert reflection toggles to position -2', () => {
         const result = runSchemaMigrations(data, []);
 
         expect(result).toBe(false);
-        expect(data.schema_version).toBe(6);
+        expect(data.schema_version).toBe(7);
     });
 
     it('is idempotent - running twice produces the same result', () => {
@@ -346,5 +346,167 @@ describe('v5 migration - convert reflection toggles to position -2', () => {
         runSchemaMigrations(data, []);
 
         expect(data).toEqual(firstRun);
+    });
+});
+
+describe('v6 migration - remove community data', () => {
+    it('deletes communities object', () => {
+        const data = {
+            schema_version: 5,
+            communities: { nodes: [] },
+        };
+
+        const result = runSchemaMigrations(data, []);
+
+        expect(result).toBe(true);
+        expect(data).not.toHaveProperty('communities');
+    });
+
+    it('removes community_count from global_world_state', () => {
+        const data = {
+            schema_version: 5,
+            global_world_state: { summary: 'Test', community_count: 3 },
+        };
+
+        runSchemaMigrations(data, []);
+
+        expect(data.global_world_state).not.toHaveProperty('community_count');
+        expect(data.global_world_state.summary).toBe('Test');
+    });
+
+    it('renames communityDetectionInterval to worldStateInterval', () => {
+        const data = {
+            schema_version: 5,
+            settings: { communityDetectionInterval: 50 },
+        };
+
+        runSchemaMigrations(data, []);
+
+        expect(data.settings).not.toHaveProperty('communityDetectionInterval');
+        expect(data.settings.worldStateInterval).toBe(50);
+    });
+
+    it('handles data with no communities or global_world_state', () => {
+        const data = {
+            schema_version: 5,
+            settings: {},
+        };
+
+        const result = runSchemaMigrations(data, []);
+
+        expect(result).toBe(false);
+    });
+});
+
+describe('v7 migration - delete Level 2+ reflections', () => {
+    it('deletes reflections where level > 1 but keeps Level 1 reflections and events', () => {
+        const data = {
+            schema_version: 6,
+            memories: [
+                { id: 'm1', type: 'event', summary: 'Event 1', level: 1 },
+                { id: 'm2', type: 'reflection', summary: 'Level 1 reflection', level: 1 },
+                { id: 'm3', type: 'reflection', summary: 'Level 2 reflection', level: 2 },
+                { id: 'm4', type: 'reflection', summary: 'Level 3 reflection', level: 3 },
+                { id: 'm5', type: 'reflection', summary: 'Reflection no explicit level' }, // no level defaults to 1 (kept)
+            ],
+        };
+
+        const result = runSchemaMigrations(data, []);
+
+        expect(result).toBe(true);
+        expect(data.memories).toHaveLength(3);
+        expect(data.memories.some((m) => m.id === 'm1')).toBe(true);
+        expect(data.memories.some((m) => m.id === 'm2')).toBe(true);
+        expect(data.memories.some((m) => m.id === 'm3')).toBe(false);
+        expect(data.memories.some((m) => m.id === 'm4')).toBe(false);
+        expect(data.memories.some((m) => m.id === 'm5')).toBe(true);
+    });
+
+    it('keeps data unchanged when no Level 2+ reflections exist', () => {
+        const data = {
+            schema_version: 6,
+            memories: [
+                { id: 'm1', type: 'event', summary: 'Event 1' },
+                { id: 'm2', type: 'reflection', summary: 'Level 1 reflection', level: 1 },
+            ],
+        };
+
+        const result = runSchemaMigrations(data, []);
+
+        expect(result).toBe(false);
+        expect(data.memories).toHaveLength(2);
+    });
+
+    it('removes maxReflectionLevel and reflectionLevelMultiplier from data.settings if present', () => {
+        const data = {
+            schema_version: 6,
+            memories: [],
+            settings: {
+                maxReflectionLevel: 3,
+                reflectionLevelMultiplier: 2.0,
+                otherSetting: 'value',
+            },
+        };
+
+        const result = runSchemaMigrations(data, []);
+
+        expect(result).toBe(true);
+        expect(data.settings).not.toHaveProperty('maxReflectionLevel');
+        expect(data.settings).not.toHaveProperty('reflectionLevelMultiplier');
+        expect(data.settings.otherSetting).toBe('value');
+    });
+
+    it('handles missing data.memories gracefully (no crash)', () => {
+        const data = {
+            schema_version: 6,
+            settings: {},
+        };
+
+        expect(() => runSchemaMigrations(data, [])).not.toThrow();
+        expect(data.memories).toBeUndefined();
+    });
+
+    it('returns true when changes made, false when no changes needed', () => {
+        const dataWithL2 = {
+            schema_version: 6,
+            memories: [{ id: 'm1', type: 'reflection', level: 2 }],
+        };
+
+        const dataWithoutL2 = {
+            schema_version: 6,
+            memories: [{ id: 'm1', type: 'reflection', level: 1 }],
+        };
+
+        expect(runSchemaMigrations(dataWithL2, [])).toBe(true);
+        expect(runSchemaMigrations(dataWithoutL2, [])).toBe(false);
+    });
+
+    it('removes stale settings even when no memories exist', () => {
+        const data = {
+            schema_version: 6,
+            settings: {
+                maxReflectionLevel: 3,
+                reflectionLevelMultiplier: 2.0,
+            },
+        };
+
+        const result = runSchemaMigrations(data, []);
+
+        expect(result).toBe(true);
+        expect(data.settings).not.toHaveProperty('maxReflectionLevel');
+        expect(data.settings).not.toHaveProperty('reflectionLevelMultiplier');
+    });
+
+    it('treats reflection with no level field as level 1 (keeps it)', () => {
+        const data = {
+            schema_version: 6,
+            memories: [{ id: 'm1', type: 'reflection', summary: 'No level specified' }],
+        };
+
+        const result = runSchemaMigrations(data, []);
+
+        expect(result).toBe(false);
+        expect(data.memories).toHaveLength(1);
+        expect(data.memories[0].id).toBe('m1');
     });
 });
