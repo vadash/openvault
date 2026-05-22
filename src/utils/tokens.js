@@ -1,5 +1,6 @@
 // @ts-check
 import { cdnImport } from './cdn.js';
+import { cyrb53 } from './embedding-codec.js';
 
 const { countTokens: _countTokens } = await cdnImport('gpt-tokenizer/encoding/o200k_base');
 
@@ -31,7 +32,7 @@ export function clearTokenCache() {
  */
 export function getMessageTokenCount(chat, index) {
     const text = chat[index]?.mes || '';
-    const key = `${index}_${text.length}`;
+    const key = String(cyrb53(text));
 
     if (tokenCache.has(key)) {
         const value = tokenCache.get(key);

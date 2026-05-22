@@ -469,7 +469,11 @@ export function sortMemoriesBySequence(memories, ascending = true) {
 }
 
 /**
- * Get the effective position of a memory in the chat timeline
+ * Get the effective position of a memory in the chat timeline.
+ * Uses average of message_ids (original chat indices at extraction time).
+ * Known tradeoff: if messages are deleted, stored indices become stale relative
+ * to current chatLength. Impact is marginal — bucket thresholds are wide (100/500).
+ * Fixing would require O(N) lookups to re-map indices; not worth the cost.
  * @param {Object} memory - Memory object
  * @returns {number} Position as message number
  */
