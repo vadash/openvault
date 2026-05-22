@@ -31,6 +31,7 @@ export const INJECTION_POSITIONS = Object.freeze({
     AFTER_AN: 3, // ↓AN - After author's note
     IN_CHAT: 4, // In-chat - At specified message depth
     CUSTOM: -1, // Custom - Macro-only, no auto-injection
+    DISABLED: -2, // Disabled - Skip generation and injection
 });
 
 export const POSITION_LABELS = Object.freeze([
@@ -40,6 +41,7 @@ export const POSITION_LABELS = Object.freeze([
     { value: 3, label: '↓AN', description: "After author's note" },
     { value: 4, label: 'In-chat', description: 'At specified message depth' },
     { value: -1, label: 'Custom', description: 'Use macro manually' },
+    { value: -2, label: 'Disabled', description: 'Skip generation and injection' },
 ]);
 
 // ============== Entity Types ==============
@@ -109,9 +111,6 @@ export const defaultSettings = {
     maxReflectionsPerCharacter: 50,
     maxReflectionLevel: 3, // Maximum reflection tree depth
     reflectionLevelMultiplier: 2.0, // Decay slows by 2x per level
-    // Reflection control toggles
-    reflectionGenerationEnabled: true, // Enable automatic reflection generation
-    reflectionInjectionEnabled: true, // Enable reflection injection into context
     // Bucket balance settings (score-first budgeting with soft chronological balancing)
     bucketMinRepresentation: 0.2, // 20% minimum per bucket
     bucketSoftBalanceBudget: 0.05, // 5% budget for soft balancing

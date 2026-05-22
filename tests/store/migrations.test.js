@@ -193,7 +193,7 @@ describe('v4 migration - add injection.reflections', () => {
         const result = runSchemaMigrations(data, []);
 
         expect(result).toBe(true);
-        expect(data.schema_version).toBe(4);
+        expect(data.schema_version).toBe(CURRENT_SCHEMA_VERSION);
         expect(data.settings.injection.reflections).toEqual({ position: 1, depth: 4 });
     });
 
@@ -245,5 +245,107 @@ describe('v4 migration - add injection.reflections', () => {
         expect(result).toBe(true);
         expect(data.settings.injection).toBeDefined();
         expect(data.settings.injection.reflections).toEqual({ position: 1, depth: 4 });
+    });
+});
+
+describe('v5 migration - convert reflection toggles to position -2', () => {
+    it('converts reflectionInjectionEnabled: false to position -2', () => {
+        const data = {
+            schema_version: 4,
+            settings: {
+                reflectionGenerationEnabled: true,
+                reflectionInjectionEnabled: false,
+                injection: {
+                    reflections: { position: 1, depth: 4 },
+                },
+            },
+        };
+
+        const result = runSchemaMigrations(data, []);
+
+        expect(result).toBe(true);
+        expect(data.schema_version).toBe(5);
+        expect(data.settings.injection.reflections.position).toBe(-2);
+    });
+
+    it('deletes both reflectionGenerationEnabled and reflectionInjectionEnabled keys', () => {
+        const data = {
+            schema_version: 4,
+            settings: {
+                reflectionGenerationEnabled: false,
+                reflectionInjectionEnabled: false,
+                injection: {
+                    reflections: { position: 1, depth: 4 },
+                },
+            },
+        };
+
+        runSchemaMigrations(data, []);
+
+        expect(data.settings).not.toHaveProperty('reflectionGenerationEnabled');
+        expect(data.settings).not.toHaveProperty('reflectionInjectionEnabled');
+    });
+
+    it('preserves position when reflectionInjectionEnabled is true', () => {
+        const data = {
+            schema_version: 4,
+            settings: {
+                reflectionGenerationEnabled: true,
+                reflectionInjectionEnabled: true,
+                injection: {
+                    reflections: { position: 2, depth: 3 },
+                },
+            },
+        };
+
+        runSchemaMigrations(data, []);
+
+        expect(data.settings.injection.reflections.position).toBe(2);
+    });
+
+    it('deletes old keys even when injection.reflections does not exist', () => {
+        const data = {
+            schema_version: 4,
+            settings: {
+                reflectionGenerationEnabled: false,
+                reflectionInjectionEnabled: false,
+            },
+        };
+
+        runSchemaMigrations(data, []);
+
+        expect(data.settings).not.toHaveProperty('reflectionGenerationEnabled');
+        expect(data.settings).not.toHaveProperty('reflectionInjectionEnabled');
+    });
+
+    it('handles data with no settings object', () => {
+        const data = {
+            schema_version: 4,
+        };
+
+        const result = runSchemaMigrations(data, []);
+
+        expect(result).toBe(false);
+        expect(data.schema_version).toBe(5);
+    });
+
+    it('is idempotent - running twice produces the same result', () => {
+        const data = {
+            schema_version: 4,
+            settings: {
+                reflectionGenerationEnabled: true,
+                reflectionInjectionEnabled: false,
+                injection: {
+                    reflections: { position: 1, depth: 4 },
+                },
+            },
+        };
+
+        runSchemaMigrations(data, []);
+        const firstRun = structuredClone(data);
+
+        runSchemaMigrations(data, []);
+
+        expect(data).toEqual(firstRun);
     });
 });
