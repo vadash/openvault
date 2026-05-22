@@ -14,7 +14,6 @@
  */
 
 import {
-    defaultSettings,
     extensionName,
     REFLECTION_CANDIDATE_LIMIT,
     REFLECTION_DEDUP_REJECT_THRESHOLD,
@@ -228,11 +227,8 @@ export async function generateReflections(characterName, allMemories, characterS
     const accessibleMemories = filterMemoriesByPOV(allMemories, [characterName], data);
     const recentMemories = sortMemoriesBySequence(accessibleMemories, false).slice(0, REFLECTION_CANDIDATE_LIMIT);
 
-    // Include old reflections for potential synthesis
-    const oldReflections = accessibleMemories.filter((m) => m.type === 'reflection' && (m.level || 1) >= 1);
-
-    // Combine and deduplicate by id (recent memories take precedence if duplicate)
-    const candidateSet = Array.from(new Map([...recentMemories, ...oldReflections].map((m) => [m.id, m])).values());
+    // Candidate set is events only (no multi-tier reflection synthesis)
+    const candidateSet = recentMemories.filter((m) => m.type === 'event');
 
     if (recentMemories.length < 3) {
         logDebug(`Reflection: ${characterName} has too few accessible memories (${recentMemories.length}), skipping`);
@@ -276,12 +272,6 @@ export async function generateReflections(characterName, allMemories, characterS
     // Convert unified reflections to memory objects
     const now = deps.Date.now();
     const newReflections = reflections.map(({ insight, evidence_ids }) => {
-        // Detect meta-synthesis: if evidence_ids contain reflection IDs (starting with "ref_"),
-        // this is a Level 2+ reflection synthesizing existing reflections
-        const hasReflectionEvidence = evidence_ids.some((id) => id.startsWith('ref_'));
-        const reflectionEvidenceIds = evidence_ids.filter((id) => id.startsWith('ref_'));
-        const eventEvidenceIds = evidence_ids.filter((id) => !id.startsWith('ref_'));
-
         return {
             id: `ref_${generateId()}`,
             type: 'reflection',
@@ -291,20 +281,9 @@ export async function generateReflections(characterName, allMemories, characterS
             sequence: now,
             characters_involved: [characterName],
             character: characterName,
-            source_ids: eventEvidenceIds, // Event IDs used as source
-            parent_ids: reflectionEvidenceIds, // Reflection IDs synthesized (empty for level 1)
-            level: hasReflectionEvidence
-                ? Math.min(
-                      defaultSettings.maxReflectionLevel,
-                      1 +
-                          Math.max(
-                              ...reflectionEvidenceIds.map((id) => {
-                                  const parent = candidateSet.find((r) => r.id === id);
-                                  return parent?.level || 1;
-                              })
-                          )
-                  )
-                : 1,
+            source_ids: evidence_ids, // Keep all evidence IDs as-is
+            parent_ids: [], // No parent reflections (flattened to Level 1)
+            level: 1, // All reflections are Level 1
             witnesses: [characterName],
             location: null,
             is_secret: false,

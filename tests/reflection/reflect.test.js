@@ -294,218 +294,31 @@ describe('Reflection level and parent_ids fields', () => {
     });
 });
 
-describe('Reflection level derivation from parent_ids', () => {
-    it('derives level=3 when synthesizing level-2 parent reflections', async () => {
-        setupTestContext({
-            deps: { Date: { now: () => 3000000 } },
-        });
-
-        // allMemories includes existing level-1 and level-2 reflections
-        const memoriesWithReflections = [
-            {
-                id: 'ev_100',
-                type: 'event',
-                summary: 'Some event',
-                importance: 3,
-                sequence: 100,
-                message_ids: [10],
-                characters_involved: ['Alice'],
-                witnesses: ['Alice'],
-                embedding: [0.5, -0.5, 0.5], // Low cosine similarity with reflections (different dim count avoids accidental high sim)
-            },
-            {
-                id: 'ev_101',
-                type: 'event',
-                summary: 'Another event',
-                importance: 4,
-                sequence: 200,
-                message_ids: [20],
-                characters_involved: ['Alice'],
-                witnesses: ['Alice'],
-                embedding: [-0.5, 0.5, 0.5],
-            },
-            {
-                id: 'ev_102',
-                type: 'event',
-                summary: 'Third event',
-                importance: 5,
-                sequence: 300,
-                message_ids: [30],
-                characters_involved: ['Alice'],
-                witnesses: ['Alice'],
-                embedding: [0.5, 0.5, -0.5],
-            },
-            {
-                id: 'ev_103',
-                type: 'event',
-                summary: 'Fourth event',
-                importance: 4,
-                sequence: 400,
-                message_ids: [40],
-                characters_involved: ['Alice'],
-                witnesses: ['Alice'],
-                embedding: [-0.5, -0.5, 0.5],
-            },
-            {
-                id: 'ref_old_1',
-                type: 'reflection',
-                summary: 'Level 1 insight',
-                level: 1,
-                sequence: 50,
-                character: 'Alice',
-                characters_involved: ['Alice'],
-                witnesses: ['Alice'],
-                parent_ids: [],
-                source_ids: ['ev_100'],
-                importance: 4,
-                archived: false,
-                embedding: [0.0, 1.0], // Far from [0.5, 0.5] to avoid pre-flight similarity gate
-            },
-            {
-                id: 'ref_old_2',
-                type: 'reflection',
-                summary: 'Level 2 meta-insight',
-                level: 2,
-                sequence: 60,
-                character: 'Alice',
-                characters_involved: ['Alice'],
-                witnesses: ['Alice'],
-                parent_ids: ['ref_old_1'],
-                source_ids: [],
-                importance: 4,
-                archived: false,
-                embedding: [1.0, 0.0], // Far from [0.5, 0.5] to avoid pre-flight similarity gate
-            },
-        ];
-        const charStates = { Alice: { name: 'Alice', known_events: ['ev_100', 'ev_101', 'ev_102', 'ev_103'] } };
-
-        // LLM returns a reflection that synthesizes the level-2 reflection
-        mockCallLLM.mockReset();
-        mockCallLLM.mockResolvedValue(
-            JSON.stringify({
-                reflections: [
-                    {
-                        question: 'Q_meta',
-                        insight: 'Alice is on a path of self-discovery',
-                        evidence_ids: ['ref_old_2'], // Synthesizing a level-2 reflection
-                    },
-                ],
-            })
-        );
-
-        const { reflections } = await generateReflections('Alice', memoriesWithReflections, charStates);
-        expect(reflections.length).toBeGreaterThan(0);
-
-        // The reflection synthesizing ref_old_2 (level 2) should be level 3
-        const level3Reflection = reflections.find((r) => r.parent_ids.includes('ref_old_2'));
-        expect(level3Reflection).toBeDefined();
-        expect(level3Reflection.level).toBe(3);
-    });
-
-    it('caps level at maxReflectionLevel', async () => {
-        setupTestContext({
-            deps: { Date: { now: () => 4000000 } },
-        });
-
-        const { defaultSettings } = await import('../../src/constants.js');
-        const maxLevel = defaultSettings.maxReflectionLevel;
-
-        // Create a parent reflection at maxLevel (simulating the cap)
-        const memoriesWithMaxLevel = [
-            {
-                id: 'ev_200',
-                type: 'event',
-                summary: 'Event A',
-                importance: 5,
-                sequence: 1000,
-                message_ids: [100],
-                characters_involved: ['Alice'],
-                witnesses: ['Alice'],
-                embedding: [0.5, -0.5, 0.5],
-            },
-            {
-                id: 'ev_201',
-                type: 'event',
-                summary: 'Event B',
-                importance: 5,
-                sequence: 1001,
-                message_ids: [101],
-                characters_involved: ['Alice'],
-                witnesses: ['Alice'],
-                embedding: [-0.5, 0.5, 0.5],
-            },
-            {
-                id: 'ev_202',
-                type: 'event',
-                summary: 'Event C',
-                importance: 5,
-                sequence: 1002,
-                message_ids: [102],
-                characters_involved: ['Alice'],
-                witnesses: ['Alice'],
-                embedding: [0.5, 0.5, -0.5],
-            },
-            {
-                id: `ref_max`,
-                type: 'reflection',
-                summary: 'Max level insight',
-                level: maxLevel,
-                sequence: 500,
-                character: 'Alice',
-                characters_involved: ['Alice'],
-                witnesses: ['Alice'],
-                parent_ids: [],
-                source_ids: ['ev_200'],
-                importance: 4,
-                archived: false,
-                embedding: [0.0, 1.0], // Far from [0.5, 0.5] to avoid pre-flight similarity gate
-            },
-        ];
-        const charStates = { Alice: { name: 'Alice', known_events: ['ev_200', 'ev_201', 'ev_202'] } };
-
-        mockCallLLM.mockReset();
-        mockCallLLM.mockResolvedValue(
-            JSON.stringify({
-                reflections: [
-                    {
-                        question: 'Q_beyond',
-                        insight: 'Transcendent insight',
-                        evidence_ids: ['ref_max'], // Synthesizing a max-level reflection
-                    },
-                ],
-            })
-        );
-
-        const { reflections } = await generateReflections('Alice', memoriesWithMaxLevel, charStates);
-        const cappedReflection = reflections.find((r) => r.parent_ids.includes('ref_max'));
-        expect(cappedReflection).toBeDefined();
-        expect(cappedReflection.level).toBe(maxLevel);
-    });
-});
+// Removed: Reflection level derivation from parent_ids (Level 2+ synthesis deleted)
 
 describe('Old reflections in candidate set', () => {
-    it('should include old reflections when building candidate set', async () => {
-        // This test verifies the structure; actual synthesis requires LLM mocking
+    it('candidate set contains only events, no reflections', async () => {
+        // After flattening, candidate set should be events-only
         const accessibleMemories = [
             { id: '1', type: 'event', summary: 'Recent event', sequence: 5000, characters_involved: ['Char'] },
+            { id: '2', type: 'event', summary: 'Another event', sequence: 4000, characters_involved: ['Char'] },
             { id: 'ref1', type: 'reflection', level: 1, summary: 'Old insight', sequence: 1000, character: 'Char' },
             { id: 'ref2', type: 'reflection', level: 2, summary: 'Meta insight', sequence: 2000, character: 'Char' },
         ];
 
-        // Simulate sorting and filtering
-        const recentMemories = accessibleMemories
-            .filter((m) => m.type === 'event')
-            .sort((a, b) => b.sequence - a.sequence)
-            .slice(0, 100);
+        // Candidate set is recent memories only, filtered to events
+        const recentMemories = accessibleMemories.sort((a, b) => b.sequence - a.sequence).slice(0, 100);
+        const candidateSet = recentMemories.filter((m) => m.type === 'event');
 
-        const oldReflections = accessibleMemories.filter((m) => m.type === 'reflection' && m.level >= 1);
+        expect(candidateSet.length).toBe(2);
 
-        expect(recentMemories.length).toBe(1);
-        expect(oldReflections.length).toBe(2);
+        // Verify all items in candidate set are events (not reflections)
+        const hasReflections = candidateSet.some((m) => m.type === 'reflection');
+        expect(hasReflections).toBe(false);
 
-        // Candidate set should have both
-        const candidateSet = [...recentMemories, ...oldReflections];
-        expect(candidateSet.length).toBe(3);
+        // Verify all items in candidate set are events
+        const allEvents = candidateSet.every((m) => m.type === 'event');
+        expect(allEvents).toBe(true);
     });
 });
 
