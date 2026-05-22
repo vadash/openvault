@@ -1,7 +1,7 @@
 /**
  * OpenVault World Context Retrieval
  *
- * Retrieves relevant community summaries for injection into the prompt.
+ * Retrieves relevant entity descriptions and relationships for injection into the prompt.
  */
 
 import { getEmbedding, hasEmbedding } from '../utils/embedding-codec.js';
@@ -29,64 +29,65 @@ export function detectMacroIntent(userMessagesString) {
 }
 
 /**
- * Retrieve the most relevant community summaries for the current context.
- * Now supports intent-based routing: macro queries use global state, local queries use vector search.
+ * Retrieve the most relevant entity descriptions and relationships for the current context.
+ * Intent-based routing: macro queries use global state, local queries use vector search over entities.
  *
- * @param {Object} communities - Community data from state
+ * @param {{ nodes: Record<string, any>, edges: Record<string, any> } | Record<string, any>} graphData - Graph with { nodes, edges } or legacy communities object
  * @param {Object|null} globalState - Pre-computed global world state
  * @param {string} userMessagesString - Concatenated user messages for intent detection
  * @param {Float32Array} queryEmbedding - Embedding of current context
  * @param {number} tokenBudget - Max tokens for world context (default: 2000)
- * @returns {{ text: string, communityIds: string[], isMacroIntent: boolean }}
+ * @returns {{ text: string, entityKeys: string[], isMacroIntent: boolean }}
  */
-export function retrieveWorldContext(communities, globalState, userMessagesString, queryEmbedding, tokenBudget = 2000) {
+export function retrieveWorldContext(graphData, globalState, userMessagesString, queryEmbedding, tokenBudget = 2000) {
     // Intent-based routing: check for macro intent first
     if (detectMacroIntent(userMessagesString) && globalState?.summary) {
         return {
             text: `<world_context>\n[This is background knowledge about the world, its communities, and broader context the character is aware of]\n${globalState.summary}\n</world_context>`,
-            communityIds: [],
+            entityKeys: [],
             isMacroIntent: true,
         };
     }
 
-    if (!communities) {
-        return { text: '', communityIds: [], isMacroIntent: false };
+    // Handle legacy communities format (Task 4 will update call sites to use graphData)
+    if (!graphData?.nodes) {
+        return { text: '', entityKeys: [], isMacroIntent: false };
     }
 
     // Local mode: requires queryEmbedding for cosine similarity
     if (!queryEmbedding) {
-        return { text: '', communityIds: [], isMacroIntent: false };
+        return { text: '', entityKeys: [], isMacroIntent: false };
     }
 
-    // Score communities by cosine similarity
+    // Score entities by cosine similarity
     const scored = [];
-    for (const [id, community] of Object.entries(communities)) {
-        if (!hasEmbedding(community)) continue;
-        const score = cosineSimilarity(queryEmbedding, getEmbedding(community));
-        scored.push({ id, community, score });
+    for (const [key, node] of Object.entries(graphData.nodes)) {
+        if (!hasEmbedding(node)) continue;
+        const score = cosineSimilarity(queryEmbedding, getEmbedding(node));
+        scored.push({ key, node, score });
     }
 
     if (scored.length === 0) {
-        return { text: '', communityIds: [], isMacroIntent: false };
+        return { text: '', entityKeys: [], isMacroIntent: false };
     }
 
     // Sort by score descending
     scored.sort((a, b) => b.score - a.score);
 
-    // Select communities within token budget
+    // Select entities within token budget
     const selected = [];
     let usedTokens = 0;
 
-    for (const { id, community } of scored) {
-        const entry = formatCommunityEntry(community);
+    for (const { key, node } of scored) {
+        const entry = formatEntityEntry(key, node, graphData);
         const tokens = countTokens(entry);
         if (usedTokens + tokens > tokenBudget) break;
-        selected.push({ id, entry });
+        selected.push({ key, entry });
         usedTokens += tokens;
     }
 
     if (selected.length === 0) {
-        return { text: '', communityIds: [], isMacroIntent: false };
+        return { text: '', entityKeys: [], isMacroIntent: false };
     }
 
     const text =
@@ -96,17 +97,40 @@ export function retrieveWorldContext(communities, globalState, userMessagesStrin
 
     return {
         text,
-        communityIds: selected.map((s) => s.id),
+        entityKeys: selected.map((s) => s.key),
         isMacroIntent: false,
     };
 }
 
 /**
- * Format a community summary for prompt injection.
- * @param {Object} community
+ * Format an entity description with its top 3 edges for prompt injection.
+ * @param {string} key - Entity key
+ * @param {Object} node - Entity node
+ * @param {{ nodes: Record<string, any>, edges: Record<string, any> }} graphData - Graph data
  * @returns {string}
  */
-function formatCommunityEntry(community) {
-    const findings = community.findings ? community.findings.map((f) => `  - ${f}`).join('\n') : '';
-    return `## ${community.title}\n${community.summary}${findings ? '\nKey findings:\n' + findings : ''}`;
+function formatEntityEntry(key, node, graphData) {
+    let entry = `## ${node.name} (${node.type})\n${node.description}`;
+
+    // Find top 3 edges by weight where this entity is the source
+    const edges = [];
+    for (const [_edgeKey, edge] of Object.entries(graphData.edges)) {
+        if (edge.source === key && graphData.nodes[edge.target]) {
+            edges.push(edge);
+        }
+    }
+
+    // Sort by weight descending and take top 3
+    edges.sort((a, b) => b.weight - a.weight);
+    const topEdges = edges.slice(0, 3);
+
+    if (topEdges.length > 0) {
+        entry += '\nConnections:\n';
+        for (const edge of topEdges) {
+            const targetNode = graphData.nodes[edge.target];
+            entry += `  → ${targetNode.name} (${targetNode.type}): ${edge.description}\n`;
+        }
+    }
+
+    return entry.trim();
 }
