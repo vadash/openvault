@@ -224,4 +224,43 @@ describe('Progressive Disclosure Integration', () => {
             expect(html).toContain('id="openvault_copy_reflections_macro"');
         });
     });
+
+    describe('Stream disable - Disabled option in dropdowns', () => {
+        it('reflections dropdown contains Disabled option', () => {
+            expect(html).toContain('<option value="-2">Disabled</option>');
+        });
+
+        it('reflections dropdown contains option value="-2"', () => {
+            const reflectionsMatch = html.match(
+                /<select id="openvault_reflections_position"[^>]*>([\s\S]*?)<\/select>/i
+            );
+            expect(reflectionsMatch).toBeTruthy();
+            const reflectionsOptions = reflectionsMatch[1];
+            expect(reflectionsOptions).toContain('value="-2"');
+        });
+
+        it('world dropdown contains Disabled option', () => {
+            const worldMatch = html.match(/<select id="openvault_world_position"[^>]*>([\s\S]*?)<\/select>/i);
+            expect(worldMatch).toBeTruthy();
+            const worldOptions = worldMatch[1];
+            expect(worldOptions).toContain('value="-2"');
+        });
+
+        it('memory dropdown does NOT contain Disabled option', () => {
+            const memoryMatch = html.match(/<select id="openvault_memory_position"[^>]*>([\s\S]*?)<\/select>/i);
+            expect(memoryMatch).toBeTruthy();
+            const memoryOptions = memoryMatch[1];
+            expect(memoryOptions).not.toContain('value="-2"');
+        });
+    });
+
+    describe('Stream disable - removed reflection checkboxes', () => {
+        it('does NOT contain reflection_generation checkbox', () => {
+            expect(html).not.toContain('id="openvault_reflection_generation"');
+        });
+
+        it('does NOT contain reflection_injection checkbox', () => {
+            expect(html).not.toContain('id="openvault_reflection_injection"');
+        });
+    });
 });

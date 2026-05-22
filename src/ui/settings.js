@@ -28,6 +28,7 @@ import { updateEventListeners } from '../events.js';
 import { executeEmergencyCut } from '../extraction/extract.js';
 import { formatForClipboard, getAll as getPerfData } from '../perf/store.js';
 import { getSettings, setSetting } from '../settings.js';
+import { deleteMemoriesByType } from '../store/chat-data.js';
 import { logError, logInfo, logWarn } from '../utils/logging.js';
 import { exportToClipboard } from './export-debug.js';
 import { validateRPM } from './helpers.js';
@@ -773,9 +774,6 @@ function bindUIElements() {
     // Feature settings
     bindSetting('reflection_threshold', 'reflectionThreshold');
     bindSetting('max_insights', 'maxInsightsPerReflection');
-    // NEW: Reflection control toggles
-    bindSetting('reflection_generation', 'reflectionGenerationEnabled', 'bool');
-    bindSetting('reflection_injection', 'reflectionInjectionEnabled', 'bool');
     bindSetting('world_context_budget', 'worldContextBudget', 'int', (v) =>
         updateWordsDisplay(v, 'openvault_world_context_budget_words')
     );
@@ -861,8 +859,25 @@ function bindInjectionSettings() {
     // Reflections position selector
     $('#openvault_reflections_position').on('change', function () {
         const position = parseInt($(this).val(), 10);
-        setSetting('injection.reflections.position', position);
-        updateInjectionUI('reflections');
+        const settings = getSettings();
+        const previousPosition = settings.injection?.reflections?.position ?? 1;
+
+        if (position === -2) {
+            // Revert the dropdown to previous value
+            $(this).val(previousPosition);
+
+            // Show confirmation dialog
+            if (confirm('Are you sure you want to disable reflections? This will delete all existing reflections.')) {
+                // User confirmed - delete reflections and set position
+                deleteMemoriesByType('reflection');
+                setSetting('injection.reflections.position', position);
+                updateInjectionUI('reflections');
+            }
+            // If cancelled, dropdown is already reverted to previous value
+        } else {
+            setSetting('injection.reflections.position', position);
+            updateInjectionUI('reflections');
+        }
     });
 
     // Reflections depth input
@@ -1031,10 +1046,6 @@ export function updateUI() {
 
     $('#openvault_max_insights').val(settings.maxInsightsPerReflection);
     $('#openvault_max_insights_value').text(settings.maxInsightsPerReflection);
-
-    // NEW: Reflection control toggles
-    $('#openvault_reflection_generation').prop('checked', settings.reflectionGenerationEnabled);
-    $('#openvault_reflection_injection').prop('checked', settings.reflectionInjectionEnabled);
 
     $('#openvault_world_context_budget').val(settings.worldContextBudget);
     $('#openvault_world_context_budget_value').text(settings.worldContextBudget);

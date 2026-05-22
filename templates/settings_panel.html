@@ -416,15 +416,6 @@
                         </label>
                         <input type="range" id="openvault_max_reflections" min="10" max="200" step="10" />
                         <small class="openvault-hint">Maximum stored insights per character. Older ones are archived when exceeded</small>
-
-                        <!-- Injection toggle -->
-                        <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-                            <label class="checkbox_label">
-                                <input id="openvault_reflection_injection" type="checkbox" />
-                                <span>Inject reflections into context</span>
-                            </label>
-                            <small class="openvault-hint">When disabled, existing reflections will not appear in the AI's context window</small>
-                        </div>
                     </div>
                 </details>
 
@@ -613,6 +604,7 @@
                                 <option value="3">↓AN (After author's note)</option>
                                 <option value="4">In-chat (At message depth)</option>
                                 <option value="-1">Custom (Use macro manually)</option>
+                                <option value="-2">Disabled</option>
                             </select>
 
                             <div id="openvault_reflections_depth_container" style="display:none;">
@@ -642,6 +634,7 @@
                                 <option value="3">↓AN (After author's note)</option>
                                 <option value="4">In-chat (At message depth)</option>
                                 <option value="-1">Custom (Use macro manually)</option>
+                                <option value="-2">Disabled</option>
                             </select>
 
                             <div id="openvault_world_depth_container" style="display:none;">
@@ -666,18 +659,6 @@
                                 ↓Char is recommended. Memories injected at ↑Char may not affect character behavior in some models.
                             </small>
                         </div>
-                    </div>
-                </details>
-
-                <!-- Reflection Engine -->
-                <details class="openvault-details">
-                    <summary><i class="fa-solid fa-lightbulb"></i> Reflection Engine</summary>
-                    <div class="openvault-settings-group">
-                        <label class="checkbox_label">
-                            <input id="openvault_reflection_generation" type="checkbox" />
-                            <span>Generate reflections automatically</span>
-                        </label>
-                        <small class="openvault-hint">When disabled, no new reflections will be generated. Existing reflections remain untouched.</small>
                     </div>
                 </details>
 
