@@ -11,7 +11,7 @@ For event dedup thresholds (cross-batch/intra-batch Jaccard) see `include/DATA_S
   3. `enrichAndDedupEvents`
   4. `processGraphUpdates`
   5. `synthesizeReflections` (Deferred on backfill)
-  6. `synthesizeCommunities` (Deferred on backfill)
+  6. `synthesizeWorldState` (Deferred on backfill)
 
 ## TURN BOUNDARY FALLBACK
 - **Skip `is_system` messages in forward look.** Both `snapToTurnBoundary` and `trimTailTurns` must walk past system messages (Author's Notes, hidden system prompts) when scanning forward for Bot→User boundaries. System messages are not real conversation turns — treating them as such causes boundary misdetection.
@@ -33,6 +33,6 @@ For event dedup thresholds (cross-batch/intra-batch Jaccard) see `include/DATA_S
 - **Trim once on the full list for backfill.** In `getBackfillMessageIds()`, apply `trimTailTurns` after the incomplete-last-batch trim, then recalculate `batchCount`.
 
 ## CROSS-MODULE REFERENCES
-Graph merge logic, community detection, and reflection synthesis have dedicated CLAUDE.md files:
-- `src/graph/CLAUDE.md` - Semantic merge, edge consolidation, Louvain communities
+Graph merge logic, top-K entity selection, and reflection synthesis have dedicated CLAUDE.md files:
+- `src/graph/CLAUDE.md` - Semantic merge, edge consolidation, world-state summarization
 - `src/reflection/CLAUDE.md` - Reflection pipeline, accumulator lifecycle, 3-tier dedup

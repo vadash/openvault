@@ -23,5 +23,5 @@ For event dedup thresholds see `src/extraction/CLAUDE.md`.
 
 ### Intent Routing
 - **Route via multilingual intent.** `detectMacroIntent()` matches "recap", "вкратце", etc.
-- **Macro queries:** Inject pre-computed `global_world_state`.
-- **Local queries:** Execute vector similarity search against specific community summaries.
+- **Macro queries:** Inject pre-computed `global_world_state.summary`.
+- **Local queries:** Execute vector similarity search against entity nodes and relationship edges.
