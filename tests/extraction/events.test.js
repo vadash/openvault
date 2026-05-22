@@ -473,8 +473,8 @@ describe('onChatChanged migration', () => {
         const { onChatChanged } = await import('../../src/events.js');
         await onChatChanged();
 
-        // Should have migrated through v2, v3, v4, v5, and v6
-        expect(mockContext.chatMetadata[METADATA_KEY].schema_version).toBe(6);
+        // Should have migrated through v2, v3, v4, v5, v6, and v7
+        expect(mockContext.chatMetadata[METADATA_KEY].schema_version).toBe(7);
         expect(mockContext.chatMetadata[METADATA_KEY][PROCESSED_MESSAGES_KEY]).toContain('1000000');
         expect(mockToast).toHaveBeenCalledWith('info', expect.stringContaining('optimized'), 'Data Migration', {});
     });
