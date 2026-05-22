@@ -37,7 +37,7 @@ export function getOpenVaultData() {
     }
     if (!context.chatMetadata[METADATA_KEY]) {
         context.chatMetadata[METADATA_KEY] = {
-            schema_version: 3,
+            schema_version: 4,
             [MEMORIES_KEY]: [],
             [CHARACTERS_KEY]: {},
             [PROCESSED_MESSAGES_KEY]: [],
@@ -45,6 +45,13 @@ export function getOpenVaultData() {
             graph: createEmptyGraph(),
             communities: {},
             graph_message_count: 0,
+            settings: {
+                injection: {
+                    memory: { position: 1, depth: 4 },
+                    reflections: { position: 1, depth: 4 },
+                    world: { position: 1, depth: 4 },
+                },
+            },
         };
     }
     const data = context.chatMetadata[METADATA_KEY];
