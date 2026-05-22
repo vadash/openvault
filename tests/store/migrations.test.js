@@ -5,8 +5,8 @@ import { CURRENT_SCHEMA_VERSION, runSchemaMigrations } from '../../src/store/mig
 
 describe('migration orchestrator', () => {
     describe('runSchemaMigrations', () => {
-        it('returns false when no migration needed (already v2)', () => {
-            const data = { schema_version: 2, memories: [] };
+        it('returns false when no migration needed (already at current)', () => {
+            const data = { schema_version: CURRENT_SCHEMA_VERSION, memories: [] };
             const result = runSchemaMigrations(data, []);
             expect(result).toBe(false);
         });
@@ -94,7 +94,7 @@ describe('v2 migration', () => {
     });
 
     it('returns false when no changes needed', () => {
-        const data = { schema_version: 2 };
+        const data = { schema_version: CURRENT_SCHEMA_VERSION };
         const result = runSchemaMigrations(data, chat);
         expect(result).toBe(false);
     });
@@ -120,13 +120,13 @@ describe('v3 migration - backfill message_fingerprints', () => {
         const result = runSchemaMigrations(data, chat);
 
         expect(result).toBe(true);
-        expect(data.schema_version).toBe(3);
+        expect(data.schema_version).toBe(CURRENT_SCHEMA_VERSION);
         expect(data.memories[0].message_fingerprints).toEqual(['1000000', '2000000']);
         expect(data.memories[1].message_fingerprints).toEqual(['3000000']);
         expect(data.memories[2].message_fingerprints).toEqual([]);
     });
 
-    it('skips migration when already v3', () => {
+    it('migrates when already v3 (adds injection.reflections)', () => {
         const data = {
             schema_version: 3,
             memories: [{ id: 'mem1', message_ids: [0], message_fingerprints: ['1000000'] }],
@@ -134,7 +134,8 @@ describe('v3 migration - backfill message_fingerprints', () => {
 
         const result = runSchemaMigrations(data, chat);
 
-        expect(result).toBe(false);
+        expect(result).toBe(true);
+        expect(data.schema_version).toBe(CURRENT_SCHEMA_VERSION);
     });
 
     it('handles memories with missing message_ids', () => {
@@ -174,5 +175,75 @@ describe('v3 migration - backfill message_fingerprints', () => {
         runSchemaMigrations(data, chat);
 
         expect(data.memories[0].message_ids).toEqual([0]); // still there
+    });
+});
+
+describe('v4 migration - add injection.reflections', () => {
+    it('adds injection.reflections with defaults to fresh data', () => {
+        const data = {
+            schema_version: 3,
+            settings: {
+                injection: {
+                    memory: { position: 1, depth: 4 },
+                    world: { position: 1, depth: 4 },
+                },
+            },
+        };
+
+        const result = runSchemaMigrations(data, []);
+
+        expect(result).toBe(true);
+        expect(data.schema_version).toBe(4);
+        expect(data.settings.injection.reflections).toEqual({ position: 1, depth: 4 });
+    });
+
+    it('preserves existing injection.reflections when already v4', () => {
+        const data = {
+            schema_version: 4,
+            settings: {
+                injection: {
+                    memory: { position: 0, depth: 5 },
+                    reflections: { position: 2, depth: 3 },
+                    world: { position: 1, depth: 4 },
+                },
+            },
+        };
+
+        const result = runSchemaMigrations(data, []);
+
+        expect(result).toBe(false);
+        expect(data.settings.injection.reflections).toEqual({ position: 2, depth: 3 });
+    });
+
+    it('adds reflections to partial data without touching memory or world', () => {
+        const data = {
+            schema_version: 3,
+            settings: {
+                injection: {
+                    memory: { position: 0, depth: 5 },
+                    world: { position: 2, depth: 3 },
+                },
+            },
+        };
+
+        const result = runSchemaMigrations(data, []);
+
+        expect(result).toBe(true);
+        expect(data.settings.injection.memory).toEqual({ position: 0, depth: 5 });
+        expect(data.settings.injection.reflections).toEqual({ position: 1, depth: 4 });
+        expect(data.settings.injection.world).toEqual({ position: 2, depth: 3 });
+    });
+
+    it('handles missing injection object', () => {
+        const data = {
+            schema_version: 3,
+            settings: {},
+        };
+
+        const result = runSchemaMigrations(data, []);
+
+        expect(result).toBe(true);
+        expect(data.settings.injection).toBeDefined();
+        expect(data.settings.injection.reflections).toEqual({ position: 1, depth: 4 });
     });
 });

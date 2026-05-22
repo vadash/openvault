@@ -1,11 +1,13 @@
 import { migrateToV2 } from './v2.js';
 import { migrateToV3 } from './v3.js';
+import { migrateToV4 } from './v4.js';
 
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 const MIGRATIONS = [
     { version: 2, run: migrateToV2 },
     { version: 3, run: migrateToV3 },
+    { version: 4, run: migrateToV4 },
 ];
 
 /**
