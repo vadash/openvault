@@ -171,17 +171,24 @@ async function selectRelevantMemoriesSimple(memories, ctx, limit, allHiddenMemor
  * @param {ScoredMemory[]} scoredMemories - Pre-scored, sorted
  * @param {number} tokenBudget - Maximum tokens to select
  * @param {number} chatLength - Current chat length
+ * @param {Map<string, number>|null} [chatFingerprintMap=null] - Message fingerprint map for accurate positions
  * @param {number} [minRepresentation=0.20] - Minimum 20% per bucket
  * @returns {Promise<Memory[]>} Selected memories
  */
-export async function selectMemoriesWithSoftBalance(scoredMemories, tokenBudget, chatLength, minRepresentation = 0.2) {
+export async function selectMemoriesWithSoftBalance(
+    scoredMemories,
+    tokenBudget,
+    chatLength,
+    chatFingerprintMap = null,
+    minRepresentation = 0.2
+) {
     if (!scoredMemories || scoredMemories.length === 0) return [];
     if (tokenBudget <= 0) return [];
 
     // Group all candidates by bucket first
     const bucketCandidates = { old: [], mid: [], recent: [] };
     for (const { memory } of scoredMemories) {
-        const position = getMemoryPosition(memory);
+        const position = getMemoryPosition(memory, chatFingerprintMap);
         const isRecent = position >= chatLength - 100;
         const isMid = position >= chatLength - 500 && !isRecent;
         const isOld = !isRecent && !isMid;
@@ -249,15 +256,20 @@ export async function selectRelevantMemories(memories, ctx) {
         hiddenMemories,
         ctx.idfCache || null
     );
-    const finalResults = await selectMemoriesWithSoftBalance(scoredResults, finalTokens, ctx.chatLength);
+    const finalResults = await selectMemoriesWithSoftBalance(
+        scoredResults,
+        finalTokens,
+        ctx.chatLength,
+        ctx.chatFingerprintMap
+    );
     const selectedIds = new Set(finalResults.map((m) => m.id));
 
     // Cache scoring details for debug export
     cacheScoringDetails(scoredResults, selectedIds);
 
     // Calculate bucket distribution before and after soft balance
-    const beforeBuckets = assignMemoriesToBuckets(scoredMemories, ctx.chatLength);
-    const afterBuckets = assignMemoriesToBuckets(finalResults, ctx.chatLength);
+    const beforeBuckets = assignMemoriesToBuckets(scoredMemories, ctx.chatLength, ctx.chatFingerprintMap);
+    const afterBuckets = assignMemoriesToBuckets(finalResults, ctx.chatLength, ctx.chatFingerprintMap);
 
     const sumBucketTokens = async (bucket) => {
         let sum = 0;

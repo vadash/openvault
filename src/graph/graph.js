@@ -62,7 +62,7 @@ const MAX_REDIRECT_DEPTH = 10;
  * @param {string} rawName - The raw entity name
  * @returns {string} The resolved key (may differ due to semantic merge)
  */
-function _resolveKey(graphData, rawName) {
+export function resolveKey(graphData, rawName) {
     const key = normalizeKey(rawName);
     const visited = new Set();
     let current = key;
@@ -194,8 +194,8 @@ export function upsertEntity(graphData, name, type, description, cap = 3) {
  * @returns {Promise<void>}
  */
 export async function upsertRelationship(graphData, source, target, description, cap = 5, settings = null) {
-    const srcKey = _resolveKey(graphData, source);
-    const tgtKey = _resolveKey(graphData, target);
+    const srcKey = resolveKey(graphData, source);
+    const tgtKey = resolveKey(graphData, target);
 
     // Prevent self-loops
     if (srcKey === tgtKey) {
@@ -433,6 +433,13 @@ export async function shouldMergeEntities(cosine, threshold, tokensA, keyA, keyB
  */
 export async function mergeOrInsertEntity(graphData, name, type, description, cap, _settings) {
     const key = normalizeKey(name);
+
+    // Redirect fast-path: resolve merged entity keys before checking nodes
+    const resolvedKey = resolveKey(graphData, name);
+    if (resolvedKey !== key && graphData.nodes[resolvedKey]) {
+        upsertEntity(graphData, graphData.nodes[resolvedKey].name, type, description, cap);
+        return { key: resolvedKey };
+    }
 
     // Fast path: exact key match
     if (graphData.nodes[key]) {

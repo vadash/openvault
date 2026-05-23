@@ -6,7 +6,7 @@
 
 import { CHARACTERS_KEY, MEMORIES_KEY } from './constants.js';
 import { getDeps } from './deps.js';
-import { normalizeKey } from './graph/graph.js';
+import { resolveKey } from './graph/graph.js';
 import { getOpenVaultData } from './store/chat-data.js';
 import { logDebug } from './utils/logging.js';
 
@@ -15,14 +15,15 @@ import { logDebug } from './utils/logging.js';
  * Includes canonical names plus any aliases discovered by graph entity merging,
  * so cross-script variants (e.g. Cyrillic "Сузи" for Latin "Suzy") pass the filter.
  * @param {string[]} povCharacters - Canonical POV character names
- * @param {Object} graphNodes - Graph nodes keyed by normalizeKey'd name
+ * @param {Object} graphData - Full graph object with nodes and _mergeRedirects
  * @returns {Set<string>} Lowercased name variants to match against
  */
-function _expandPOVNames(povCharacters, graphNodes) {
+function _expandPOVNames(povCharacters, graphData) {
+    const nodes = graphData?.nodes || {};
     const names = new Set(povCharacters.map((c) => c.toLowerCase()));
     for (const charName of povCharacters) {
-        const key = normalizeKey(charName);
-        const node = graphNodes[key];
+        const resolvedKey = resolveKey(graphData || {}, charName);
+        const node = nodes[resolvedKey];
         if (node?.aliases) {
             for (const alias of node.aliases) {
                 names.add(alias.toLowerCase());
@@ -56,7 +57,7 @@ export function filterMemoriesByPOV(memories, povCharacters, data) {
     }
 
     // Filter memories by POV - memories that ANY of the POV characters know
-    const povNamesLower = _expandPOVNames(povCharacters, data.graph?.nodes || {});
+    const povNamesLower = _expandPOVNames(povCharacters, data.graph);
     return memories.filter((m) => {
         // Any POV character (or alias) was a witness (case-insensitive)
         if (m.witnesses?.some((w) => povNamesLower.has(w.toLowerCase()))) return true;
