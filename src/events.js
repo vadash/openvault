@@ -268,10 +268,41 @@ export async function onChatChanged() {
         }
     }
 
+    // Enforce global disabled settings on loaded chat data to prevent legacy data leakage
+    const settings = getDeps().getExtensionSettings()[extensionName];
+    let madeChanges = false;
+
+    if (data && settings?.injection) {
+        // If reflections are disabled, filter out reflection memories and clear state
+        if (settings.injection.reflections?.position === -2) {
+            const hadReflections = data[MEMORIES_KEY]?.some((m) => m.type === 'reflection');
+            if (hadReflections || (data.reflection_state && Object.keys(data.reflection_state).length > 0)) {
+                data[MEMORIES_KEY] = (data[MEMORIES_KEY] || []).filter((m) => m.type !== 'reflection');
+                data.reflection_state = {};
+                madeChanges = true;
+            }
+        }
+
+        // If world context is disabled, wipe global world state and reset accumulators
+        if (settings.injection.world?.position === -2) {
+            if (
+                data.global_world_state ||
+                data.graph?._edgesNeedingConsolidation?.length > 0 ||
+                data.graph_message_count > 0
+            ) {
+                delete data.global_world_state;
+                if (data.graph) {
+                    data.graph._edgesNeedingConsolidation = [];
+                }
+                data.graph_message_count = 0;
+                madeChanges = true;
+            }
+        }
+    }
+
     // Check for embedding model mismatch and wipe stale vectors
     const { invalidateStaleEmbeddings } = await import('./embeddings/migration.js');
     const { saveOpenVaultData } = await import('./store/chat-data.js');
-    const settings = getDeps().getExtensionSettings()[extensionName];
     if (data && settings?.embeddingSource) {
         const wiped = await invalidateStaleEmbeddings(data, settings.embeddingSource);
         if (wiped > 0) {
@@ -283,6 +314,11 @@ export async function onChatChanged() {
                 })
                 .catch(() => {});
         }
+    }
+
+    // Save changes if enforcement logic made any modifications
+    if (madeChanges) {
+        await saveOpenVaultData();
     }
 
     // Clear token cache when switching chats

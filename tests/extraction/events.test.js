@@ -720,3 +720,135 @@ describe('worker abort handling', () => {
         expect(isWorkerRunning()).toBe(false);
     });
 });
+
+describe('onChatChanged enforces disabled settings', () => {
+    let saveFn;
+
+    beforeEach(() => {
+        saveFn = vi.fn(async () => true);
+    });
+
+    afterEach(() => {
+        resetDeps();
+        vi.clearAllMocks();
+    });
+
+    it('wipes legacy reflections when global reflections disabled', async () => {
+        const mockData = {
+            schema_version: 2,
+            memories: [
+                { id: 'm1', type: 'event', summary: 'Regular memory' },
+                { id: 'm2', type: 'reflection', summary: 'Reflection for Alice' },
+                { id: 'm3', type: 'reflection', summary: 'Reflection for Bob' },
+            ],
+            reflection_state: {
+                Alice: { importance_sum: 50, lastMessageId: 100 },
+                Bob: { importance_sum: 30, lastMessageId: 50 },
+            },
+        };
+
+        setupTestContext({
+            context: {
+                chat: [],
+                chatMetadata: { openvault: mockData },
+                chatId: 'test',
+                name1: 'User',
+                name2: 'Bot',
+            },
+            settings: {
+                enabled: true,
+                injection: { reflections: { position: -2, depth: 4 } }, // Disabled
+            },
+            deps: { saveChatConditional: saveFn },
+        });
+
+        const { onChatChanged } = await import('../../src/events.js');
+        await onChatChanged();
+
+        // Reflections should be filtered out
+        expect(mockData.memories).toEqual([{ id: 'm1', type: 'event', summary: 'Regular memory' }]);
+        // Reflection state should be cleared
+        expect(mockData.reflection_state).toEqual({});
+        expect(saveFn).toHaveBeenCalled();
+    });
+
+    it('wipes global world state when world disabled', async () => {
+        const mockData = {
+            schema_version: 2,
+            memories: [],
+            global_world_state: { summary: 'World state content', last_updated: 12345 },
+            graph: {
+                nodes: { alice: { name: 'Alice', type: 'PERSON', description: 'A character', mentions: 1 } },
+                edges: {},
+                _edgesNeedingConsolidation: ['edge1', 'edge2'],
+            },
+            graph_message_count: 100,
+        };
+
+        setupTestContext({
+            context: {
+                chat: [],
+                chatMetadata: { openvault: mockData },
+                chatId: 'test',
+                name1: 'User',
+                name2: 'Bot',
+            },
+            settings: {
+                enabled: true,
+                injection: { world: { position: -2, depth: 4 } }, // Disabled
+            },
+            deps: { saveChatConditional: saveFn },
+        });
+
+        const { onChatChanged } = await import('../../src/events.js');
+        await onChatChanged();
+
+        expect(mockData.global_world_state).toBeUndefined();
+        expect(mockData.graph._edgesNeedingConsolidation).toEqual([]);
+        expect(mockData.graph_message_count).toBe(0);
+        expect(saveFn).toHaveBeenCalled();
+    });
+
+    it('does not wipe when settings are enabled', async () => {
+        const mockData = {
+            schema_version: 2,
+            memories: [
+                { id: 'm1', type: 'event', summary: 'Regular memory' },
+                { id: 'm2', type: 'reflection', summary: 'Reflection' },
+            ],
+            reflection_state: { Alice: { importance_sum: 50 } },
+            global_world_state: { summary: 'World state', last_updated: 12345 },
+            graph: {
+                nodes: { bob: { name: 'Bob', type: 'PERSON', description: 'A character', mentions: 1 } },
+                edges: {},
+            },
+            graph_message_count: 50,
+        };
+
+        setupTestContext({
+            context: {
+                chat: [],
+                chatMetadata: { openvault: mockData },
+                chatId: 'test',
+            },
+            settings: {
+                enabled: true,
+                injection: {
+                    reflections: { position: 1, depth: 4 }, // Enabled
+                    world: { position: 1, depth: 4 }, // Enabled
+                },
+            },
+            deps: { saveChatConditional: saveFn },
+        });
+
+        const { onChatChanged } = await import('../../src/events.js');
+        await onChatChanged();
+
+        // Nothing should be wiped
+        expect(mockData.memories).toHaveLength(2);
+        expect(mockData.reflection_state).toEqual({ Alice: { importance_sum: 50 } });
+        expect(mockData.global_world_state).toBeDefined();
+        expect(mockData.graph_message_count).toBe(50);
+        expect(saveFn).not.toHaveBeenCalled();
+    });
+});
