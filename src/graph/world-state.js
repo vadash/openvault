@@ -7,7 +7,7 @@
 
 import { WORLD_STATE_ENTITY_COUNT } from '../constants.js';
 import { getDeps } from '../deps.js';
-import { parseGlobalSynthesisResponse } from '../extraction/structured.js';
+import { parseCommunitySummaryResponse } from '../extraction/structured.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
 import { buildGlobalWorldStatePrompt } from '../prompts/index.js';
 
@@ -73,10 +73,10 @@ export async function generateWorldState(entities, edges, preamble, outputLangua
     const deps = getDeps();
     const prompt = buildGlobalWorldStatePrompt(entities, edges, preamble, outputLanguage, prefill);
     const response = await callLLM(prompt, LLM_CONFIGS.worldState, { structured: true });
-    const parsed = await parseGlobalSynthesisResponse(response);
+    const parsed = await parseCommunitySummaryResponse(response);
 
     return {
-        summary: parsed.global_summary,
+        summary: parsed.summary,
         last_updated: deps.Date.now(),
     };
 }

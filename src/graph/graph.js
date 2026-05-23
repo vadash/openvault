@@ -215,7 +215,10 @@ export async function upsertRelationship(graphData, source, target, description,
         existing.weight += 1;
 
         // Jaccard guard: only append if description is sufficiently different (>60% new content)
-        const jaccard = jaccardSimilarity(existing.description, description, tokenize);
+        // Pre-tokenize asynchronously since tokenize is async
+        const existingTokens = new Set(await tokenize(existing.description));
+        const newTokens = new Set(await tokenize(description));
+        const jaccard = jaccardSimilarity(existingTokens, newTokens);
         if (jaccard < GRAPH_JACCARD_DUPLICATE_THRESHOLD && !existing.description.includes(description)) {
             existing.description = existing.description + ' | ' + description;
         }
