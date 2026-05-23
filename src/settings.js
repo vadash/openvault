@@ -85,6 +85,7 @@ export function getSettings(path, defaultValue) {
     // DEBUG: Log retrieval
     if (path.includes('injection') && path.includes('position')) {
         console.log(`[OpenVault DEBUG] getSettings(${path}): returned ${result}, default=${defaultValue}`);
+        console.log(`[OpenVault DEBUG] getSettings(${path}): settings exists? ${!!settings}, injection exists? ${!!settings?.injection}`);
     }
     return result;
 }
@@ -164,6 +165,10 @@ export async function setSetting(path, value) {
     const lodash = deps.getContext()?.lodash;
     const settings = deps.getExtensionSettings()[extensionName];
 
+    // DEBUG: Log the settings object structure
+    console.log('[OpenVault DEBUG] setSetting: settings.injection exists?', !!settings?.injection);
+    console.log('[OpenVault DEBUG] setSetting: settings object keys:', Object.keys(settings || {}));
+
     // DEBUG: Log before setting
     const oldValue = lodash?.get(settings, path);
     console.log(`[OpenVault DEBUG] setSetting(${path}): old=${oldValue}, new=${value}`);
@@ -192,6 +197,10 @@ export async function setSetting(path, value) {
     // DEBUG: Verify setting was written
     const newValue = lodash?.get(settings, path);
     console.log(`[OpenVault DEBUG] setSetting(${path}): verified value is now ${newValue}`);
+
+    // DEBUG: Verify via getSettings (what retrieval uses)
+    const viaGetSettings = getSettings(path);
+    console.log(`[OpenVault DEBUG] setSetting(${path}): via getSettings = ${viaGetSettings}`);
 
     deps.saveSettingsDebounced();
 
