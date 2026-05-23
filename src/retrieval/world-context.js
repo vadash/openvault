@@ -180,7 +180,7 @@ function formatEntityEntry(key, node, graphData) {
 
     // Find top 3 edges by weight where this entity is the source
     const edges = [];
-    for (const [_edgeKey, edge] of Object.entries(graphData.edges)) {
+    for (const [_edgeKey, edge] of Object.entries(graphData.edges || {})) {
         if (edge.source === key && graphData.nodes[edge.target]) {
             edges.push(edge);
         }

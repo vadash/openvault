@@ -291,6 +291,13 @@ export async function updateCharacterStatesFromEvents(events, data, validCharNam
             const translit = await transliterateCyrToLat(lower);
             if (translit !== lower) validSet.add(translit);
         }
+        // Include witnesses in valid set for group-chat scenarios
+        for (const witness of event.witnesses || []) {
+            const lower = witness.toLowerCase();
+            validSet.add(lower);
+            const translit = await transliterateCyrToLat(lower);
+            if (translit !== lower) validSet.add(translit);
+        }
     }
 
     const CYRILLIC_RE = /\p{Script=Cyrillic}/u;
