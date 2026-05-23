@@ -662,6 +662,13 @@ export async function synthesizeReflections(data, characterNames, settings, opti
  */
 async function synthesizeWorldState(data, settings, characterName, userName) {
     try {
+        // Check if world state generation is disabled via position -2
+        const worldPosition = getSettings('injection.world.position', defaultSettings.injection.world.position);
+        if (worldPosition === -2) {
+            logDebug('[Extraction] World state synthesis disabled (position=-2), skipping generation');
+            return;
+        }
+
         const nodes = data.graph?.nodes || {};
         const nodeKeys = Object.keys(nodes);
 
