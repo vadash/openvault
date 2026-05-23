@@ -417,7 +417,7 @@ export async function shouldMergeEntities(cosine, threshold, tokensA, keyA, keyB
     // This prevents false merges when embeddings are inflated by shared context
     if (cosine < threshold - 0.1) return false;
 
-    const tokensB = new Set(keyB.split(/\s+/));
+    const tokensB = new Set(keyB.match(/[\p{L}0-9_]+/gu) || []);
     return await hasSufficientTokenOverlap(tokensA, tokensB, GRAPH_JACCARD_DUPLICATE_THRESHOLD, keyA, keyB, type);
 }
 
@@ -493,7 +493,7 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
     let bestScore = 0;
 
     // Token-overlap guard: extract word tokens from the new entity's key
-    const newTokens = new Set(key.split(/\s+/));
+    const newTokens = new Set(key.match(/[\p{L}0-9_]+/gu) || []);
 
     // Pre-decode embeddings of same-type nodes to avoid repeated Base64 decoding in loop
     const existingEmbeddings = new Map();

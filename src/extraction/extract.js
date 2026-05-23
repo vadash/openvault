@@ -915,6 +915,14 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         messagesToExtract = batch.map((id) => ({ id, ...chat[id] }));
     } else {
         messagesToExtract = messageIds.map((id) => ({ id, ...chat[id] })).filter((m) => m != null);
+        // Detect index shifts: if chat mutated (delete/swipe) between batch selection and here,
+        // resolved messages may already be processed. Bail out and let the loop re-fetch.
+        const processedFps = getProcessedFingerprints(data);
+        const staleCount = messagesToExtract.filter((m) => processedFps.has(getFingerprint(m))).length;
+        if (staleCount > 0) {
+            logDebug(`Index shift: ${staleCount}/${messagesToExtract.length} already processed, retrying`);
+            return { status: 'retry', reason: 'index_shift' };
+        }
     }
 
     if (messagesToExtract.length === 0) {
@@ -1266,6 +1274,13 @@ export async function extractAllMessages(optionsOrCallback) {
                 silent: true,
                 abortSignal, // v6: Pass signal to enable mid-request cancellation
             });
+
+            // Index shift detected — discard stale batch and re-fetch on next iteration
+            if (result?.status === 'retry') {
+                currentBatch = null;
+                continue;
+            }
+
             totalEvents += result?.events_created || 0;
             messagesProcessed += currentBatch?.length || 0;
 

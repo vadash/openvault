@@ -17,6 +17,7 @@ import { logDebug, logError, logWarn } from '../utils/logging.js';
 import { yieldToMain } from '../utils/st-helpers.js';
 import { mergeDescriptions } from '../utils/text.js';
 import { countTokens } from '../utils/tokens.js';
+import { CURRENT_SCHEMA_VERSION } from './migrations/index.js';
 
 /** @typedef {import('../types.d.ts').OpenVaultData} OpenVaultData */
 /** @typedef {import('../types.d.ts').Memory} Memory */
@@ -37,7 +38,7 @@ export function getOpenVaultData() {
     }
     if (!context.chatMetadata[METADATA_KEY]) {
         context.chatMetadata[METADATA_KEY] = {
-            schema_version: 6,
+            schema_version: CURRENT_SCHEMA_VERSION,
             [MEMORIES_KEY]: [],
             [CHARACTERS_KEY]: {},
             [PROCESSED_MESSAGES_KEY]: [],

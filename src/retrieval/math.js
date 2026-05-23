@@ -429,10 +429,19 @@ export async function scoreMemories(
                 // Full IDF setup: tokenization + calculation (timed)
                 const idfStart = performance.now();
 
-                // Tokenize ALL memories in corpus (candidates + hidden)
-                const corpusMemoryTokens = await Promise.all(
-                    idfCorpus.map(async (m) => m.tokens || (await tokenize(m.summary || '')))
-                );
+                // Tokenize corpus in chunks to avoid microtask starvation on large sets
+                const IDF_CHUNK_SIZE = 64;
+                const corpusMemoryTokens = [];
+                for (let i = 0; i < idfCorpus.length; i += IDF_CHUNK_SIZE) {
+                    const chunk = idfCorpus.slice(i, i + IDF_CHUNK_SIZE);
+                    const chunkTokens = await Promise.all(
+                        chunk.map(async (m) => m.tokens || (await tokenize(m.summary || '')))
+                    );
+                    corpusMemoryTokens.push(...chunkTokens);
+                    if (i + IDF_CHUNK_SIZE < idfCorpus.length) {
+                        await yieldToMain();
+                    }
+                }
 
                 // Calculate IDF from expanded corpus
                 const tokenizedMap = new Map(corpusMemoryTokens.map((t, i) => [i, t]));
