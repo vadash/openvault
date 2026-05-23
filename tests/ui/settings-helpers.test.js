@@ -1,5 +1,5 @@
 import { JSDOM } from 'jsdom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Set up JSDOM
 const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
@@ -45,6 +45,9 @@ const mockJQuery = (selector) => {
             return $obj;
         }),
         hasClass: vi.fn((cls) => element?.classList.contains(cls) || false),
+        prop: vi.fn(() => $obj),
+        text: vi.fn(() => $obj),
+        remove: vi.fn(() => $obj),
     };
 
     return $obj;
@@ -52,6 +55,14 @@ const mockJQuery = (selector) => {
 
 mockJQuery.fn = {};
 global.$ = mockJQuery;
+
+// Mock toastr
+global.toastr = {
+    info: vi.fn(() => ({ remove: vi.fn() })),
+    success: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+};
 
 describe('Emergency Cut Modal Helpers', () => {
     beforeEach(() => {
@@ -88,6 +99,63 @@ describe('Emergency Cut Modal Helpers', () => {
             hideEmergencyCutModal();
 
             expect($('#openvault_emergency_cut_modal').hasClass('hidden')).toBe(true);
+        });
+    });
+});
+
+describe('Usage Tracker Integration in UI Handlers', () => {
+    beforeEach(() => {
+        // Reset body with modal elements
+        document.body.innerHTML = `
+            <div id="openvault_emergency_cut_modal" class="openvault-modal hidden">
+                <div class="openvault-modal-content">
+                    <button id="openvault_emergency_cancel">Cancel</button>
+                </div>
+            </div>
+            <textarea id="send_textarea"></textarea>
+        `;
+    });
+
+    describe('handleExtractAll', () => {
+        it('passes tracker option to extractAllMessages', async () => {
+            const { handleExtractAll } = await import('../../src/ui/settings.js');
+            const extractModule = await import('../../src/extraction/extract.js');
+
+            // Spy on extractAllMessages
+            const spy = vi.spyOn(extractModule, 'extractAllMessages').mockResolvedValueOnce({
+                messagesProcessed: 0,
+                eventsCreated: 0,
+            });
+
+            await handleExtractAll();
+
+            expect(spy).toHaveBeenCalled();
+            const options = spy.mock.calls[0][0];
+            expect(options.tracker).toBeDefined();
+            expect(typeof options.tracker.record).toBe('function');
+            expect(typeof options.tracker.getSummary).toBe('function');
+
+            spy.mockRestore();
+        });
+    });
+
+    describe('handleEmergencyCutClick', () => {
+        it('passes tracker option to executeEmergencyCut', async () => {
+            const { handleEmergencyCutClick } = await import('../../src/ui/settings.js');
+            const extractModule = await import('../../src/extraction/extract.js');
+
+            // Spy on executeEmergencyCut
+            const spy = vi.spyOn(extractModule, 'executeEmergencyCut').mockResolvedValueOnce(undefined);
+
+            await handleEmergencyCutClick();
+
+            expect(spy).toHaveBeenCalled();
+            const options = spy.mock.calls[0][0];
+            expect(options.tracker).toBeDefined();
+            expect(typeof options.tracker.record).toBe('function');
+            expect(typeof options.tracker.getSummary).toBe('function');
+
+            spy.mockRestore();
         });
     });
 });

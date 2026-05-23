@@ -154,10 +154,11 @@ export async function hideExtractedMessages() {
  * @param {function({messagesProcessed: number, eventsCreated: number, hiddenCount: number}): void} [options.onComplete] - Called on success
  * @param {function(Error, boolean): void} [options.onError] - Called on failure (error, isCancel)
  * @param {AbortSignal} [options.abortSignal] - For cancellation
+ * @param {object} [options.tracker] - Usage tracker for recording LLM calls
  * @returns {Promise<void>}
  */
 export async function executeEmergencyCut(options = {}) {
-    const { onWarning, onConfirmPrompt, onStart, onProgress, onComplete, onError, abortSignal } = options;
+    const { onWarning, onConfirmPrompt, onStart, onProgress, onComplete, onError, abortSignal, tracker } = options;
 
     if (isWorkerRunning()) {
         onWarning?.('Background extraction in progress. Please wait a moment.');
@@ -206,6 +207,7 @@ export async function executeEmergencyCut(options = {}) {
             isEmergencyCut: true,
             progressCallback: onProgress,
             abortSignal,
+            tracker,
         });
 
         const hiddenCount = await hideExtractedMessages();
@@ -1118,7 +1120,7 @@ export async function runPhase2Enrichment(data, settings, targetChatId, options 
 /**
  * Extract memories from all unextracted messages in current chat
  * Processes in batches determined by extractionTokenBudget setting
- * @param {function|object} optionsOrCallback - Legacy callback OR options object
+ * @param {function|{isEmergencyCut?: boolean, abortSignal?: AbortSignal, tracker?: object, onComplete?: function, onStart?: function, onProgress?: function, onPhase2Start?: function, onBatchRetryWait?: function, onFinish?: function, onAbort?: function, onError?: function, progressCallback?: function}} optionsOrCallback - Legacy callback OR options object
  */
 export async function extractAllMessages(optionsOrCallback) {
     // v6: Normalize options to handle legacy function argument
@@ -1127,6 +1129,7 @@ export async function extractAllMessages(optionsOrCallback) {
     const {
         isEmergencyCut = false,
         abortSignal = null,
+        tracker = null,
         onComplete = null,
         // Backfill UI callbacks (non-Emergency-Cut path)
         onStart,
@@ -1282,6 +1285,7 @@ export async function extractAllMessages(optionsOrCallback) {
                 isBackfill: true,
                 silent: true,
                 abortSignal, // v6: Pass signal to enable mid-request cancellation
+                tracker,
             });
 
             // Index shift detected — discard stale batch and re-fetch on next iteration

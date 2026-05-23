@@ -29,7 +29,8 @@ import { executeEmergencyCut } from '../extraction/extract.js';
 import { formatForClipboard, getAll as getPerfData } from '../perf/store.js';
 import { getSettings, setSetting } from '../settings.js';
 import { deleteMemoriesByType } from '../store/chat-data.js';
-import { logError, logInfo, logWarn } from '../utils/logging.js';
+import { logDebug, logError, logInfo, logWarn } from '../utils/logging.js';
+import { createUsageTracker } from '../utils/usage-tracker.js';
 import { exportToClipboard } from './export-debug.js';
 import { validateRPM } from './helpers.js';
 import { initBrowser, refreshAllUI, resetAndRender } from './render.js';
@@ -118,10 +119,12 @@ export function disableEmergencyCutCancel() {
 /**
  * Handle Emergency Cut button click — thin UI wrapper around domain function.
  */
-async function handleEmergencyCutClick() {
+export async function handleEmergencyCutClick() {
     emergencyCutAbortController = new AbortController();
+    const tracker = createUsageTracker();
 
     await executeEmergencyCut({
+        tracker,
         onWarning: (msg) => showToast('warning', msg),
         onConfirmPrompt: (msg) => confirm(msg),
         onStart: () => {
@@ -140,6 +143,7 @@ async function handleEmergencyCutClick() {
             } else {
                 showToast('success', `Emergency Cut complete. ${hiddenCount} messages hidden from context.`);
             }
+            logDebug('Emergency Cut usage stats:', tracker.getSummary());
             $('#send_textarea').prop('disabled', false);
             hideEmergencyCutModal();
             emergencyCutAbortController = null;
@@ -151,6 +155,7 @@ async function handleEmergencyCutClick() {
                 : `Emergency Cut failed: ${err.message}. No messages were hidden.`;
             showToast(isCancel ? 'info' : 'error', message);
             logError('Emergency Cut failed', err);
+            logDebug('Emergency Cut error usage stats:', tracker.getSummary());
             $('#send_textarea').prop('disabled', false);
             hideEmergencyCutModal();
             emergencyCutAbortController = null;
@@ -356,9 +361,11 @@ function syncPrefillSelector() {
 // Action Handlers (inlined from actions.js)
 // =============================================================================
 
-async function handleExtractAll() {
+export async function handleExtractAll() {
+    const tracker = createUsageTracker();
     const { extractAllMessages } = await import('../extraction/extract.js');
     await extractAllMessages({
+        tracker,
         onComplete: updateEventListeners,
         onStart: (batchCount) => {
             setStatus('extracting');
@@ -387,17 +394,20 @@ async function handleExtractAll() {
         onFinish: ({ messagesProcessed, eventsCreated }) => {
             $('.openvault-backfill-toast').remove();
             showToast('success', `Extracted ${eventsCreated} events from ${messagesProcessed} messages`);
+            logDebug('Backfill usage stats:', tracker.getSummary());
             refreshAllUI();
             setStatus('ready');
         },
         onAbort: () => {
             $('.openvault-backfill-toast').remove();
             showToast('warning', 'Backfill aborted: chat changed', 'OpenVault');
+            logDebug('Backfill aborted usage stats:', tracker.getSummary());
             setStatus('ready');
         },
         onError: (error) => {
             $('.openvault-backfill-toast').remove();
             showToast('warning', error.message, 'OpenVault');
+            logDebug('Backfill error usage stats:', tracker.getSummary());
             setStatus('ready');
         },
     });
