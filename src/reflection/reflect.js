@@ -271,27 +271,29 @@ export async function generateReflections(characterName, allMemories, characterS
 
     // Convert unified reflections to memory objects
     const now = deps.Date.now();
-    const newReflections = reflections.map(({ insight, evidence_ids }) => {
-        return {
-            id: `ref_${generateId()}`,
-            type: 'reflection',
-            summary: insight,
-            tokens: tokenize(insight || ''),
-            importance: 4,
-            sequence: now,
-            characters_involved: [characterName],
-            character: characterName,
-            source_ids: evidence_ids, // Keep all evidence IDs as-is
-            parent_ids: [], // No parent reflections (flattened to Level 1)
-            level: 1, // All reflections are Level 1
-            witnesses: [characterName],
-            location: null,
-            is_secret: false,
-            emotional_impact: {},
-            relationship_impact: {},
-            created_at: now,
-        };
-    });
+    const newReflections = await Promise.all(
+        reflections.map(async ({ insight, evidence_ids }) => {
+            return {
+                id: `ref_${generateId()}`,
+                type: 'reflection',
+                summary: insight,
+                tokens: await tokenize(insight || ''),
+                importance: 4,
+                sequence: now,
+                characters_involved: [characterName],
+                character: characterName,
+                source_ids: evidence_ids, // Keep all evidence IDs as-is
+                parent_ids: [], // No parent reflections (flattened to Level 1)
+                level: 1, // All reflections are Level 1
+                witnesses: [characterName],
+                location: null,
+                is_secret: false,
+                emotional_impact: {},
+                relationship_impact: {},
+                created_at: now,
+            };
+        })
+    );
 
     // Generate embeddings for reflections
     await enrichEventsWithEmbeddings(newReflections);

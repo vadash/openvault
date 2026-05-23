@@ -410,7 +410,7 @@ export async function cleanupCharacterStates(data, validCharNames = []) {
  * @param {Object} data - OpenVault data object
  * @param {Object} _graphNodes - Graph nodes keyed by normalized name (unused, for API compatibility)
  */
-export function updateIDFCache(data, _graphNodes = {}) {
+export async function updateIDFCache(data, _graphNodes = {}) {
     const allMemories = data[MEMORIES_KEY] || [];
     // Only include active (non-archived) memories in IDF calculation
     const memories = allMemories.filter((m) => !m.archived);
@@ -421,7 +421,8 @@ export function updateIDFCache(data, _graphNodes = {}) {
     for (let i = 0; i < memories.length; i++) {
         const m = memories[i];
         // Use pre-computed tokens if available, otherwise tokenize summary
-        tokenizedMemories.set(i, m.tokens || tokenize(m.summary || ''));
+        const tokens = m.tokens?.length > 0 ? m.tokens : await tokenize(m.summary || '');
+        tokenizedMemories.set(i, tokens);
     }
 
     // Calculate IDF from active memories only
@@ -990,7 +991,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         logDebug(`Phase 1 complete: ${events.length} events, ${processedFps.length} messages processed`);
 
         // Update IDF cache after Phase 1 commit — corpus has changed
-        updateIDFCache(data, data.graph?.nodes);
+        await updateIDFCache(data, data.graph?.nodes);
 
         // Intermediate save — Phase 1 data is now persisted
         const phase1Saved = await saveOpenVaultData(targetChatId);
@@ -1031,7 +1032,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
 
             // Final save — Phase 2 enrichment persisted
             // Update IDF cache before save — reflections/communities may have been added
-            updateIDFCache(data, data.graph?.nodes);
+            await updateIDFCache(data, data.graph?.nodes);
             await saveOpenVaultData(targetChatId);
         } catch (phase2Error) {
             // AbortError must propagate — it's not a Phase 2 failure, it's a session cancel
@@ -1079,7 +1080,7 @@ export async function runPhase2Enrichment(data, settings, targetChatId, options 
         await synthesizeWorldState(data, settings, context.name2, context.name1);
 
         // Update IDF cache before save — reflections may have been added
-        updateIDFCache(data, data.graph?.nodes);
+        await updateIDFCache(data, data.graph?.nodes);
         await saveOpenVaultData(targetChatId);
         logInfo('runPhase2Enrichment: Complete');
     } catch (error) {
@@ -1236,7 +1237,8 @@ export async function extractAllMessages(optionsOrCallback) {
             estimatedTotal > 0 ? Math.min(Math.round((messagesProcessed / estimatedTotal) * 100), 100) : 0;
         const avgPerBatch = batchesProcessed > 0 ? messagesProcessed / batchesProcessed : 0;
         const estimatedBatchesLeft = avgPerBatch > 0 ? Math.ceil(remainingUnextracted / avgPerBatch) : 0;
-        const estimatedTotalBatches = batchesProcessed + estimatedBatchesLeft;
+        const estimatedTotalBatches =
+            batchesProcessed > 0 ? batchesProcessed + estimatedBatchesLeft : initialBatchCount;
 
         const retryText =
             retryCount > 0

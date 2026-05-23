@@ -384,6 +384,36 @@ export async function safeParseJSON(input, options = {}) {
     // Mid-tier LLMs output valid JSON wrapped in fences 90% of the time
     text = stripMarkdownFences(text);
 
+    // === PREFILL RECOVERY FALLBACK ===
+    // Some LLM reverse proxies strip the prefill from responses, returning content
+    // starting with a quoted property name (e.g. `"consolidated_description": "..."`)
+    // without the opening brace. Detect and repair this before parsing tiers.
+    const trimmedText = text.trim();
+    if (
+        trimmedText.length > 0 &&
+        !trimmedText.startsWith('{') &&
+        !trimmedText.startsWith('[') &&
+        (trimmedText.endsWith('}') || trimmedText.endsWith(']'))
+    ) {
+        const possibleBrace = trimmedText.endsWith('}') ? '{' : '[';
+        try {
+            // Case A: Missing only opening brace (e.g. "key": "value"...})
+            const repairedText = possibleBrace + trimmedText;
+            const parsed = JSON.parse(repairedText);
+            return { success: true, data: parsed };
+        } catch {
+            try {
+                // Case B: Missing opening brace and opening quote (rare edge case)
+                const repairedText = possibleBrace + '"' + trimmedText;
+                const parsed = JSON.parse(repairedText);
+                return { success: true, data: parsed };
+            } catch {
+                // Fall through to standard parsing tiers
+            }
+        }
+    }
+    // === END PREFILL RECOVERY ===
+
     // === Tier 1: Native Parse ===
     try {
         const parsed = JSON.parse(text);

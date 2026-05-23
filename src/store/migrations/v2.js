@@ -27,7 +27,14 @@ function migrateProcessedMessages(data, chat) {
     const fps = new Set();
 
     // Temporal boundary: messages sent after last extraction are new
-    const lastMemoryTime = Math.max(0, ...(data[MEMORIES_KEY] || []).map((m) => m.created_at || 0));
+    // Use iterative max to avoid stack overflow with large memory arrays (>65k)
+    let lastMemoryTime = 0;
+    for (const m of data[MEMORIES_KEY] || []) {
+        const time = m.created_at || 0;
+        if (time > lastMemoryTime) {
+            lastMemoryTime = time;
+        }
+    }
 
     // Migrate processed_message_ids indices
     for (const idx of processed) {
