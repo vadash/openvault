@@ -87,7 +87,7 @@ export function formatMemory(memory) {
  * @param {number} chatLength - Current chat length for context
  * @returns {string} Formatted context string
  */
-export function formatContextForInjection(
+export async function formatContextForInjection(
     memories,
     presentCharacters,
     emotionalInfo,
@@ -130,13 +130,13 @@ export function formatContextForInjection(
     const hasRecentContent = buckets.recent.length > 0 || presentLine || emotionsLine;
 
     // Calculate overhead tokens
-    let overheadTokens = countTokens(lines.join('\n') + '</scene_memory>');
-    if (buckets.old.length > 0) overheadTokens += countTokens(bucketHeaders.old);
-    if (buckets.mid.length > 0) overheadTokens += countTokens(bucketHeaders.mid);
+    let overheadTokens = await countTokens(lines.join('\n') + '</scene_memory>');
+    if (buckets.old.length > 0) overheadTokens += await countTokens(bucketHeaders.old);
+    if (buckets.mid.length > 0) overheadTokens += await countTokens(bucketHeaders.mid);
     if (hasRecentContent) {
-        overheadTokens += countTokens(bucketHeaders.recent);
-        if (presentLine) overheadTokens += countTokens(presentLine);
-        if (emotionsLine) overheadTokens += countTokens(emotionsLine);
+        overheadTokens += await countTokens(bucketHeaders.recent);
+        if (presentLine) overheadTokens += await countTokens(presentLine);
+        if (emotionsLine) overheadTokens += await countTokens(emotionsLine);
     }
 
     const availableForMemories = tokenBudget - overheadTokens;
@@ -146,7 +146,7 @@ export function formatContextForInjection(
     let totalTokens = 0;
 
     for (const memory of [...buckets.old, ...buckets.mid, ...buckets.recent]) {
-        const memoryTokens = countTokens(formatMemory(memory)) + 1;
+        const memoryTokens = (await countTokens(formatMemory(memory))) + 1;
         if (totalTokens + memoryTokens <= availableForMemories) {
             fittingMemoryIds.add(memory.id);
             totalTokens += memoryTokens;

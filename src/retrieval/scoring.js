@@ -100,7 +100,7 @@ async function selectRelevantMemoriesSimple(memories, ctx, limit, allHiddenMemor
 
     // Extract context from recent messages for enriched queries
     const recentMessages = parseRecentMessages(recentContext, 10);
-    const queryContext = extractQueryContext(recentMessages, activeCharacters, ctx.graphNodes || {}, queryConfig);
+    const queryContext = await extractQueryContext(recentMessages, activeCharacters, ctx.graphNodes || {}, queryConfig);
 
     // Build enriched queries
     // Use user messages only for embedding (intent matching)
@@ -113,8 +113,13 @@ async function selectRelevantMemoriesSimple(memories, ctx, limit, allHiddenMemor
     let bm25Tokens = [];
     const bm25Meta = {};
     if (hasEvents) {
-        const _corpusVocab = buildCorpusVocab(memories, allHiddenMemories, ctx.graphNodes || {}, ctx.graphEdges || {});
-        bm25Tokens = buildBM25Tokens(userMessages, queryContext, _corpusVocab, bm25Meta, queryConfig);
+        const _corpusVocab = await buildCorpusVocab(
+            memories,
+            allHiddenMemories,
+            ctx.graphNodes || {},
+            ctx.graphEdges || {}
+        );
+        bm25Tokens = await buildBM25Tokens(userMessages, queryContext, _corpusVocab, bm25Meta, queryConfig);
     }
 
     // Cache query context for debug export

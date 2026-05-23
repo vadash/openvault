@@ -39,7 +39,13 @@ export function detectMacroIntent(userMessagesString) {
  * @param {number} tokenBudget - Max tokens for world context (default: 2000)
  * @returns {{ text: string, entityKeys: string[], isMacroIntent: boolean }}
  */
-export function retrieveWorldContext(graphData, globalState, userMessagesString, queryEmbedding, tokenBudget = 2000) {
+export async function retrieveWorldContext(
+    graphData,
+    globalState,
+    userMessagesString,
+    queryEmbedding,
+    tokenBudget = 2000
+) {
     // Intent-based routing: check for macro intent first
     if (detectMacroIntent(userMessagesString) && globalState?.summary) {
         return {
@@ -80,7 +86,7 @@ export function retrieveWorldContext(graphData, globalState, userMessagesString,
 
     for (const { key, node } of scored) {
         const entry = formatEntityEntry(key, node, graphData);
-        const tokens = countTokens(entry);
+        const tokens = await countTokens(entry);
         if (usedTokens + tokens > tokenBudget) break;
         selected.push({ key, entry });
         usedTokens += tokens;

@@ -18,7 +18,7 @@ import { tokenize } from './math.js';
  * @param {Object} [graphNodes={}] - Graph nodes keyed by normalized name
  * @returns {{entities: string[], weights: Object<string, number>}}
  */
-export function extractQueryContext(messages, activeCharacters = [], graphNodes = {}, queryConfig) {
+export async function extractQueryContext(messages, activeCharacters = [], graphNodes = {}, queryConfig) {
     if (!messages || messages.length === 0) {
         return { entities: [], weights: {} };
     }
@@ -28,17 +28,17 @@ export function extractQueryContext(messages, activeCharacters = [], graphNodes 
     // Build stem → display name map from graph nodes + aliases + characters
     const stemToEntity = new Map();
     for (const [, node] of Object.entries(graphNodes)) {
-        for (const stem of stemName(node.name)) {
+        for (const stem of await stemName(node.name)) {
             stemToEntity.set(stem, node.name);
         }
         for (const alias of node.aliases || []) {
-            for (const stem of stemName(alias)) {
+            for (const stem of await stemName(alias)) {
                 stemToEntity.set(stem, node.name);
             }
         }
     }
     for (const char of activeCharacters) {
-        for (const stem of stemName(char)) {
+        for (const stem of await stemName(char)) {
             stemToEntity.set(stem, char);
         }
     }
@@ -47,30 +47,33 @@ export function extractQueryContext(messages, activeCharacters = [], graphNodes 
     const entityMessageCounts = new Map();
     const messagesToScan = messages.slice(0, settings.entityWindowSize);
 
-    messagesToScan.forEach((msg, index) => {
-        const recencyWeight = 1 - index * settings.recencyDecayFactor;
-        const text = msg.mes || msg.message || '';
+    await Promise.all(
+        messagesToScan.map(async (msg, index) => {
+            const recencyWeight = 1 - index * settings.recencyDecayFactor;
+            const text = msg.mes || msg.message || '';
 
-        // Stem message words (no stopword filter — entity names could be stopwords)
-        const words = (text.toLowerCase().match(/[\p{L}0-9]+/gu) || [])
-            .filter((w) => w.length > 2)
-            .map(stemWord)
-            .filter((w) => w.length > 2);
+            // Stem message words (no stopword filter — entity names could be stopwords)
+            const words = (text.toLowerCase().match(/[\p{L}0-9]+/gu) || [])
+                .filter((w) => w.length > 2)
+                .map(async (w) => await stemWord(w));
+            const stemmed = await Promise.all(words);
+            const filtered = stemmed.filter((w) => w.length > 2);
 
-        const matchedInMsg = new Set();
-        for (const word of words) {
-            const entity = stemToEntity.get(word);
-            if (entity) matchedInMsg.add(entity);
-        }
+            const matchedInMsg = new Set();
+            for (const word of filtered) {
+                const entity = stemToEntity.get(word);
+                if (entity) matchedInMsg.add(entity);
+            }
 
-        for (const entity of matchedInMsg) {
-            entityMessageCounts.set(entity, (entityMessageCounts.get(entity) || 0) + 1);
-            const current = entityScores.get(entity) || { count: 0, weightSum: 0 };
-            current.count++;
-            current.weightSum += recencyWeight;
-            entityScores.set(entity, current);
-        }
-    });
+            for (const entity of matchedInMsg) {
+                entityMessageCounts.set(entity, (entityMessageCounts.get(entity) || 0) + 1);
+                const current = entityScores.get(entity) || { count: 0, weightSum: 0 };
+                current.count++;
+                current.weightSum += recencyWeight;
+                entityScores.set(entity, current);
+            }
+        })
+    );
 
     // Boost active characters
     for (const charName of activeCharacters) {
@@ -147,7 +150,7 @@ export function buildEmbeddingQuery(messages, extractedEntities, queryConfig) {
  * @param {Object} [meta=null] - Optional metadata object to populate with layer counts
  * @returns {string[]} Token array with boosted entities and message stems
  */
-export function buildBM25Tokens(userMessage, extractedEntities, corpusVocab = null, meta = null, queryConfig) {
+export async function buildBM25Tokens(userMessage, extractedEntities, corpusVocab = null, meta = null, queryConfig) {
     const tokens = [];
     const settings = { ...QUERY_CONTEXT_DEFAULTS, ...queryConfig };
 
@@ -171,7 +174,7 @@ export function buildBM25Tokens(userMessage, extractedEntities, corpusVocab = nu
             } else {
                 // Layer 1: Single-word entity stems (existing behavior, 5x boost)
                 const stemBoost = Math.ceil(weight * settings.entityBoostWeight);
-                const stemmed = tokenize(entity);
+                const stemmed = await tokenize(entity);
                 for (let r = 0; r < stemBoost; r++) {
                     tokens.push(...stemmed);
                 }
@@ -186,7 +189,7 @@ export function buildBM25Tokens(userMessage, extractedEntities, corpusVocab = nu
 
     // Three-tier message token processing
     if (corpusVocab && corpusVocab.size > 0) {
-        const msgStems = tokenize(userMessage || '');
+        const msgStems = await tokenize(userMessage || '');
         const grounded = msgStems.filter((t) => corpusVocab.has(t));
         const nonGrounded = msgStems.filter((t) => !corpusVocab.has(t));
 
@@ -220,7 +223,7 @@ export function buildBM25Tokens(userMessage, extractedEntities, corpusVocab = nu
         nonGroundedCount = uniqueNonGrounded.length * nonGroundedBoost;
     } else if (!corpusVocab) {
         // Backward compat: no corpus vocab → include all message tokens at 1x
-        tokens.push(...tokenize(userMessage || ''));
+        tokens.push(...(await tokenize(userMessage || '')));
     }
 
     if (meta) {
@@ -261,7 +264,7 @@ export function parseRecentMessages(recentContext, count = 10) {
  * @param {Object} graphEdges - Graph edges keyed by "src__tgt"
  * @returns {Set<string>} Set of all stems present in the corpus
  */
-export function buildCorpusVocab(memories, hiddenMemories, graphNodes, graphEdges) {
+export async function buildCorpusVocab(memories, hiddenMemories, graphNodes, graphEdges) {
     const vocab = new Set();
 
     // Memory tokens (pre-computed at extraction time)
@@ -275,14 +278,14 @@ export function buildCorpusVocab(memories, hiddenMemories, graphNodes, graphEdge
     // Graph node descriptions
     for (const node of Object.values(graphNodes || {})) {
         if (node.description) {
-            for (const t of tokenize(node.description)) vocab.add(t);
+            for (const t of await tokenize(node.description)) vocab.add(t);
         }
     }
 
     // Graph edge descriptions
     for (const edge of Object.values(graphEdges || {})) {
         if (edge.description) {
-            for (const t of tokenize(edge.description)) vocab.add(t);
+            for (const t of await tokenize(edge.description)) vocab.add(t);
         }
     }
 

@@ -263,7 +263,7 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
     const presentCharacters = activeCharacters.filter((c) => c !== primaryCharacter);
 
     // Format and inject memories - now returns { memoryText, reflectionText }
-    const { memoryText, reflectionText } = formatContextForInjection(
+    const { memoryText, reflectionText } = await formatContextForInjection(
         relevantMemories,
         presentCharacters,
         emotionalInfo,
@@ -284,7 +284,7 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
             worldQueryEmbedding = await getQueryEmbedding(userMessages || ctx.recentContext?.slice(-500));
         }
         // Always call retrieveWorldContext - it handles macro intent detection
-        const worldResult = retrieveWorldContext(
+        const worldResult = await retrieveWorldContext(
             graphData,
             data.global_world_state || null,
             userMessages || '',
