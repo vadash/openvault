@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { resetDeps } from '../../src/deps.js';
 import { callLLM, LLM_CONFIGS } from '../../src/llm.js';
+import { createUsageTracker } from '../../src/utils/usage-tracker.js';
 
 describe('LLM_CONFIGS after smart retrieval removal', () => {
     it('does not have a retrieval config', () => {
@@ -268,5 +269,137 @@ describe('callLLM abort signal', () => {
         await expect(promise).rejects.toThrow(expect.objectContaining({ name: 'AbortError' }));
         // Only main profile was attempted — backup is skipped for abort
         expect(sendRequest).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('callLLM usage tracking', () => {
+    const testConfig = {
+        profileSettingKey: 'extractionProfile',
+        maxTokens: 100,
+        errorContext: 'Test',
+        timeoutMs: 5000,
+        getJsonSchema: undefined,
+    };
+    const testMessages = [{ role: 'user', content: 'hello' }];
+
+    afterEach(() => {
+        resetDeps();
+    });
+
+    it('tracker receives usage when API returns full response with usage fields', async () => {
+        const tracker = createUsageTracker();
+        const recordSpy = vi.spyOn(tracker, 'record');
+
+        const sendRequest = vi.fn().mockResolvedValue({
+            choices: [{ message: { content: 'test-response' } }],
+            usage: { prompt_tokens: 10, completion_tokens: 5 },
+            model: 'test-model',
+        });
+        setupTestContext({
+            settings: { extractionProfile: 'main-id' },
+            deps: { connectionManager: { sendRequest } },
+        });
+
+        const result = await callLLM(testMessages, testConfig, { tracker });
+        expect(result).toBe('test-response');
+        expect(recordSpy).toHaveBeenCalledTimes(1);
+        expect(recordSpy).toHaveBeenCalledWith({
+            model: 'test-model',
+            promptTokens: 10,
+            completionTokens: 5,
+            cacheReadTokens: undefined,
+            cacheWriteTokens: undefined,
+        });
+    });
+
+    it('tracker receives "unknown" model when response lacks model field', async () => {
+        const tracker = createUsageTracker();
+        const recordSpy = vi.spyOn(tracker, 'record');
+
+        const sendRequest = vi.fn().mockResolvedValue({
+            choices: [{ message: { content: 'test-response' } }],
+            usage: { prompt_tokens: 10, completion_tokens: 5 },
+        });
+        setupTestContext({
+            settings: { extractionProfile: 'main-id' },
+            deps: { connectionManager: { sendRequest } },
+        });
+
+        await callLLM(testMessages, testConfig, { tracker });
+        expect(recordSpy).toHaveBeenCalledWith({
+            model: undefined,
+            promptTokens: 10,
+            completionTokens: 5,
+            cacheReadTokens: undefined,
+            cacheWriteTokens: undefined,
+        });
+    });
+
+    it('tracker receives N/A tokens when response lacks usage field', async () => {
+        const tracker = createUsageTracker();
+        const recordSpy = vi.spyOn(tracker, 'record');
+
+        const sendRequest = vi.fn().mockResolvedValue({
+            choices: [{ message: { content: 'test-response' } }],
+            model: 'test-model',
+        });
+        setupTestContext({
+            settings: { extractionProfile: 'main-id' },
+            deps: { connectionManager: { sendRequest } },
+        });
+
+        await callLLM(testMessages, testConfig, { tracker });
+        expect(recordSpy).toHaveBeenCalledWith({
+            model: 'test-model',
+            promptTokens: undefined,
+            completionTokens: undefined,
+            cacheReadTokens: undefined,
+            cacheWriteTokens: undefined,
+        });
+    });
+
+    it('tracker not called when no tracker passed', async () => {
+        const sendRequest = vi.fn().mockResolvedValue({
+            choices: [{ message: { content: 'test-response' } }],
+            usage: { prompt_tokens: 10, completion_tokens: 5 },
+            model: 'test-model',
+        });
+        setupTestContext({
+            settings: { extractionProfile: 'main-id' },
+            deps: { connectionManager: { sendRequest } },
+        });
+
+        const result = await callLLM(testMessages, testConfig);
+        expect(result).toBe('test-response');
+        expect(sendRequest).toHaveBeenCalled();
+    });
+
+    it('tracker receives cache read/write tokens when present in usage', async () => {
+        const tracker = createUsageTracker();
+        const recordSpy = vi.spyOn(tracker, 'record');
+
+        const sendRequest = vi.fn().mockResolvedValue({
+            choices: [{ message: { content: 'test-response' } }],
+            usage: {
+                prompt_tokens: 10,
+                completion_tokens: 5,
+                cache_read_tokens: 100,
+                cache_write_tokens: 50,
+            },
+            model: 'test-model',
+        });
+        setupTestContext({
+            settings: { extractionProfile: 'main-id' },
+            deps: { connectionManager: { sendRequest } },
+        });
+
+        await callLLM(testMessages, testConfig, { tracker });
+        expect(recordSpy).toHaveBeenCalledWith({
+            model: 'test-model',
+            promptTokens: 10,
+            completionTokens: 5,
+            cacheReadTokens: 100,
+            cacheWriteTokens: 50,
+        });
     });
 });

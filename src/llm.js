@@ -25,6 +25,11 @@ import { withTimeout } from './utils/st-helpers.js';
 /** @typedef {import('./types.d.ts').LLMCallOptions} LLMCallOptions */
 /** @typedef {import('./types.d.ts').LLMMessages} LLMMessages */
 
+// @ts-check-ignore -- UsageTracker is function-based, defined in usage-tracker.js
+/** @typedef {object} UsageTracker */
+/** @property {(usage: { model?: string, promptTokens?: number, completionTokens?: number, cacheReadTokens?: number, cacheWriteTokens?: number }) => void} record */
+/** @property {() => string} getSummary */
+
 /**
  * Race a promise against an AbortSignal.
  * @template T
@@ -99,7 +104,7 @@ export const LLM_CONFIGS = {
  * Call LLM with messages array
  * @param {LLMMessages} messages - Array of message objects
  * @param {LLMConfig} config - Request configuration from LLM_CONFIGS
- * @param {LLMCallOptions} [options] - Optional parameters
+ * @param {LLMCallOptions & { tracker?: UsageTracker }} [options] - Optional parameters
  * @returns {Promise<string>} The LLM response content
  * @throws {Error} If the LLM call fails or no profile is available
  */
@@ -139,13 +144,33 @@ export async function callLLM(messages, config, options = {}) {
                 includePreset: true,
                 includeInstruct: true,
                 stream: false,
+                extractData: false,
             },
             jsonSchema ? { jsonSchema } : {}
         );
 
         const result = await raceAbort(withTimeout(requestPromise, timeoutMs || 120000, `${errorContext} API`), signal);
-        // Extract content from result object, preserving empty strings as valid (not falsy)
-        const content = result && typeof result === 'object' && 'content' in result ? result.content : result || '';
+
+        // Extract content from full API response (choices[0].message.content)
+        let content;
+        if (result && typeof result === 'object' && 'choices' in result && result.choices?.[0]?.message?.content) {
+            content = result.choices[0].message.content;
+
+            // Record usage if tracker provided
+            if (options.tracker && typeof options.tracker.record === 'function') {
+                const usage = {
+                    model: result.model,
+                    promptTokens: result.usage?.prompt_tokens,
+                    completionTokens: result.usage?.completion_tokens,
+                    cacheReadTokens: result.usage?.cache_read_tokens,
+                    cacheWriteTokens: result.usage?.cache_write_tokens,
+                };
+                options.tracker.record(usage);
+            }
+        } else {
+            // Fallback for legacy response format or malformed response
+            content = result && typeof result === 'object' && 'content' in result ? result.content : result || '';
+        }
 
         logDebug(`LLM response received (${content.length} chars)`);
         logRequest(errorContext, { messages, maxTokens, profileId: targetProfileId, response: content });
