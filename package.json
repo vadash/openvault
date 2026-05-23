@@ -5,7 +5,7 @@
     "description": "SillyTavern memory extension",
     "scripts": {
         "prepare": "git config core.hooksPath .githooks",
-        "check": "npm run sync-version && npm run generate-types && npm run lint:fix && npm run lint:jsdoc && npm run check-css && npm run typecheck",
+        "check": "npm run sync-version && npm run generate-types && npm run lint:fix && npm run lint:jsdoc && npm run check-css && npm run check-await && npm run typecheck",
         "lint": "npm run lint:fix && npm run lint:jsdoc",
         "lint:fix": "biome check --write --unsafe .",
         "lint:jsdoc": "node scripts/check-jsdoc.mjs",
@@ -15,6 +15,7 @@
         "generate-types": "node scripts/generate-types.js",
         "typecheck": "npm run generate-types && tsc --noEmit",
         "sync-version": "node scripts/sync-version.js",
+        "check-await": "node scripts/check-await.mjs",
         "check-css": "node scripts/check-css.js",
         "repomix": "npm run repomix:logic-lite && npm run repomix:logic-full && npm run repomix:ui && npm run repomix:tests",
         "repomix:logic-full": "npx repomix --remove-empty-lines --output repomix-logic-full.md --include \"src/**/*.js,index.js,package.json,include/**,**/CLAUDE.md\" --ignore \"src/ui/**,**/*.css,**/*.html\"",
