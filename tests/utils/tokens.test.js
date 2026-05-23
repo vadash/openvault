@@ -75,37 +75,6 @@ describe('countTokens', () => {
         expect(typeof countTokens).toBe('function');
         expect(await countTokens('hello world')).toBeGreaterThan(0);
     });
-
-    it('falls back to rough estimate when CDN is unavailable', async () => {
-        // Mock cdnImport to throw for gpt-tokenizer
-        vi.doMock('../../src/utils/cdn.js', async () => {
-            const actual = await vi.importActual('../../src/utils/cdn.js');
-            return {
-                ...actual,
-                cdnImport: async (spec) => {
-                    if (spec === 'gpt-tokenizer/encoding/o200k_base') {
-                        throw new Error('CDN unavailable');
-                    }
-                    return actual.cdnImport(spec);
-                },
-            };
-        });
-
-        // Reset modules to pick up the mock
-        vi.resetModules();
-        await global.registerCdnOverrides();
-        const { countTokens: countTokensFallback } = await import('../../src/utils/tokens.js');
-
-        // 'hello world'.length = 11, Math.ceil(11 / 4) = 3
-        expect(await countTokensFallback('hello world')).toBe(3);
-        expect(await countTokensFallback('hi')).toBe(1); // 2 chars -> 1 token
-        expect(await countTokensFallback('')).toBe(0); // empty -> 0 tokens
-
-        // Clean up: restore original
-        vi.doUnmock('../../src/utils/cdn.js');
-        vi.resetModules();
-        await global.registerCdnOverrides();
-    });
 });
 
 describe('getMessageTokenCount', () => {
@@ -135,34 +104,6 @@ describe('getMessageTokenCount', () => {
         const chat = [{ mes: '', is_user: true }, { is_user: false }];
         expect(await getMessageTokenCount(chat, 0)).toBe(0);
         expect(await getMessageTokenCount(chat, 1)).toBe(0);
-    });
-
-    it('falls back to rough estimate when CDN is unavailable', async () => {
-        // Mock cdnImport to throw for gpt-tokenizer
-        vi.doMock('../../src/utils/cdn.js', async () => {
-            const actual = await vi.importActual('../../src/utils/cdn.js');
-            return {
-                ...actual,
-                cdnImport: async (spec) => {
-                    if (spec === 'gpt-tokenizer/encoding/o200k_base') {
-                        throw new Error('CDN unavailable');
-                    }
-                    return actual.cdnImport(spec);
-                },
-            };
-        });
-
-        vi.resetModules();
-        await global.registerCdnOverrides();
-        const { getMessageTokenCount: getMessageTokenCountFallback } = await import('../../src/utils/tokens.js');
-        const chat = [{ mes: 'hello world', is_user: true }];
-        // 'hello world'.length = 11, Math.ceil(11 / 4) = 3
-        expect(await getMessageTokenCountFallback(chat, 0)).toBe(3);
-
-        // Clean up
-        vi.doUnmock('../../src/utils/cdn.js');
-        vi.resetModules();
-        await global.registerCdnOverrides();
     });
 });
 

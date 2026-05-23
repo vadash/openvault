@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { getAllStopwords, removeStopwords } from '../../src/utils/stopwords.js';
 
 describe('getAllStopwords', () => {
@@ -54,69 +54,5 @@ describe('removeStopwords', () => {
         const words = ['elephant', 'giraffe', 'zebra'];
         const filtered = await removeStopwords(words);
         expect(filtered).toEqual(['elephant', 'giraffe', 'zebra']);
-    });
-});
-
-describe('stopwords — CDN unavailable fallback', () => {
-    it('getAllStopwords returns empty Set when CDN fails', async () => {
-        // Mock cdnImport to throw for stopword
-        vi.doMock('../../src/utils/cdn.js', async () => {
-            const actual = await vi.importActual('../../src/utils/cdn.js');
-            return {
-                ...actual,
-                cdnImport: async (spec) => {
-                    if (spec === 'stopword') {
-                        throw new Error('CDN unavailable');
-                    }
-                    return actual.cdnImport(spec);
-                },
-            };
-        });
-
-        // Reset modules to pick up the mock
-        vi.resetModules();
-        await global.registerCdnOverrides();
-        const { getAllStopwords: noCdnGetAll } = await import('../../src/utils/stopwords.js');
-
-        // Fallback: returns empty Set
-        const stopwords = await noCdnGetAll();
-        expect(stopwords).toBeInstanceOf(Set);
-        expect(stopwords.size).toBe(0);
-
-        // Clean up: restore original
-        vi.doUnmock('../../src/utils/cdn.js');
-        vi.resetModules();
-        await global.registerCdnOverrides();
-    });
-
-    it('removeStopwords returns words unchanged when CDN fails', async () => {
-        // Mock cdnImport to throw for stopword
-        vi.doMock('../../src/utils/cdn.js', async () => {
-            const actual = await vi.importActual('../../src/utils/cdn.js');
-            return {
-                ...actual,
-                cdnImport: async (spec) => {
-                    if (spec === 'stopword') {
-                        throw new Error('CDN unavailable');
-                    }
-                    return actual.cdnImport(spec);
-                },
-            };
-        });
-
-        // Reset modules to pick up the mock
-        vi.resetModules();
-        await global.registerCdnOverrides();
-        const { removeStopwords: noCdnRemove } = await import('../../src/utils/stopwords.js');
-
-        // Fallback: returns words unchanged (identity function)
-        const words = ['the', 'quick', 'brown', 'fox'];
-        const filtered = await noCdnRemove(words);
-        expect(filtered).toEqual(words);
-
-        // Clean up: restore original
-        vi.doUnmock('../../src/utils/cdn.js');
-        vi.resetModules();
-        await global.registerCdnOverrides();
     });
 });

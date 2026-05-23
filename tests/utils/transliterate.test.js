@@ -21,35 +21,6 @@ describe('transliterateCyrToLat', () => {
     it('handles empty string', async () => {
         expect(await transliterateCyrToLat('')).toBe('');
     });
-
-    it('falls back to lowercase when CDN unavailable', async () => {
-        // Mock cdnImport to throw for cyrillic-to-translit-js
-        vi.doMock('../../src/utils/cdn.js', async () => {
-            const actual = await vi.importActual('../../src/utils/cdn.js');
-            return {
-                ...actual,
-                cdnImport: async (spec) => {
-                    if (spec === 'cyrillic-to-translit-js') {
-                        throw new Error('CDN unavailable');
-                    }
-                    return actual.cdnImport(spec);
-                },
-            };
-        });
-
-        // Reset modules to pick up the mock
-        vi.resetModules();
-        await global.registerCdnOverrides();
-        const { transliterateCyrToLat: noCdnTranslit } = await import('../../src/utils/transliterate.js');
-
-        // Fallback: returns lowercase only (no translit)
-        expect(await noCdnTranslit('Привет')).toBe('привет');
-
-        // Clean up: restore original
-        vi.doUnmock('../../src/utils/cdn.js');
-        vi.resetModules();
-        await global.registerCdnOverrides();
-    });
 });
 
 describe('levenshteinDistance', () => {

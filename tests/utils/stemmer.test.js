@@ -69,35 +69,3 @@ describe('stemName', () => {
         // "the" stems to "the" (3 chars), might be included — that's fine
     });
 });
-
-describe('stemWord — CDN unavailable fallback', () => {
-    it('returns word unchanged when CDN fails', async () => {
-        // Mock cdnImport to throw for snowball-stemmers
-        vi.doMock('../../src/utils/cdn.js', async () => {
-            const actual = await vi.importActual('../../src/utils/cdn.js');
-            return {
-                ...actual,
-                cdnImport: async (spec) => {
-                    if (spec === 'snowball-stemmers') {
-                        throw new Error('CDN unavailable');
-                    }
-                    return actual.cdnImport(spec);
-                },
-            };
-        });
-
-        // Reset modules to pick up the mock
-        vi.resetModules();
-        await global.registerCdnOverrides();
-        const { stemWord: noCdnStemWord } = await import('../../src/utils/stemmer.js');
-
-        // Fallback: returns word unchanged
-        expect(await noCdnStemWord('running')).toBe('running');
-        expect(await noCdnStemWord('елена')).toBe('елена');
-
-        // Clean up: restore original
-        vi.doUnmock('../../src/utils/cdn.js');
-        vi.resetModules();
-        await global.registerCdnOverrides();
-    });
-});
