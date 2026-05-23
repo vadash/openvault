@@ -99,7 +99,7 @@ async function deleteMemory(id) {
     if (deleted.success) {
         renderMemoryList();
         populateCharacterFilter();
-        refreshStats();
+        refreshStats().catch(() => {});
         showToast('success', 'Memory deleted');
     }
 }
@@ -152,7 +152,7 @@ async function saveEdit(id, btnElement) {
             $card.replaceWith(renderMemoryItem(updatedMemory));
         }
         showToast('success', 'Memory updated');
-        refreshStats();
+        refreshStats().catch(() => {});
     }
     $btn.prop('disabled', false);
 }
@@ -579,7 +579,7 @@ async function saveEntityEdit(key, btn) {
         $edit.replaceWith(viewHtml);
 
         showToast('success', 'Entity updated');
-        refreshStats();
+        refreshStats().catch(() => {});
     } catch (err) {
         console.error('[OpenVault] Failed to save entity:', err);
         $btn.prop('disabled', false).text(originalText);
@@ -614,7 +614,7 @@ async function deleteEntityAction(key) {
         $(`.openvault-entity-card[data-key="${key}"]`).remove();
 
         showToast('success', 'Entity deleted');
-        refreshStats();
+        refreshStats().catch(() => {});
         // Update entity count
         $('#openvault_entity_count').text(Object.keys(getOpenVaultData().graph?.nodes || {}).length);
     }
@@ -790,12 +790,12 @@ export function initBrowser() {
 }
 
 export function refreshAllUI() {
-    refreshStats();
+    refreshStats().catch(() => {});
     renderMemoryList();
     renderCharacterStates();
     renderReflectionProgressSection();
     renderWorldTab();
-    updateBudgetIndicators();
+    updateBudgetIndicators().catch(() => {});
     renderPerfTab();
 }
 

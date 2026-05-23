@@ -15,7 +15,7 @@
         "generate-types": "node scripts/generate-types.js",
         "typecheck": "npm run generate-types && tsc --noEmit",
         "sync-version": "node scripts/sync-version.js",
-        "check-await": "node scripts/check-await.mjs",
+        "check-await": "eslint",
         "check-css": "node scripts/check-css.js",
         "repomix": "npm run repomix:logic-lite && npm run repomix:logic-full && npm run repomix:ui && npm run repomix:tests",
         "repomix:logic-full": "npx repomix --remove-empty-lines --output repomix-logic-full.md --include \"src/**/*.js,index.js,package.json,include/**,**/CLAUDE.md\" --ignore \"src/ui/**,**/*.css,**/*.html\"",
@@ -25,6 +25,9 @@
     },
     "devDependencies": {
         "@biomejs/biome": "2.4.4",
+        "@typescript-eslint/eslint-plugin": "^8.59.4",
+        "@typescript-eslint/parser": "^8.59.4",
+        "eslint": "^10.4.0",
         "jsdom": "27.4.0",
         "jsonrepair": "3.13.2",
         "p-queue": "8.0.0",

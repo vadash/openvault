@@ -37,9 +37,11 @@ export function wakeUpBackgroundWorker() {
     incrementWakeGeneration();
     if (isWorkerRunning()) return;
     setWorkerRunning(true);
-    runWorkerLoop().finally(() => {
-        setWorkerRunning(false);
-    });
+    runWorkerLoop()
+        .finally(() => {
+            setWorkerRunning(false);
+        })
+        .catch(() => {});
 }
 
 /**
