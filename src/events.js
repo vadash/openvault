@@ -337,8 +337,10 @@ export async function onChatChanged() {
     // Clear operation states on chat change to prevent stale locks
     resetOperationStatesIfSafe();
 
-    // Clear current injection - it will be refreshed in onBeforeGeneration
-    safeSetExtensionPrompt('');
+    // Clear all injection slots - they will be refreshed in onBeforeGeneration
+    safeSetExtensionPrompt('', 'openvault');
+    safeSetExtensionPrompt('', 'openvault_reflections');
+    safeSetExtensionPrompt('', 'openvault_world');
 
     // Load perf data BEFORE refreshing UI so perf tab has data to render
     loadPerfFromChat();

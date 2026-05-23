@@ -44,8 +44,13 @@ const POSITION_MAP = {
  * @returns {boolean} True if successful, false if skipped (CUSTOM position)
  */
 export function safeSetExtensionPrompt(content, name = extensionName, position = 0, depth = 0) {
-    // Custom position (-1) = macro-only, skip auto-injection
+    // Custom position (-1) = macro-only, clear slot and skip auto-injection
     if (position === -1) {
+        try {
+            getDeps().setExtensionPrompt(name, '', 0, 0);
+        } catch {
+            /* best-effort clear */
+        }
         return false;
     }
 

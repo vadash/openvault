@@ -143,7 +143,7 @@ describe('st-helpers', () => {
             expect(mockSetPrompt).toHaveBeenCalledWith('openvault', 'test content', 2, 4);
         });
 
-        it('skips injection when position is CUSTOM (-1)', () => {
+        it('clears existing injection when position is CUSTOM (-1)', () => {
             const mockSetPrompt = vi.fn();
             setDeps({
                 console: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -152,7 +152,7 @@ describe('st-helpers', () => {
             });
 
             expect(safeSetExtensionPrompt('test content', 'openvault', -1, 0)).toBe(false);
-            expect(mockSetPrompt).not.toHaveBeenCalled();
+            expect(mockSetPrompt).toHaveBeenCalledWith('openvault', '', 0, 0);
         });
 
         it('clears existing injection when position is DISABLED (-2)', () => {

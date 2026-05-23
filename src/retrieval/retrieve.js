@@ -206,6 +206,10 @@ export function injectContext(memoryText, reflectionText = '', worldText = '') {
     const worldPosition = getSettings('injection.world.position', defaultSettings.injection.world.position);
     const worldDepth = getSettings('injection.world.depth', defaultSettings.injection.world.depth);
 
+    logDebug(
+        `[injectContext] Memory: ${memoryText.length} chars, Reflections: ${reflectionText.length} chars, World: ${worldText.length} chars`
+    );
+
     // Inject memory content
     if (!memoryText) {
         safeSetExtensionPrompt('', 'openvault', memoryPosition, memoryDepth);
@@ -276,8 +280,11 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
     let worldText = '';
     const graphData = data.graph;
     const worldPosition = getSettings('injection.world.position', defaultSettings.injection.world.position);
-    const worldDisabled = worldPosition === -2;
+    const worldDisabled = worldPosition === -2 || worldPosition === -1;
     const hasGraphNodes = graphData?.nodes && Object.keys(graphData.nodes).length > 0;
+
+    logDebug(`[World Context] Position: ${worldPosition}, Disabled: ${worldDisabled}, HasGraphNodes: ${hasGraphNodes}`);
+
     if (hasGraphNodes && !worldDisabled) {
         let worldQueryEmbedding = null;
         if (isEmbeddingsEnabled()) {
@@ -292,6 +299,7 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
             ctx.worldContextBudget
         );
         worldText = worldResult.text || '';
+        logDebug(`[World Context] Retrieved ${worldText.length} chars (macro intent: ${worldResult.isMacroIntent})`);
         // Cache world context result for debug export
         if (worldResult?.text) {
             cacheRetrievalDebug({
@@ -299,6 +307,8 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
                 isMacroIntent: worldResult.isMacroIntent,
             });
         }
+    } else {
+        logDebug(`[World Context] Skipped retrieval (disabled=${worldDisabled} or no graph nodes=${!hasGraphNodes})`);
     }
 
     // Inject memory, reflection, and world content
@@ -372,12 +382,13 @@ export async function retrieveAndInjectContext() {
             'injection.reflections.position',
             defaultSettings.injection.reflections.position
         );
-        const includeReflections = reflectionsPosition !== -2;
+        const includeReflections = reflectionsPosition !== -2 && reflectionsPosition !== -1;
         const reflections = includeReflections ? memories.filter((m) => m.type === 'reflection') : [];
         const candidateMemories = _deduplicateById([...hiddenMemories, ...reflections]);
 
         // Filter memories by POV
         const accessibleMemories = filterMemoriesByPOV(candidateMemories, povCharacters, data);
+
         logDebug(
             `Retrieval filter: total=${memories.length}, hidden=${hiddenMemories.length}, reflections=${reflections.length}, pov=${accessibleMemories.length} (mode=${isGroupChat ? 'group' : 'narrator'}, chars=[${povCharacters.join(', ')}])`
         );
@@ -493,12 +504,13 @@ export async function updateInjection(pendingUserMessage = '') {
         'injection.reflections.position',
         defaultSettings.injection.reflections.position
     );
-    const includeReflections = reflectionsPosition !== -2;
+    const includeReflections = reflectionsPosition !== -2 && reflectionsPosition !== -1;
     const reflections = includeReflections ? memories.filter((m) => m.type === 'reflection') : [];
     const candidateMemories = _deduplicateById([...hiddenMemories, ...reflections]);
 
     // Filter memories by POV
     const accessibleMemories = filterMemoriesByPOV(candidateMemories, povCharacters, data);
+
     logDebug(
         `POV filter: ${memories.length} total -> ${hiddenMemories.length} hidden + ${reflections.length} reflections -> ${accessibleMemories.length} accessible`
     );
