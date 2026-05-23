@@ -17,12 +17,18 @@ import { MIRROR_LANGUAGE_RULES } from './rules.js';
  * Positive output format instruction placed at the end of every user prompt.
  * Replaces negative "do not use tool calls" constraints with affirmative framing.
  */
-export const EXECUTION_TRIGGER = `OUTPUT FORMAT:
-Step 1: Write concise draft notes inside <think/> tags. Limit each step to 8 words max.
-Step 2: You MUST close the reasoning block with exactly </think>.
-Step 3: Output ONLY a single raw JSON object immediately after the closing tag.
-CRITICAL: Do NOT put the JSON inside the think tags. The JSON must follow AFTER think.
-CRITICAL: You MUST output the JSON object even if it is empty. Never stop generating after </think>`;
+export const EXECUTION_TRIGGER = `OUTPUT FORMAT SEQUENCE:
+1. <think>
+[Write concise draft notes here. Limit each step to 8 words max.]
+</think>
+2. {
+  [Your raw JSON object goes here. Absolutely no markdown fences, conversational filler, or lists before or after the JSON.]
+}
+
+CRITICAL RULES:
+• Never put the JSON inside the <think> tags.
+• Never write conversational text, markdown code blocks, or "Step 1/2/3" notes outside the XML tags.
+• You must output the JSON object even if it is empty. Do not stop generating after the closing </think> tag.`;
 
 // =============================================================================
 // LANGUAGE RESOLUTION
