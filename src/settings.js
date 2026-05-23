@@ -8,39 +8,105 @@
 import { defaultSettings, extensionName, MEMORIES_KEY } from './constants.js';
 import { getDeps } from './deps.js';
 
+// Module-level initialization flag
+let settingsInitialized = false;
+
+// All required settings paths for validation
+const REQUIRED_SETTINGS_PATHS = [
+    'enabled',
+    'extractionProfile',
+    'backupProfile',
+    'debugMode',
+    'requestLogging',
+    'extractionTokenBudget',
+    'extractionRearviewTokens',
+    'extractionMaxTurns',
+    'retrievalFinalTokens',
+    'autoHideEnabled',
+    'visibleChatBudget',
+    'backfillMaxRPM',
+    'maxConcurrency',
+    'embeddingSource',
+    'ollamaUrl',
+    'embeddingModel',
+    'embeddingQueryPrefix',
+    'embeddingDocPrefix',
+    'alpha',
+    'vectorSimilarityThreshold',
+    'dedupSimilarityThreshold',
+    'dedupJaccardThreshold',
+    'forgetfulnessBaseLambda',
+    'transientDecayMultiplier',
+    'reflectionThreshold',
+    'maxInsightsPerReflection',
+    'worldContextBudget',
+    'worldStateInterval',
+    'entityWindowSize',
+    'embeddingWindowSize',
+    'recencyDecayFactor',
+    'topEntitiesCount',
+    'entityBoostWeight',
+    'exactPhraseBoostWeight',
+    'maxReflectionsPerCharacter',
+    'bucketMinRepresentation',
+    'bucketSoftBalanceBudget',
+    'preambleLanguage',
+    'extractionPrefill',
+    'outputLanguage',
+    'injection.memory.position',
+    'injection.memory.depth',
+    'injection.reflections.position',
+    'injection.reflections.depth',
+    'injection.world.position',
+    'injection.world.depth',
+];
+
 /**
- * Initialize extension settings with defaults using lodash.merge.
- * Preserves existing user settings while adding any missing defaults.
- *
- * Note: This is called automatically on module import when running in SillyTavern.
- * In tests, the mocks may not provide lodash - this is expected and handled gracefully.
+ * Validate that all required settings paths exist.
+ * Throws if any required path is undefined.
+ * @param {Object} settings - The settings object to validate
  */
-export function loadSettings() {
+function validateSettingsStructure(settings) {
     const deps = getDeps();
-    const context = deps.getContext();
-    const extensionSettings = deps.getExtensionSettings();
+    const { lodash } = deps.getContext();
 
-    // SillyTavern provides lodash.merge via context
-    const { lodash } = context;
+    for (const path of REQUIRED_SETTINGS_PATHS) {
+        if (lodash.get(settings, path) === undefined) {
+            throw new Error(`Required setting path "${path}" is undefined`);
+        }
+    }
+}
 
-    // If lodash isn't available yet (e.g., in test mocks), skip initialization
-    // The settings will be initialized properly when running in actual ST
-    if (!lodash || !lodash.merge) {
+/**
+ * Initialize extension settings with strict validation.
+ * Must be called before accessing any settings via getSettings().
+ * Uses lodash.merge for deep merge of defaults with user settings.
+ */
+export function initializeSettings() {
+    // Idempotent: skip if already initialized
+    if (settingsInitialized) {
         return;
     }
 
-    // Use lodash.merge (bundled in ST) for proper deep merge
-    // This ensures new default settings are added without overwriting user customizations
+    const deps = getDeps();
+    const context = deps.getContext();
+    const extensionSettings = deps.getExtensionSettings();
+    const { lodash } = context;
+
+    // Deep merge defaults with existing user settings
     extensionSettings[extensionName] = lodash.merge(
         structuredClone(defaultSettings),
         extensionSettings[extensionName] || {}
     );
 
+    // Validate that all required paths exist after merge
+    validateSettingsStructure(extensionSettings[extensionName]);
+
     // Migration check: ST Vector storage has been removed
     const settings = extensionSettings[extensionName];
     if (settings.embeddingSource === 'st_vector') {
-        const console = deps.getContext().console;
-        const toastr = deps.getContext().toastr;
+        const console = context.console;
+        const toastr = context.toastr;
 
         // Log detailed error to console
         if (console) {
@@ -64,15 +130,29 @@ export function loadSettings() {
         // Auto-reset to default local model
         settings.embeddingSource = 'multilingual-e5-small';
     }
+
+    settingsInitialized = true;
+}
+
+/**
+ * @deprecated Use initializeSettings() instead.
+ * This is kept for backward compatibility but now calls initializeSettings().
+ */
+export function loadSettings() {
+    initializeSettings();
 }
 
 /**
  * Get settings object or nested value using lodash.get
  * @param {string} [path] - Optional lodash path (dot notation)
- * @param {*} [defaultValue] - Default value if path not found
  * @returns {Settings|*} Settings object or value at path
+ * @throws {Error} If accessed before initialization or path is undefined
  */
-export function getSettings(path, defaultValue) {
+export function getSettings(path) {
+    if (!settingsInitialized) {
+        throw new Error('Settings accessed before initialization. Call initializeSettings() first.');
+    }
+
     const deps = getDeps();
     const lodash = deps.getContext()?.lodash;
     const settings = deps.getExtensionSettings()[extensionName];
@@ -81,11 +161,9 @@ export function getSettings(path, defaultValue) {
         return settings;
     }
 
-    const result = lodash?.get(settings, path, defaultValue) ?? defaultValue;
-    // DEBUG: Log retrieval
-    if (path.includes('injection') && path.includes('position')) {
-        console.log(`[OpenVault DEBUG] getSettings(${path}): returned ${result}, default=${defaultValue}`);
-        console.log(`[OpenVault DEBUG] getSettings(${path}): settings exists? ${!!settings}, injection exists? ${!!settings?.injection}`);
+    const result = lodash.get(settings, path);
+    if (result === undefined) {
+        throw new Error(`Setting "${path}" is undefined`);
     }
     return result;
 }
@@ -165,14 +243,6 @@ export async function setSetting(path, value) {
     const lodash = deps.getContext()?.lodash;
     const settings = deps.getExtensionSettings()[extensionName];
 
-    // DEBUG: Log the settings object structure
-    console.log('[OpenVault DEBUG] setSetting: settings.injection exists?', !!settings?.injection);
-    console.log('[OpenVault DEBUG] setSetting: settings object keys:', Object.keys(settings || {}));
-
-    // DEBUG: Log before setting
-    const oldValue = lodash?.get(settings, path);
-    console.log(`[OpenVault DEBUG] setSetting(${path}): old=${oldValue}, new=${value}`);
-
     if (lodash?.set) {
         lodash.set(settings, path, value);
     } else {
@@ -194,14 +264,6 @@ export async function setSetting(path, value) {
         current[numLastKey] = value;
     }
 
-    // DEBUG: Verify setting was written
-    const newValue = lodash?.get(settings, path);
-    console.log(`[OpenVault DEBUG] setSetting(${path}): verified value is now ${newValue}`);
-
-    // DEBUG: Verify via getSettings (what retrieval uses)
-    const viaGetSettings = getSettings(path);
-    console.log(`[OpenVault DEBUG] setSetting(${path}): via getSettings = ${viaGetSettings}`);
-
     deps.saveSettingsDebounced();
 
     // Handle side effects (e.g., wipe data on disable)
@@ -220,6 +282,3 @@ export function hasSettings(path) {
 
     return lodash?.has(settings, path) ?? false;
 }
-
-// Auto-initialize on import
-loadSettings();

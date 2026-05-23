@@ -21,7 +21,6 @@
 import {
     CHARACTERS_KEY,
     CONSOLIDATION,
-    defaultSettings,
     EDGE_DESCRIPTION_CAP,
     ENTITY_DESCRIPTION_CAP,
     ENTITY_TYPES,
@@ -603,8 +602,7 @@ export async function synthesizeReflections(data, characterNames, settings, opti
     // Check if reflection generation is disabled via position -2
     // Use passed settings first (for backfill), fall back to global getSettings
     const reflectionsPosition =
-        settings?.injection?.reflections?.position ??
-        getSettings('injection.reflections.position', defaultSettings.injection.reflections.position);
+        settings?.injection?.reflections?.position ?? getSettings('injection.reflections.position');
     if (reflectionsPosition === -2) {
         logDebug('[Extraction] Reflection generation disabled (position=-2), skipping Phase 2');
         return;
@@ -668,9 +666,7 @@ async function synthesizeWorldState(data, settings, characterName, userName) {
     try {
         // Check if world state generation is disabled via position -2
         // Use passed settings first (for backfill), fall back to global getSettings
-        const worldPosition =
-            settings?.injection?.world?.position ??
-            getSettings('injection.world.position', defaultSettings.injection.world.position);
+        const worldPosition = settings?.injection?.world?.position ?? getSettings('injection.world.position');
         if (worldPosition === -2) {
             logDebug('[Extraction] World state synthesis disabled (position=-2), skipping generation');
             return;
@@ -1038,9 +1034,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         await processGraphUpdates(data.graph, graphResult.entities, graphResult.relationships, settings);
 
         // Only increment graph message count if world synthesis is enabled
-        const worldPosition =
-            settings?.injection?.world?.position ??
-            getSettings('injection.world.position', defaultSettings.injection.world.position);
+        const worldPosition = settings?.injection?.world?.position ?? getSettings('injection.world.position');
         if (worldPosition !== -2) {
             incrementGraphMessageCount(messages.length, data);
         } else {
@@ -1075,8 +1069,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             if (events.length > 0) {
                 // Only accumulate importance if reflections are enabled
                 const reflectionsPosition =
-                    settings?.injection?.reflections?.position ??
-                    getSettings('injection.reflections.position', defaultSettings.injection.reflections.position);
+                    settings?.injection?.reflections?.position ?? getSettings('injection.reflections.position');
                 if (reflectionsPosition !== -2) {
                     accumulateImportance(data.reflection_state, events);
                     logDebug(
@@ -1105,9 +1098,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
 
             // Stage 6: World state synthesis (interval check)
             // Only check interval if world synthesis is enabled
-            const worldPosition =
-                settings?.injection?.world?.position ??
-                getSettings('injection.world.position', defaultSettings.injection.world.position);
+            const worldPosition = settings?.injection?.world?.position ?? getSettings('injection.world.position');
             if (worldPosition !== -2) {
                 const worldStateInterval = settings.worldStateInterval;
                 const prevCount = (data.graph_message_count || 0) - messages.length;
@@ -1429,11 +1420,8 @@ export async function extractAllMessages(optionsOrCallback) {
     // Also skip if both reflections AND world are disabled - no Phase 2 work needed
     if (!isEmergencyCut) {
         const reflectionsPosition =
-            settings?.injection?.reflections?.position ??
-            getSettings('injection.reflections.position', defaultSettings.injection.reflections.position);
-        const worldPosition =
-            settings?.injection?.world?.position ??
-            getSettings('injection.world.position', defaultSettings.injection.world.position);
+            settings?.injection?.reflections?.position ?? getSettings('injection.reflections.position');
+        const worldPosition = settings?.injection?.world?.position ?? getSettings('injection.world.position');
 
         // Skip Phase 2 entirely only if BOTH features are disabled
         // Otherwise run it — individual -2 guards inside synthesizeReflections/synthesizeWorldState will block disabled features

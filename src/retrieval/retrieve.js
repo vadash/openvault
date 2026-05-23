@@ -22,7 +22,6 @@
 import {
     CHARACTERS_KEY,
     COMBINED_BOOST_WEIGHT,
-    defaultSettings,
     extensionName,
     IMPORTANCE_5_FLOOR,
     MEMORIES_KEY,
@@ -195,16 +194,13 @@ export function injectContext(memoryText, reflectionText = '', worldText = '') {
     cachedContent.reflections = reflectionText || '';
     cachedContent.world = worldText || '';
 
-    // Get position settings with defaults - using getSettings for proper fallback chain
-    const memoryPosition = getSettings('injection.memory.position', defaultSettings.injection.memory.position);
-    const memoryDepth = getSettings('injection.memory.depth', defaultSettings.injection.memory.depth);
-    const reflectionPosition = getSettings(
-        'injection.reflections.position',
-        defaultSettings.injection.reflections.position
-    );
-    const reflectionDepth = getSettings('injection.reflections.depth', defaultSettings.injection.reflections.depth);
-    const worldPosition = getSettings('injection.world.position', defaultSettings.injection.world.position);
-    const worldDepth = getSettings('injection.world.depth', defaultSettings.injection.world.depth);
+    // Get position settings - using getSettings
+    const memoryPosition = getSettings('injection.memory.position');
+    const memoryDepth = getSettings('injection.memory.depth');
+    const reflectionPosition = getSettings('injection.reflections.position');
+    const reflectionDepth = getSettings('injection.reflections.depth');
+    const worldPosition = getSettings('injection.world.position');
+    const worldDepth = getSettings('injection.world.depth');
 
     logDebug(
         `[injectContext] Memory: ${memoryText.length} chars, Reflections: ${reflectionText.length} chars, World: ${worldText.length} chars`
@@ -279,7 +275,7 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
     // Prepare world context for injection
     let worldText = '';
     const graphData = data.graph;
-    const worldPosition = getSettings('injection.world.position', defaultSettings.injection.world.position);
+    const worldPosition = getSettings('injection.world.position');
     const worldDisabled = worldPosition === -2 || worldPosition === -1;
     const hasGraphNodes = graphData?.nodes && Object.keys(graphData.nodes).length > 0;
 
@@ -378,10 +374,7 @@ export async function retrieveAndInjectContext() {
         // Filter to memories from hidden messages only (visible messages are already in context)
         const hiddenMemories = _getHiddenMemories(chat, memories);
         // Include reflections (which have no message_ids) in candidate set - respecting position setting
-        const reflectionsPosition = getSettings(
-            'injection.reflections.position',
-            defaultSettings.injection.reflections.position
-        );
+        const reflectionsPosition = getSettings('injection.reflections.position');
         const includeReflections = reflectionsPosition !== -2 && reflectionsPosition !== -1;
         const reflections = includeReflections ? memories.filter((m) => m.type === 'reflection') : [];
         const candidateMemories = _deduplicateById([...hiddenMemories, ...reflections]);
@@ -500,10 +493,7 @@ export async function updateInjection(pendingUserMessage = '') {
     // Filter to memories from hidden messages only (visible messages are already in context)
     const hiddenMemories = _getHiddenMemories(context.chat, memories);
     // Include reflections (which have no message_ids) in candidate set - respecting position setting
-    const reflectionsPosition = getSettings(
-        'injection.reflections.position',
-        defaultSettings.injection.reflections.position
-    );
+    const reflectionsPosition = getSettings('injection.reflections.position');
     const includeReflections = reflectionsPosition !== -2 && reflectionsPosition !== -1;
     const reflections = includeReflections ? memories.filter((m) => m.type === 'reflection') : [];
     const candidateMemories = _deduplicateById([...hiddenMemories, ...reflections]);
