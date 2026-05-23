@@ -528,7 +528,7 @@ export async function mergeEntities(sourceKey, targetKey, graph = null) {
 
             // Recalculate tokens using proper token counter
             if (existingEdge._descriptionTokens !== undefined) {
-                existingEdge._descriptionTokens = countTokens(existingEdge.description);
+                existingEdge._descriptionTokens = await countTokens(existingEdge.description);
             }
 
             // Check consolidation threshold

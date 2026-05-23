@@ -265,7 +265,7 @@ export async function generateReflections(characterName, allMemories, characterS
         prefill
     );
     const reflectionResponse = await callLLM(reflectionPrompt, LLM_CONFIGS.reflection, { structured: true });
-    const { reflections } = parseUnifiedReflectionResponse(reflectionResponse);
+    const { reflections } = await parseUnifiedReflectionResponse(reflectionResponse);
 
     logDebug(`Reflection: Generated ${reflections.length} unified reflections for ${characterName}`);
 

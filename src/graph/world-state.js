@@ -73,7 +73,7 @@ export async function generateWorldState(entities, edges, preamble, outputLangua
     const deps = getDeps();
     const prompt = buildGlobalWorldStatePrompt(entities, edges, preamble, outputLanguage, prefill);
     const response = await callLLM(prompt, LLM_CONFIGS.worldState, { structured: true });
-    const parsed = parseGlobalSynthesisResponse(response);
+    const parsed = await parseGlobalSynthesisResponse(response);
 
     return {
         summary: parsed.global_summary,
