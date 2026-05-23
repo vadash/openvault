@@ -336,9 +336,10 @@ export function calculateScore(
 
     // === Reflection Decay ===
     // Reflections lose additional score with distance beyond threshold
+    let decayFactor = 1.0;
     if (memory.type === 'reflection' && distance > constants.reflectionDecayThreshold) {
         const threshold = constants.reflectionDecayThreshold;
-        const decayFactor = Math.max(0.25, 1 - (distance - threshold) / (2 * threshold));
+        decayFactor = Math.max(0.25, 1 - (distance - threshold) / (2 * threshold));
         total *= decayFactor;
     }
 
@@ -355,6 +356,7 @@ export function calculateScore(
         importance,
         hitDamping,
         frequencyFactor,
+        decayFactor,
     };
 }
 
@@ -571,6 +573,7 @@ export async function scoreMemories(
                 breakdown.vectorSimilarity = vectorSimilarity;
                 breakdown.total = breakdown.baseAfterFloor + breakdown.vectorBonus + breakdown.bm25Bonus;
                 breakdown.total *= breakdown.frequencyFactor;
+                breakdown.total *= breakdown.decayFactor;
             }
         }
 

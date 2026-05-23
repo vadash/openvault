@@ -113,6 +113,7 @@ export async function getSchemas() {
         importance: z.number(),
         hitDamping: z.number().optional(),
         frequencyFactor: z.number().optional(),
+        decayFactor: z.number().optional(),
     });
 
     const ScoredMemorySchema = z.object({

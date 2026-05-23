@@ -614,18 +614,26 @@ export async function synthesizeReflections(data, characterNames, settings, opti
             reflectionPromises.push(
                 ladderQueue
                     .add(async () => {
+                        // Cache previous importance to restore on failure
+                        const previousImportance = data.reflection_state[characterName].importance_sum;
                         // Reset accumulator BEFORE LLM call to prevent infinite retry loop on failure
                         // The accumulated importance is "consumed" here - even if the LLM call fails,
                         // we don't want to retry immediately (to avoid token burning)
                         data.reflection_state[characterName].importance_sum = 0;
 
-                        const { reflections } = await generateReflections(
-                            characterName,
-                            data[MEMORIES_KEY] || [],
-                            data[CHARACTERS_KEY] || {}
-                        );
-                        if (reflections.length > 0) {
-                            addMemories(reflections);
+                        try {
+                            const { reflections } = await generateReflections(
+                                characterName,
+                                data[MEMORIES_KEY] || [],
+                                data[CHARACTERS_KEY] || {}
+                            );
+                            if (reflections.length > 0) {
+                                addMemories(reflections);
+                            }
+                        } catch (innerError) {
+                            // Restore on failure to prevent data loss!
+                            data.reflection_state[characterName].importance_sum = previousImportance;
+                            throw innerError; // Propagate to outer catch
                         }
                     })
                     .catch((error) => {

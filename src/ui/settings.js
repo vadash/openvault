@@ -857,7 +857,7 @@ function bindInjectionSettings() {
     });
 
     // Reflections position selector
-    $('#openvault_reflections_position').on('change', function () {
+    $('#openvault_reflections_position').on('change', async function () {
         const position = parseInt($(this).val(), 10);
         const settings = getSettings();
         const previousPosition = settings.injection?.reflections?.position ?? 1;
@@ -869,7 +869,7 @@ function bindInjectionSettings() {
             // Show confirmation dialog
             if (confirm('Are you sure you want to disable reflections? This will delete all existing reflections.')) {
                 // User confirmed - delete reflections and set position
-                deleteMemoriesByType('reflection');
+                await deleteMemoriesByType('reflection');
                 setSetting('injection.reflections.position', position);
                 updateInjectionUI('reflections');
             }

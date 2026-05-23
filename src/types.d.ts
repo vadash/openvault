@@ -83,6 +83,7 @@ export type ScoreBreakdown = {
     importance: number;
     hitDamping?: number | undefined;
     frequencyFactor?: number | undefined;
+    decayFactor?: number | undefined;
 };
 
 export type ScoredMemory = {
@@ -119,6 +120,7 @@ export type ScoredMemory = {
         importance: number;
         hitDamping?: number | undefined;
         frequencyFactor?: number | undefined;
+        decayFactor?: number | undefined;
     };
 };
 
