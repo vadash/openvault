@@ -45,7 +45,8 @@ const POSITION_MAP = {
  */
 export function safeSetExtensionPrompt(content, name = extensionName, position = 0, depth = 0) {
     // Custom position (-1) = macro-only, skip auto-injection
-    if (position === -1) {
+    // Disabled position (-2) = skip injection entirely
+    if (position === -1 || position === -2) {
         return false;
     }
 
