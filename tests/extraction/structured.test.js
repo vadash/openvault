@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
-    _testStripMarkdown,
     getEventExtractionJsonSchema,
     getGlobalSynthesisSchema,
     getGraphExtractionJsonSchema,
@@ -14,6 +13,7 @@ import {
     parseStructuredResponse,
     parseUnifiedReflectionResponse,
 } from '../../src/extraction/structured.js';
+import { stripMarkdownFences } from '../../src/utils/text.js';
 
 // --- Lazy Exit Tests (Empty Output After Thinking Tags) ---
 describe('parseEventExtractionResponse - lazy exits', () => {
@@ -45,31 +45,31 @@ describe('parseGraphExtractionResponse - lazy exits', () => {
 describe('stripMarkdown edge cases', () => {
     it('strips unclosed opening fence', () => {
         const content = '```json\n{"events": []}';
-        const result = _testStripMarkdown(content);
+        const result = stripMarkdownFences(content);
         expect(result).toBe('{"events": []}');
     });
 
     it('strips orphan closing fence', () => {
         const content = '{"events": []}\n```';
-        const result = _testStripMarkdown(content);
+        const result = stripMarkdownFences(content);
         expect(result).toBe('{"events": []}');
     });
 
     it('strips opening fence without json label', () => {
         const content = '```\n{"events": []}';
-        const result = _testStripMarkdown(content);
+        const result = stripMarkdownFences(content);
         expect(result).toBe('{"events": []}');
     });
 
     it('still strips complete fences', () => {
         const content = '```json\n{"events": []}\n```';
-        const result = _testStripMarkdown(content);
+        const result = stripMarkdownFences(content);
         expect(result).toBe('{"events": []}');
     });
 
     it('passes through content without fences', () => {
         const content = '{"events": []}';
-        const result = _testStripMarkdown(content);
+        const result = stripMarkdownFences(content);
         expect(result).toBe('{"events": []}');
     });
 });

@@ -508,8 +508,12 @@ export async function scoreMemories(
     // Fast Pass: Score all memories with Base + BM25 only (no embeddings)
     // This avoids heavy typed-array cosine similarity on every memory
     const fastPassScores = [];
+    let lastYield = performance.now();
     for (let i = 0; i < memories.length; i++) {
-        if (i % 250 === 0 && i > 0) await yieldToMain();
+        if (performance.now() - lastYield > 50) {
+            await yieldToMain();
+            lastYield = performance.now();
+        }
         const memory = memories[i];
 
         // Calculate Base + BM25 only (skip vector similarity)
@@ -533,8 +537,12 @@ export async function scoreMemories(
     // Slow Pass: Calculate vector similarity only on top candidates
     const vectorScores = new Map();
     if (contextEmbedding) {
+        lastYield = performance.now();
         for (let i = 0; i < topCandidates.length; i++) {
-            if (i % 50 === 0 && i > 0) await yieldToMain();
+            if (performance.now() - lastYield > 50) {
+                await yieldToMain();
+                lastYield = performance.now();
+            }
             const candidate = topCandidates[i];
             const memory = candidate.memory;
 

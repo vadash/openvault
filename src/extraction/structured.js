@@ -2,7 +2,7 @@ import { ENTITY_TYPES } from '../constants.js';
 import { getSchemas } from '../store/schemas.js';
 import { cdnImport } from '../utils/cdn.js';
 import { logError, logWarn } from '../utils/logging.js';
-import { safeParseJSON, stripMarkdownFences, stripThinkingTags } from '../utils/text.js';
+import { safeParseJSON, stripThinkingTags } from '../utils/text.js';
 
 // Lazy zod init — CDN failures degrade gracefully instead of blocking the entire extension
 let _z = null;
@@ -385,15 +385,6 @@ export async function parseGraphExtractionResponse(content) {
 export async function parseEvent(content) {
     const { EventSchema } = await getExtendedSchemas();
     return parseStructuredResponse(content, EventSchema);
-}
-
-/**
- * Strip markdown from content (exported for testing)
- * @param {string} content
- * @returns {string}
- */
-export function _testStripMarkdown(content) {
-    return stripMarkdownFences(content);
 }
 
 // --- Unified Reflection Schema ---

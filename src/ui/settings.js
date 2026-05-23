@@ -79,8 +79,8 @@ export function showEmergencyCutModal() {
 
     // Bind cancel button click to abort controller
     $('#openvault_emergency_cancel')
-        .off('click')
-        .on('click', () => {
+        .off('click.openvault')
+        .on('click.openvault', () => {
             if (emergencyCutAbortController) {
                 emergencyCutAbortController.abort();
             }
@@ -93,7 +93,7 @@ export function showEmergencyCutModal() {
 export function hideEmergencyCutModal() {
     $('#openvault_emergency_cut_modal').addClass('hidden');
     $(document).off('keydown.emergencyCut');
-    $('#openvault_emergency_cancel').off('click');
+    $('#openvault_emergency_cancel').off('click.openvault');
 }
 
 /**

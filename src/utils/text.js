@@ -444,8 +444,34 @@ export async function safeParseJSON(input, options = {}) {
         // Continue to Tier 2
     }
 
+    /**
+     * Helper to extract and parse the best JSON block from text.
+     * @param {string} sourceText - Text to extract blocks from
+     * @param {Function|null} transform - Optional transform function (e.g., scrubConcatenation)
+     * @returns {Promise<Object>} Parsed JSON object
+     * @throws {Error} If parsing fails
+     */
+    async function parseBestBlock(sourceText, transform = null) {
+        const blocks = extractJsonBlocks(sourceText);
+        if (blocks.length === 0) {
+            throw new Error('No JSON blocks found');
+        }
+
+        const substantialBlocks = blocks.filter((b) => b.text.length >= minimumBlockSize);
+        const selectedBlock =
+            substantialBlocks.length > 0 ? substantialBlocks[substantialBlocks.length - 1] : blocks[blocks.length - 1];
+
+        const targetText = transform ? transform(selectedBlock.text) : selectedBlock.text;
+        const repair = await getJsonRepair();
+        if (repair) {
+            const repaired = repair(targetText);
+            return JSON.parse(repaired);
+        }
+        // Degraded mode: try native parse only
+        return JSON.parse(targetText);
+    }
+
     // === Tier 2: Extract + JsonRepair ===
-    // Extract JSON blocks first to avoid jsonrepair synthesizing arrays from conversational text
     try {
         const blocks = extractJsonBlocks(text);
 
@@ -482,25 +508,7 @@ export async function safeParseJSON(input, options = {}) {
     // === Tier 3: Normalize + Extract ===
     try {
         const normalized = normalizeText(text);
-        const blocks = extractJsonBlocks(normalized);
-
-        if (blocks.length === 0) {
-            throw new Error('No JSON blocks found');
-        }
-
-        // Select last substantial block
-        const substantialBlocks = blocks.filter((b) => b.text.length >= minimumBlockSize);
-        const selectedBlock =
-            substantialBlocks.length > 0 ? substantialBlocks[substantialBlocks.length - 1] : blocks[blocks.length - 1]; // Fallback to last (or largest if only tiny blocks)
-
-        const repair = await getJsonRepair();
-        if (repair) {
-            const repaired = repair(selectedBlock.text);
-            const parsed = JSON.parse(repaired);
-            return { success: true, data: parsed };
-        }
-        // Degraded mode: try native parse only
-        JSON.parse(selectedBlock.text);
+        return { success: true, data: await parseBestBlock(normalized) };
     } catch {
         // Continue to Tier 4
     }
@@ -508,26 +516,7 @@ export async function safeParseJSON(input, options = {}) {
     // === Tier 4: Aggressive Scrub ===
     try {
         const normalized = normalizeText(text);
-        const blocks = extractJsonBlocks(normalized);
-
-        if (blocks.length === 0) {
-            throw new Error('No JSON blocks found');
-        }
-
-        const substantialBlocks = blocks.filter((b) => b.text.length >= minimumBlockSize);
-        const selectedBlock =
-            substantialBlocks.length > 0 ? substantialBlocks[substantialBlocks.length - 1] : blocks[blocks.length - 1];
-
-        // Apply aggressive scrubbing
-        const scrubbed = scrubConcatenation(selectedBlock.text);
-        const repair = await getJsonRepair();
-        if (repair) {
-            const repaired = repair(scrubbed);
-            const parsed = JSON.parse(repaired);
-            return { success: true, data: parsed };
-        }
-        // Degraded mode: try native parse only
-        JSON.parse(scrubbed);
+        return { success: true, data: await parseBestBlock(normalized, scrubConcatenation) };
     } catch (e) {
         // === Tier 5: Fatal Failure ===
         const error = new Error(`JSON parse failed at all tiers: ${e.message}`);

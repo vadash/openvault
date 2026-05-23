@@ -512,10 +512,12 @@ export async function filterSimilarEvents(
     let filtered = newEvents;
     if (existingMemories?.length) {
         const results = [];
-        let idx = 0;
+        let lastYield = performance.now();
         for (const event of newEvents) {
-            if (idx % 10 === 0) await yieldToMain();
-            idx++;
+            if (performance.now() - lastYield > 50) {
+                await yieldToMain();
+                lastYield = performance.now();
+            }
             if (!hasEmbedding(event)) {
                 results.push(event);
                 continue;
@@ -553,8 +555,12 @@ export async function filterSimilarEvents(
 
     // Phase 2: Intra-batch Jaccard dedup
     const kept = [];
+    let lastYield = performance.now();
     for (let i = 0; i < filtered.length; i++) {
-        if (i % 10 === 0) await yieldToMain();
+        if (performance.now() - lastYield > 50) {
+            await yieldToMain();
+            lastYield = performance.now();
+        }
         const event = filtered[i];
         const eventTokens = new Set(await tokenize(event.summary || ''));
         let isDuplicate = false;

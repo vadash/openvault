@@ -7,6 +7,7 @@
 import { CHARACTERS_KEY, defaultSettings, extensionName, MEMORIES_KEY } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { getOpenVaultData } from '../store/chat-data.js';
+import { escapeHtml } from '../utils/dom.js';
 import { hasEmbedding } from '../utils/embedding-codec.js';
 import { logDebug } from '../utils/logging.js';
 import { getStatusText } from './helpers.js';
@@ -33,17 +34,18 @@ const STATUS_SUBTEXT = {
  */
 export function setStatus(status) {
     const $indicator = $('#openvault_status');
-    $indicator.removeClass('ready extracting retrieving error');
-    $indicator.addClass(status);
-    $indicator.text(getStatusText(status));
-
-    // Update dashboard status card
     const $statusIndicator = $('#openvault_status_indicator');
     const $statusText = $('#openvault_status_text');
     const $statusSubtext = $('#openvault_status_subtext');
 
-    $statusIndicator.removeClass('ready extracting retrieving error');
-    $statusIndicator.addClass(status);
+    // Combined selector for class operations on both indicators
+    $('#openvault_status, #openvault_status_indicator')
+        .removeClass('ready extracting retrieving error')
+        .addClass(status);
+
+    $indicator.text(getStatusText(status));
+
+    // Update dashboard status card
     $statusIndicator.html(`<i class="${STATUS_ICONS[status] || STATUS_ICONS.ready}"></i>`);
 
     $statusText.text(getStatusText(status));
@@ -82,7 +84,7 @@ export function updateEmbeddingStatusDisplay(statusText) {
 
     $containers.removeClass('loading webgpu wasm');
     $containers.addClass(statusClass);
-    $containers.html(`<i class="${icon}"></i> <span>${statusText}</span>`);
+    $containers.html(`<i class="${icon}"></i> <span>${escapeHtml(statusText)}</span>`);
 }
 
 /**
