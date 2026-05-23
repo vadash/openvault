@@ -270,7 +270,7 @@ export async function getSchemas() {
         getJsonSchema: z
             .function({
                 input: [],
-                output: z.object({ name: z.string(), strict: z.boolean(), value: z.record(z.string(), z.unknown()) }),
+                output: z.promise(z.object({ name: z.string(), strict: z.boolean(), value: z.record(z.string(), z.unknown()) })),
             })
             .optional(),
     });
