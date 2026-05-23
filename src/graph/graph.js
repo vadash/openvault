@@ -583,7 +583,7 @@ export async function consolidateEdges(graphData, _settings) {
                     const prompt = buildEdgeConsolidationPrompt(edge, preamble, outputLanguage, prefill);
                     const response = await callLLM(prompt, LLM_CONFIGS.edge_consolidation, { structured: true });
 
-                    const result = await parseConsolidationResponse(response);
+                    const result = await parseConsolidationResponse(response, prefill);
                     if (result.consolidated_description) {
                         edge.description = result.consolidated_description;
                         edge._descriptionTokens = await countTokens(result.consolidated_description);

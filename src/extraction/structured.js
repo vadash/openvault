@@ -176,12 +176,13 @@ function recoverBareString(data, key) {
  * @param {string} content - Raw LLM response
  * @param {z.ZodType} schema - Zod schema to validate against
  * @param {Function|null} [recoverFn=null] - Optional pre-validation transform (e.g. bare-string recovery)
+ * @param {string} [prefill] - Expected prefill prefix for reconstruction if stripped by proxy
  * @returns {Promise<Object>} Validated parsed data
  * @throws {Error} If JSON parsing or validation fails
  */
-export async function parseStructuredResponse(content, schema, recoverFn = null) {
+export async function parseStructuredResponse(content, schema, recoverFn = null, prefill = undefined) {
     // Use safeParseJSON with new API (handles thinking tags and markdown internally)
-    const result = await safeParseJSON(content);
+    const result = await safeParseJSON(content, { prefill });
     if (!result.success) {
         const start = content.slice(0, 500);
         const end = content.slice(-500);
@@ -505,11 +506,17 @@ export async function getEdgeConsolidationJsonSchema() {
 /**
  * Parse edge consolidation response
  * @param {string} content - Raw LLM response
+ * @param {string} [prefill] - Expected prefill prefix for reconstruction if stripped by proxy
  * @returns {Promise<Object>} Validated consolidation response
  */
-export async function parseConsolidationResponse(content) {
+export async function parseConsolidationResponse(content, prefill = undefined) {
     const { EdgeConsolidationSchema } = await getExtendedSchemas();
-    return parseStructuredResponse(content, EdgeConsolidationSchema, (data) =>
-        recoverBareString(data, 'consolidated_description')
+    // Default prefill used by consolidateEdges() in graph.js - pass for reconstruction if stripped
+    const defaultPrefill = '{\n  "consolidated_description": "';
+    return parseStructuredResponse(
+        content,
+        EdgeConsolidationSchema,
+        (data) => recoverBareString(data, 'consolidated_description'),
+        prefill ?? defaultPrefill
     );
 }

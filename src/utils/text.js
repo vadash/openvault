@@ -339,10 +339,11 @@ export function stripMarkdownFences(text) {
  * @param {Object} options - Options
  * @param {number} options.minimumBlockSize - Minimum block size for extraction (default: 50)
  * @param {Function} options.onError - Error callback: (context) => void
+ * @param {string} options.prefill - Expected prefill prefix to reconstruct if stripped by proxy
  * @returns {Promise<{success: boolean, data?: any, error?: Error, errorContext?: Object}>}
  */
 export async function safeParseJSON(input, options = {}) {
-    const { minimumBlockSize = 50, onError } = options;
+    const { minimumBlockSize = 50, onError, prefill } = options;
     const originalLength = typeof input === 'string' ? input.length : 0;
 
     // === Tier 0: Input Validation ===
@@ -389,6 +390,27 @@ export async function safeParseJSON(input, options = {}) {
     // starting with a quoted property name (e.g. `"consolidated_description": "..."`)
     // without the opening brace. Detect and repair this before parsing tiers.
     const trimmedText = text.trim();
+
+    // If we have the expected prefill, use it for full reconstruction
+    if (prefill && trimmedText.length > 0) {
+        const prefillTrimmed = prefill.trim();
+        // Check if response starts with the prefill - if so, no repair needed
+        if (trimmedText.startsWith(prefillTrimmed)) {
+            // Already has the prefill, proceed to normal parsing
+        } else if (!trimmedText.startsWith('{') && !trimmedText.startsWith('[')) {
+            // Response is missing the prefill entirely - prepend it
+            // Handles cases where proxy returns just: "text..."\n}
+            try {
+                const reconstructed = prefill + trimmedText;
+                const parsed = JSON.parse(reconstructed);
+                return { success: true, data: parsed };
+            } catch {
+                // Fall through to existing recovery logic
+            }
+        }
+    }
+
+    // Legacy prefill recovery (no prefill provided)
     if (
         trimmedText.length > 0 &&
         !trimmedText.startsWith('{') &&
