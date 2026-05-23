@@ -37,10 +37,11 @@ export async function tokenize(/** @type {string} */ text) {
     }
     // \p{L} matches any Unicode letter (supports Cyrillic, Latin, CJK, etc.)
     // Using 'gu' flag for Unicode-aware matching
-    return (text.toLowerCase().match(/[\p{L}0-9_]+/gu) || [])
-        .filter((word) => word.length > 2 && !_cachedStopwords.has(word))
-        .map(stemWord)
-        .filter((word) => word.length > 2); // Post-stem length filter (e.g. "боюсь" → "бо" filtered)
+    const words = (text.toLowerCase().match(/[\p{L}0-9_]+/gu) || []).filter(
+        (word) => word.length > 2 && !_cachedStopwords.has(word)
+    );
+    const stemmed = await Promise.all(words.map(stemWord));
+    return stemmed.filter((word) => word.length > 2); // Post-stem length filter (e.g. "боюсь" → "бо" filtered)
 }
 
 /**
@@ -395,12 +396,13 @@ export async function scoreMemories(
 
     if (queryTokens) {
         // If queryTokens is array, use directly; if string, tokenize
-        tokens = Array.isArray(queryTokens) ? queryTokens : tokenize(queryTokens);
+        tokens = Array.isArray(queryTokens) ? queryTokens : await tokenize(queryTokens);
 
         // Filter out main character name stems — they appear in nearly every memory
         // and have near-zero IDF, wasting BM25 weight on non-discriminative tokens
         if (characterNames.length > 0) {
-            const charStems = new Set(characterNames.flatMap((name) => tokenize(name.toLowerCase())));
+            const charStemsArray = await Promise.all(characterNames.map((name) => tokenize(name.toLowerCase())));
+            const charStems = new Set(charStemsArray.flat());
             tokens = tokens.filter((t) => !charStems.has(t));
         }
 
@@ -418,13 +420,17 @@ export async function scoreMemories(
                 idfMap = new Map(Object.entries(idfCache.idfMap));
                 avgDL = idfCache.avgDL;
                 // Use memory tokens directly (already tokenized at extraction time)
-                memoryTokensList = memories.map((m) => m.tokens || tokenize(m.summary || ''));
+                memoryTokensList = await Promise.all(
+                    memories.map(async (m) => m.tokens || (await tokenize(m.summary || '')))
+                );
             } else {
                 // Full IDF setup: tokenization + calculation (timed)
                 const idfStart = performance.now();
 
                 // Tokenize ALL memories in corpus (candidates + hidden)
-                const corpusMemoryTokens = idfCorpus.map((m) => m.tokens || tokenize(m.summary || ''));
+                const corpusMemoryTokens = await Promise.all(
+                    idfCorpus.map(async (m) => m.tokens || (await tokenize(m.summary || '')))
+                );
 
                 // Calculate IDF from expanded corpus
                 const tokenizedMap = new Map(corpusMemoryTokens.map((t, i) => [i, t]));

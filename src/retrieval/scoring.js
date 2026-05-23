@@ -167,9 +167,9 @@ async function selectRelevantMemoriesSimple(memories, ctx, limit, allHiddenMemor
  * @param {number} tokenBudget - Maximum tokens to select
  * @param {number} chatLength - Current chat length
  * @param {number} [minRepresentation=0.20] - Minimum 20% per bucket
- * @returns {Memory[]} Selected memories
+ * @returns {Promise<Memory[]>} Selected memories
  */
-export function selectMemoriesWithSoftBalance(scoredMemories, tokenBudget, chatLength, minRepresentation = 0.2) {
+export async function selectMemoriesWithSoftBalance(scoredMemories, tokenBudget, chatLength, minRepresentation = 0.2) {
     if (!scoredMemories || scoredMemories.length === 0) return [];
     if (tokenBudget <= 0) return [];
 
@@ -196,7 +196,7 @@ export function selectMemoriesWithSoftBalance(scoredMemories, tokenBudget, chatL
         let bucketTokens = 0;
         for (const memory of bucketCandidates[bucketName]) {
             if (selectedIds.has(memory.id)) continue;
-            const memTokens = countTokens(memory.summary || '');
+            const memTokens = await countTokens(memory.summary || '');
             if (bucketTokens + memTokens > quotaBudget) continue;
             selected.push(memory);
             selectedIds.add(memory.id);
@@ -210,7 +210,7 @@ export function selectMemoriesWithSoftBalance(scoredMemories, tokenBudget, chatL
     if (remainingBudget > 0) {
         for (const { memory } of scoredMemories) {
             if (selectedIds.has(memory.id)) continue;
-            const memTokens = countTokens(memory.summary || '');
+            const memTokens = await countTokens(memory.summary || '');
             if (totalTokens + memTokens > tokenBudget) continue;
             selected.push(memory);
             selectedIds.add(memory.id);
@@ -244,7 +244,7 @@ export async function selectRelevantMemories(memories, ctx) {
         hiddenMemories,
         ctx.idfCache || null
     );
-    const finalResults = selectMemoriesWithSoftBalance(scoredResults, finalTokens, ctx.chatLength);
+    const finalResults = await selectMemoriesWithSoftBalance(scoredResults, finalTokens, ctx.chatLength);
     const selectedIds = new Set(finalResults.map((m) => m.id));
 
     // Cache scoring details for debug export
@@ -254,7 +254,13 @@ export async function selectRelevantMemories(memories, ctx) {
     const beforeBuckets = assignMemoriesToBuckets(scoredMemories, ctx.chatLength);
     const afterBuckets = assignMemoriesToBuckets(finalResults, ctx.chatLength);
 
-    const sumBucketTokens = (bucket) => bucket.reduce((sum, m) => sum + countTokens(m.summary || ''), 0);
+    const sumBucketTokens = async (bucket) => {
+        let sum = 0;
+        for (const m of bucket) {
+            sum += await countTokens(m.summary || '');
+        }
+        return sum;
+    };
 
     // Capture top trimmed candidates (highest-scoring memories that missed the budget cut)
     const trimmedCandidates = scoredResults
@@ -263,6 +269,15 @@ export async function selectRelevantMemories(memories, ctx) {
         .map((r) => ({ id: r.memory.id, score: r.score, summary: r.memory.summary?.slice(0, 120) }));
 
     // Cache token budget utilization and bucket distribution for debug export
+    const [oldBefore, midBefore, recentBefore, oldAfter, midAfter, recentAfter] = await Promise.all([
+        sumBucketTokens(beforeBuckets.old),
+        sumBucketTokens(beforeBuckets.mid),
+        sumBucketTokens(beforeBuckets.recent),
+        sumBucketTokens(afterBuckets.old),
+        sumBucketTokens(afterBuckets.mid),
+        sumBucketTokens(afterBuckets.recent),
+    ]);
+
     cacheRetrievalDebug({
         tokenBudget: {
             budget: finalTokens,
@@ -273,14 +288,14 @@ export async function selectRelevantMemories(memories, ctx) {
         },
         bucketDistribution: {
             before: {
-                old: sumBucketTokens(beforeBuckets.old),
-                mid: sumBucketTokens(beforeBuckets.mid),
-                recent: sumBucketTokens(beforeBuckets.recent),
+                old: oldBefore,
+                mid: midBefore,
+                recent: recentBefore,
             },
             after: {
-                old: sumBucketTokens(afterBuckets.old),
-                mid: sumBucketTokens(afterBuckets.mid),
-                recent: sumBucketTokens(afterBuckets.recent),
+                old: oldAfter,
+                mid: midAfter,
+                recent: recentAfter,
             },
             selectedCount: finalResults.length,
         },

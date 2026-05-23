@@ -242,7 +242,7 @@ export async function onChatChanged() {
     // Cleanup corrupted character states
     if (data && context) {
         const validCharNames = [context.name1, context.name2].filter(Boolean);
-        cleanupCharacterStates(data, validCharNames);
+        await cleanupCharacterStates(data, validCharNames);
     }
 
     // Run schema migration if needed

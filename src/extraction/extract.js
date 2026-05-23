@@ -231,7 +231,7 @@ export async function executeEmergencyCut(options = {}) {
  * @param {string[]} contextNames - Known context character names (e.g., [characterName, userName])
  * @param {Object} graphNodes - Graph nodes keyed by normalized name
  */
-export function canonicalizeEventCharNames(events, contextNames, graphNodes) {
+export async function canonicalizeEventCharNames(events, contextNames, graphNodes) {
     // Build canonical name registry: context names + all PERSON graph node names
     const canonicalNames = [...contextNames];
     for (const [, node] of Object.entries(graphNodes || {})) {
@@ -242,22 +242,24 @@ export function canonicalizeEventCharNames(events, contextNames, graphNodes) {
 
     if (canonicalNames.length === 0) return;
 
-    function resolve(name) {
-        const match = resolveCharacterName(name, canonicalNames);
+    async function resolve(name) {
+        const match = await resolveCharacterName(name, canonicalNames);
         return match || name;
     }
 
     for (const event of events) {
         if (event.characters_involved) {
-            event.characters_involved = [...new Set(event.characters_involved.map(resolve))];
+            const resolved = await Promise.all(event.characters_involved.map(resolve));
+            event.characters_involved = [...new Set(resolved)];
         }
         if (event.witnesses) {
-            event.witnesses = [...new Set(event.witnesses.map(resolve))];
+            const resolved = await Promise.all(event.witnesses.map(resolve));
+            event.witnesses = [...new Set(resolved)];
         }
         if (event.emotional_impact) {
             const newImpact = {};
             for (const [charName, emotion] of Object.entries(event.emotional_impact)) {
-                newImpact[resolve(charName)] = emotion;
+                newImpact[await resolve(charName)] = emotion;
             }
             event.emotional_impact = newImpact;
         }
@@ -270,7 +272,7 @@ export function canonicalizeEventCharNames(events, contextNames, graphNodes) {
  * @param {Object} data - OpenVault data object
  * @param {string[]} validCharNames - Known valid character names (e.g., [characterName, userName])
  */
-export function updateCharacterStatesFromEvents(events, data, validCharNames = []) {
+export async function updateCharacterStatesFromEvents(events, data, validCharNames = []) {
     data[CHARACTERS_KEY] = data[CHARACTERS_KEY] || {};
 
     // Build valid set from known names + all characters_involved from current events
@@ -279,23 +281,23 @@ export function updateCharacterStatesFromEvents(events, data, validCharNames = [
     for (const n of validCharNames) {
         const lower = n.toLowerCase();
         validSet.add(lower);
-        const translit = transliterateCyrToLat(lower);
+        const translit = await transliterateCyrToLat(lower);
         if (translit !== lower) validSet.add(translit);
     }
     for (const event of events) {
         for (const char of event.characters_involved || []) {
             const lower = char.toLowerCase();
             validSet.add(lower);
-            const translit = transliterateCyrToLat(lower);
+            const translit = await transliterateCyrToLat(lower);
             if (translit !== lower) validSet.add(translit);
         }
     }
 
     const CYRILLIC_RE = /\p{Script=Cyrillic}/u;
-    function isValid(name) {
+    async function isValid(name) {
         const lower = name.toLowerCase();
         if (validSet.has(lower)) return true;
-        if (CYRILLIC_RE.test(lower)) return validSet.has(transliterateCyrToLat(lower));
+        if (CYRILLIC_RE.test(lower)) return validSet.has(await transliterateCyrToLat(lower));
         return false;
     }
 
@@ -309,7 +311,7 @@ export function updateCharacterStatesFromEvents(events, data, validCharNames = [
         if (event.emotional_impact) {
             for (const [charName, emotion] of Object.entries(event.emotional_impact)) {
                 // Validate character name before creating state entry
-                if (!isValid(charName)) {
+                if (!(await isValid(charName))) {
                     logDebug(`Skipping invalid character name "${charName}" in emotional_impact`);
                     continue;
                 }
@@ -335,7 +337,7 @@ export function updateCharacterStatesFromEvents(events, data, validCharNames = [
         // Add event to witnesses' knowledge
         for (const witness of event.witnesses || []) {
             // Validate character name before creating state entry
-            if (!isValid(witness)) {
+            if (!(await isValid(witness))) {
                 logDebug(`Skipping invalid character name "${witness}" in witnesses`);
                 continue;
             }
@@ -361,7 +363,7 @@ export function updateCharacterStatesFromEvents(events, data, validCharNames = [
  * @param {Object} data - OpenVault data object
  * @param {string[]} validCharNames - Known valid character names (e.g., [characterName, userName])
  */
-export function cleanupCharacterStates(data, validCharNames = []) {
+export async function cleanupCharacterStates(data, validCharNames = []) {
     if (!data[CHARACTERS_KEY]) return;
 
     // Build valid set from known names + all characters_involved from memories
@@ -370,7 +372,7 @@ export function cleanupCharacterStates(data, validCharNames = []) {
     for (const n of validCharNames) {
         const lower = n.toLowerCase();
         validSet.add(lower);
-        const translit = transliterateCyrToLat(lower);
+        const translit = await transliterateCyrToLat(lower);
         if (translit !== lower) validSet.add(translit);
     }
     const memories = data[MEMORIES_KEY] || [];
@@ -378,7 +380,7 @@ export function cleanupCharacterStates(data, validCharNames = []) {
         for (const char of memory.characters_involved || []) {
             const lower = char.toLowerCase();
             validSet.add(lower);
-            const translit = transliterateCyrToLat(lower);
+            const translit = await transliterateCyrToLat(lower);
             if (translit !== lower) validSet.add(translit);
         }
     }
@@ -388,7 +390,8 @@ export function cleanupCharacterStates(data, validCharNames = []) {
     const removedEntries = [];
     for (const charName of Object.keys(data[CHARACTERS_KEY])) {
         const lower = charName.toLowerCase();
-        const isValid = validSet.has(lower) || (CYRILLIC_RE.test(lower) && validSet.has(transliterateCyrToLat(lower)));
+        const isValid =
+            validSet.has(lower) || (CYRILLIC_RE.test(lower) && validSet.has(await transliterateCyrToLat(lower)));
         if (!isValid) {
             removedEntries.push(charName);
             delete data[CHARACTERS_KEY][charName];
@@ -450,7 +453,7 @@ export async function selectMemoriesForExtraction(data, settings) {
 
     // Step A: Recency - most recent memories (sorted desc by sequence)
     const recentSorted = sortMemoriesBySequence(allMemories, false);
-    const recencyMemories = sliceToTokenBudget(recentSorted, recencyBudget);
+    const recencyMemories = await sliceToTokenBudget(recentSorted, recencyBudget);
     const selectedIds = new Set(recencyMemories.map((m) => m.id));
 
     // Step B: Importance - from remaining, importance >= 4
@@ -462,7 +465,7 @@ export async function selectMemoriesForExtraction(data, settings) {
             const impDiff = (b.importance || 3) - (a.importance || 3);
             return impDiff !== 0 ? impDiff : (b.sequence || 0) - (a.sequence || 0);
         });
-    const importanceMemories = sliceToTokenBudget(highImportance, importanceBudget);
+    const importanceMemories = await sliceToTokenBudget(highImportance, importanceBudget);
 
     // Calculate remaining budget after importance selection
     let usedImportanceBudget = 0;
@@ -477,7 +480,7 @@ export async function selectMemoriesForExtraction(data, settings) {
     if (fillBudget > 0) {
         const stillRemaining = remaining.filter((m) => !selectedIds.has(m.id));
         const recentRemaining = sortMemoriesBySequence(stillRemaining, false);
-        fillMemories = sliceToTokenBudget(recentRemaining, fillBudget);
+        fillMemories = await sliceToTokenBudget(recentRemaining, fillBudget);
     }
 
     // Step D: Merge all selected memories
@@ -520,8 +523,8 @@ export async function filterSimilarEvents(
                 if (similarity >= cosineThreshold) {
                     // Cross-check: require lexical overlap to prevent false positives
                     // (events with same actors + similar structure but different actions)
-                    const eventTokens = new Set(tokenize(event.summary || ''));
-                    const memoryTokens = new Set(tokenize(memory.summary || ''));
+                    const eventTokens = new Set(await tokenize(event.summary || ''));
+                    const memoryTokens = new Set(await tokenize(memory.summary || ''));
                     const jaccard = jaccardSimilarity(eventTokens, memoryTokens);
 
                     if (jaccard < jaccardThreshold * 0.5) {
@@ -549,10 +552,10 @@ export async function filterSimilarEvents(
     for (let i = 0; i < filtered.length; i++) {
         if (i % 10 === 0) await yieldToMain();
         const event = filtered[i];
-        const eventTokens = new Set(tokenize(event.summary || ''));
+        const eventTokens = new Set(await tokenize(event.summary || ''));
         let isDuplicate = false;
         for (const keptEvent of kept) {
-            const keptTokens = new Set(tokenize(keptEvent.summary || ''));
+            const keptTokens = new Set(await tokenize(keptEvent.summary || ''));
             const jaccard = jaccardSimilarity(eventTokens, keptTokens);
             if (jaccard >= jaccardThreshold) {
                 logDebug(
@@ -656,7 +659,7 @@ async function synthesizeWorldState(data, settings, characterName, userName) {
 
         const baseKeys = [normalizeKey(characterName), normalizeKey(userName)];
         const mainCharacterKeys = expandMainCharacterKeys(baseKeys, nodes);
-        const crossScriptKeys = findCrossScriptCharacterKeys(baseKeys, nodes);
+        const crossScriptKeys = await findCrossScriptCharacterKeys(baseKeys, nodes);
         mainCharacterKeys.push(...crossScriptKeys.filter((k) => !mainCharacterKeys.includes(k)));
 
         if (mainCharacterKeys.length === 0) {
@@ -716,7 +719,7 @@ async function fetchEventsFromLLM(contextParams, existingMemories, abortSignal) 
         signal: abortSignal,
     });
     record('llm_events', performance.now() - t0);
-    return parseEventExtractionResponse(eventJson);
+    return await parseEventExtractionResponse(eventJson);
 }
 
 /**
@@ -754,7 +757,7 @@ async function fetchGraphFromLLM(contextParams, formattedEvents, abortSignal) {
             signal: abortSignal,
         });
         record('llm_graph', performance.now() - t0);
-        return parseGraphExtractionResponse(graphJson);
+        return await parseGraphExtractionResponse(graphJson);
     } catch (error) {
         // AbortError = session cancel (chat switch) — must propagate
         if (error.name === 'AbortError') throw error;
@@ -784,24 +787,28 @@ async function enrichAndDedupEvents(
 ) {
     const minMessageId = Math.min(...messageIdsArray);
 
-    let events = rawEvents.map((event, index) => ({
-        id: `event_${Date.now()}_${index}`,
-        type: 'event',
-        ...event,
-        tokens: tokenize(event.summary || ''),
-        message_ids: messageIdsArray,
-        message_fingerprints: messageFingerprintsArray,
-        sequence: minMessageId * 1000 + index,
-        created_at: Date.now(),
-        batch_id: batchId,
-        characters_involved: event.characters_involved || [],
-        witnesses: (event.witnesses?.length > 0 ? event.witnesses : event.characters_involved) || [],
-        location: event.location || null,
-        is_secret: event.is_secret || false,
-        importance: event.importance || 3,
-        emotional_impact: event.emotional_impact || {},
-        relationship_impact: event.relationship_impact || {},
-    }));
+    let events = [];
+    for (let index = 0; index < rawEvents.length; index++) {
+        const event = rawEvents[index];
+        events.push({
+            id: `event_${Date.now()}_${index}`,
+            type: 'event',
+            ...event,
+            tokens: await tokenize(event.summary || ''),
+            message_ids: messageIdsArray,
+            message_fingerprints: messageFingerprintsArray,
+            sequence: minMessageId * 1000 + index,
+            created_at: Date.now(),
+            batch_id: batchId,
+            characters_involved: event.characters_involved || [],
+            witnesses: (event.witnesses?.length > 0 ? event.witnesses : event.characters_involved) || [],
+            location: event.location || null,
+            is_secret: event.is_secret || false,
+            importance: event.importance || 3,
+            emotional_impact: event.emotional_impact || {},
+            relationship_impact: event.relationship_impact || {},
+        });
+    }
 
     if (events.length > 0) {
         await enrichEventsWithEmbeddings(events);
@@ -972,9 +979,9 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         // ===== PHASE 1 COMMIT: Events + Graph are done =====
         if (events.length > 0) {
             // Canonicalize cross-script character names before downstream consumption
-            canonicalizeEventCharNames(events, [characterName, userName], data.graph?.nodes);
+            await canonicalizeEventCharNames(events, [characterName, userName], data.graph?.nodes);
             addMemories(events);
-            updateCharacterStatesFromEvents(events, data, [characterName, userName]);
+            await updateCharacterStatesFromEvents(events, data, [characterName, userName]);
         }
 
         // Mark processed AFTER events are committed to memories
@@ -1134,7 +1141,7 @@ export async function extractAllMessages(optionsOrCallback) {
     }
 
     // Get initial estimate for progress display
-    const { messageIds: initialMessageIds, batchCount: initialBatchCount } = getBackfillMessageIds(
+    const { messageIds: initialMessageIds, batchCount: initialBatchCount } = await getBackfillMessageIds(
         chat,
         data,
         tokenBudget,
@@ -1195,7 +1202,7 @@ export async function extractAllMessages(optionsOrCallback) {
                 break;
             }
 
-            const { messageIds: freshIds, batchCount: remainingBatches } = getBackfillMessageIds(
+            const { messageIds: freshIds, batchCount: remainingBatches } = await getBackfillMessageIds(
                 freshChat,
                 freshData,
                 tokenBudget,
@@ -1209,7 +1216,7 @@ export async function extractAllMessages(optionsOrCallback) {
             );
 
             // Get next batch using token budget
-            currentBatch = getNextBatch(
+            currentBatch = await getNextBatch(
                 freshChat,
                 freshData,
                 tokenBudget,

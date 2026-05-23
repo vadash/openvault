@@ -274,7 +274,7 @@ export async function updateEntity(key, updates) {
                         GRAPH_JACCARD_DUPLICATE_THRESHOLD
                     );
                     if (existingEdge._descriptionTokens !== undefined) {
-                        existingEdge._descriptionTokens = countTokens(existingEdge.description);
+                        existingEdge._descriptionTokens = await countTokens(existingEdge.description);
                     }
                     if (existingEdge._descriptionTokens > CONSOLIDATION.TOKEN_THRESHOLD) {
                         if (!graph._edgesNeedingConsolidation) graph._edgesNeedingConsolidation = [];
