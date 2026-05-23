@@ -1,9 +1,26 @@
-import { cdnImport } from './cdn.js';
-
-const { jsonrepair } = await cdnImport('jsonrepair');
-
 import { GRAPH_JACCARD_DUPLICATE_THRESHOLD } from '../constants.js';
+import { cdnImport } from './cdn.js';
 import { countTokens } from './tokens.js';
+
+// Lazy-loaded jsonrepair with CDN resilience
+let _jsonrepair = null;
+
+/**
+ * Get jsonrepair function from CDN with lazy loading.
+ * Returns null if CDN is unavailable (degraded mode).
+ * @returns {Promise<(input: string) => string>|null}
+ */
+async function getJsonRepair() {
+    if (_jsonrepair !== null) return _jsonrepair;
+    try {
+        const mod = await cdnImport('jsonrepair');
+        _jsonrepair = mod.jsonrepair;
+        return _jsonrepair;
+    } catch {
+        // CDN unavailable - degraded mode
+        return null;
+    }
+}
 
 /**
  * Normalize text by fixing invisible characters and typographical anomalies.
@@ -234,9 +251,9 @@ export function mergeDescriptions(targetDesc, sourceDesc, threshold = GRAPH_JACC
  * Slice memories array to fit within a token budget
  * @param {Object[]} memories - Array of memory objects with summary field
  * @param {number} tokenBudget - Maximum tokens to include
- * @returns {Object[]} Sliced memories array that fits within budget
+ * @returns {Promise<Object[]>} Sliced memories array that fits within budget
  */
-export function sliceToTokenBudget(memories, tokenBudget) {
+export async function sliceToTokenBudget(memories, tokenBudget) {
     if (!memories || memories.length === 0) return [];
     if (!tokenBudget || tokenBudget <= 0) return [];
 
@@ -244,7 +261,7 @@ export function sliceToTokenBudget(memories, tokenBudget) {
     let totalTokens = 0;
 
     for (const memory of memories) {
-        const memoryTokens = countTokens(memory.summary);
+        const memoryTokens = await countTokens(memory.summary);
         if (totalTokens + memoryTokens > tokenBudget) {
             break;
         }
@@ -322,9 +339,9 @@ export function stripMarkdownFences(text) {
  * @param {Object} options - Options
  * @param {number} options.minimumBlockSize - Minimum block size for extraction (default: 50)
  * @param {Function} options.onError - Error callback: (context) => void
- * @returns {{success: boolean, data?: any, error?: Error, errorContext?: Object}}
+ * @returns {Promise<{success: boolean, data?: any, error?: Error, errorContext?: Object}>}
  */
-export function safeParseJSON(input, options = {}) {
+export async function safeParseJSON(input, options = {}) {
     const { minimumBlockSize = 50, onError } = options;
     const originalLength = typeof input === 'string' ? input.length : 0;
 
@@ -388,15 +405,24 @@ export function safeParseJSON(input, options = {}) {
                     ? substantialBlocks[substantialBlocks.length - 1]
                     : blocks[blocks.length - 1];
 
-            const repaired = jsonrepair(selectedBlock.text);
-            const parsed = JSON.parse(repaired);
-            return { success: true, data: parsed };
+            const repair = await getJsonRepair();
+            if (repair) {
+                const repaired = repair(selectedBlock.text);
+                const parsed = JSON.parse(repaired);
+                return { success: true, data: parsed };
+            }
+            // Degraded mode: jsonrepair unavailable - try native parse only
+            JSON.parse(selectedBlock.text);
         }
 
         // No blocks found - apply jsonrepair to whole text (for cases like unquoted keys)
-        const repaired = jsonrepair(text);
-        const parsed = JSON.parse(repaired);
-        return { success: true, data: parsed };
+        const repair = await getJsonRepair();
+        if (repair) {
+            const repaired = repair(text);
+            const parsed = JSON.parse(repaired);
+            return { success: true, data: parsed };
+        }
+        // Degraded mode: skip and continue to next tier
     } catch {
         // Continue to Tier 3
     }
@@ -415,9 +441,14 @@ export function safeParseJSON(input, options = {}) {
         const selectedBlock =
             substantialBlocks.length > 0 ? substantialBlocks[substantialBlocks.length - 1] : blocks[blocks.length - 1]; // Fallback to last (or largest if only tiny blocks)
 
-        const repaired = jsonrepair(selectedBlock.text);
-        const parsed = JSON.parse(repaired);
-        return { success: true, data: parsed };
+        const repair = await getJsonRepair();
+        if (repair) {
+            const repaired = repair(selectedBlock.text);
+            const parsed = JSON.parse(repaired);
+            return { success: true, data: parsed };
+        }
+        // Degraded mode: try native parse only
+        JSON.parse(selectedBlock.text);
     } catch {
         // Continue to Tier 4
     }
@@ -437,9 +468,14 @@ export function safeParseJSON(input, options = {}) {
 
         // Apply aggressive scrubbing
         const scrubbed = scrubConcatenation(selectedBlock.text);
-        const repaired = jsonrepair(scrubbed);
-        const parsed = JSON.parse(repaired);
-        return { success: true, data: parsed };
+        const repair = await getJsonRepair();
+        if (repair) {
+            const repaired = repair(scrubbed);
+            const parsed = JSON.parse(repaired);
+            return { success: true, data: parsed };
+        }
+        // Degraded mode: try native parse only
+        JSON.parse(scrubbed);
     } catch (e) {
         // === Tier 5: Fatal Failure ===
         const error = new Error(`JSON parse failed at all tiers: ${e.message}`);

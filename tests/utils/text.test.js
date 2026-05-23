@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { resetDeps } from '../../src/deps.js';
+import { _setTestOverride } from '../../src/utils/cdn.js';
 import {
     extractJsonBlocks,
     mergeDescriptions,
@@ -16,7 +17,7 @@ describe('text', () => {
     afterEach(() => resetDeps());
 
     describe('sliceToTokenBudget', () => {
-        it('slices to budget', () => {
+        it('slices to budget', async () => {
             // Use the same string repeatedly for consistent token counting
             // "summary" is 1 token in o200k
             const text = 'summary';
@@ -25,16 +26,16 @@ describe('text', () => {
                 { summary: text }, // 1 token
                 { summary: text }, // 1 token
             ];
-            const result = sliceToTokenBudget(memories, 2);
+            const result = await sliceToTokenBudget(memories, 2);
             expect(result).toHaveLength(2);
         });
 
-        it('returns empty for zero budget', () => {
-            expect(sliceToTokenBudget([{ summary: 'x' }], 0)).toEqual([]);
+        it('returns empty for zero budget', async () => {
+            expect(await sliceToTokenBudget([{ summary: 'x' }], 0)).toEqual([]);
         });
 
-        it('returns empty for null input', () => {
-            expect(sliceToTokenBudget(null, 100)).toEqual([]);
+        it('returns empty for null input', async () => {
+            expect(await sliceToTokenBudget(null, 100)).toEqual([]);
         });
     });
 
@@ -388,47 +389,47 @@ describe('text', () => {
     describe('safeParseJSON (refactored)', () => {
         // === Tier 0: Input Validation ===
         describe('Tier 0: Input Validation', () => {
-            it('returns success for already-parsed object', () => {
-                const result = safeParseJSON({ key: 'value' });
+            it('returns success for already-parsed object', async () => {
+                const result = await safeParseJSON({ key: 'value' });
                 expect(result.success).toBe(true);
                 expect(result.data).toEqual({ key: 'value' });
             });
 
-            it('returns success for already-parsed array', () => {
-                const result = safeParseJSON([1, 2, 3]);
+            it('returns success for already-parsed array', async () => {
+                const result = await safeParseJSON([1, 2, 3]);
                 expect(result.success).toBe(true);
                 expect(result.data).toEqual([1, 2, 3]);
             });
 
-            it('returns failure for null', () => {
-                const result = safeParseJSON(null);
+            it('returns failure for null', async () => {
+                const result = await safeParseJSON(null);
                 expect(result.success).toBe(false);
                 expect(result.error).toBeInstanceOf(Error);
             });
 
-            it('returns failure for undefined', () => {
-                const result = safeParseJSON(undefined);
+            it('returns failure for undefined', async () => {
+                const result = await safeParseJSON(undefined);
                 expect(result.success).toBe(false);
             });
 
-            it('returns failure for empty string', () => {
-                const result = safeParseJSON('');
+            it('returns failure for empty string', async () => {
+                const result = await safeParseJSON('');
                 expect(result.success).toBe(false);
             });
 
-            it('returns failure for whitespace-only string', () => {
-                const result = safeParseJSON('   \n\t  ');
+            it('returns failure for whitespace-only string', async () => {
+                const result = await safeParseJSON('   \n\t  ');
                 expect(result.success).toBe(false);
             });
 
-            it('coerces number to string and parses', () => {
-                const result = safeParseJSON(42);
+            it('coerces number to string and parses', async () => {
+                const result = await safeParseJSON(42);
                 expect(result.success).toBe(true);
                 expect(result.data).toBe(42);
             });
 
-            it('coerces boolean to string and parses', () => {
-                const result = safeParseJSON(true);
+            it('coerces boolean to string and parses', async () => {
+                const result = await safeParseJSON(true);
                 expect(result.success).toBe(true);
                 expect(result.data).toBe(true);
             });
@@ -436,20 +437,20 @@ describe('text', () => {
 
         // === Tier 1: Native Parse ===
         describe('Tier 1: Native Parse', () => {
-            it('parses valid JSON object', () => {
-                const result = safeParseJSON('{"key": "value"}');
+            it('parses valid JSON object', async () => {
+                const result = await safeParseJSON('{"key": "value"}');
                 expect(result.success).toBe(true);
                 expect(result.data).toEqual({ key: 'value' });
             });
 
-            it('parses valid JSON array', () => {
-                const result = safeParseJSON('[1, 2, 3]');
+            it('parses valid JSON array', async () => {
+                const result = await safeParseJSON('[1, 2, 3]');
                 expect(result.success).toBe(true);
                 expect(result.data).toEqual([1, 2, 3]);
             });
 
-            it('parses fenced JSON (markdown hoisted)', () => {
-                const result = safeParseJSON('```json\n{"key": "value"}\n```');
+            it('parses fenced JSON (markdown hoisted)', async () => {
+                const result = await safeParseJSON('```json\n{"key": "value"}\n```');
                 expect(result.success).toBe(true);
                 expect(result.data).toEqual({ key: 'value' });
             });
@@ -457,20 +458,20 @@ describe('text', () => {
 
         // === Tier 2: JsonRepair ===
         describe('Tier 2: JsonRepair', () => {
-            it('repairs trailing commas', () => {
-                const result = safeParseJSON('{"key": "value",}');
+            it('repairs trailing commas', async () => {
+                const result = await safeParseJSON('{"key": "value",}');
                 expect(result.success).toBe(true);
                 expect(result.data).toEqual({ key: 'value' });
             });
 
-            it('repairs unquoted keys', () => {
-                const result = safeParseJSON('{key: "value"}');
+            it('repairs unquoted keys', async () => {
+                const result = await safeParseJSON('{key: "value"}');
                 expect(result.success).toBe(true);
                 expect(result.data).toEqual({ key: 'value' });
             });
 
-            it('repairs single quotes', () => {
-                const result = safeParseJSON("{'key': 'value'}");
+            it('repairs single quotes', async () => {
+                const result = await safeParseJSON("{'key': 'value'}");
                 expect(result.success).toBe(true);
                 expect(result.data).toEqual({ key: 'value' });
             });
@@ -478,22 +479,22 @@ describe('text', () => {
 
         // === Tier 3: Normalize + Extract ===
         describe('Tier 3: Normalize + Extract', () => {
-            it('normalizes smart quotes', () => {
-                const result = safeParseJSON('{"key": "value"}');
+            it('normalizes smart quotes', async () => {
+                const result = await safeParseJSON('{"key": "value"}');
                 expect(result.success).toBe(true);
                 expect(result.data).toEqual({ key: 'value' });
             });
 
-            it('extracts last substantial block', () => {
-                const result = safeParseJSON(
+            it('extracts last substantial block', async () => {
+                const result = await safeParseJSON(
                     '{"tiny": 1}{"events": [{"summary": "A very long summary that makes this block larger than 50 chars"}]}'
                 );
                 expect(result.success).toBe(true);
                 expect(result.data.events).toBeDefined();
             });
 
-            it('filters out tiny trailing blocks', () => {
-                const result = safeParseJSON(
+            it('filters out tiny trailing blocks', async () => {
+                const result = await safeParseJSON(
                     '{"events": [{"summary": "A very long summary that makes this block larger than 50 chars"}]}{"status": "done"}'
                 );
                 expect(result.success).toBe(true);
@@ -501,8 +502,8 @@ describe('text', () => {
                 expect(result.data.status).toBeUndefined();
             });
 
-            it('keeps tiny block if only one exists', () => {
-                const result = safeParseJSON('{"tiny": 1}');
+            it('keeps tiny block if only one exists', async () => {
+                const result = await safeParseJSON('{"tiny": 1}');
                 expect(result.success).toBe(true);
                 expect(result.data).toEqual({ tiny: 1 });
             });
@@ -510,8 +511,8 @@ describe('text', () => {
 
         // === Tier 4: Aggressive Scrub ===
         describe('Tier 4: Aggressive Scrub', () => {
-            it('fixes string concatenation', () => {
-                const result = safeParseJSON('{"key": "hello" + "world"}');
+            it('fixes string concatenation', async () => {
+                const result = await safeParseJSON('{"key": "hello" + "world"}');
                 expect(result.success).toBe(true);
                 expect(result.data).toEqual({ key: 'helloworld' });
             });
@@ -519,21 +520,21 @@ describe('text', () => {
 
         // === Error Context ===
         describe('Error Context', () => {
-            it('includes tier in errorContext on null input', () => {
-                const result = safeParseJSON(null);
+            it('includes tier in errorContext on null input', async () => {
+                const result = await safeParseJSON(null);
                 expect(result.success).toBe(false);
                 expect(result.errorContext.tier).toBe(0);
             });
 
-            it('includes originalLength in errorContext on empty string', () => {
-                const result = safeParseJSON('');
+            it('includes originalLength in errorContext on empty string', async () => {
+                const result = await safeParseJSON('');
                 expect(result.success).toBe(false);
                 expect(result.errorContext.originalLength).toBe(0);
             });
 
-            it('repairs unclosed brackets via jsonrepair', () => {
+            it('repairs unclosed brackets via jsonrepair', async () => {
                 // jsonrepair is very robust and can fix this
-                const result = safeParseJSON('{"key": "value"');
+                const result = await safeParseJSON('{"key": "value"');
                 expect(result.success).toBe(true);
                 expect(result.data).toEqual({ key: 'value' });
             });
@@ -541,14 +542,14 @@ describe('text', () => {
 
         // === Thinking Tags ===
         describe('Thinking Tags', () => {
-            it('strips thinking tags before parsing', () => {
-                const result = safeParseJSON('<thinking>reasoning here</thinking>{"key": "value"}');
+            it('strips thinking tags before parsing', async () => {
+                const result = await safeParseJSON('<thinking>reasoning here</thinking>{"key": "value"}');
                 expect(result.success).toBe(true);
                 expect(result.data).toEqual({ key: 'value' });
             });
 
-            it('strips multiple thinking tag variants', () => {
-                const result = safeParseJSON('[THINK]reasoning[/THINK]{"key": "value"}');
+            it('strips multiple thinking tag variants', async () => {
+                const result = await safeParseJSON('[THINK]reasoning[/THINK]{"key": "value"}');
                 expect(result.success).toBe(true);
                 expect(result.data).toEqual({ key: 'value' });
             });
@@ -556,8 +557,8 @@ describe('text', () => {
 
         // === Domain Decoupling ===
         describe('Domain Decoupling', () => {
-            it('does NOT wrap bare arrays in events object', () => {
-                const result = safeParseJSON('[{"name": "Alice"}]');
+            it('does NOT wrap bare arrays in events object', async () => {
+                const result = await safeParseJSON('[{"name": "Alice"}]');
                 expect(result.success).toBe(true);
                 expect(Array.isArray(result.data)).toBe(true);
                 expect(result.data[0].name).toBe('Alice');
@@ -568,25 +569,81 @@ describe('text', () => {
 
         // === Options ===
         describe('Options', () => {
-            it('respects minimumBlockSize option', () => {
-                const result = safeParseJSON('{"a": 1}{"b": 2}', { minimumBlockSize: 10 });
+            it('respects minimumBlockSize option', async () => {
+                const result = await safeParseJSON('{"a": 1}{"b": 2}', { minimumBlockSize: 10 });
                 // Both blocks are < 10 chars, but one must be returned
                 expect(result.success).toBe(true);
             });
 
-            it('calls onError callback on failure', () => {
+            it('calls onError callback on failure', async () => {
                 const onError = vi.fn();
                 // Use null input which fails at Tier 0
-                const result = safeParseJSON(null, { onError });
+                const result = await safeParseJSON(null, { onError });
                 expect(result.success).toBe(false);
                 expect(onError).toHaveBeenCalledWith(expect.objectContaining({ tier: 0 }));
             });
 
-            it('does not call onError on success', () => {
+            it('does not call onError on success', async () => {
                 const onError = vi.fn();
-                const result = safeParseJSON('{"key": "value"}', { onError });
+                const result = await safeParseJSON('{"key": "value"}', { onError });
                 expect(result.success).toBe(true);
                 expect(onError).not.toHaveBeenCalled();
+            });
+        });
+
+        // === Degraded Mode (CDN Failure) ===
+        describe('Degraded Mode (CDN Failure)', () => {
+            let originalJsonrepair = null;
+
+            beforeEach(async () => {
+                // Store original jsonrepair if it exists
+                const jsonrepairMod = await import('jsonrepair');
+                originalJsonrepair = jsonrepairMod.default || jsonrepairMod.jsonrepair;
+                // Reset modules and register CDN overrides first
+                vi.resetModules();
+                await global.registerCdnOverrides();
+                // Then simulate CDN failure by setting jsonrepair to null
+                _setTestOverride('jsonrepair', { jsonrepair: null });
+                // Reset modules again to pick up the null override
+                vi.resetModules();
+            });
+
+            afterEach(async () => {
+                // Restore jsonrepair for other tests
+                _setTestOverride('jsonrepair', { jsonrepair: originalJsonrepair });
+                vi.resetModules();
+                await global.registerCdnOverrides();
+            });
+
+            it('parses valid JSON when jsonrepair is unavailable (Tier 1)', async () => {
+                const { safeParseJSON: safeParseJSONFresh } = await import('../../src/utils/text.js');
+                const result = await safeParseJSONFresh('{"key": "value"}');
+                expect(result.success).toBe(true);
+                expect(result.data).toEqual({ key: 'value' });
+            });
+
+            it('fails gracefully when jsonrepair is unavailable and JSON needs repair (Tier 2)', async () => {
+                const { safeParseJSON: safeParseJSONFresh } = await import('../../src/utils/text.js');
+                // Unquoted keys require jsonrepair - should fail gracefully
+                const result = await safeParseJSONFresh('{key: "value"}');
+                expect(result.success).toBe(false);
+                expect(result.error).toBeInstanceOf(Error);
+                expect(result.errorContext.tier).toBeGreaterThanOrEqual(2);
+            });
+
+            it('fails gracefully when jsonrepair is unavailable for trailing commas (Tier 2)', async () => {
+                const { safeParseJSON: safeParseJSONFresh } = await import('../../src/utils/text.js');
+                const result = await safeParseJSONFresh('{"key": "value",}');
+                expect(result.success).toBe(false);
+                expect(result.error).toBeInstanceOf(Error);
+                expect(result.errorContext.tier).toBeGreaterThanOrEqual(2);
+            });
+
+            it('parses fenced valid JSON when jsonrepair is unavailable (Tier 1)', async () => {
+                const { safeParseJSON: safeParseJSONFresh } = await import('../../src/utils/text.js');
+                const result = await safeParseJSONFresh('```json\n{"key": "value"}\n```');
+                expect(result.success).toBe(true);
+                expect(result.data).toEqual({ key: 'value' });
             });
         });
     });
