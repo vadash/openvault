@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
     _testStripMarkdown,
-    GlobalSynthesisSchema,
     getEventExtractionJsonSchema,
+    getGlobalSynthesisSchema,
     getGraphExtractionJsonSchema,
     parseCommunitySummaryResponse,
     parseConsolidationResponse,
@@ -23,8 +23,8 @@ describe('parseEventExtractionResponse - lazy exits', () => {
         ['<reasoning>analysis here</reasoning>', 'reasoning tag only'],
         ['   ', 'whitespace only'],
         ['\t\n  ', 'mixed whitespace'],
-    ])('returns empty events for %s (%s)', (input, _label) => {
-        const result = parseEventExtractionResponse(input);
+    ])('returns empty events for %s (%s)', async (input, _label) => {
+        const result = await parseEventExtractionResponse(input);
         expect(result).toEqual({ events: [] });
     });
 });
@@ -36,8 +36,8 @@ describe('parseGraphExtractionResponse - lazy exits', () => {
         ['<reasoning>analysis here</reasoning>', 'reasoning tag only'],
         ['   ', 'whitespace only'],
         ['\t\n  ', 'mixed whitespace'],
-    ])('returns empty entities/relationships for %s (%s)', (input, _label) => {
-        const result = parseGraphExtractionResponse(input);
+    ])('returns empty entities/relationships for %s (%s)', async (input, _label) => {
+        const result = await parseGraphExtractionResponse(input);
         expect(result).toEqual({ entities: [], relationships: [] });
     });
 });
@@ -75,82 +75,82 @@ describe('stripMarkdown edge cases', () => {
 });
 
 describe('parseEvent', () => {
-    it('parses single event without wrapper', () => {
+    it('parses single event without wrapper', async () => {
         const json = JSON.stringify({
             summary: 'Alice discovered a hidden door behind the bookshelf',
             importance: 4,
             characters_involved: ['Bob'],
         });
 
-        const result = parseEvent(json);
+        const result = await parseEvent(json);
         expect(result.summary).toBe('Alice discovered a hidden door behind the bookshelf');
     });
 
-    it('strips markdown for single event', () => {
+    it('strips markdown for single event', async () => {
         const content =
             '```json\n{"summary": "Bob found an ancient map in the dusty library", "importance": 3, "characters_involved": []}\n```';
-        const result = parseEvent(content);
+        const result = await parseEvent(content);
         expect(result.summary).toBe('Bob found an ancient map in the dusty library');
     });
 
-    it('strips reasoning tags for single event', () => {
+    it('strips reasoning tags for single event', async () => {
         const content =
             '<reasoning>Analyzing event...</reasoning>\n{"summary": "Alice climbed the tower to watch the sunset over the kingdom", "importance": 4, "characters_involved": ["Alice"]}';
-        const result = parseEvent(content);
+        const result = await parseEvent(content);
         expect(result.summary).toBe('Alice climbed the tower to watch the sunset over the kingdom');
         expect(result.importance).toBe(4);
     });
 });
 
 describe('CommunitySummarySchema', () => {
-    it('parses a valid community summary', () => {
+    it('parses a valid community summary', async () => {
         const json = JSON.stringify({
             title: 'The Royal Court',
             summary: 'King Aldric rules from the Castle...',
             findings: ['The King fears betrayal', 'The Guard is loyal'],
         });
-        const result = parseCommunitySummaryResponse(json);
+        const result = await parseCommunitySummaryResponse(json);
         expect(result.title).toBe('The Royal Court');
         expect(result.summary).toBe('King Aldric rules from the Castle...');
         expect(result.findings).toHaveLength(2);
     });
 
-    it('requires at least 1 finding', () => {
+    it('requires at least 1 finding', async () => {
         const json = JSON.stringify({
             title: 'Empty',
             summary: 'Nothing',
             findings: [],
         });
-        expect(() => parseCommunitySummaryResponse(json)).toThrow();
+        await expect(() => parseCommunitySummaryResponse(json)).rejects.toThrow();
     });
 
-    it('requires at most 5 findings', () => {
+    it('requires at most 5 findings', async () => {
         const json = JSON.stringify({
             title: 'Too Many',
             summary: 'Too many findings',
             findings: ['a', 'b', 'c', 'd', 'e', 'f'],
         });
-        expect(() => parseCommunitySummaryResponse(json)).toThrow();
+        await expect(() => parseCommunitySummaryResponse(json)).rejects.toThrow();
     });
 
-    it('requires non-empty title', () => {
+    it('requires non-empty title', async () => {
         const json = JSON.stringify({
             title: '',
             summary: 'Something',
             findings: ['a'],
         });
-        expect(() => parseCommunitySummaryResponse(json)).toThrow();
+        await expect(() => parseCommunitySummaryResponse(json)).rejects.toThrow();
     });
 
-    it('strips markdown and reasoning tags', () => {
+    it('strips markdown and reasoning tags', async () => {
         const content =
             '<reasoning>Analyzing...</reasoning>\n```json\n{"title": "Test", "summary": "A test community", "findings": ["fact1"]}\n```';
-        const result = parseCommunitySummaryResponse(content);
+        const result = await parseCommunitySummaryResponse(content);
         expect(result.title).toBe('Test');
         expect(result.findings).toHaveLength(1);
     });
 
-    it('recovers when LLM returns single-element array instead of object', () => {
+    it('recovers when LLM returns single-element array instead of object', async () => {
         const json = JSON.stringify([
             {
                 title: 'The Royal Court',
@@ -158,12 +158,12 @@ describe('CommunitySummarySchema', () => {
                 findings: ['The King fears betrayal', 'The Guard is loyal'],
             },
         ]);
-        const result = parseCommunitySummaryResponse(json);
+        const result = await parseCommunitySummaryResponse(json);
         expect(result.title).toBe('The Royal Court');
         expect(result.findings).toHaveLength(2);
     });
 
-    it('recovers when LLM returns multi-element array (uses first)', () => {
+    it('recovers when LLM returns multi-element array (uses first)', async () => {
         const json = JSON.stringify([
             {
                 title: 'First Community',
@@ -176,19 +176,19 @@ describe('CommunitySummarySchema', () => {
                 findings: ['Ignored'],
             },
         ]);
-        const result = parseCommunitySummaryResponse(json);
+        const result = await parseCommunitySummaryResponse(json);
         expect(result.title).toBe('First Community');
     });
 
-    it('throws on empty array from LLM', () => {
+    it('throws on empty array from LLM', async () => {
         const json = '[]';
-        expect(() => parseCommunitySummaryResponse(json)).toThrow('LLM returned empty array');
+        await expect(() => parseCommunitySummaryResponse(json)).rejects.toThrow('LLM returned empty array');
     });
 });
 
 describe('getEventExtractionJsonSchema', () => {
-    it('returns schema with events only', () => {
-        const schema = getEventExtractionJsonSchema();
+    it('returns schema with events only', async () => {
+        const schema = await getEventExtractionJsonSchema();
         expect(schema.name).toBe('EventExtraction');
         expect(schema.value.properties).toHaveProperty('events');
         expect(schema.value.properties).not.toHaveProperty('reasoning');
@@ -198,8 +198,8 @@ describe('getEventExtractionJsonSchema', () => {
 });
 
 describe('getGraphExtractionJsonSchema', () => {
-    it('returns schema with entities and relationships only', () => {
-        const schema = getGraphExtractionJsonSchema();
+    it('returns schema with entities and relationships only', async () => {
+        const schema = await getGraphExtractionJsonSchema();
         expect(schema.name).toBe('GraphExtraction');
         expect(schema.value.properties).toHaveProperty('entities');
         expect(schema.value.properties).toHaveProperty('relationships');
@@ -208,7 +208,7 @@ describe('getGraphExtractionJsonSchema', () => {
 });
 
 describe('parseEventExtractionResponse', () => {
-    it('parses valid event extraction JSON', () => {
+    it('parses valid event extraction JSON', async () => {
         const json = JSON.stringify({
             events: [
                 {
@@ -223,11 +223,11 @@ describe('parseEventExtractionResponse', () => {
                 },
             ],
         });
-        const result = parseEventExtractionResponse(json);
+        const result = await parseEventExtractionResponse(json);
         expect(result.events).toHaveLength(1);
     });
 
-    it('accepts event summary with 20-29 characters (concise non-English)', () => {
+    it('accepts event summary with 20-29 characters (concise non-English)', async () => {
         const json = JSON.stringify({
             events: [
                 {
@@ -242,12 +242,12 @@ describe('parseEventExtractionResponse', () => {
                 },
             ],
         });
-        const result = parseEventExtractionResponse(json);
+        const result = await parseEventExtractionResponse(json);
         expect(result.events).toHaveLength(1);
         expect(result.events[0].summary).toBe('Саша дала Вове пощечину');
     });
 
-    it('rejects event summary under 20 characters', () => {
+    it('rejects event summary under 20 characters', async () => {
         const json = JSON.stringify({
             events: [
                 {
@@ -262,25 +262,25 @@ describe('parseEventExtractionResponse', () => {
                 },
             ],
         });
-        const result = parseEventExtractionResponse(json);
+        const result = await parseEventExtractionResponse(json);
         expect(result.events).toHaveLength(0); // per-event salvage discards invalid
     });
 });
 
 describe('parseGraphExtractionResponse', () => {
-    it('parses valid graph extraction JSON', () => {
+    it('parses valid graph extraction JSON', async () => {
         const json = JSON.stringify({
             entities: [{ name: 'Alice', type: 'PERSON', description: 'A character' }],
             relationships: [{ source: 'Alice', target: 'Bob', description: 'Friends' }],
         });
-        const result = parseGraphExtractionResponse(json);
+        const result = await parseGraphExtractionResponse(json);
         expect(result.entities).toHaveLength(1);
         expect(result.relationships).toHaveLength(1);
     });
 });
 
 describe('UnifiedReflectionSchema', () => {
-    it('parses unified reflection response with question and insight', () => {
+    it('parses unified reflection response with question and insight', async () => {
         const raw = JSON.stringify({
             reflections: [
                 {
@@ -290,30 +290,31 @@ describe('UnifiedReflectionSchema', () => {
                 },
             ],
         });
-        const result = parseUnifiedReflectionResponse(raw);
+        const result = await parseUnifiedReflectionResponse(raw);
         expect(result.reflections).toHaveLength(1);
         expect(result.reflections[0].question).toBe('Why is Alice hiding the truth?');
         expect(result.reflections[0].insight).toBe('Alice is protecting Bob from painful knowledge');
         expect(result.reflections[0].evidence_ids).toEqual(['ev_001', 'ev_005']);
     });
 
-    it('accepts 1-3 reflections (not strictly 3)', () => {
+    it('accepts 1-3 reflections (not strictly 3)', async () => {
         const raw = JSON.stringify({
             reflections: [{ question: 'Q1', insight: 'I1', evidence_ids: ['ev_001'] }],
         });
-        const result = parseUnifiedReflectionResponse(raw);
+        const result = await parseUnifiedReflectionResponse(raw);
         expect(result.reflections).toHaveLength(1);
     });
 });
 
 describe('Global Synthesis Schema', () => {
-    it('should validate correct global synthesis response', () => {
+    it('should validate correct global synthesis response', async () => {
         const input = '{"global_summary": "The story has evolved from initial meeting to deep conflict..."}';
-        const result = parseGlobalSynthesisResponse(input);
+        const result = await parseGlobalSynthesisResponse(input);
         expect(result).toEqual({ global_summary: 'The story has evolved from initial meeting to deep conflict...' });
     });
 
-    it('should enforce min length constraint', () => {
+    it('should enforce min length constraint', async () => {
+        const GlobalSynthesisSchema = await getGlobalSynthesisSchema();
         const tooShort = { global_summary: 'Too short' };
         const result1 = GlobalSynthesisSchema.safeParse(tooShort);
         expect(result1.success).toBe(false);
@@ -324,21 +325,21 @@ describe('Global Synthesis Schema', () => {
         expect(result2.success).toBe(true);
     });
 
-    it('recovers bare string as global_summary', () => {
+    it('recovers bare string as global_summary', async () => {
         const bare = JSON.stringify(
             'The story has evolved from initial meeting to deep conflict across multiple chapters'
         );
-        const result = parseGlobalSynthesisResponse(bare);
+        const result = await parseGlobalSynthesisResponse(bare);
         expect(result).toEqual({
             global_summary: 'The story has evolved from initial meeting to deep conflict across multiple chapters',
         });
     });
 
-    it('recovers bare string in single-element array as global_summary', () => {
+    it('recovers bare string in single-element array as global_summary', async () => {
         const wrapped = JSON.stringify([
             'The story has evolved from initial meeting to deep conflict across many chapters',
         ]);
-        const result = parseGlobalSynthesisResponse(wrapped);
+        const result = await parseGlobalSynthesisResponse(wrapped);
         expect(result.global_summary).toBe(
             'The story has evolved from initial meeting to deep conflict across many chapters'
         );
@@ -346,31 +347,31 @@ describe('Global Synthesis Schema', () => {
 });
 
 describe('parseConsolidationResponse', () => {
-    it('parses valid edge consolidation response', () => {
+    it('parses valid edge consolidation response', async () => {
         const json = JSON.stringify({ consolidated_description: 'Alice and Bob have a deep bond built on trust' });
-        const result = parseConsolidationResponse(json);
+        const result = await parseConsolidationResponse(json);
         expect(result.consolidated_description).toBe('Alice and Bob have a deep bond built on trust');
     });
 
-    it('recovers bare string as consolidated_description', () => {
+    it('recovers bare string as consolidated_description', async () => {
         const bare = JSON.stringify('Alice and Bob share mutual trust after years of friendship');
-        const result = parseConsolidationResponse(bare);
+        const result = await parseConsolidationResponse(bare);
         expect(result).toEqual({
             consolidated_description: 'Alice and Bob share mutual trust after years of friendship',
         });
     });
 
-    it('recovers bare string inside single-element array', () => {
+    it('recovers bare string inside single-element array', async () => {
         const wrapped = JSON.stringify(['Alice and Bob reconciled after a long period of tension and distrust']);
-        const result = parseConsolidationResponse(wrapped);
+        const result = await parseConsolidationResponse(wrapped);
         expect(result.consolidated_description).toBe(
             'Alice and Bob reconciled after a long period of tension and distrust'
         );
     });
 
-    it('throws on empty string', () => {
+    it('throws on empty string', async () => {
         const empty = JSON.stringify('');
-        expect(() => parseConsolidationResponse(empty)).toThrow();
+        await expect(() => parseConsolidationResponse(empty)).rejects.toThrow();
     });
 });
 
@@ -379,40 +380,40 @@ describe('parseStructuredResponse - tool call unwrapping', () => {
         events: z.array(z.string()),
     });
 
-    it('unwraps object with "name" and "arguments" keys', () => {
+    it('unwraps object with "name" and "arguments" keys', async () => {
         const json = JSON.stringify({ name: 'extract', arguments: { events: [] } });
-        const result = parseStructuredResponse(json, testSchema);
+        const result = await parseStructuredResponse(json, testSchema);
         expect(result).toEqual({ events: [] });
     });
 
-    it('unwraps object with "tool" and "arguments" keys', () => {
+    it('unwraps object with "tool" and "arguments" keys', async () => {
         const json = JSON.stringify({ tool: 'extract', arguments: { events: ['a', 'b'] } });
-        const result = parseStructuredResponse(json, testSchema);
+        const result = await parseStructuredResponse(json, testSchema);
         expect(result).toEqual({ events: ['a', 'b'] });
     });
 
-    it('unwraps object with "function" and "arguments" keys', () => {
+    it('unwraps object with "function" and "arguments" keys', async () => {
         const json = JSON.stringify({ function: 'x', arguments: { events: [] } });
-        const result = parseStructuredResponse(json, testSchema);
+        const result = await parseStructuredResponse(json, testSchema);
         expect(result).toEqual({ events: [] });
     });
 
-    it('unwraps and re-parses when arguments is a JSON string', () => {
+    it('unwraps and re-parses when arguments is a JSON string', async () => {
         const json = JSON.stringify({ tool: 'extract', arguments: '{"events": ["event1", "event2"]}' });
-        const result = parseStructuredResponse(json, testSchema);
+        const result = await parseStructuredResponse(json, testSchema);
         expect(result).toEqual({ events: ['event1', 'event2'] });
     });
 
-    it('passes through normal objects without tool keys', () => {
+    it('passes through normal objects without tool keys', async () => {
         const json = JSON.stringify({ events: ['normal'] });
-        const result = parseStructuredResponse(json, testSchema);
+        const result = await parseStructuredResponse(json, testSchema);
         expect(result).toEqual({ events: ['normal'] });
     });
 
-    it('does not unwrap arrays (even if they have tool-like structure)', () => {
+    it('does not unwrap arrays (even if they have tool-like structure)', async () => {
         const json = JSON.stringify([{ events: ['array-item'] }]);
         // Should trigger array unwrapping, not tool unwrapping
-        const result = parseStructuredResponse(json, testSchema);
+        const result = await parseStructuredResponse(json, testSchema);
         expect(result).toEqual({ events: ['array-item'] });
     });
 });

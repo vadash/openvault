@@ -1,69 +1,138 @@
-import { cdnImport } from '../utils/cdn.js';
-
-const { z } = await cdnImport('zod');
-
 import { ENTITY_TYPES } from '../constants.js';
 import { getSchemas } from '../store/schemas.js';
+import { cdnImport } from '../utils/cdn.js';
 import { logError, logWarn } from '../utils/logging.js';
 import { safeParseJSON, stripMarkdownFences, stripThinkingTags } from '../utils/text.js';
 
-// Get base schemas via factory (top-level await is fine since we already await cdnImport)
-const {
-    BaseEntitySchema,
-    BaseRelationshipSchema,
-    EventSchema,
-    EventExtractionSchema,
-} = await getSchemas();
+// Lazy zod init — CDN failures degrade gracefully instead of blocking the entire extension
+let _z = null;
 
-// --- Schemas Extended with .catch() Fallbacks for LLM Validation ---
+async function getZ() {
+    if (_z === null) {
+        const zod = await cdnImport('zod');
+        _z = zod.z;
+    }
+    return _z;
+}
 
-/**
- * Schema for relationship impact between characters
- */
-export const RelationshipImpactSchema = z.record(z.string(), z.any());
+// Lazy extended schemas — built only when first needed
+let _extended = null;
 
-/**
- * Schema for a single memory event
- * Re-exported from store/schemas.js
- */
-export { EventSchema, EventExtractionSchema };
+async function getExtendedSchemas() {
+    if (_extended === null) {
+        const z = await getZ();
+        const { BaseEntitySchema, BaseRelationshipSchema, EventSchema, EventExtractionSchema } = await getSchemas();
 
-/**
- * Schema for an entity (person, place, organization, object, or concept)
- * Uses .catch() fallbacks to salvage partial LLM output —
- * invalid entries (name = "Unknown") are dropped downstream.
- */
-export const EntitySchema = z.object({
-    name: BaseEntitySchema.shape.name.catch('Unknown').describe('Entity name, capitalized'),
-    type: BaseEntitySchema.shape.type.catch(ENTITY_TYPES.OBJECT),
-    description: BaseEntitySchema.shape.description
-        .catch('No description available')
-        .describe('Comprehensive description of the entity'),
-});
+        // Re-export base schemas
+        const exported = {
+            EventSchema,
+            EventExtractionSchema,
+        };
 
-/**
- * Schema for a relationship between two entities
- * Uses .catch() fallbacks to salvage partial LLM output in large batches —
- * invalid entries (source/target = "Unknown") are dropped downstream.
- */
-export const RelationshipSchema = z.object({
-    source: BaseRelationshipSchema.shape.source.catch('Unknown').describe('Source entity name'),
-    target: BaseRelationshipSchema.shape.target.catch('Unknown').describe('Target entity name'),
-    description: BaseRelationshipSchema.shape.description
-        .catch('No description')
-        .describe('Description of the relationship'),
-});
+        // RelationshipImpactSchema
+        exported.RelationshipImpactSchema = z.record(z.string(), z.any());
 
-/**
- * Schema for Stage 2: Graph extraction only
- */
-export const GraphExtractionSchema = z.object({
-    entities: z.array(EntitySchema).max(5, 'Limit to 5 most significant entities per batch').default([]),
-    relationships: z
-        .array(RelationshipSchema)
-        .max(5, 'Limit to 5 most significant relationships per batch')
-        .default([]),
-});
+        // EntitySchema
+        exported.EntitySchema = z.object({
+            name: BaseEntitySchema.shape.name.catch('Unknown').describe('Entity name, capitalized'),
+            type: BaseEntitySchema.shape.type.catch(ENTITY_TYPES.OBJECT),
+            description: BaseEntitySchema.shape.description
+                .catch('No description available')
+                .describe('Comprehensive description of the entity'),
+        });
+
+        // RelationshipSchema
+        exported.RelationshipSchema = z.object({
+            source: BaseRelationshipSchema.shape.source.catch('Unknown').describe('Source entity name'),
+            target: BaseRelationshipSchema.shape.target.catch('Unknown').describe('Target entity name'),
+            description: BaseRelationshipSchema.shape.description
+                .catch('No description')
+                .describe('Description of the relationship'),
+        });
+
+        // GraphExtractionSchema
+        exported.GraphExtractionSchema = z.object({
+            entities: z
+                .array(exported.EntitySchema)
+                .max(5, 'Limit to 5 most significant entities per batch')
+                .default([]),
+            relationships: z
+                .array(exported.RelationshipSchema)
+                .max(5, 'Limit to 5 most significant relationships per batch')
+                .default([]),
+        });
+
+        // SalientQuestionsSchema
+        exported.SalientQuestionsSchema = z.object({
+            questions: z.array(z.string()).length(3),
+        });
+
+        // InsightExtractionSchema
+        exported.InsightExtractionSchema = z.object({
+            insights: z
+                .array(
+                    z.object({
+                        insight: z.string().min(1),
+                        evidence_ids: z.array(z.string()),
+                    })
+                )
+                .min(1)
+                .max(5),
+        });
+
+        // UnifiedReflectionSchema
+        exported.UnifiedReflectionSchema = z.object({
+            reflections: z
+                .array(
+                    z.object({
+                        question: z.string().min(1, 'Question is required'),
+                        insight: z.string().min(1, 'Insight is required'),
+                        evidence_ids: z.array(z.string()).default([]),
+                    })
+                )
+                .min(1, 'At least 1 reflection required')
+                .max(3, 'Maximum 3 reflections'),
+        });
+
+        // CommunitySummarySchema
+        exported.CommunitySummarySchema = z.object({
+            title: z.string().min(1, 'Title is required'),
+            summary: z.string().min(1, 'Summary is required'),
+            findings: z.array(z.string()).min(1, 'At least one finding required').max(5, 'Maximum 5 findings'),
+        });
+
+        // GlobalSynthesisSchema
+        exported.GlobalSynthesisSchema = z.object({
+            global_summary: z
+                .string()
+                .min(50, 'Global summary must be substantive')
+                .describe(
+                    'Overarching summary of current story state, focusing on macro-relationships and trajectory (max ~300 tokens)'
+                ),
+        });
+
+        // EdgeConsolidationSchema
+        exported.EdgeConsolidationSchema = z.object({
+            consolidated_description: z.string().min(1, 'Consolidated description is required'),
+        });
+
+        _extended = exported;
+    }
+    return _extended;
+}
+
+// Async getters for re-exported schemas
+export async function getEventSchema() {
+    return (await getExtendedSchemas()).EventSchema;
+}
+
+export async function getEventExtractionSchema() {
+    return (await getExtendedSchemas()).EventExtractionSchema;
+}
+
+export async function getGlobalSynthesisSchema() {
+    return (await getExtendedSchemas()).GlobalSynthesisSchema;
+}
 
 /**
  * Convert Zod schema to ConnectionManager jsonSchema format
@@ -71,9 +140,10 @@ export const GraphExtractionSchema = z.object({
  *
  * @param {z.ZodType} zodSchema - The Zod schema to convert
  * @param {string} schemaName - Name for the JSON schema
- * @returns {Object} ConnectionManager-compatible jsonSchema object
+ * @returns {Promise<Object>} ConnectionManager-compatible jsonSchema object
  */
-function toJsonSchema(zodSchema, schemaName) {
+async function toJsonSchema(zodSchema, schemaName) {
+    const z = await getZ();
     const draft = z.toJSONSchema(zodSchema, { target: 'jsonSchema4' });
 
     return {
@@ -106,12 +176,12 @@ function recoverBareString(data, key) {
  * @param {string} content - Raw LLM response
  * @param {z.ZodType} schema - Zod schema to validate against
  * @param {Function|null} [recoverFn=null] - Optional pre-validation transform (e.g. bare-string recovery)
- * @returns {Object} Validated parsed data
+ * @returns {Promise<Object>} Validated parsed data
  * @throws {Error} If JSON parsing or validation fails
  */
-export function parseStructuredResponse(content, schema, recoverFn = null) {
+export async function parseStructuredResponse(content, schema, recoverFn = null) {
     // Use safeParseJSON with new API (handles thinking tags and markdown internally)
-    const result = safeParseJSON(content);
+    const result = await safeParseJSON(content);
     if (!result.success) {
         const start = content.slice(0, 500);
         const end = content.slice(-500);
@@ -138,7 +208,7 @@ export function parseStructuredResponse(content, schema, recoverFn = null) {
         let args = parsed.arguments;
         // arguments may be a JSON string (common with some models)
         if (typeof args === 'string') {
-            const argsResult = safeParseJSON(args);
+            const argsResult = await safeParseJSON(args);
             if (argsResult.success) {
                 args = argsResult.data;
             } else {
@@ -177,17 +247,19 @@ export function parseStructuredResponse(content, schema, recoverFn = null) {
 
 /**
  * Get jsonSchema for Stage 1: Event extraction
- * @returns {Object} ConnectionManager jsonSchema object
+ * @returns {Promise<Object>} ConnectionManager jsonSchema object
  */
-export function getEventExtractionJsonSchema() {
+export async function getEventExtractionJsonSchema() {
+    const { EventExtractionSchema } = await getExtendedSchemas();
     return toJsonSchema(EventExtractionSchema, 'EventExtraction');
 }
 
 /**
  * Get jsonSchema for Stage 2: Graph extraction
- * @returns {Object} ConnectionManager jsonSchema object
+ * @returns {Promise<Object>} ConnectionManager jsonSchema object
  */
-export function getGraphExtractionJsonSchema() {
+export async function getGraphExtractionJsonSchema() {
+    const { GraphExtractionSchema } = await getExtendedSchemas();
     return toJsonSchema(GraphExtractionSchema, 'GraphExtraction');
 }
 
@@ -195,9 +267,9 @@ export function getGraphExtractionJsonSchema() {
  * Parse event extraction response (Stage 1)
  *
  * @param {string} content - Raw LLM response
- * @returns {Object} Validated event extraction response with {events}
+ * @returns {Promise<Object>} Validated event extraction response with {events}
  */
-export function parseEventExtractionResponse(content) {
+export async function parseEventExtractionResponse(content) {
     // Handle lazy exits: strip thinking tags and check for empty output
     const stripped = stripThinkingTags(content);
     if (stripped.trim().length === 0) {
@@ -205,7 +277,7 @@ export function parseEventExtractionResponse(content) {
         return { events: [] };
     }
 
-    const result = safeParseJSON(content);
+    const result = await safeParseJSON(content);
     if (!result.success) {
         const start = content.slice(0, 500);
         const end = content.slice(-500);
@@ -235,6 +307,7 @@ export function parseEventExtractionResponse(content) {
         return { events: [] };
     }
 
+    const { EventSchema } = await getExtendedSchemas();
     const validEvents = [];
     for (const raw of rawEvents) {
         const eventResult = EventSchema.safeParse(raw);
@@ -254,9 +327,9 @@ export function parseEventExtractionResponse(content) {
  * Parse graph extraction response (Stage 2)
  *
  * @param {string} content - Raw LLM response
- * @returns {Object} Validated graph extraction response with {entities, relationships}
+ * @returns {Promise<Object>} Validated graph extraction response with {entities, relationships}
  */
-export function parseGraphExtractionResponse(content) {
+export async function parseGraphExtractionResponse(content) {
     // Handle lazy exits: strip thinking tags and check for empty output
     const stripped = stripThinkingTags(content);
     if (stripped.trim().length === 0) {
@@ -264,7 +337,7 @@ export function parseGraphExtractionResponse(content) {
         return { entities: [], relationships: [] };
     }
 
-    const result = safeParseJSON(content);
+    const result = await safeParseJSON(content);
     if (!result.success) {
         const start = content.slice(0, 500);
         const end = content.slice(-500);
@@ -283,6 +356,8 @@ export function parseGraphExtractionResponse(content) {
         logWarn('LLM returned bare array, mapping to entities');
         parsed = { entities: parsed, relationships: [] };
     }
+
+    const { EntitySchema, RelationshipSchema } = await getExtendedSchemas();
 
     // Per-item validation
     const validEntities = [];
@@ -304,9 +379,10 @@ export function parseGraphExtractionResponse(content) {
  * Parse single event (for backfill/retry scenarios)
  *
  * @param {string} content - Raw LLM response for single event
- * @returns {Object} Validated event object
+ * @returns {Promise<Object>} Validated event object
  */
-export function parseEvent(content) {
+export async function parseEvent(content) {
+    const { EventSchema } = await getExtendedSchemas();
     return parseStructuredResponse(content, EventSchema);
 }
 
@@ -318,32 +394,6 @@ export function parseEvent(content) {
 export function _testStripMarkdown(content) {
     return stripMarkdownFences(content);
 }
-
-// --- Reflection Schemas ---
-
-/**
- * Schema for salient questions generated during reflection
- * Exactly 3 high-level questions about a character's current state
- */
-export const SalientQuestionsSchema = z.object({
-    questions: z.array(z.string()).length(3),
-});
-
-/**
- * Schema for insight extraction during reflection
- * 1-5 insights with evidence citations
- */
-export const InsightExtractionSchema = z.object({
-    insights: z
-        .array(
-            z.object({
-                insight: z.string().min(1),
-                evidence_ids: z.array(z.string()),
-            })
-        )
-        .min(1)
-        .max(5),
-});
 
 // --- Unified Reflection Schema ---
 
@@ -367,37 +417,20 @@ function stripLeakedIds(text) {
 }
 
 /**
- * Schema for unified reflection (single-call: question + insight combined)
- * 1-3 reflections, each with question, insight, and evidence_ids.
- * ID stripping is applied in parseUnifiedReflectionResponse after validation.
- */
-export const UnifiedReflectionSchema = z.object({
-    reflections: z
-        .array(
-            z.object({
-                question: z.string().min(1, 'Question is required'),
-                insight: z.string().min(1, 'Insight is required'),
-                evidence_ids: z.array(z.string()).default([]),
-            })
-        )
-        .min(1, 'At least 1 reflection required')
-        .max(3, 'Maximum 3 reflections'),
-});
-
-/**
  * Get jsonSchema for unified reflection
- * @returns {Object} ConnectionManager jsonSchema object
+ * @returns {Promise<Object>} ConnectionManager jsonSchema object
  */
-export function getUnifiedReflectionJsonSchema() {
+export async function getUnifiedReflectionJsonSchema() {
+    const { UnifiedReflectionSchema } = await getExtendedSchemas();
     return toJsonSchema(UnifiedReflectionSchema, 'UnifiedReflection');
 }
 
 /**
  * Parse unified reflection response
  * @param {string} content - Raw LLM response
- * @returns {Object} Validated unified reflection with reflections array
+ * @returns {Promise<Object>} Validated unified reflection with reflections array
  */
-export function parseUnifiedReflectionResponse(content) {
+export async function parseUnifiedReflectionResponse(content) {
     // Handle lazy exits: strip thinking tags and check for empty output
     const stripped = stripThinkingTags(content);
     if (stripped.trim().length === 0) {
@@ -405,7 +438,8 @@ export function parseUnifiedReflectionResponse(content) {
         return { reflections: [] };
     }
 
-    const result = parseStructuredResponse(content, UnifiedReflectionSchema);
+    const { UnifiedReflectionSchema } = await getExtendedSchemas();
+    const result = await parseStructuredResponse(content, UnifiedReflectionSchema);
     return {
         reflections: result.reflections.map((r) => ({
             ...r,
@@ -418,87 +452,63 @@ export function parseUnifiedReflectionResponse(content) {
 // --- Community Summary Schema ---
 
 /**
- * Schema for community summarization output
- * Title, summary, and 1-5 key findings about a community
- */
-export const CommunitySummarySchema = z.object({
-    title: z.string().min(1, 'Title is required'),
-    summary: z.string().min(1, 'Summary is required'),
-    findings: z.array(z.string()).min(1, 'At least one finding required').max(5, 'Maximum 5 findings'),
-});
-
-/**
  * Get jsonSchema for community summarization
- * @returns {Object} ConnectionManager jsonSchema object
+ * @returns {Promise<Object>} ConnectionManager jsonSchema object
  */
-export function getCommunitySummaryJsonSchema() {
+export async function getCommunitySummaryJsonSchema() {
+    const { CommunitySummarySchema } = await getExtendedSchemas();
     return toJsonSchema(CommunitySummarySchema, 'CommunitySummary');
 }
 
 /**
  * Parse community summary response
  * @param {string} content - Raw LLM response
- * @returns {Object} Validated community summary
+ * @returns {Promise<Object>} Validated community summary
  */
-export function parseCommunitySummaryResponse(content) {
+export async function parseCommunitySummaryResponse(content) {
+    const { CommunitySummarySchema } = await getExtendedSchemas();
     return parseStructuredResponse(content, CommunitySummarySchema);
 }
 
 // --- Global Synthesis Schema ---
 
 /**
- * Schema for global world state synthesis
- * Map-reduce output over all community summaries
- */
-export const GlobalSynthesisSchema = z.object({
-    global_summary: z
-        .string()
-        .min(50, 'Global summary must be substantive')
-        .describe(
-            'Overarching summary of current story state, focusing on macro-relationships and trajectory (max ~300 tokens)'
-        ),
-});
-
-/**
  * Get jsonSchema for global synthesis
- * @returns {Object} ConnectionManager jsonSchema object
+ * @returns {Promise<Object>} ConnectionManager jsonSchema object
  */
-export function getGlobalSynthesisJsonSchema() {
+export async function getGlobalSynthesisJsonSchema() {
+    const { GlobalSynthesisSchema } = await getExtendedSchemas();
     return toJsonSchema(GlobalSynthesisSchema, 'GlobalSynthesis');
 }
 
 /**
  * Parse global synthesis response
  * @param {string} content - Raw LLM response
- * @returns {Object} Validated global synthesis with global_summary
+ * @returns {Promise<Object>} Validated global synthesis with global_summary
  */
-export function parseGlobalSynthesisResponse(content) {
+export async function parseGlobalSynthesisResponse(content) {
+    const { GlobalSynthesisSchema } = await getExtendedSchemas();
     return parseStructuredResponse(content, GlobalSynthesisSchema, (data) => recoverBareString(data, 'global_summary'));
 }
 
 // --- Edge Consolidation Schema ---
 
 /**
- * Schema for edge consolidation response
- */
-export const EdgeConsolidationSchema = z.object({
-    consolidated_description: z.string().min(1, 'Consolidated description is required'),
-});
-
-/**
  * Get jsonSchema for edge consolidation
- * @returns {Object} ConnectionManager jsonSchema object
+ * @returns {Promise<Object>} ConnectionManager jsonSchema object
  */
-export function getEdgeConsolidationJsonSchema() {
+export async function getEdgeConsolidationJsonSchema() {
+    const { EdgeConsolidationSchema } = await getExtendedSchemas();
     return toJsonSchema(EdgeConsolidationSchema, 'EdgeConsolidation');
 }
 
 /**
  * Parse edge consolidation response
  * @param {string} content - Raw LLM response
- * @returns {Object} Validated consolidation response
+ * @returns {Promise<Object>} Validated consolidation response
  */
-export function parseConsolidationResponse(content) {
+export async function parseConsolidationResponse(content) {
+    const { EdgeConsolidationSchema } = await getExtendedSchemas();
     return parseStructuredResponse(content, EdgeConsolidationSchema, (data) =>
         recoverBareString(data, 'consolidated_description')
     );

@@ -167,7 +167,7 @@ export async function callLLM(messages, config, options = {}) {
         return content;
     }
 
-    const jsonSchema = options.structured && getJsonSchema ? getJsonSchema() : undefined;
+    const jsonSchema = options.structured && getJsonSchema ? await getJsonSchema() : undefined;
 
     // --- Main request with backup failover ---
     try {
