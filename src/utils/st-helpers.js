@@ -45,8 +45,17 @@ const POSITION_MAP = {
  */
 export function safeSetExtensionPrompt(content, name = extensionName, position = 0, depth = 0) {
     // Custom position (-1) = macro-only, skip auto-injection
-    // Disabled position (-2) = skip injection entirely
-    if (position === -1 || position === -2) {
+    if (position === -1) {
+        return false;
+    }
+
+    // Disabled position (-2) = clear any existing injection, don't inject new content
+    if (position === -2) {
+        try {
+            getDeps().setExtensionPrompt(name, '', 0, 0);
+        } catch {
+            /* best-effort clear */
+        }
         return false;
     }
 

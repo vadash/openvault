@@ -155,7 +155,7 @@ describe('st-helpers', () => {
             expect(mockSetPrompt).not.toHaveBeenCalled();
         });
 
-        it('skips injection when position is DISABLED (-2)', () => {
+        it('clears existing injection when position is DISABLED (-2)', () => {
             const mockSetPrompt = vi.fn();
             setDeps({
                 console: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -164,7 +164,7 @@ describe('st-helpers', () => {
             });
 
             expect(safeSetExtensionPrompt('test content', 'openvault', -2, 0)).toBe(false);
-            expect(mockSetPrompt).not.toHaveBeenCalled();
+            expect(mockSetPrompt).toHaveBeenCalledWith('openvault', '', 0, 0);
         });
 
         it('maps named slot world position', () => {

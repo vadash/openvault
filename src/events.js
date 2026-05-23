@@ -418,8 +418,10 @@ export function updateEventListeners(_skipInitialization = false) {
     if (isExtensionEnabled()) {
         logDebug('Extension enabled - event listeners registered');
     } else {
-        // Clear injection when disabled/manual
-        safeSetExtensionPrompt('');
+        // Clear all injection slots when disabled
+        safeSetExtensionPrompt('', 'openvault');
+        safeSetExtensionPrompt('', 'openvault_reflections');
+        safeSetExtensionPrompt('', 'openvault_world');
         logDebug('Manual mode - injection cleared');
     }
 }
