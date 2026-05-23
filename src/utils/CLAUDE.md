@@ -39,3 +39,12 @@
 - **Manage Phase 2 parallelism.** Use `createLadderQueue()` for LLM tasks.
 - **Decrease multiplicatively.** On 429 or Timeout, halve concurrency and pause for 4 seconds.
 - **Increase additively.** On success, slowly add 0.5 to the concurrency ceiling.
+
+## LAZY CDN IMPORTS
+The following utility functions are `async` and lazily load CDN packages on first call:
+- **`stemWord`, `getAllStopwords`, `transliterateCyrToLat`** — NLP utilities
+- **`resolveCharacterName`** — Character matching
+- **`countTokens`, `getMessageTokenCount`, `getTokenSum`, `sliceToTokenBudget`** — Token counting
+- **`safeParseJSON`** — JSON parsing with repair tiers
+
+Always `await` these functions. Fallbacks: stemmer returns input unchanged, stopwords returns empty Set, token counting uses `Math.ceil(text.length / 4)`, jsonrepair skips repair tiers, transliteration lowercases only.

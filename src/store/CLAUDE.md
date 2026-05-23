@@ -26,3 +26,6 @@ See `src/store/migrations/CLAUDE.md` for migration anatomy and rollback patterns
 ## ENTITY MERGE TESTS
 - **`tests/store/chat-data-merge.test.js`** uses inline objects, not `buildMockGraphNode()`. Merge tests need explicit control over field combinations where factory defaults obscure test intent.
 - **Uses `setDeps()` alongside `setupTestContext()`.** Merge module imports `getDeps()` internally, so tests must call `setDeps()` directly.
+
+## SCHEMA FACTORY
+`schemas.js` exports `getSchemas()` async function, not individual constants. Use `const { MemorySchema, ... } = await getSchemas()` to access schemas. The type generator (`scripts/generate-types.js`) calls `getSchemas()` in Node.js.

@@ -23,6 +23,7 @@ Agentic memory extension for SillyTavern providing POV-aware memory, witness tra
 - **Yield the main thread in heavy loops.** Call `await yieldToMain()` to polyfill `scheduler.yield()` and prevent ST UI freezes
 - **Never edit `src/types.d.ts` directly.** Regenerate it from Zod schemas using `npm run generate-types`
 - **Never use `z.any()` in Zod schemas.** Use `z.unknown()`, typed alternatives, or JSDoc `@typedef` for complex/interface types that Zod can't model (e.g., function signatures, class instances). `z.any()` leaks into generated `types.d.ts` as `any`
+- **Never use top-level `await cdnImport()`.** Load CDN packages lazily inside the function that uses them. Cache the result in a module-level variable. Provide a degraded fallback when CDN is unavailable. All CDN-dependent functions are `async`
 
 ### 4. Pre-Commit
 - **`npm run check` runs automatically on every commit** (sync-version, generate-types, lint, jsdoc, css, typecheck). The commit is aborted on any failure — fix errors, never skip them
