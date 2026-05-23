@@ -107,7 +107,7 @@ async function runWorkerLoop() {
             const maxTurns = settings.extractionMaxTurns || Infinity;
 
             // Get next batch
-            const batch = getNextBatch(chat, data, tokenBudget, false, maxTurns);
+            const batch = await getNextBatch(chat, data, tokenBudget, false, maxTurns);
             if (!batch) break; // No complete batches, go to sleep
 
             // Process

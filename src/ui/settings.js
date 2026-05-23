@@ -1136,7 +1136,7 @@ export async function updateBudgetIndicators() {
     const { getExtractionBudgetProgress } = await import('../extraction/scheduler.js');
 
     // Extraction indicator - use domain function
-    const { unextractedTokens, extractionPct, extractionBudget } = getExtractionBudgetProgress(
+    const { unextractedTokens, extractionPct, extractionBudget } = await getExtractionBudgetProgress(
         chat,
         data,
         settings.extractionTokenBudget,
@@ -1155,7 +1155,7 @@ export async function updateBudgetIndicators() {
     for (let i = 0; i < chat.length; i++) {
         if (!chat[i].is_system) visibleIndices.push(i);
     }
-    const visibleTokens = getTokenSum(chat, visibleIndices);
+    const visibleTokens = await getTokenSum(chat, visibleIndices);
     const visiblePct = Math.min((visibleTokens / visibleBudget) * 100, 100);
 
     $('#openvault_visible_budget_fill').css('width', `${visiblePct}%`);
