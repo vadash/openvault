@@ -4,7 +4,7 @@ import { buildMockGraphNode } from '../factories.js';
 
 describe('retrieveWorldContext', () => {
     describe('entity-based local retrieval', () => {
-        it('returns most relevant entities by cosine similarity', () => {
+        it('returns most relevant entities by cosine similarity', async () => {
             const graphData = {
                 nodes: {
                     king: buildMockGraphNode({
@@ -23,14 +23,14 @@ describe('retrieveWorldContext', () => {
                 edges: {},
             };
             const queryEmbedding = new Float32Array([0.8, 0.2, 0.0]); // Close to king
-            const result = retrieveWorldContext(graphData, null, '', queryEmbedding, 2000);
+            const result = await retrieveWorldContext(graphData, null, '', queryEmbedding, 2000);
 
             expect(result.text).toContain('King Aldric');
             expect(result.text).toContain('PERSON');
             expect(result.entityKeys).toContain('king');
         });
 
-        it('skips entities without embeddings', () => {
+        it('skips entities without embeddings', async () => {
             const graphData = {
                 nodes: {
                     king: buildMockGraphNode({
@@ -49,14 +49,14 @@ describe('retrieveWorldContext', () => {
                 edges: {},
             };
             const queryEmbedding = new Float32Array([0.8, 0.2, 0.0]);
-            const result = retrieveWorldContext(graphData, null, '', queryEmbedding, 2000);
+            const result = await retrieveWorldContext(graphData, null, '', queryEmbedding, 2000);
 
             expect(result.text).toContain('King Aldric');
             expect(result.text).not.toContain('Castle');
             expect(result.entityKeys).not.toContain('castle');
         });
 
-        it('respects token budget', () => {
+        it('respects token budget', async () => {
             const graphData = {
                 nodes: {
                     king: buildMockGraphNode({
@@ -75,19 +75,25 @@ describe('retrieveWorldContext', () => {
                 edges: {},
             };
             const queryEmbedding = new Float32Array([0.9, 0.1, 0.0]);
-            const result = retrieveWorldContext(graphData, null, '', queryEmbedding, 25); // Very tight budget
+            const result = await retrieveWorldContext(graphData, null, '', queryEmbedding, 25); // Very tight budget
 
             // Should include at most 1 entity
             expect(result.entityKeys.length).toBeLessThanOrEqual(1);
         });
 
-        it('returns empty when no entities exist', () => {
-            const result = retrieveWorldContext({ nodes: {}, edges: {} }, null, '', new Float32Array([0.5, 0.5]), 2000);
+        it('returns empty when no entities exist', async () => {
+            const result = await retrieveWorldContext(
+                { nodes: {}, edges: {} },
+                null,
+                '',
+                new Float32Array([0.5, 0.5]),
+                2000
+            );
             expect(result.text).toBe('');
             expect(result.entityKeys).toEqual([]);
         });
 
-        it('formats output with XML tags', () => {
+        it('formats output with XML tags', async () => {
             const graphData = {
                 nodes: {
                     king: buildMockGraphNode({
@@ -100,13 +106,13 @@ describe('retrieveWorldContext', () => {
                 edges: {},
             };
             const queryEmbedding = new Float32Array([0.9, 0.1, 0.0]);
-            const result = retrieveWorldContext(graphData, null, '', queryEmbedding, 2000);
+            const result = await retrieveWorldContext(graphData, null, '', queryEmbedding, 2000);
 
             expect(result.text).toContain('<world_context>');
             expect(result.text).toContain('</world_context>');
         });
 
-        it('includes framing comment in local-mode output', () => {
+        it('includes framing comment in local-mode output', async () => {
             const graphData = {
                 nodes: {
                     king: buildMockGraphNode({
@@ -119,14 +125,14 @@ describe('retrieveWorldContext', () => {
                 edges: {},
             };
             const queryEmbedding = new Float32Array([0.9, 0.1, 0.0]);
-            const result = retrieveWorldContext(graphData, null, '', queryEmbedding, 2000);
+            const result = await retrieveWorldContext(graphData, null, '', queryEmbedding, 2000);
 
             expect(result.text).toContain(
                 '[This is background knowledge about the world, its communities, and broader context the character is aware of]'
             );
         });
 
-        it('formats edges with endpoint type inline (top 3 by weight)', () => {
+        it('formats edges with endpoint type inline (top 3 by weight)', async () => {
             const graphData = {
                 nodes: {
                     king: buildMockGraphNode({
@@ -179,7 +185,7 @@ describe('retrieveWorldContext', () => {
                 },
             };
             const queryEmbedding = new Float32Array([0.9, 0.1, 0.0]);
-            const result = retrieveWorldContext(graphData, null, '', queryEmbedding, 2000);
+            const result = await retrieveWorldContext(graphData, null, '', queryEmbedding, 2000);
 
             // Should include top 3 edges by weight: castle (10), queen (8), guard (5)
             expect(result.text).toContain('→');
@@ -187,7 +193,7 @@ describe('retrieveWorldContext', () => {
             expect(result.text).toContain('PLACE'); // castle's type
         });
 
-        it('sorts entities by cosine similarity descending', () => {
+        it('sorts entities by cosine similarity descending', async () => {
             const graphData = {
                 nodes: {
                     king: buildMockGraphNode({
@@ -206,7 +212,7 @@ describe('retrieveWorldContext', () => {
                 edges: {},
             };
             const queryEmbedding = new Float32Array([0.9, 0.1, 0.0]);
-            const result = retrieveWorldContext(graphData, null, '', queryEmbedding, 2000);
+            const result = await retrieveWorldContext(graphData, null, '', queryEmbedding, 2000);
 
             // King (0.9 close) should appear before Castle (0.7 less close)
             const kingIndex = result.text.indexOf('King Aldric');
@@ -260,20 +266,20 @@ describe('detectMacroIntent', () => {
 });
 
 describe('retrieveWorldContext with intent routing', () => {
-    it('should return global state when macro intent detected and state exists', () => {
+    it('should return global state when macro intent detected and state exists', async () => {
         const globalState = { summary: 'Global narrative...' };
         const graphData = { nodes: {}, edges: {} };
         const queryEmbedding = new Float32Array([0.1, 0.2]);
         const userMessages = 'Please summarize the story so far';
 
-        const result = retrieveWorldContext(graphData, globalState, userMessages, queryEmbedding, 2000);
+        const result = await retrieveWorldContext(graphData, globalState, userMessages, queryEmbedding, 2000);
 
         expect(result.text).toContain('<world_context>');
         expect(result.text).toContain('Global narrative...');
         expect(result.entityKeys).toEqual([]);
     });
 
-    it('should fall back to vector search when no macro intent', () => {
+    it('should fall back to vector search when no macro intent', async () => {
         const globalState = { summary: 'Global...' };
         const graphData = {
             nodes: {
@@ -289,14 +295,14 @@ describe('retrieveWorldContext with intent routing', () => {
         const queryEmbedding = new Float32Array([0.9, 0.1, 0.0]);
         const userMessages = "Let's go to the kitchen";
 
-        const result = retrieveWorldContext(graphData, globalState, userMessages, queryEmbedding, 2000);
+        const result = await retrieveWorldContext(graphData, globalState, userMessages, queryEmbedding, 2000);
 
         // Should run vector search, not use global state
         expect(result.text).not.toContain('Global...');
         expect(result.text).toContain('King Aldric');
     });
 
-    it('should fall back to vector search when global state is null', () => {
+    it('should fall back to vector search when global state is null', async () => {
         const globalState = null;
         const graphData = {
             nodes: {
@@ -312,28 +318,40 @@ describe('retrieveWorldContext with intent routing', () => {
         const userMessages = 'Summarize everything'; // has macro intent
         const queryEmbedding = new Float32Array([0.9, 0.1, 0.0]);
 
-        const result = retrieveWorldContext(graphData, globalState, userMessages, queryEmbedding, 2000);
+        const result = await retrieveWorldContext(graphData, globalState, userMessages, queryEmbedding, 2000);
 
         // No global state available, fall back to vector search
         expect(result.text).toContain('King Aldric');
     });
 
-    it('should handle empty entities with global state', () => {
+    it('should handle empty entities with global state', async () => {
         const globalState = { summary: 'Global narrative...' };
         const userMessages = 'Summarize everything';
         const queryEmbedding = new Float32Array([0.1]);
 
-        const result = retrieveWorldContext({ nodes: {}, edges: {} }, globalState, userMessages, queryEmbedding, 2000);
+        const result = await retrieveWorldContext(
+            { nodes: {}, edges: {} },
+            globalState,
+            userMessages,
+            queryEmbedding,
+            2000
+        );
 
         expect(result.text).toContain('Global narrative...');
     });
 
-    it('includes framing comment in macro-intent output', () => {
+    it('includes framing comment in macro-intent output', async () => {
         const globalState = { summary: 'Global narrative...' };
         const userMessages = 'Summarize everything';
         const queryEmbedding = new Float32Array([0.1]);
 
-        const result = retrieveWorldContext({ nodes: {}, edges: {} }, globalState, userMessages, queryEmbedding, 2000);
+        const result = await retrieveWorldContext(
+            { nodes: {}, edges: {} },
+            globalState,
+            userMessages,
+            queryEmbedding,
+            2000
+        );
 
         expect(result.text).toContain(
             '[This is background knowledge about the world, its communities, and broader context the character is aware of]'

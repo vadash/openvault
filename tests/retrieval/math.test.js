@@ -161,8 +161,10 @@ describe('calculateIDF with expanded corpus', () => {
         ];
 
         // Tokenize all memories
-        const tokenizedCandidates = candidates.map((m, i) => [i, tokenize(m.summary)]);
-        const tokenizedHidden = hidden.map((m, i) => [i + candidates.length, tokenize(m.summary)]);
+        const tokenizedCandidates = await Promise.all(candidates.map(async (m, i) => [i, await tokenize(m.summary)]));
+        const tokenizedHidden = await Promise.all(
+            hidden.map(async (m, i) => [i + candidates.length, await tokenize(m.summary)])
+        );
 
         // Calculate IDF with expanded corpus (candidates + hidden)
         const { idfMap: expandedIdf } = calculateIDF(
@@ -189,7 +191,7 @@ describe('calculateIDF with expanded corpus', () => {
 
         const candidates = [{ summary: 'Suzy fought bravely' }, { summary: 'The kingdom is at peace' }];
 
-        const tokenized = new Map(candidates.map((m, i) => [i, tokenize(m.summary)]));
+        const tokenized = new Map(await Promise.all(candidates.map(async (m, i) => [i, await tokenize(m.summary)])));
         const { idfMap } = calculateIDF(candidates, tokenized);
 
         expect(idfMap.size).toBeGreaterThan(0);
@@ -1111,7 +1113,7 @@ describe('math.js - reflection decay', () => {
 describe('math.js - tokenization', () => {
     it('filters post-stem runt tokens (< 3 chars)', async () => {
         const { tokenize } = await import('../../src/retrieval/math.js');
-        const tokens = tokenize('боюсь страшно');
+        const tokens = await tokenize('боюсь страшно');
         for (const t of tokens) {
             expect(t.length).toBeGreaterThanOrEqual(3);
         }
@@ -1119,7 +1121,7 @@ describe('math.js - tokenization', () => {
 
     it('filters stop words', async () => {
         const { tokenize } = await import('../../src/retrieval/math.js');
-        const tokens = tokenize('the dragon and the princess');
+        const tokens = await tokenize('the dragon and the princess');
         expect(tokens).not.toContain('the');
         expect(tokens).not.toContain('and');
         expect(tokens).toContain('dragon');
@@ -1128,7 +1130,7 @@ describe('math.js - tokenization', () => {
 
     it('handles Russian stemming', async () => {
         const { tokenize } = await import('../../src/retrieval/math.js');
-        const tokens = tokenize('драконы дракону');
+        const tokens = await tokenize('драконы дракону');
         expect(tokens).toContain('дракон');
     });
 });

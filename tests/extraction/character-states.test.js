@@ -8,7 +8,7 @@ import {
 import { buildMockData } from '../factories.js';
 
 describe('updateCharacterStatesFromEvents', () => {
-    it('creates character states for valid characters in emotional_impact', () => {
+    it('creates character states for valid characters in emotional_impact', async () => {
         const data = buildMockData();
         const events = [
             {
@@ -18,13 +18,13 @@ describe('updateCharacterStatesFromEvents', () => {
             },
         ];
 
-        updateCharacterStatesFromEvents(events, data, ['King Aldric', 'User']);
+        await updateCharacterStatesFromEvents(events, data, ['King Aldric', 'User']);
 
         expect(data.character_states['King Aldric']).toBeDefined();
         expect(data.character_states['King Aldric'].current_emotion).toBe('triumphant');
     });
 
-    it('skips invalid character names in emotional_impact', () => {
+    it('skips invalid character names in emotional_impact', async () => {
         const data = buildMockData();
         const events = [
             {
@@ -38,13 +38,13 @@ describe('updateCharacterStatesFromEvents', () => {
             },
         ];
 
-        updateCharacterStatesFromEvents(events, data, ['King Aldric', 'User']);
+        await updateCharacterStatesFromEvents(events, data, ['King Aldric', 'User']);
 
         expect(data.character_states['King Aldric']).toBeDefined();
         expect(data.character_states.don).toBeUndefined();
     });
 
-    it('creates character states for valid characters in witnesses', () => {
+    it('creates character states for valid characters in witnesses', async () => {
         const data = buildMockData();
         const events = [
             {
@@ -54,14 +54,14 @@ describe('updateCharacterStatesFromEvents', () => {
             },
         ];
 
-        updateCharacterStatesFromEvents(events, data, ['King Aldric', 'User']);
+        await updateCharacterStatesFromEvents(events, data, ['King Aldric', 'User']);
 
         expect(data.character_states['King Aldric']).toBeDefined();
         expect(data.character_states.User).toBeDefined();
         expect(data.character_states['King Aldric'].known_events).toContain('event_1');
     });
 
-    it('skips invalid character names in witnesses', () => {
+    it('skips invalid character names in witnesses', async () => {
         const data = buildMockData();
         const events = [
             {
@@ -71,13 +71,13 @@ describe('updateCharacterStatesFromEvents', () => {
             },
         ];
 
-        updateCharacterStatesFromEvents(events, data, ['King Aldric', 'User']);
+        await updateCharacterStatesFromEvents(events, data, ['King Aldric', 'User']);
 
         expect(data.character_states['King Aldric']).toBeDefined();
         expect(data.character_states.Stranger).toBeUndefined();
     });
 
-    it('allows characters from characters_involved even if not in validCharNames', () => {
+    it('allows characters from characters_involved even if not in validCharNames', async () => {
         const data = buildMockData();
         const events = [
             {
@@ -87,13 +87,13 @@ describe('updateCharacterStatesFromEvents', () => {
             },
         ];
 
-        updateCharacterStatesFromEvents(events, data, ['King Aldric', 'User']);
+        await updateCharacterStatesFromEvents(events, data, ['King Aldric', 'User']);
 
         expect(data.character_states.Queen).toBeDefined();
         expect(data.character_states.Queen.current_emotion).toBe('worried');
     });
 
-    it('accepts Cyrillic witness name matching Latin characters_involved via transliteration', () => {
+    it('accepts Cyrillic witness name matching Latin characters_involved via transliteration', async () => {
         const data = buildMockData();
         const events = [
             {
@@ -103,13 +103,13 @@ describe('updateCharacterStatesFromEvents', () => {
             },
         ];
 
-        updateCharacterStatesFromEvents(events, data, ['Suzy', 'Vova']);
+        await updateCharacterStatesFromEvents(events, data, ['Suzy', 'Vova']);
 
         expect(data.character_states['\u041c\u0438\u043d\u0430']).toBeDefined();
         expect(data.character_states['\u041c\u0438\u043d\u0430'].known_events).toContain('event_1');
     });
 
-    it('accepts Cyrillic emotional_impact name matching Latin validCharNames via transliteration', () => {
+    it('accepts Cyrillic emotional_impact name matching Latin validCharNames via transliteration', async () => {
         const data = buildMockData();
         const events = [
             {
@@ -120,7 +120,7 @@ describe('updateCharacterStatesFromEvents', () => {
             },
         ];
 
-        updateCharacterStatesFromEvents(events, data, ['Suzy', 'Vova']);
+        await updateCharacterStatesFromEvents(events, data, ['Suzy', 'Vova']);
 
         expect(data.character_states['\u041c\u0438\u043d\u0430']).toBeDefined();
         expect(data.character_states['\u041c\u0438\u043d\u0430'].current_emotion).toBe('surprised');
@@ -128,7 +128,7 @@ describe('updateCharacterStatesFromEvents', () => {
 });
 
 describe('cleanupCharacterStates', () => {
-    it('removes character states not in validCharNames or memories', () => {
+    it('removes character states not in validCharNames or memories', async () => {
         const data = buildMockData({
             character_states: {
                 'King Aldric': { name: 'King Aldric', current_emotion: 'neutral' },
@@ -137,14 +137,14 @@ describe('cleanupCharacterStates', () => {
             },
         });
 
-        cleanupCharacterStates(data, ['King Aldric', 'User']);
+        await cleanupCharacterStates(data, ['King Aldric', 'User']);
 
         expect(data.character_states['King Aldric']).toBeDefined();
         expect(data.character_states.User).toBeDefined();
         expect(data.character_states.Stranger).toBeUndefined();
     });
 
-    it('keeps character states found in memories characters_involved', () => {
+    it('keeps character states found in memories characters_involved', async () => {
         const data = buildMockData({
             character_states: {
                 'King Aldric': { name: 'King Aldric', current_emotion: 'neutral' },
@@ -154,20 +154,20 @@ describe('cleanupCharacterStates', () => {
             memories: [{ characters_involved: ['King Aldric', 'Queen'] }],
         });
 
-        cleanupCharacterStates(data, ['King Aldric', 'User']);
+        await cleanupCharacterStates(data, ['King Aldric', 'User']);
 
         expect(data.character_states['King Aldric']).toBeDefined();
         expect(data.character_states.Queen).toBeDefined();
         expect(data.character_states.Stranger).toBeUndefined();
     });
 
-    it('handles empty character_states gracefully', () => {
+    it('handles empty character_states gracefully', async () => {
         const data = buildMockData();
 
-        expect(() => cleanupCharacterStates(data, ['King Aldric', 'User'])).not.toThrow();
+        await expect(cleanupCharacterStates(data, ['King Aldric', 'User'])).resolves.not.toThrow();
     });
 
-    it('handles missing validCharNames', () => {
+    it('handles missing validCharNames', async () => {
         const data = buildMockData({
             character_states: {
                 'King Aldric': { name: 'King Aldric', current_emotion: 'neutral' },
@@ -176,7 +176,7 @@ describe('cleanupCharacterStates', () => {
             memories: [{ characters_involved: ['King Aldric'] }],
         });
 
-        cleanupCharacterStates(data, []);
+        await cleanupCharacterStates(data, []);
 
         expect(data.character_states['King Aldric']).toBeDefined();
         expect(data.character_states.Queen).toBeUndefined();
@@ -241,7 +241,7 @@ describe('selectMemoriesForExtraction', () => {
         },
     ];
 
-    it.each(PARAMETERIZED_CASES)('$name', ({
+    it.each(PARAMETERIZED_CASES)('$name', async ({
         memories,
         settings,
         expectedLength,
@@ -251,7 +251,7 @@ describe('selectMemoriesForExtraction', () => {
         expectedSequenceOrder,
     }) => {
         const data = buildMockData({ memories });
-        const result = selectMemoriesForExtraction(data, settings);
+        const result = await selectMemoriesForExtraction(data, settings);
 
         if (expectedLength !== undefined) {
             expect(result.length).toBe(expectedLength);
@@ -280,7 +280,7 @@ describe('selectMemoriesForExtraction', () => {
         }
     });
 
-    it('allocates 25% budget to recency, 75% to importance+fill', () => {
+    it('allocates 25% budget to recency, 75% to importance+fill', async () => {
         const memories = [
             // Old high importance
             { id: 'm1', summary: 'important old event', sequence: 10, importance: 5, tokens: 50 },
@@ -292,7 +292,7 @@ describe('selectMemoriesForExtraction', () => {
         const data = buildMockData({ memories });
         const settings = { extractionRearviewTokens: 200 };
 
-        const result = selectMemoriesForExtraction(data, settings);
+        const result = await selectMemoriesForExtraction(data, settings);
 
         // Should have both recent and important memories
         expect(result.length).toBeGreaterThan(0);
@@ -301,7 +301,7 @@ describe('selectMemoriesForExtraction', () => {
         expect(hasRecent || hasImportant).toBe(true);
     });
 
-    it('handles memories with undefined importance (defaults to 3)', () => {
+    it('handles memories with undefined importance (defaults to 3)', async () => {
         const memories = [
             { id: 'm1', summary: 'no importance set', sequence: 10 },
             { id: 'm2', summary: 'high importance', sequence: 20, importance: 5 },
@@ -309,13 +309,13 @@ describe('selectMemoriesForExtraction', () => {
         const data = buildMockData({ memories });
         const settings = { extractionRearviewTokens: 100 };
 
-        const result = selectMemoriesForExtraction(data, settings);
+        const result = await selectMemoriesForExtraction(data, settings);
 
         // Should not crash and should include memories
         expect(result.length).toBeGreaterThan(0);
     });
 
-    it('deduplicates memories selected in multiple phases', () => {
+    it('deduplicates memories selected in multiple phases', async () => {
         const memories = [
             { id: 'm1', summary: 'important and recent', sequence: 500, importance: 5, tokens: 50 },
             { id: 'm2', summary: 'other memory', sequence: 100, importance: 3, tokens: 50 },
@@ -323,7 +323,7 @@ describe('selectMemoriesForExtraction', () => {
         const data = buildMockData({ memories });
         const settings = { extractionRearviewTokens: 200 };
 
-        const result = selectMemoriesForExtraction(data, settings);
+        const result = await selectMemoriesForExtraction(data, settings);
 
         // Each memory should appear only once
         const ids = result.map((m) => m.id);
@@ -333,7 +333,7 @@ describe('selectMemoriesForExtraction', () => {
 });
 
 describe('canonicalizeEventCharNames', () => {
-    it('does nothing when no canonical names provided', () => {
+    it('does nothing when no canonical names provided', async () => {
         const events = [
             {
                 characters_involved: ['King Aldric', 'Queen'],
@@ -342,63 +342,63 @@ describe('canonicalizeEventCharNames', () => {
             },
         ];
 
-        canonicalizeEventCharNames(events, [], {});
+        await canonicalizeEventCharNames(events, [], {});
 
         // Events should remain unchanged
         expect(events[0].characters_involved).toEqual(['King Aldric', 'Queen']);
         expect(events[0].witnesses).toEqual(['King Aldric']);
     });
 
-    it('deduplicates character names after canonicalization', () => {
+    it('deduplicates character names after canonicalization', async () => {
         const events = [
             {
                 characters_involved: ['King Aldric', 'king aldric', 'Queen'],
             },
         ];
 
-        canonicalizeEventCharNames(events, ['King Aldric', 'Queen'], {});
+        await canonicalizeEventCharNames(events, ['King Aldric', 'Queen'], {});
 
         // 'king aldric' should be canonicalized to 'King Aldric' and deduplicated
         expect(events[0].characters_involved).toEqual(['King Aldric', 'Queen']);
     });
 
-    it('canonicalizes characters_involved against context names', () => {
+    it('canonicalizes characters_involved against context names', async () => {
         const events = [
             {
                 characters_involved: ['king aldric', 'queen'],
             },
         ];
 
-        canonicalizeEventCharNames(events, ['King Aldric', 'Queen'], {});
+        await canonicalizeEventCharNames(events, ['King Aldric', 'Queen'], {});
 
         expect(events[0].characters_involved).toEqual(['King Aldric', 'Queen']);
     });
 
-    it('canonicalizes witnesses against context names', () => {
+    it('canonicalizes witnesses against context names', async () => {
         const events = [
             {
                 witnesses: ['king aldric', 'queen'],
             },
         ];
 
-        canonicalizeEventCharNames(events, ['King Aldric', 'Queen'], {});
+        await canonicalizeEventCharNames(events, ['King Aldric', 'Queen'], {});
 
         expect(events[0].witnesses).toEqual(['King Aldric', 'Queen']);
     });
 
-    it('canonicalizes emotional_impact keys against context names', () => {
+    it('canonicalizes emotional_impact keys against context names', async () => {
         const events = [
             {
                 emotional_impact: { 'king aldric': 'triumphant', queen: 'worried' },
             },
         ];
 
-        canonicalizeEventCharNames(events, ['King Aldric', 'Queen'], {});
+        await canonicalizeEventCharNames(events, ['King Aldric', 'Queen'], {});
 
         expect(events[0].emotional_impact).toEqual({ 'King Aldric': 'triumphant', Queen: 'worried' });
     });
 
-    it('includes PERSON graph nodes in canonical names', () => {
+    it('includes PERSON graph nodes in canonical names', async () => {
         const events = [
             {
                 characters_involved: ['knight', 'dragon'],
@@ -410,7 +410,7 @@ describe('canonicalizeEventCharNames', () => {
             dragon: { type: 'CREATURE', name: 'Dragon' },
         };
 
-        canonicalizeEventCharNames(events, [], graphNodes);
+        await canonicalizeEventCharNames(events, [], graphNodes);
 
         // 'knight' should be canonicalized to 'Knight' (PERSON type)
         // 'dragon' should NOT be changed (not PERSON type)
@@ -418,7 +418,7 @@ describe('canonicalizeEventCharNames', () => {
         expect(events[0].characters_involved).toContain('dragon');
     });
 
-    it('deduplicates across all fields', () => {
+    it('deduplicates across all fields', async () => {
         const events = [
             {
                 characters_involved: ['king aldric', 'King Aldric'],
@@ -427,7 +427,7 @@ describe('canonicalizeEventCharNames', () => {
             },
         ];
 
-        canonicalizeEventCharNames(events, ['King Aldric'], {});
+        await canonicalizeEventCharNames(events, ['King Aldric'], {});
 
         expect(events[0].characters_involved).toEqual(['King Aldric']);
         expect(events[0].witnesses).toEqual(['King Aldric']);

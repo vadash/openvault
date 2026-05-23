@@ -134,66 +134,66 @@ describe('formatting', () => {
 
     describe('formatContextForInjection', () => {
         // Basic structure tests
-        it('formats simplified header with chat length and star legend', () => {
-            const { memoryText } = formatContextForInjection([], [], null, 'Alice', 1000, 50);
+        it('formats simplified header with chat length and star legend', async () => {
+            const { memoryText } = await formatContextForInjection([], [], null, 'Alice', 1000, 50);
             expect(memoryText).toContain('<scene_memory>');
             expect(memoryText).toContain('(#50 messages | ★=minor ★★★=notable ★★★★★=critical)');
             expect(memoryText).not.toContain('Current chat has');
             expect(memoryText).toContain('</scene_memory>');
         });
 
-        it('does not show memories section when no memories', () => {
-            const { memoryText } = formatContextForInjection([], [], null, 'Alice', 1000, 50);
+        it('does not show memories section when no memories', async () => {
+            const { memoryText } = await formatContextForInjection([], [], null, 'Alice', 1000, 50);
             expect(memoryText).not.toContain('## The Story So Far');
             expect(memoryText).not.toContain('## Leading Up To This Moment');
             expect(memoryText).not.toContain('## Current Scene');
         });
 
         // Timeline bucket tests
-        it('renders old bucket with markdown header', () => {
+        it('renders old bucket with markdown header', async () => {
             const memories = [{ id: '1', summary: 'Old event', message_ids: [50], sequence: 50000, importance: 3 }];
-            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+            const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
             expect(memoryText).toContain('## The Story So Far');
             expect(memoryText).toContain('Old event');
         });
 
-        it('renders mid bucket with markdown header', () => {
+        it('renders mid bucket with markdown header', async () => {
             const memories = [{ id: '1', summary: 'Mid event', message_ids: [4600], sequence: 460000, importance: 3 }];
-            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+            const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
             expect(memoryText).toContain('## Leading Up To This Moment');
             expect(memoryText).toContain('Mid event');
         });
 
-        it('renders recent bucket with markdown header', () => {
+        it('renders recent bucket with markdown header', async () => {
             const memories = [
                 { id: '1', summary: 'Recent event', message_ids: [4980], sequence: 498000, importance: 3 },
             ];
-            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+            const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
             expect(memoryText).toContain('## Current Scene');
             expect(memoryText).toContain('Recent event');
         });
 
-        it('skips empty buckets', () => {
+        it('skips empty buckets', async () => {
             const memories = [
                 { id: '1', summary: 'Recent only', message_ids: [4980], sequence: 498000, importance: 3 },
             ];
-            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+            const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
             expect(memoryText).not.toContain('## The Story So Far');
             expect(memoryText).not.toContain('## Leading Up To This Moment');
             expect(memoryText).toContain('## Current Scene');
         });
 
-        it('renders all three buckets when populated', () => {
+        it('renders all three buckets when populated', async () => {
             const memories = [
                 { id: '1', summary: 'Old', message_ids: [50], sequence: 50000, importance: 3 },
                 { id: '2', summary: 'Mid', message_ids: [4600], sequence: 460000, importance: 3 },
                 { id: '3', summary: 'Recent', message_ids: [4980], sequence: 498000, importance: 3 },
             ];
-            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+            const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
             expect(memoryText).toContain('## The Story So Far');
             expect(memoryText).toContain('## Leading Up To This Moment');
@@ -208,26 +208,26 @@ describe('formatting', () => {
         });
 
         // Memory formatting tests (simplified format)
-        it('formats memories with stars only (no message numbers)', () => {
+        it('formats memories with stars only (no message numbers)', async () => {
             const memories = [{ id: '1', summary: 'Test event', message_ids: [4980], sequence: 498000, importance: 3 }];
-            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+            const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
             expect(memoryText).toContain('[★★★] Test event');
             expect(memoryText).not.toMatch(/#\d+ \[★/); // No message numbers before stars
         });
 
-        it('includes importance stars correctly', () => {
+        it('includes importance stars correctly', async () => {
             const memories = [
                 { id: '1', summary: 'Minor', message_ids: [450], sequence: 450000, importance: 1 },
                 { id: '2', summary: 'Critical', message_ids: [460], sequence: 460000, importance: 5 },
             ];
-            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+            const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
 
             expect(memoryText).toContain('[★] Minor');
             expect(memoryText).toContain('[★★★★★] Critical');
         });
 
-        it('does NOT mark secret memories with [Secret] prefix (inverted logic)', () => {
+        it('does NOT mark secret memories with [Secret] prefix (inverted logic)', async () => {
             const memories = [
                 {
                     id: '1',
@@ -238,7 +238,7 @@ describe('formatting', () => {
                     is_secret: true,
                 },
             ];
-            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+            const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
 
             expect(memoryText).toContain('[★★★] Secret info');
             expect(memoryText).not.toContain('[Secret]');
@@ -312,8 +312,8 @@ describe('formatting', () => {
                 },
             ];
 
-            it.each(KNOWN_TAG_CASES)('$desc', ({ memory, shouldHaveKnown }) => {
-                const { memoryText } = formatContextForInjection([memory], [], null, 'Alice', 10000, 500);
+            it.each(KNOWN_TAG_CASES)('$desc', async ({ memory, shouldHaveKnown }) => {
+                const { memoryText } = await formatContextForInjection([memory], [], null, 'Alice', 10000, 500);
                 if (shouldHaveKnown) {
                     expect(memoryText).toContain('[Known]');
                 } else {
@@ -373,14 +373,14 @@ describe('formatting', () => {
                 },
             ];
 
-            it.each(EMOTION_CASES)('$desc', ({
+            it.each(EMOTION_CASES)('$desc', async ({
                 memories,
                 presentCharacters,
                 emotionalInfo,
                 expectedContains,
                 checkCommaCount,
             }) => {
-                const { memoryText } = formatContextForInjection(
+                const { memoryText } = await formatContextForInjection(
                     memories,
                     presentCharacters,
                     emotionalInfo,
@@ -402,12 +402,19 @@ describe('formatting', () => {
         });
 
         // Present characters in RECENT bucket
-        it('includes present characters in RECENT bucket', () => {
+        it('includes present characters in RECENT bucket', async () => {
             const memories = [
                 { id: '1', summary: 'Recent event', message_ids: [450], sequence: 450000, importance: 3 },
             ];
             const presentCharacters = ['Bob'];
-            const { memoryText } = formatContextForInjection(memories, presentCharacters, null, 'Alice', 10000, 500);
+            const { memoryText } = await formatContextForInjection(
+                memories,
+                presentCharacters,
+                null,
+                'Alice',
+                10000,
+                500
+            );
 
             expect(memoryText).toContain('## Current Scene');
             expect(memoryText).toContain('Present: Bob');
@@ -418,16 +425,23 @@ describe('formatting', () => {
             expect(presentIndex).toBeLessThan(memoryIndex);
         });
 
-        it('formats multiple present characters', () => {
+        it('formats multiple present characters', async () => {
             const memories = [{ id: '1', summary: 'Event', message_ids: [450], sequence: 450000, importance: 3 }];
             const presentCharacters = ['Bob', 'Charlie', 'Dave'];
-            const { memoryText } = formatContextForInjection(memories, presentCharacters, null, 'Alice', 10000, 500);
+            const { memoryText } = await formatContextForInjection(
+                memories,
+                presentCharacters,
+                null,
+                'Alice',
+                10000,
+                500
+            );
 
             expect(memoryText).toContain('Present: Bob, Charlie, Dave');
         });
 
         // Token budget tests
-        it('truncates memories to fit token budget', () => {
+        it('truncates memories to fit token budget', async () => {
             const memories = [];
             for (let i = 0; i < 100; i++) {
                 memories.push({
@@ -439,7 +453,7 @@ describe('formatting', () => {
                 });
             }
 
-            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 200, 500);
+            const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 200, 500);
 
             // Count memories by counting star patterns
             const memoryCount = (memoryText.match(/\[★+\]/g) || []).length;
@@ -448,33 +462,33 @@ describe('formatting', () => {
         });
 
         // Edge cases
-        it('handles empty memories array', () => {
-            const { memoryText } = formatContextForInjection([], [], null, 'Alice', 1000, 50);
+        it('handles empty memories array', async () => {
+            const { memoryText } = await formatContextForInjection([], [], null, 'Alice', 1000, 50);
             expect(memoryText).toContain('<scene_memory>');
             expect(memoryText).toContain('</scene_memory>');
         });
 
-        it('handles null memories', () => {
-            const { memoryText } = formatContextForInjection(null, [], null, 'Alice', 1000, 50);
+        it('handles null memories', async () => {
+            const { memoryText } = await formatContextForInjection(null, [], null, 'Alice', 1000, 50);
             expect(memoryText).toContain('<scene_memory>');
         });
 
-        it('handles chatLength of 0', () => {
+        it('handles chatLength of 0', async () => {
             const memories = [{ id: '1', summary: 'Event', message_ids: [5], sequence: 5000, importance: 3 }];
-            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 0);
+            const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, 0);
 
             // All memories should be in RECENT when chatLength is 0
             expect(memoryText).toContain('## Current Scene');
             expect(memoryText).toContain('Event');
         });
 
-        it('maintains chronological order within buckets', () => {
+        it('maintains chronological order within buckets', async () => {
             const memories = [
                 { id: '1', summary: 'Third', message_ids: [30], sequence: 30000, importance: 3 },
                 { id: '2', summary: 'First', message_ids: [10], sequence: 10000, importance: 3 },
                 { id: '3', summary: 'Second', message_ids: [20], sequence: 20000, importance: 3 },
             ];
-            const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
+            const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, 500);
 
             const firstIndex = memoryText.indexOf('First');
             const secondIndex = memoryText.indexOf('Second');
@@ -534,8 +548,8 @@ describe('formatting', () => {
                 },
             ];
 
-            it.each(GAP_SEPARATOR_CASES)('$desc', ({ memories, chatLength, expectedSeparator }) => {
-                const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, chatLength);
+            it.each(GAP_SEPARATOR_CASES)('$desc', async ({ memories, chatLength, expectedSeparator }) => {
+                const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, chatLength);
                 if (expectedSeparator === null) {
                     expect(memoryText).not.toMatch(/\.\.\.[^<]/);
                 } else {
@@ -546,34 +560,34 @@ describe('formatting', () => {
 
         // Causality hints tests (removed)
         describe('causality hints (removed)', () => {
-            it('does NOT add "IMMEDIATELY AFTER" for gaps < 5 messages', () => {
+            it('does NOT add "IMMEDIATELY AFTER" for gaps < 5 messages', async () => {
                 const memories = [
                     { id: '1', summary: 'Event A', message_ids: [4980], sequence: 498000, importance: 3 },
                     { id: '2', summary: 'Event B', message_ids: [4983], sequence: 498300, importance: 3 },
                 ];
-                const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+                const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
                 expect(memoryText).not.toContain('⤷');
                 expect(memoryText).not.toContain('IMMEDIATELY AFTER');
             });
 
-            it('does NOT add "Shortly after" for gaps 5-14 messages', () => {
+            it('does NOT add "Shortly after" for gaps 5-14 messages', async () => {
                 const memories = [
                     { id: '1', summary: 'Event A', message_ids: [4980], sequence: 498000, importance: 3 },
                     { id: '2', summary: 'Event B', message_ids: [4990], sequence: 499000, importance: 3 },
                 ];
-                const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+                const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
                 expect(memoryText).not.toContain('⤷');
                 expect(memoryText).not.toContain('Shortly after');
             });
 
-            it('no causality hints in any bucket', () => {
+            it('no causality hints in any bucket', async () => {
                 const memories = [
                     { id: '1', summary: 'Old A', message_ids: [100], sequence: 100000, importance: 3 },
                     { id: '2', summary: 'Old B', message_ids: [103], sequence: 103000, importance: 3 },
                 ];
-                const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+                const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
                 expect(memoryText).not.toContain('⤷');
             });
@@ -581,7 +595,7 @@ describe('formatting', () => {
 
         // Emotional annotations tests (removed)
         describe('emotional annotations (removed)', () => {
-            it('does NOT add emotional annotation even for importance >= 4', () => {
+            it('does NOT add emotional annotation even for importance >= 4', async () => {
                 const memories = [
                     {
                         id: '1',
@@ -592,13 +606,13 @@ describe('formatting', () => {
                         emotional_impact: { Alice: 'guilt', Bob: 'shock' },
                     },
                 ];
-                const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+                const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
                 expect(memoryText).not.toContain('💔 Emotional:');
                 expect(memoryText).toContain('[★★★★] Major event');
             });
 
-            it('does NOT add emotional annotation for importance 5', () => {
+            it('does NOT add emotional annotation for importance 5', async () => {
                 const memories = [
                     {
                         id: '1',
@@ -609,14 +623,14 @@ describe('formatting', () => {
                         emotional_impact: ['fear'],
                     },
                 ];
-                const { memoryText } = formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
+                const { memoryText } = await formatContextForInjection(memories, [], null, 'Alice', 10000, 5000);
 
                 expect(memoryText).not.toContain('💔 Emotional:');
             });
         });
 
         describe('narrative engine integration', () => {
-            it('produces expected narrative output for long chat', () => {
+            it('produces expected narrative output for long chat', async () => {
                 const memories = [
                     // Old bucket (position < 4500 in 5000 chat)
                     { id: '1', summary: 'Bought a sword', message_ids: [100], sequence: 100000, importance: 2 },
@@ -672,7 +686,7 @@ describe('formatting', () => {
                     characterEmotions: { Hero: 'determined', Goblin: 'terrified' },
                 };
 
-                const { memoryText } = formatContextForInjection(
+                const { memoryText } = await formatContextForInjection(
                     memories,
                     presentCharacters,
                     emotionalInfo,
@@ -712,9 +726,9 @@ describe('formatting', () => {
 
         // Subconscious Drives (reflection separation)
         describe('subconscious_drives', () => {
-            it('returns object with memoryText and reflectionText properties', () => {
+            it('returns object with memoryText and reflectionText properties', async () => {
                 const memories = [{ id: 'ev_1', type: 'event', summary: 'Event 1', importance: 3, sequence: 1000 }];
-                const result = formatContextForInjection(memories, [], null, 'CharacterA', 1000, 100);
+                const result = await formatContextForInjection(memories, [], null, 'CharacterA', 1000, 100);
 
                 expect(result).toBeInstanceOf(Object);
                 expect(result).toHaveProperty('memoryText');
@@ -723,7 +737,7 @@ describe('formatting', () => {
                 expect(typeof result.reflectionText).toBe('string');
             });
 
-            it('separates reflections from events into different XML blocks', () => {
+            it('separates reflections from events into different XML blocks', async () => {
                 const memories = [
                     { id: 'ev_1', type: 'event', summary: 'Event 1', importance: 3, sequence: 1000 },
                     { id: 'ev_2', type: 'event', summary: 'Event 2', importance: 3, sequence: 2000 },
@@ -735,7 +749,7 @@ describe('formatting', () => {
                         sequence: 1500,
                     },
                 ];
-                const result = formatContextForInjection(memories, [], null, 'CharacterA', 1000, 100);
+                const result = await formatContextForInjection(memories, [], null, 'CharacterA', 1000, 100);
 
                 // Check structure
                 expect(result.memoryText).toContain('<scene_memory>');
@@ -754,9 +768,9 @@ describe('formatting', () => {
                 expect(sceneMemoryContent).not.toContain('Insight about character');
             });
 
-            it('returns empty reflectionText when no reflections exist', () => {
+            it('returns empty reflectionText when no reflections exist', async () => {
                 const memories = [{ id: 'ev_1', type: 'event', summary: 'Event 1', importance: 3, sequence: 1000 }];
-                const result = formatContextForInjection(memories, [], null, 'Char', 1000, 100);
+                const result = await formatContextForInjection(memories, [], null, 'Char', 1000, 100);
 
                 expect(result.memoryText).toContain('<scene_memory>');
                 expect(result.memoryText).toContain('Event 1');
@@ -764,15 +778,15 @@ describe('formatting', () => {
                 expect(result.reflectionText).toBe('');
             });
 
-            it('omits subconscious_drives block when no reflections exist', () => {
+            it('omits subconscious_drives block when no reflections exist', async () => {
                 const memories = [{ id: 'ev_1', type: 'event', summary: 'Event 1', importance: 3, sequence: 1000 }];
-                const result = formatContextForInjection(memories, [], null, 'Char', 1000, 100);
+                const result = await formatContextForInjection(memories, [], null, 'Char', 1000, 100);
                 expect(result.memoryText).toContain('<scene_memory>');
                 expect(result.reflectionText).toBe('');
                 expect(result.memoryText).not.toContain('<subconscious_drives>');
             });
 
-            it('preserves scene_memory structure with timeline buckets and star ratings', () => {
+            it('preserves scene_memory structure with timeline buckets and star ratings', async () => {
                 const memories = [
                     // Old bucket
                     { id: '1', summary: 'Old event', message_ids: [100], sequence: 100000, importance: 2 },
@@ -782,7 +796,7 @@ describe('formatting', () => {
                     // Recent bucket
                     { id: '4', summary: 'Recent event', message_ids: [4980], sequence: 498000, importance: 4 },
                 ];
-                const result = formatContextForInjection(memories, [], null, 'Hero', 10000, 5000);
+                const result = await formatContextForInjection(memories, [], null, 'Hero', 10000, 5000);
 
                 // Verify all expected content is in memoryText
                 expect(result.memoryText).toContain('## The Story So Far');
@@ -802,12 +816,12 @@ describe('formatting', () => {
         });
 
         describe('formatContextForInjection without hard quotas', () => {
-            it('accepts memories pre-selected by scoring', () => {
+            it('accepts memories pre-selected by scoring', async () => {
                 const memories = [
                     { id: '1', summary: 'Old memory', message_ids: [100], sequence: 10000, importance: 3 },
                     { id: '2', summary: 'Recent memory', message_ids: [900], sequence: 9000, importance: 3 },
                 ];
-                const { memoryText } = formatContextForInjection(
+                const { memoryText } = await formatContextForInjection(
                     memories,
                     ['OtherChar'],
                     { emotion: 'neutral' },
@@ -819,7 +833,7 @@ describe('formatting', () => {
                 expect(memoryText).toContain('Recent memory');
             });
 
-            it('should not apply 50% quota to old bucket', () => {
+            it('should not apply 50% quota to old bucket', async () => {
                 // Create many old memories that would exceed 50% quota
                 const oldMemories = Array.from({ length: 20 }, (_, i) => ({
                     id: `old${i}`,
@@ -829,7 +843,7 @@ describe('formatting', () => {
                     importance: 3,
                 }));
 
-                const { memoryText } = formatContextForInjection(
+                const { memoryText } = await formatContextForInjection(
                     oldMemories,
                     [],
                     null,
@@ -848,7 +862,7 @@ describe('formatting', () => {
 });
 
 describe('formatMemory', () => {
-    it('should prepend temporal anchor when present', () => {
+    it('should prepend temporal anchor when present', async () => {
         const memory = {
             summary: 'Character A suggested meeting at the library',
             importance: 3,
@@ -860,7 +874,7 @@ describe('formatMemory', () => {
         expect(formatted).toBe('[★★★] [Friday, June 14, 3:40 PM] Character A suggested meeting at the library');
     });
 
-    it('should not add time prefix when temporal_anchor is null', () => {
+    it('should not add time prefix when temporal_anchor is null', async () => {
         const memory = {
             summary: 'Character A suggested meeting at the library',
             importance: 3,
@@ -873,7 +887,7 @@ describe('formatMemory', () => {
         expect(formatted).not.toContain('[null]');
     });
 
-    it('should not add time prefix when temporal_anchor is undefined', () => {
+    it('should not add time prefix when temporal_anchor is undefined', async () => {
         const memory = {
             summary: 'Character A suggested meeting at the library',
             importance: 3,
@@ -884,7 +898,7 @@ describe('formatMemory', () => {
         expect(formatted).toBe('[★★★] Character A suggested meeting at the library');
     });
 
-    it('should combine temporal anchor with [Known] prefix', () => {
+    it('should combine temporal anchor with [Known] prefix', async () => {
         const memory = {
             summary: 'Character A suggested meeting at the library',
             importance: 3,
@@ -899,7 +913,7 @@ describe('formatMemory', () => {
 });
 
 describe('memory bucket order and budget', () => {
-    it('processes memories in order (old, mid, recent) until budget exhausted', () => {
+    it('processes memories in order (old, mid, recent) until budget exhausted', async () => {
         // Create 20 old memories (~10 tokens each = ~200 tokens) and 5 recent (~50 tokens)
         const oldMemories = Array.from({ length: 20 }, (_, i) => ({
             id: `old_${i}`,
@@ -918,7 +932,7 @@ describe('memory bucket order and budget', () => {
 
         const allMemories = [...oldMemories, ...recentMemories];
         // Use a very small budget that can't fit all old memories
-        const { memoryText } = formatContextForInjection(allMemories, [], null, 'Test', 200, 5000);
+        const { memoryText } = await formatContextForInjection(allMemories, [], null, 'Test', 200, 5000);
 
         // Count how many old memories appear vs recent
         const oldCount = oldMemories.filter((m) => memoryText.includes(m.summary)).length;

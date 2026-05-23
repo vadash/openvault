@@ -31,7 +31,7 @@ describe('buildCorpusVocab', () => {
         const memories = [{ tokens: ['sword', 'fight', 'castl'] }, { tokens: ['dragon', 'fire'] }];
         const hiddenMemories = [{ tokens: ['sword', 'shield'] }];
 
-        const vocab = buildCorpusVocab(memories, hiddenMemories, {}, {});
+        const vocab = await buildCorpusVocab(memories, hiddenMemories, {}, {});
 
         expect(vocab).toBeInstanceOf(Set);
         expect(vocab.has('sword')).toBe(true);
@@ -53,7 +53,7 @@ describe('buildCorpusVocab', () => {
             king_aldric__queen_sera: { description: 'Married in the great cathedral' },
         };
 
-        const vocab = buildCorpusVocab([], [], graphNodes, graphEdges);
+        const vocab = await buildCorpusVocab([], [], graphNodes, graphEdges);
 
         // tokenize() stems and filters stopwords + words <= 2 chars
         // "wise", "ruler", "northern", "kingdom", "married", "great", "cathedral" should produce stems
@@ -66,7 +66,7 @@ describe('buildCorpusVocab', () => {
     it('should handle empty/null inputs gracefully', async () => {
         const { buildCorpusVocab } = await import('../../src/retrieval/query-context.js');
 
-        const vocab = buildCorpusVocab([], [], null, null);
+        const vocab = await buildCorpusVocab([], [], null, null);
         expect(vocab).toBeInstanceOf(Set);
         expect(vocab.size).toBe(0);
     });
@@ -75,7 +75,7 @@ describe('buildCorpusVocab', () => {
         const { buildCorpusVocab } = await import('../../src/retrieval/query-context.js');
 
         const memories = [{ summary: 'no tokens here' }, { tokens: ['valid'] }];
-        const vocab = buildCorpusVocab(memories, [], {}, {});
+        const vocab = await buildCorpusVocab(memories, [], {}, {});
 
         expect(vocab.has('valid')).toBe(true);
         expect(vocab.size).toBe(1);
@@ -92,7 +92,7 @@ describe('buildBM25Tokens with corpusVocab', () => {
         // User message: "I want to find the sword in the castle"
         // tokenize will stem and filter stopwords
         // Three-tier system: Layer 2 (grounded) + Layer 3 (non-grounded)
-        const tokens = buildBM25Tokens(
+        const tokens = await buildBM25Tokens(
             'I want to find the sword in the castle',
             { entities: [], weights: {} },
             corpusVocab,
@@ -118,7 +118,7 @@ describe('buildBM25Tokens with corpusVocab', () => {
 
         // entityBoostWeight = 5, so 60% boost = ceil(5 * 0.6) = 3
         const corpusVocab = new Set(['sword']);
-        const tokens = buildBM25Tokens('sword', { entities: [], weights: {} }, corpusVocab, null, queryConfig);
+        const tokens = await buildBM25Tokens('sword', { entities: [], weights: {} }, corpusVocab, null, queryConfig);
 
         // "sword" should appear exactly 3 times (Layer 2 grounded boost)
         const swordCount = tokens.filter((t) => t === 'sword').length;
@@ -130,7 +130,7 @@ describe('buildBM25Tokens with corpusVocab', () => {
 
         const corpusVocab = new Set(['sword']);
         // "sword sword sword" — same stem repeated, should deduplicate to 1 unique stem × boost
-        const tokens = buildBM25Tokens(
+        const tokens = await buildBM25Tokens(
             'sword sword sword',
             { entities: [], weights: {} },
             corpusVocab,
@@ -147,7 +147,13 @@ describe('buildBM25Tokens with corpusVocab', () => {
         const { buildBM25Tokens } = await import('../../src/retrieval/query-context.js');
 
         // No corpusVocab → backward compat → all message tokens at 1x
-        const tokens = buildBM25Tokens('sword castle dragon', { entities: [], weights: {} }, null, null, queryConfig);
+        const tokens = await buildBM25Tokens(
+            'sword castle dragon',
+            { entities: [], weights: {} },
+            null,
+            null,
+            queryConfig
+        );
         // Should contain all stems (no filtering)
         expect(tokens.length).toBeGreaterThan(0);
         expect(tokens.includes('sword')).toBe(true);
@@ -157,7 +163,13 @@ describe('buildBM25Tokens with corpusVocab', () => {
         const { buildBM25Tokens } = await import('../../src/retrieval/query-context.js');
 
         const corpusVocab = new Set(); // empty
-        const tokens = buildBM25Tokens('sword castle', { entities: [], weights: {} }, corpusVocab, null, queryConfig);
+        const tokens = await buildBM25Tokens(
+            'sword castle',
+            { entities: [], weights: {} },
+            corpusVocab,
+            null,
+            queryConfig
+        );
 
         // Empty corpus = no grounded tokens, no fallback
         expect(tokens.length).toBe(0);
@@ -172,7 +184,7 @@ describe('buildBM25Tokens with corpusVocab', () => {
             weights: { Dragon: 1.0 },
         };
 
-        const tokens = buildBM25Tokens('sword and magic', entities, corpusVocab, null, queryConfig);
+        const tokens = await buildBM25Tokens('sword and magic', entities, corpusVocab, null, queryConfig);
 
         // Layer 0: None (Dragon is single-word)
         // Layer 1: "Dragon" tokenized + 5x boost
@@ -193,7 +205,13 @@ describe('buildBM25Tokens with corpusVocab', () => {
 
         // entityBoostWeight = 5, so 40% boost = ceil(5 * 0.4) = 2
         const corpusVocab = new Set(['sword']); // "magic" is NOT in corpus
-        const tokens = buildBM25Tokens('magic magic', { entities: [], weights: {} }, corpusVocab, null, queryConfig);
+        const tokens = await buildBM25Tokens(
+            'magic magic',
+            { entities: [], weights: {} },
+            corpusVocab,
+            null,
+            queryConfig
+        );
 
         // "magic" should appear exactly 2 times (Layer 3 non-grounded boost)
         const magicCount = tokens.filter((t) => t === 'magic').length;
@@ -205,7 +223,7 @@ describe('buildBM25Tokens with corpusVocab', () => {
         const corpusVocab = new Set(['sword', 'magic']);
         const entities = { entities: ['Dragon'], weights: { Dragon: 3 } };
         const meta = {};
-        buildBM25Tokens('sword castle', entities, corpusVocab, meta, queryConfig);
+        await buildBM25Tokens('sword castle', entities, corpusVocab, meta, queryConfig);
         expect(meta.entityStems).toBeTypeOf('number');
         expect(meta.entityStems).toBeGreaterThan(0); // 'dragon' stem from entity
         expect(meta.grounded).toBeGreaterThanOrEqual(1); // 'sword' is in corpus
@@ -216,7 +234,7 @@ describe('buildBM25Tokens with corpusVocab', () => {
     it('does not fail when meta is not provided', async () => {
         const { buildBM25Tokens } = await import('../../src/retrieval/query-context.js');
         const corpusVocab = new Set(['sword']);
-        const tokens = buildBM25Tokens('sword', { entities: [], weights: {} }, corpusVocab, null, queryConfig);
+        const tokens = await buildBM25Tokens('sword', { entities: [], weights: {} }, corpusVocab, null, queryConfig);
         expect(tokens.length).toBeGreaterThan(0);
     });
 });
@@ -226,7 +244,7 @@ describe('Event gate behavior', () => {
         const { buildBM25Tokens } = await import('../../src/retrieval/query-context.js');
 
         // Simulates skipped BM25 (no events → no buildBM25Tokens call → empty array)
-        const tokens = buildBM25Tokens('', { entities: [], weights: {} }, new Set(), null, queryConfig);
+        const tokens = await buildBM25Tokens('', { entities: [], weights: {} }, new Set(), null, queryConfig);
         expect(tokens).toEqual([]);
     });
 });
@@ -242,7 +260,7 @@ describe('buildBM25Tokens multi-word entity splitting', () => {
         const corpusVocab = new Set(['sword', 'king']);
         const meta = {};
 
-        const tokens = buildBM25Tokens('test message', entities, corpusVocab, meta, queryConfig);
+        const tokens = await buildBM25Tokens('test message', entities, corpusVocab, meta, queryConfig);
 
         // Layer 0: multi-word entities (un-tokenized, contain spaces)
         const layer0Tokens = tokens.filter((t) => t.includes(' '));
@@ -269,7 +287,7 @@ describe('buildBM25Tokens multi-word entity splitting', () => {
         const entities = { entities: ['Dark Castle'], weights: { 'Dark Castle': 1.0 } };
         const corpusVocab = new Set();
 
-        const tokens = buildBM25Tokens('test', entities, corpusVocab, {}, queryConfig);
+        const tokens = await buildBM25Tokens('test', entities, corpusVocab, {}, queryConfig);
 
         // Should have exact phrase "Dark Castle" once (boost applied in scoring)
         expect(tokens.filter((t) => t === 'Dark Castle').length).toBe(1);
@@ -281,7 +299,7 @@ describe('buildBM25Tokens multi-word entity splitting', () => {
         const entities = { entities: ['Dragon'], weights: { Dragon: 1.0 } };
         const corpusVocab = new Set();
 
-        const tokens = buildBM25Tokens('test', entities, corpusVocab, {}, queryConfig);
+        const tokens = await buildBM25Tokens('test', entities, corpusVocab, {}, queryConfig);
 
         // Single-word entity should be stemmed (drag -> drag, not "Dragon")
         const hasStemmed = tokens.some((t) => t.includes('drag') && t !== 'Dragon');

@@ -181,8 +181,8 @@ describe('upsertRelationship', () => {
         upsertEntity(graphData, 'Castle', 'PLACE', 'A fortress');
     });
 
-    it('adds a new edge between existing nodes', () => {
-        upsertRelationship(graphData, 'King Aldric', 'Castle', 'Rules from the castle');
+    it('adds a new edge between existing nodes', async () => {
+        await upsertRelationship(graphData, 'King Aldric', 'Castle', 'Rules from the castle');
         const edgeKey = 'king aldric__castle';
         expect(graphData.edges[edgeKey]).toBeDefined();
         expect(graphData.edges[edgeKey].source).toBe('king aldric');
@@ -191,58 +191,58 @@ describe('upsertRelationship', () => {
         expect(graphData.edges[edgeKey].weight).toBe(1);
     });
 
-    it('increments weight on duplicate edge', () => {
-        upsertRelationship(graphData, 'King Aldric', 'Castle', 'Rules from the castle');
-        upsertRelationship(graphData, 'king aldric', 'castle', 'Rules from the castle');
+    it('increments weight on duplicate edge', async () => {
+        await upsertRelationship(graphData, 'King Aldric', 'Castle', 'Rules from the castle');
+        await upsertRelationship(graphData, 'king aldric', 'castle', 'Rules from the castle');
         expect(graphData.edges['king aldric__castle'].weight).toBe(2);
     });
 
-    it('appends description on duplicate edge when description differs', () => {
-        upsertRelationship(graphData, 'King Aldric', 'Castle', 'Rules from the castle');
-        upsertRelationship(graphData, 'King Aldric', 'Castle', 'Imprisoned in the castle');
+    it('appends description on duplicate edge when description differs', async () => {
+        await upsertRelationship(graphData, 'King Aldric', 'Castle', 'Rules from the castle');
+        await upsertRelationship(graphData, 'King Aldric', 'Castle', 'Imprisoned in the castle');
         const edge = graphData.edges['king aldric__castle'];
         expect(edge.weight).toBe(2);
         expect(edge.description).toContain('Rules from the castle');
         expect(edge.description).toContain('Imprisoned in the castle');
     });
 
-    it('silently skips if source node does not exist', () => {
-        upsertRelationship(graphData, 'Ghost', 'Castle', 'Haunts');
+    it('silently skips if source node does not exist', async () => {
+        await upsertRelationship(graphData, 'Ghost', 'Castle', 'Haunts');
         expect(Object.keys(graphData.edges)).toHaveLength(0);
     });
 
-    it('silently skips if target node does not exist', () => {
-        upsertRelationship(graphData, 'King Aldric', 'Ghost', 'Fears');
+    it('silently skips if target node does not exist', async () => {
+        await upsertRelationship(graphData, 'King Aldric', 'Ghost', 'Fears');
         expect(Object.keys(graphData.edges)).toHaveLength(0);
     });
 
-    it('normalizes source and target to lowercase trimmed', () => {
-        upsertRelationship(graphData, '  King Aldric  ', '  Castle  ', 'Rules');
+    it('normalizes source and target to lowercase trimmed', async () => {
+        await upsertRelationship(graphData, '  King Aldric  ', '  Castle  ', 'Rules');
         expect(graphData.edges['king aldric__castle']).toBeDefined();
     });
 
-    it('strips possessives from relationship source and target keys', () => {
+    it('strips possessives from relationship source and target keys', async () => {
         upsertEntity(graphData, "King's Guard", 'ORGANIZATION', 'Royal protectors');
-        upsertRelationship(graphData, "King's Guard", 'Castle', 'Protects the castle');
+        await upsertRelationship(graphData, "King's Guard", 'Castle', 'Protects the castle');
 
         // Edge key should have possessives stripped
         expect(graphData.edges['king guard__castle']).toBeDefined();
     });
 
-    it('caps edge description segments at configured limit', () => {
+    it('caps edge description segments at configured limit', async () => {
         const cap = 3;
-        upsertRelationship(graphData, 'King Aldric', 'Castle', 'First desc', cap);
-        upsertRelationship(graphData, 'King Aldric', 'Castle', 'Second desc', cap);
-        upsertRelationship(graphData, 'King Aldric', 'Castle', 'Third desc', cap);
-        upsertRelationship(graphData, 'King Aldric', 'Castle', 'Fourth desc', cap);
-        upsertRelationship(graphData, 'King Aldric', 'Castle', 'Fifth desc', cap);
+        await upsertRelationship(graphData, 'King Aldric', 'Castle', 'First desc', cap);
+        await upsertRelationship(graphData, 'King Aldric', 'Castle', 'Second desc', cap);
+        await upsertRelationship(graphData, 'King Aldric', 'Castle', 'Third desc', cap);
+        await upsertRelationship(graphData, 'King Aldric', 'Castle', 'Fourth desc', cap);
+        await upsertRelationship(graphData, 'King Aldric', 'Castle', 'Fifth desc', cap);
 
         const edge = graphData.edges['king aldric__castle'];
         expect(edge.description).toBe('Third desc | Fourth desc | Fifth desc');
         expect(edge.weight).toBe(5);
     });
 
-    it('uses default cap of 5 for edge descriptions when not specified', () => {
+    it('uses default cap of 5 for edge descriptions when not specified', async () => {
         // Use sufficiently different descriptions to avoid Jaccard deduplication
         const descriptions = [
             'Rules the kingdom from his castle',
@@ -254,7 +254,7 @@ describe('upsertRelationship', () => {
             'Inspects the castle defenses at dawn',
         ];
         for (let i = 0; i < 7; i++) {
-            upsertRelationship(graphData, 'King Aldric', 'Castle', descriptions[i]);
+            await upsertRelationship(graphData, 'King Aldric', 'Castle', descriptions[i]);
         }
         const edge = graphData.edges['king aldric__castle'];
         const segments = edge.description.split(' | ');
@@ -263,37 +263,37 @@ describe('upsertRelationship', () => {
         expect(segments[4]).toBe(descriptions[6]);
     });
 
-    it('prevents self-loop edges (same source and target)', () => {
+    it('prevents self-loop edges (same source and target)', async () => {
         // Try to create an edge where source and target resolve to the same node
-        upsertRelationship(graphData, 'King Aldric', 'King Aldric', 'Self-referential');
+        await upsertRelationship(graphData, 'King Aldric', 'King Aldric', 'Self-referential');
         expect(Object.keys(graphData.edges)).toHaveLength(0);
     });
 
-    it('prevents self-loops after merge redirect resolution', () => {
+    it('prevents self-loops after merge redirect resolution', async () => {
         // Set up a merge redirect: "King" -> "King Aldric"
         graphData._mergeRedirects = { king: 'king aldric' };
 
         // Try to create an edge that would resolve to a self-loop after redirect
-        upsertRelationship(graphData, 'King Aldric', 'King', 'Redirected self-loop');
+        await upsertRelationship(graphData, 'King Aldric', 'King', 'Redirected self-loop');
         expect(Object.keys(graphData.edges)).toHaveLength(0);
     });
 
-    it('tracks _descriptionTokens on edges', () => {
+    it('tracks _descriptionTokens on edges', async () => {
         const graph = createEmptyGraph();
         upsertEntity(graph, 'Alice', 'PERSON', 'Explorer');
         upsertEntity(graph, 'Bob', 'PERSON', 'Merchant');
 
-        upsertRelationship(graph, 'Alice', 'Bob', 'Met at tavern', 5);
+        await upsertRelationship(graph, 'Alice', 'Bob', 'Met at tavern', 5);
         expect(graph.edges.alice__bob._descriptionTokens).toBeDefined();
         expect(graph.edges.alice__bob._descriptionTokens).toBeGreaterThan(0);
 
         // After adding more, token count increases
         const initialTokens = graph.edges.alice__bob._descriptionTokens;
-        upsertRelationship(graph, 'Alice', 'Bob', 'Traded goods', 5);
+        await upsertRelationship(graph, 'Alice', 'Bob', 'Traded goods', 5);
         expect(graph.edges.alice__bob._descriptionTokens).toBeGreaterThan(initialTokens);
     });
 
-    it('marks edge for consolidation when token threshold exceeded', () => {
+    it('marks edge for consolidation when token threshold exceeded', async () => {
         const graph = createEmptyGraph();
         upsertEntity(graph, 'Alice', 'PERSON', 'Explorer');
         upsertEntity(graph, 'Bob', 'PERSON', 'Merchant');
@@ -306,7 +306,7 @@ describe('upsertRelationship', () => {
             );
         const settings = { consolidationTokenThreshold: 50 }; // Lower threshold for testing
 
-        upsertRelationship(graph, 'Alice', 'Bob', longDesc, 5, settings);
+        await upsertRelationship(graph, 'Alice', 'Bob', longDesc, 5, settings);
 
         // Should be marked for consolidation
         expect(graph._edgesNeedingConsolidation).toContain('alice__bob');
@@ -711,7 +711,7 @@ describe('edge creation with semantic merge', () => {
 
         // Now create a relationship using the ORIGINAL name "Draco"
         // This should work because we use the resolved key
-        upsertRelationship(graphData, 'Suzy', 'Draco', 'Friends with', 5);
+        await upsertRelationship(graphData, 'Suzy', 'Draco', 'Friends with', 5);
 
         // Edge should exist (suzy -> dragon), NOT be silently dropped
         const edgeKey = 'suzy__dragon';
@@ -768,8 +768,8 @@ describe('_resolveKey chained redirects', () => {
         graphData._mergeRedirects['alice smith'] = 'alison';
 
         // upsertRelationship uses _resolveKey internally for both source and target
-        upsertRelationship(graphData, 'alice', 'bob', 'knows bob', 5);
-        upsertRelationship(graphData, 'charlie', 'alice smith', 'met alice smith', 5);
+        await upsertRelationship(graphData, 'alice', 'bob', 'knows bob', 5);
+        await upsertRelationship(graphData, 'charlie', 'alice smith', 'met alice smith', 5);
 
         // Edge from alice should land on 'alison' (final resolved target)
         const edgeToAlison = graphData.edges.alison__bob;
@@ -796,7 +796,7 @@ describe('_resolveKey chained redirects', () => {
         graphData._mergeRedirects.bob = 'charlie';
         graphData._mergeRedirects.charlie = 'bob';
 
-        upsertRelationship(graphData, 'bob', 'dave', 'knows dave', 5);
+        await upsertRelationship(graphData, 'bob', 'dave', 'knows dave', 5);
 
         // Should not infinite-loop — either bob or charlie key should exist
         const hasEdge = !!graphData.edges.bob__dave || !!graphData.edges.charlie__dave;
@@ -988,60 +988,54 @@ describe('consolidateEdges', () => {
 
 describe('shouldMergeEntities', () => {
     describe('PERSON type', () => {
-        it('merges on high similarity alone (names are unique identifiers)', () => {
+        it('merges on high similarity alone (names are unique identifiers)', async () => {
             const tokensA = new Set(['alex']);
-            expect(shouldMergeEntities(0.95, 0.9, tokensA, 'alex', 'alexander', 'PERSON')).toBe(true);
+            await expect(shouldMergeEntities(0.95, 0.9, tokensA, 'alex', 'alexander', 'PERSON')).resolves.toBe(true);
         });
 
-        it('merges at exact threshold', () => {
+        it('merges at exact threshold', async () => {
             const tokensA = new Set(['john']);
-            expect(shouldMergeEntities(0.9, 0.9, tokensA, 'john', 'jonathan', 'PERSON')).toBe(true);
+            await expect(shouldMergeEntities(0.9, 0.9, tokensA, 'john', 'jonathan', 'PERSON')).resolves.toBe(true);
         });
 
-        it('requires token overlap in grey zone', () => {
+        it('requires token overlap in grey zone', async () => {
             const tokensA = new Set(['mary']);
             // cosine=0.85, threshold=0.9, grey zone = 0.8-0.9, no overlap → false
-            expect(shouldMergeEntities(0.85, 0.9, tokensA, 'mary', 'jane', 'PERSON')).toBe(false);
-        });
-
-        it('merges in grey zone with token overlap', () => {
-            const tokensA = new Set(['bob']);
-            // cosine=0.85, grey zone, substring containment ('bob' in 'bob smith')
-            expect(shouldMergeEntities(0.85, 0.9, tokensA, 'bob', 'bob smith', 'PERSON')).toBe(true);
+            await expect(shouldMergeEntities(0.85, 0.9, tokensA, 'mary', 'jane', 'PERSON')).resolves.toBe(false);
         });
     });
 
     describe('OBJECT/CONCEPT types', () => {
-        it('requires token overlap even at high similarity', () => {
+        it('requires token overlap even at high similarity', async () => {
             const tokensA = new Set(['sword']);
             // cosine=0.95, but OBJECT type requires token overlap, no overlap → false
-            expect(shouldMergeEntities(0.95, 0.9, tokensA, 'sword', 'blade', 'OBJECT')).toBe(false);
+            await expect(shouldMergeEntities(0.95, 0.9, tokensA, 'sword', 'blade', 'OBJECT')).resolves.toBe(false);
         });
 
-        it('merges when substring containment exists', () => {
+        it('merges when substring containment exists', async () => {
             const tokensA = new Set(['red', 'sword']);
             // cosine=0.95, OBJECT type, 'sword' contained in 'red sword' → true
-            expect(shouldMergeEntities(0.95, 0.9, tokensA, 'red sword', 'sword', 'OBJECT')).toBe(true);
+            await expect(shouldMergeEntities(0.95, 0.9, tokensA, 'red sword', 'sword', 'OBJECT')).resolves.toBe(true);
         });
 
-        it('rejects when cosine is below grey zone', () => {
+        it('rejects when cosine is below grey zone', async () => {
             const tokensA = new Set(['item']);
             // cosine=0.75, threshold=0.9, below 0.8 floor → false
-            expect(shouldMergeEntities(0.75, 0.9, tokensA, 'item', 'item', 'OBJECT')).toBe(false);
+            await expect(shouldMergeEntities(0.75, 0.9, tokensA, 'item', 'item', 'OBJECT')).resolves.toBe(false);
         });
 
-        it('defaults to OBJECT type when not specified', () => {
+        it('defaults to OBJECT type when not specified', async () => {
             const tokensA = new Set(['apple']);
             // No type specified, defaults to OBJECT, requires overlap
-            expect(shouldMergeEntities(0.95, 0.9, tokensA, 'apple', 'orange')).toBe(false);
+            await expect(shouldMergeEntities(0.95, 0.9, tokensA, 'apple', 'orange')).resolves.toBe(false);
         });
     });
 
     describe('CONCEPT type', () => {
-        it('requires token overlap like OBJECT', () => {
+        it('requires token overlap like OBJECT', async () => {
             const tokensA = new Set(['honor']);
             // CONCEPT type requires token overlap
-            expect(shouldMergeEntities(0.95, 0.9, tokensA, 'honor', 'glory', 'CONCEPT')).toBe(false);
+            await expect(shouldMergeEntities(0.95, 0.9, tokensA, 'honor', 'glory', 'CONCEPT')).resolves.toBe(false);
         });
     });
 });

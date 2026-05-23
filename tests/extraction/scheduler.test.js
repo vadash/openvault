@@ -131,31 +131,31 @@ describe('scheduler with fingerprints', () => {
     });
 
     describe('isBatchReady', () => {
-        it('returns true when unextracted messages meet token budget', () => {
-            const result = isBatchReady(chat, data, settings.extractionTokenBudget);
+        it('returns true when unextracted messages meet token budget', async () => {
+            const result = await isBatchReady(chat, data, settings.extractionTokenBudget);
             expect(result).toBe(true);
         });
 
-        it('returns false when processed messages reduce count below budget', () => {
+        it('returns false when processed messages reduce count below budget', async () => {
             // Process first 3 messages, leaving only chat[3] (~50-100 tokens)
             // Use a higher budget (200) that remaining tokens won't meet
             data[PROCESSED_MESSAGES_KEY] = [chat[0].send_date, chat[1].send_date, chat[2].send_date];
-            const result = isBatchReady(chat, data, 200);
+            const result = await isBatchReady(chat, data, 200);
             expect(result).toBe(false);
         });
     });
 
     describe('getNextBatch', () => {
-        it('returns null when remaining messages do not meet budget', () => {
+        it('returns null when remaining messages do not meet budget', async () => {
             data[PROCESSED_MESSAGES_KEY] = [chat[0].send_date, chat[1].send_date];
             // Use a high budget that remaining 2 messages won't meet
-            const batch = getNextBatch(chat, data, 1000);
+            const batch = await getNextBatch(chat, data, 1000);
             expect(batch).toBeNull();
         });
 
-        it('returns null when no unextracted messages', () => {
+        it('returns null when no unextracted messages', async () => {
             data[PROCESSED_MESSAGES_KEY] = chat.map((m) => m.send_date);
-            const batch = getNextBatch(chat, data, settings.extractionTokenBudget);
+            const batch = await getNextBatch(chat, data, settings.extractionTokenBudget);
             expect(batch).toBeNull();
         });
     });
@@ -213,7 +213,7 @@ describe('isBatchReady (token-based)', () => {
         testTimestamp = savedTimestamp;
     });
 
-    it('returns true when unextracted tokens >= budget', () => {
+    it('returns true when unextracted tokens >= budget', async () => {
         const chat = makeChat([
             [LONG_USER_MESSAGE, true],
             [LONG_BOT_MESSAGE, false],
@@ -222,20 +222,20 @@ describe('isBatchReady (token-based)', () => {
         ]);
 
         // 4 long messages should be ~200-400 tokens total
-        expect(isBatchReady(chat, {}, 100)).toBe(true);
+        expect(await isBatchReady(chat, {}, 100)).toBe(true);
     });
 
-    it('returns false when unextracted tokens < budget', () => {
+    it('returns false when unextracted tokens < budget', async () => {
         const chat = makeChat([
             ['Hi', true],
             ['Hello', false],
         ]);
 
         // 2 short messages = ~3 tokens total
-        expect(isBatchReady(chat, {}, 1000)).toBe(false);
+        expect(await isBatchReady(chat, {}, 1000)).toBe(false);
     });
 
-    it('excludes already-extracted messages', () => {
+    it('excludes already-extracted messages', async () => {
         const chat = makeChat([
             [LONG_USER_MESSAGE, true],
             [LONG_BOT_MESSAGE, false],
@@ -247,9 +247,9 @@ describe('isBatchReady (token-based)', () => {
         data[PROCESSED_MESSAGES_KEY] = ['1000000', '1000001']; // First turn extracted
 
         // Remaining 2 messages should have enough tokens for a 100-token budget
-        expect(isBatchReady(chat, data, 100)).toBe(true);
+        expect(await isBatchReady(chat, data, 100)).toBe(true);
         // But not enough for a huge budget
-        expect(isBatchReady(chat, data, 10000)).toBe(false);
+        expect(await isBatchReady(chat, data, 10000)).toBe(false);
     });
 });
 
@@ -265,7 +265,7 @@ describe('getNextBatch (token-based)', () => {
         testTimestamp = savedTimestamp;
     });
 
-    it('accumulates messages until token budget met, then snaps to turn boundary', () => {
+    it('accumulates messages until token budget met, then snaps to turn boundary', async () => {
         const chat = makeChat([
             [LONG_USER_MESSAGE, true],
             [LONG_BOT_MESSAGE, false],
@@ -274,7 +274,7 @@ describe('getNextBatch (token-based)', () => {
         ]);
 
         // Budget for ~1 message - should get [0, 1] as one complete turn
-        const batch = getNextBatch(chat, {}, 50);
+        const batch = await getNextBatch(chat, {}, 50);
         expect(batch).not.toBeNull();
         expect(batch.length).toBeGreaterThan(0);
         // Should snap to turn boundary (Bot -> User transition means ending on bot)
@@ -282,17 +282,17 @@ describe('getNextBatch (token-based)', () => {
         expect(chat[lastIndex].is_user).toBe(false);
     });
 
-    it('returns null when total unextracted < budget', () => {
+    it('returns null when total unextracted < budget', async () => {
         const chat = makeChat([
             ['Hi', true],
             ['Hello', false],
         ]);
 
         // Huge budget that can't be met
-        expect(getNextBatch(chat, {}, 1000)).toBeNull();
+        expect(await getNextBatch(chat, {}, 1000)).toBeNull();
     });
 
-    it('always includes at least 1 message even if it exceeds budget', () => {
+    it('always includes at least 1 message even if it exceeds budget', async () => {
         const chat = makeChat([
             [LONG_USER_MESSAGE, true],
             [LONG_BOT_MESSAGE, false],
@@ -300,7 +300,7 @@ describe('getNextBatch (token-based)', () => {
         ]);
 
         // Budget of 5 tokens - the first message exceeds this
-        const batch = getNextBatch(chat, {}, 5);
+        const batch = await getNextBatch(chat, {}, 5);
         // Should include at least [0, 1] to complete the turn
         expect(batch).not.toBeNull();
         expect(batch.length).toBeGreaterThan(0);
@@ -308,7 +308,7 @@ describe('getNextBatch (token-based)', () => {
         expect(chat[batch[batch.length - 1]].is_user).toBe(false);
     });
 
-    it('skips already-extracted messages', () => {
+    it('skips already-extracted messages', async () => {
         const chat = makeChat([
             [LONG_USER_MESSAGE, true],
             [LONG_BOT_MESSAGE, false],
@@ -319,7 +319,7 @@ describe('getNextBatch (token-based)', () => {
         // Use fingerprints (send_date strings) instead of indices
         data[PROCESSED_MESSAGES_KEY] = ['1000000', '1000001']; // First turn extracted
 
-        const batch = getNextBatch(chat, data, 50);
+        const batch = await getNextBatch(chat, data, 50);
         // Should start from index 2
         expect(batch).not.toBeNull();
         expect(batch[0]).toBeGreaterThanOrEqual(2);
@@ -327,7 +327,7 @@ describe('getNextBatch (token-based)', () => {
         expect(chat[batch[batch.length - 1]].is_user).toBe(false);
     });
 
-    it('snaps back when boundary lands mid-turn', () => {
+    it('snaps back when boundary lands mid-turn', async () => {
         const chat = makeChat([
             ['User zero', true],
             ['Bot one', false],
@@ -338,7 +338,7 @@ describe('getNextBatch (token-based)', () => {
         ]);
 
         // Budget that gets us through the first 4 messages but needs to snap back
-        const batch = getNextBatch(chat, {}, 30);
+        const batch = await getNextBatch(chat, {}, 30);
         expect(batch).not.toBeNull();
         // Batch should end on a bot message (complete turn)
         expect(chat[batch[batch.length - 1]].is_user).toBe(false);
@@ -346,7 +346,7 @@ describe('getNextBatch (token-based)', () => {
 });
 
 describe('getBackfillMessageIds (token-based)', () => {
-    it('returns complete batches worth of message IDs', () => {
+    it('returns complete batches worth of message IDs', async () => {
         const chat = makeChat([
             [LONG_USER_MESSAGE, true],
             [LONG_BOT_MESSAGE, false],
@@ -356,18 +356,18 @@ describe('getBackfillMessageIds (token-based)', () => {
             [LONG_BOT_MESSAGE, false],
         ]);
 
-        const result = getBackfillMessageIds(chat, {}, 100);
+        const result = await getBackfillMessageIds(chat, {}, 100);
         expect(result.batchCount).toBeGreaterThanOrEqual(1);
         expect(result.messageIds.length).toBeGreaterThan(0);
     });
 
-    it('returns empty for insufficient tokens', () => {
+    it('returns empty for insufficient tokens', async () => {
         const chat = makeChat([
             ['Hi', true],
             ['Hello', false],
         ]);
 
-        const result = getBackfillMessageIds(chat, {}, 10000);
+        const result = await getBackfillMessageIds(chat, {}, 10000);
         expect(result.batchCount).toBe(0);
         expect(result.messageIds).toEqual([]);
     });
@@ -453,7 +453,7 @@ describe('trimTailTurns', () => {
 });
 
 describe('getNextBatch swipe protection', () => {
-    it('excludes the last turn from extraction', () => {
+    it('excludes the last turn from extraction', async () => {
         const chat = makeChat([
             [LONG_USER_MESSAGE, true],
             [LONG_BOT_MESSAGE, false],
@@ -464,12 +464,12 @@ describe('getNextBatch swipe protection', () => {
         ]);
         // Budget = exact total tokens (402). Accumulation gathers all 6 msgs,
         // snaps to 3 complete turns. Trim removes last turn → turns 1+2 only.
-        const batch = getNextBatch(chat, {}, 402);
+        const batch = await getNextBatch(chat, {}, 402);
         expect(batch).not.toBeNull();
         expect(batch).toEqual([0, 1, 2, 3]);
     });
 
-    it('does not trim when isEmergencyCut is true', () => {
+    it('does not trim when isEmergencyCut is true', async () => {
         const chat = makeChat([
             [LONG_USER_MESSAGE, true],
             [LONG_BOT_MESSAGE, false],
@@ -478,27 +478,27 @@ describe('getNextBatch swipe protection', () => {
             [LONG_USER_MESSAGE, true],
             [LONG_BOT_MESSAGE, false],
         ]);
-        const batch = getNextBatch(chat, {}, 1, true);
+        const batch = await getNextBatch(chat, {}, 1, true);
         // Emergency Cut: no trimming, should get all messages
         expect(batch).not.toBeNull();
         expect(batch).toEqual([0, 1, 2, 3, 4, 5]);
     });
 
-    it('returns the single turn when only 1 turn exists (trimTailTurns protects it)', () => {
+    it('returns the single turn when only 1 turn exists (trimTailTurns protects it)', async () => {
         const chat = makeChat([
             [LONG_USER_MESSAGE, true],
             [LONG_BOT_MESSAGE, false],
         ]);
         // Budget = exact total tokens for 1 turn. Accumulation gets both msgs,
         // snaps to 1 turn. Trim would empty → helper returns original.
-        const batch = getNextBatch(chat, {}, 134);
+        const batch = await getNextBatch(chat, {}, 134);
         expect(batch).not.toBeNull();
         expect(batch).toEqual([0, 1]);
     });
 });
 
 describe('getNextBatch with all-User messages', () => {
-    it('should extract User-only messages during Emergency Cut', () => {
+    it('should extract User-only messages during Emergency Cut', async () => {
         const chat = makeChat([
             ['u1', true], // User
             ['u2', true], // User
@@ -508,14 +508,14 @@ describe('getNextBatch with all-User messages', () => {
         const tokenBudget = 100;
         const isEmergencyCut = true;
 
-        const result = getNextBatch(chat, data, tokenBudget, isEmergencyCut);
+        const result = await getNextBatch(chat, data, tokenBudget, isEmergencyCut);
 
         // Should return all messages during Emergency Cut, even without Bot messages
         expect(result).not.toBeNull();
         expect(result.length).toBe(3);
     });
 
-    it('should handle queue with only User messages gracefully', () => {
+    it('should handle queue with only User messages gracefully', async () => {
         const chat = makeChat([
             ['u1', true], // User
             ['u2', true], // User
@@ -524,7 +524,7 @@ describe('getNextBatch with all-User messages', () => {
         // Set high token count to force extraction
         data.processedFingerprints = new Set();
 
-        const result = getNextBatch(chat, data, 10, false);
+        const result = await getNextBatch(chat, data, 10, false);
 
         // Should not stall - either return messages or null, not empty array
         // that causes infinite loop
@@ -587,7 +587,7 @@ describe('getNextBatch (turn-limited)', () => {
         testTimestamp = savedTimestamp;
     });
 
-    it('respects turn limit when token budget is unlimited', () => {
+    it('respects turn limit when token budget is unlimited', async () => {
         // 5 turns: U,B × 5
         const chat = makeChat([
             ['u1', true],
@@ -604,14 +604,14 @@ describe('getNextBatch (turn-limited)', () => {
 
         // Unlimited token budget, turn limit of 3
         // Accumulates 3 turns (6 msgs), swipe protection trims 1 turn → 2 turns (4 msgs)
-        const batch = getNextBatch(chat, {}, 100000, false, 3);
+        const batch = await getNextBatch(chat, {}, 100000, false, 3);
         expect(batch).not.toBeNull();
         expect(batch.length).toBe(4);
         // Should end on bot (complete turn)
         expect(chat[batch[batch.length - 1]].is_user).toBe(false);
     });
 
-    it('token budget wins when hit before turn limit', () => {
+    it('token budget wins when hit before turn limit', async () => {
         // 5 turns with long messages
         const chat = makeChat([
             [LONG_USER_MESSAGE, true],
@@ -627,7 +627,7 @@ describe('getNextBatch (turn-limited)', () => {
         ]);
 
         // Very low token budget, high turn limit → token budget should stop early
-        const batch = getNextBatch(chat, {}, 50, false, 10);
+        const batch = await getNextBatch(chat, {}, 50, false, 10);
         expect(batch).not.toBeNull();
         // Should stop at ~1 turn due to token budget, not all 5
         expect(batch.length).toBeLessThan(10);
@@ -635,7 +635,7 @@ describe('getNextBatch (turn-limited)', () => {
         expect(chat[batch[batch.length - 1]].is_user).toBe(false);
     });
 
-    it('isBatchReady returns true when enough turns exist even if tokens are low', () => {
+    it('isBatchReady returns true when enough turns exist even if tokens are low', async () => {
         // 5 turns with short messages (low token count)
         const chat = makeChat([
             ['u1', true],
@@ -651,11 +651,11 @@ describe('getNextBatch (turn-limited)', () => {
         ]);
 
         // Token budget too high for short messages, but turn limit = 2
-        const ready = isBatchReady(chat, {}, 100000, 2);
+        const ready = await isBatchReady(chat, {}, 100000, 2);
         expect(ready).toBe(true);
     });
 
-    it('isBatchReady returns false when neither threshold met', () => {
+    it('isBatchReady returns false when neither threshold met', async () => {
         // 1 turn with short messages
         const chat = makeChat([
             ['u1', true],
@@ -663,11 +663,11 @@ describe('getNextBatch (turn-limited)', () => {
         ]);
 
         // Token budget too high, turn limit too high
-        const ready = isBatchReady(chat, {}, 100000, 10);
+        const ready = await isBatchReady(chat, {}, 100000, 10);
         expect(ready).toBe(false);
     });
 
-    it('Emergency Cut bypasses turn limit', () => {
+    it('Emergency Cut bypasses turn limit', async () => {
         // 5 turns
         const chat = makeChat([
             ['u1', true],
@@ -683,7 +683,7 @@ describe('getNextBatch (turn-limited)', () => {
         ]);
 
         // Emergency cut with turn limit = 1 → should still return all messages
-        const batch = getNextBatch(chat, {}, 10, true, 1);
+        const batch = await getNextBatch(chat, {}, 10, true, 1);
         expect(batch).not.toBeNull();
         expect(batch.length).toBe(10);
     });
@@ -701,7 +701,7 @@ describe('getExtractionBudgetProgress (turn-limited)', () => {
         testTimestamp = savedTimestamp;
     });
 
-    it('includes turn count and progress data', () => {
+    it('includes turn count and progress data', async () => {
         // 3 turns with short messages
         const chat = makeChat([
             ['u1', true],
@@ -712,14 +712,14 @@ describe('getExtractionBudgetProgress (turn-limited)', () => {
             ['b3', false],
         ]);
 
-        const progress = getExtractionBudgetProgress(chat, {}, 100, 5);
+        const progress = await getExtractionBudgetProgress(chat, {}, 100, 5);
         expect(progress).toHaveProperty('unextractedTurns');
         expect(progress).toHaveProperty('turnPct');
         expect(progress.unextractedTurns).toBe(3);
         expect(progress.turnPct).toBe(60); // 3/5 * 100
     });
 
-    it('turnPct caps at 100', () => {
+    it('turnPct caps at 100', async () => {
         // 5 turns
         const chat = makeChat([
             ['u1', true],
@@ -734,7 +734,7 @@ describe('getExtractionBudgetProgress (turn-limited)', () => {
             ['b5', false],
         ]);
 
-        const progress = getExtractionBudgetProgress(chat, {}, 100, 2);
+        const progress = await getExtractionBudgetProgress(chat, {}, 100, 2);
         expect(progress.turnPct).toBe(100); // 5/2 capped at 100
     });
 });

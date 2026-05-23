@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetDeps } from '../../src/deps.js';
-import { setWorkerRunning } from '../../src/state.js';
+import { isWorkerRunning, setWorkerRunning } from '../../src/state.js';
 
 describe('autoHideOldMessages (token-based)', () => {
     let mockChat;
@@ -687,9 +687,7 @@ describe('hideExtractedMessages', () => {
 
 describe('worker abort handling', () => {
     beforeEach(async () => {
-        vi.resetModules();
         setWorkerRunning(false);
-        await registerCdnOverrides();
     });
 
     afterEach(() => {
@@ -715,7 +713,6 @@ describe('worker abort handling', () => {
         });
 
         const { wakeUpBackgroundWorker } = await import('../../src/extraction/worker.js');
-        const { isWorkerRunning } = await import('../../src/state.js');
 
         wakeUpBackgroundWorker();
         // Wait for async loop to settle

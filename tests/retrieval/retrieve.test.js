@@ -18,7 +18,7 @@ describe('selectMemoriesWithSoftBalance', () => {
         const tokenBudget = 10; // Small budget - only ~2 memories
         const chatLength = 1000;
 
-        const selected = selectMemoriesWithSoftBalance(scoredMemories, tokenBudget, chatLength);
+        const selected = await selectMemoriesWithSoftBalance(scoredMemories, tokenBudget, chatLength);
 
         // Should select top 2-3 by score first (respecting token budget)
         expect(selected.length).toBeGreaterThan(0);
@@ -41,7 +41,7 @@ describe('selectMemoriesWithSoftBalance', () => {
         const tokenBudget = 200; // All memories
         const chatLength = 1000;
 
-        const selected = selectMemoriesWithSoftBalance(scoredMemories, tokenBudget, chatLength);
+        const selected = await selectMemoriesWithSoftBalance(scoredMemories, tokenBudget, chatLength);
 
         // Old bucket should have at least one memory (20% min)
         const selectedIds = selected.map((m) => m.id);
@@ -53,7 +53,7 @@ describe('selectMemoriesWithSoftBalance', () => {
 
         const scoredMemories = [{ memory: { id: 'r1', summary: 'Recent' }, score: 5.0, breakdown: { distance: 50 } }];
 
-        const selected = selectMemoriesWithSoftBalance(scoredMemories, 100, 100);
+        const selected = await selectMemoriesWithSoftBalance(scoredMemories, 100, 100);
         expect(selected.length).toBe(1);
     });
 });

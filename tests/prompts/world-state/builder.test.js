@@ -27,8 +27,11 @@ function assertUserPrompt(content) {
 
 describe('Prompt Topology — World State', () => {
     it('buildGlobalWorldStatePrompt: returns 3 messages with correct topology', () => {
-        const entities = ['Alice (PERSON) — Character in the story', 'The Tavern (PLACE) — Where characters meet'];
-        const edges = ['Alice → The Tavern: Visits frequently'];
+        const entities = [
+            { name: 'Alice', type: 'PERSON', description: 'Character in the story', mentions: 5 },
+            { name: 'The Tavern', type: 'PLACE', description: 'Where characters meet', mentions: 3 },
+        ];
+        const edges = [{ source: 'Alice', target: 'The Tavern', description: 'Visits frequently', weight: 0.8 }];
 
         const msgs = buildGlobalWorldStatePrompt(entities, edges, PREAMBLE, 'auto', PREFILL);
 
@@ -40,8 +43,8 @@ describe('Prompt Topology — World State', () => {
     });
 
     it('buildGlobalWorldStatePrompt: includes entities and edges in user prompt', () => {
-        const entities = ['Alice (PERSON) — Main character'];
-        const edges = ['Alice → Bob: Friend'];
+        const entities = [{ name: 'Alice', type: 'PERSON', description: 'Main character', mentions: 5 }];
+        const edges = [{ source: 'Alice', target: 'Bob', description: 'Friend', weight: 0.9 }];
 
         const msgs = buildGlobalWorldStatePrompt(entities, edges, PREAMBLE, 'auto', PREFILL);
 

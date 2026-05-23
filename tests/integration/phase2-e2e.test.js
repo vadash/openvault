@@ -23,6 +23,14 @@ vi.mock('../../src/llm.js', () => ({
     },
 }));
 
+// Mock extraction/structured — parseCommunitySummaryResponse is used by generateWorldState
+vi.mock('../../src/extraction/structured.js', () => ({
+    parseCommunitySummaryResponse: vi.fn(async (content) => {
+        const parsed = JSON.parse(content);
+        return { title: parsed.title || 'World State', summary: parsed.summary, findings: parsed.findings || [] };
+    }),
+}));
+
 describe('Phase 2 End-to-End Integration', () => {
     beforeEach(() => {
         setupTestContext({
@@ -37,7 +45,7 @@ describe('Phase 2 End-to-End Integration', () => {
     });
 
     describe('Subconscious Drives Formatting', () => {
-        it('should separate reflections into <subconscious_drives> block', () => {
+        it('should separate reflections into <subconscious_drives> block', async () => {
             const memories = [
                 { id: 'ev_1', type: 'event', summary: 'Alice went to the market', importance: 3, sequence: 1000 },
                 { id: 'ev_2', type: 'event', summary: 'Alice met Bob at the fountain', importance: 3, sequence: 2000 },
@@ -61,7 +69,7 @@ describe('Phase 2 End-to-End Integration', () => {
             const tokenBudget = 1000;
             const chatLength = 100;
 
-            const { memoryText, reflectionText } = formatContextForInjection(
+            const { memoryText, reflectionText } = await formatContextForInjection(
                 memories,
                 presentCharacters,
                 emotionalInfo,
@@ -91,20 +99,34 @@ describe('Phase 2 End-to-End Integration', () => {
             expect(sceneMemoryContent).not.toContain('Alice seeks validation');
         });
 
-        it('should omit subconscious_drives block when no reflections exist', () => {
+        it('should omit subconscious_drives block when no reflections exist', async () => {
             const memories = [
                 { id: 'ev_1', type: 'event', summary: 'Alice walked to the store', importance: 3, sequence: 1000 },
             ];
-            const { memoryText, reflectionText } = formatContextForInjection(memories, [], null, 'Alice', 1000, 100);
+            const { memoryText, reflectionText } = await formatContextForInjection(
+                memories,
+                [],
+                null,
+                'Alice',
+                1000,
+                100
+            );
 
             expect(memoryText).toContain('<scene_memory>');
             expect(reflectionText).not.toContain('<subconscious_drives>');
         });
 
-        it('should handle backward compatibility (memories without type field)', () => {
+        it('should handle backward compatibility (memories without type field)', async () => {
             // Old memories without type field should be treated as events
             const memories = [{ id: 'ev_1', summary: 'Old memory without type', importance: 3, sequence: 1000 }];
-            const { memoryText, reflectionText } = formatContextForInjection(memories, [], null, 'Alice', 1000, 100);
+            const { memoryText, reflectionText } = await formatContextForInjection(
+                memories,
+                [],
+                null,
+                'Alice',
+                1000,
+                100
+            );
 
             expect(memoryText).toContain('<scene_memory>');
             expect(memoryText).toContain('Old memory without type');
@@ -122,8 +144,10 @@ describe('Phase 2 End-to-End Integration', () => {
 
             mockCallLLM.mockResolvedValue(
                 JSON.stringify({
-                    global_summary:
+                    title: 'Kingdom in Turmoil',
+                    summary:
                         'The kingdom faces internal collapse. Queen Elena secretly supports northern rebels while maintaining court appearance.',
+                    findings: ['Queen Elena supports northern rebels'],
                 })
             );
 
@@ -187,13 +211,13 @@ describe('Phase 2 End-to-End Integration', () => {
             expect(detectMacroIntent(undefined)).toBe(false);
         });
 
-        it('should route to global state for macro intent', () => {
+        it('should route to global state for macro intent', async () => {
             const globalState = { summary: 'The kingdom is on the brink of civil war.' };
             const graphData = { nodes: {}, edges: {} };
             const queryEmbedding = new Float32Array([0.1, 0.2]);
             const userMessages = 'Please summarize the story so far';
 
-            const result = retrieveWorldContext(graphData, globalState, userMessages, queryEmbedding, 2000);
+            const result = await retrieveWorldContext(graphData, globalState, userMessages, queryEmbedding, 2000);
 
             expect(result.text).toContain('<world_context>');
             expect(result.text).toContain('The kingdom is on the brink of civil war');
@@ -202,34 +226,34 @@ describe('Phase 2 End-to-End Integration', () => {
             expect(result.isMacroIntent).toBe(true);
         });
 
-        it('should fall back to vector search for local intent', () => {
+        it('should fall back to vector search for local intent', async () => {
             const globalState = { summary: 'Global state content' };
             const graphData = { nodes: {}, edges: {} };
             const queryEmbedding = new Float32Array([0.1, 0.2, 0.3, 0.4]);
             const userMessages = "Let's go to the kitchen";
 
-            const result = retrieveWorldContext(graphData, globalState, userMessages, queryEmbedding, 2000);
+            const result = await retrieveWorldContext(graphData, globalState, userMessages, queryEmbedding, 2000);
 
             // Should NOT use global state for local queries
             expect(result.text).not.toContain('Global state content');
             expect(result.isMacroIntent).toBe(false);
         });
 
-        it('should fall back to empty when global state is null and no entities', () => {
+        it('should fall back to empty when global state is null and no entities', async () => {
             const userMessages = 'Summarize everything'; // has macro intent
             const globalState = null;
 
-            const result = retrieveWorldContext({}, globalState, userMessages, new Float32Array([0.1]), 2000);
+            const result = await retrieveWorldContext({}, globalState, userMessages, new Float32Array([0.1]), 2000);
 
             // No global state available, should return empty
             expect(result.text).toBe('');
         });
 
-        it('should fall back to empty when global state has no summary', () => {
+        it('should fall back to empty when global state has no summary', async () => {
             const userMessages = 'Summarize everything';
             const globalState = {}; // missing summary
 
-            const result = retrieveWorldContext({}, globalState, userMessages, new Float32Array([0.1]), 2000);
+            const result = await retrieveWorldContext({}, globalState, userMessages, new Float32Array([0.1]), 2000);
 
             // Should fall back to empty result (no entities with embeddings)
             expect(result.text).toBe('');
@@ -251,7 +275,7 @@ describe('Phase 2 End-to-End Integration', () => {
             ];
 
             // 2. Verify formatting separates reflections
-            const { reflectionText } = formatContextForInjection(memories, ['Bob'], null, 'Alice', 1000, 100);
+            const { reflectionText } = await formatContextForInjection(memories, ['Bob'], null, 'Alice', 1000, 100);
             expect(reflectionText).toContain('<subconscious_drives>');
             expect(reflectionText).toContain('Alice feels guilt but cannot confess');
 
@@ -272,8 +296,10 @@ describe('Phase 2 End-to-End Integration', () => {
 
             mockCallLLM.mockResolvedValue(
                 JSON.stringify({
-                    global_summary:
+                    title: 'Love and Betrayal',
+                    summary:
                         'A love triangle with betrayal at its core. Alice betrayed Bob while loving Charlie, creating emotional tension.',
+                    findings: ['Alice betrayed Bob', 'Alice loves Charlie'],
                 })
             );
 
@@ -282,7 +308,7 @@ describe('Phase 2 End-to-End Integration', () => {
 
             // 4. Verify macro-intent message retrieves global state
             const macroQuery = 'What is the story so far?';
-            const worldContext = retrieveWorldContext(
+            const worldContext = await retrieveWorldContext(
                 graphData,
                 globalState,
                 macroQuery,
@@ -296,22 +322,22 @@ describe('Phase 2 End-to-End Integration', () => {
     });
 
     describe('Backward Compatibility', () => {
-        it('should handle chats without global_world_state', () => {
+        it('should handle chats without global_world_state', async () => {
             const oldState = null;
             const graphData = {};
             const userMessages = 'Summarize everything';
 
-            const result = retrieveWorldContext(graphData, oldState, userMessages, new Float32Array([0.1]), 2000);
+            const result = await retrieveWorldContext(graphData, oldState, userMessages, new Float32Array([0.1]), 2000);
 
             // Should not crash, return empty
             expect(result.text).toBe('');
             expect(result.entityKeys).toEqual([]);
         });
 
-        it('should handle memories without type field (legacy data)', () => {
+        it('should handle memories without type field (legacy data)', async () => {
             const legacyMemories = [{ id: 'old_1', summary: 'Old memory', importance: 3, sequence: 1000 }];
 
-            const { memoryText, reflectionText } = formatContextForInjection(
+            const { memoryText, reflectionText } = await formatContextForInjection(
                 legacyMemories,
                 [],
                 null,

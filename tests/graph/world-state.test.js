@@ -18,8 +18,8 @@ vi.mock('../../src/llm.js', () => ({
 
 // Mock extraction/structured module
 vi.mock('../../src/extraction/structured.js', () => ({
-    parseGlobalSynthesisResponse: vi.fn((content) => ({
-        global_summary: content.replace(/"/g, ''),
+    parseCommunitySummaryResponse: vi.fn((content) => ({
+        summary: content.replace(/"/g, ''),
     })),
 }));
 
@@ -180,10 +180,10 @@ describe('generateWorldState', () => {
     it('calls buildGlobalWorldStatePrompt with resolved entities and edges', async () => {
         const { buildGlobalWorldStatePrompt } = await import('../../src/prompts/index.js');
         const { callLLM } = await import('../../src/llm.js');
-        const { parseGlobalSynthesisResponse } = await import('../../src/extraction/structured.js');
+        const { parseCommunitySummaryResponse } = await import('../../src/extraction/structured.js');
 
         callLLM.mockResolvedValue('"Test world state summary"');
-        parseGlobalSynthesisResponse.mockReturnValue({ global_summary: 'Test world state summary' });
+        parseCommunitySummaryResponse.mockResolvedValue({ summary: 'Test world state summary' });
 
         const entities = [{ name: 'Alice', type: 'PERSON', description: 'A character' }];
         const edges = [
@@ -200,7 +200,7 @@ describe('generateWorldState', () => {
 
         expect(buildGlobalWorldStatePrompt).toHaveBeenCalledWith(entities, edges, 'cn', 'auto', '{');
         expect(callLLM).toHaveBeenCalled();
-        expect(parseGlobalSynthesisResponse).toHaveBeenCalled();
+        expect(parseCommunitySummaryResponse).toHaveBeenCalled();
         expect(result.summary).toBe('Test world state summary');
         expect(result.last_updated).toBeDefined();
     });
