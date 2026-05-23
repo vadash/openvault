@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildEventExtractionPrompt } from '../../src/prompts/events/builder.js';
+import { formatExamples } from '../../src/prompts/shared/format-examples.js';
 import { SYSTEM_PREAMBLE_CN } from '../../src/prompts/shared/preambles.js';
 
 const PREAMBLE = SYSTEM_PREAMBLE_CN;
@@ -54,5 +55,40 @@ describe('Prompt Topology — Recency Bias Layout', () => {
         expect(msgs).toHaveLength(3);
         assertSystemPrompt(msgs[0].content);
         assertUserPrompt(msgs[1].content);
+    });
+});
+
+describe('formatExamples topology', () => {
+    it('wraps examples in <example_N> tags (pattern check)', () => {
+        const examples = [
+            { input: 'first', output: '1' },
+            { input: 'second', output: '2' },
+            { input: 'third', output: '3' },
+        ];
+        const result = formatExamples(examples);
+        // Check for pattern <example_\d+> instead of literal content
+        expect(result).toMatch(/<example_\d+>/);
+        expect(result).toMatch(/<\/example_\d+>/);
+    });
+
+    it('includes <think> block when thinking field is present (topology check)', () => {
+        const examples = [{ input: 'text', thinking: 'Step 1: analysis', output: '{"events": []}' }];
+        const result = formatExamples(examples);
+        expect(result).toContain('<think>');
+        expect(result).toContain('</think>');
+    });
+
+    it('filters by language when specified (topology check)', () => {
+        const mixedExamples = [
+            { input: 'English text', output: '{"events": []}', label: 'Discovery (EN/SFW)' },
+            { input: 'Русский текст', output: '{"events": []}', label: 'Emotional conversation (RU/SFW)' },
+        ];
+        const enResult = formatExamples(mixedExamples, 'en');
+        const ruResult = formatExamples(mixedExamples, 'ru');
+
+        // Topology check: language filtering changes output
+        expect(enResult).not.toEqual(ruResult);
+        expect(enResult).toContain('English text');
+        expect(ruResult).toContain('Русский текст');
     });
 });

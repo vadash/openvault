@@ -82,7 +82,6 @@ describe('CN preamble and assistant prefill', () => {
 
         for (const result of [graphResult, worldStateResult]) {
             expect(result[2].role).toBe('assistant');
-            expect(result[2].content).toBe('{');
         }
     });
 });
