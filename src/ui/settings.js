@@ -553,16 +553,7 @@ function populateDefaultHints() {
 // Settings Loading
 // =============================================================================
 
-export async function loadSettings() {
-    const extension_settings = getDeps().getExtensionSettings();
-    extension_settings[extensionName] = extension_settings[extensionName] || {};
-
-    // Apply defaults for any missing settings
-    Object.assign(extension_settings[extensionName], {
-        ...defaultSettings,
-        ...extension_settings[extensionName],
-    });
-
+export async function initSettingsUI() {
     // Load HTML template
     const settingsHtml = await $.get(`${extensionFolderPath}/templates/settings_panel.html`);
     $('#extensions_settings2').append(settingsHtml);
