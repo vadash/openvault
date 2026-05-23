@@ -950,10 +950,13 @@ export function updateInjectionUI(type = 'both') {
 
     const updateType = (t) => {
         const position = settings.injection?.[t]?.position ?? 1;
-        const _depth = settings.injection?.[t]?.depth ?? 4;
+        const depth = settings.injection?.[t]?.depth ?? 4;
 
         // Update selector
         $(`#openvault_${t}_position`).val(position);
+
+        // Sync depth input value
+        $(`#openvault_${t}_depth`).val(depth);
 
         // Show/hide depth input (only for IN_CHAT)
         $(`#openvault_${t}_depth_container`).toggle(position === 4);
@@ -1081,6 +1084,9 @@ export function updateUI() {
     // Jaccard dedup threshold — token-overlap filter for near-duplicates
     $('#openvault_dedup_jaccard').val(settings.dedupJaccardThreshold);
     $('#openvault_dedup_jaccard_value').text(settings.dedupJaccardThreshold);
+
+    // Injection position dropdowns (memory, reflections, world)
+    updateInjectionUI('both');
 
     // Payload calculator — must run after sliders are synced
     updatePayloadCalculator();
