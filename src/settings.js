@@ -5,7 +5,7 @@
  * Preserves existing user settings while adding any missing defaults.
  */
 
-import { defaultSettings, extensionName } from './constants.js';
+import { defaultSettings, extensionName, MEMORIES_KEY } from './constants.js';
 import { getDeps } from './deps.js';
 
 /**
@@ -85,11 +85,76 @@ export function getSettings(path, defaultValue) {
 }
 
 /**
+ * Handle side effects when settings change (e.g., wipe data on feature disable).
+ * @param {string} path - Lodash path (dot notation)
+ * @param {*} value - Value being set
+ */
+async function handleSettingChangeSideEffects(path, value) {
+    // Only handle side effects for injection position = -2 (DISABLED)
+    if (path !== 'injection.reflections.position' && path !== 'injection.world.position') {
+        return;
+    }
+
+    if (value !== -2) {
+        return; // Not disabling
+    }
+
+    // Lazy-load dependencies to avoid circular imports
+    const { getOpenVaultData, saveOpenVaultData } = await import('./store/chat-data.js');
+    const { refreshAllUI } = await import('./ui/render.js');
+
+    const data = getOpenVaultData();
+    if (!data) {
+        return; // No data to wipe
+    }
+
+    let madeChanges = false;
+
+    if (path === 'injection.reflections.position') {
+        // Wipe reflection memories, keep events and global_synthesis
+        const originalLength = data[MEMORIES_KEY]?.length || 0;
+        data[MEMORIES_KEY] = (data[MEMORIES_KEY] || []).filter((m) => m.type !== 'reflection');
+        madeChanges = madeChanges || data[MEMORIES_KEY].length !== originalLength;
+
+        // Clear reflection state accumulator
+        if (data.reflection_state && Object.keys(data.reflection_state).length > 0) {
+            data.reflection_state = {};
+            madeChanges = true;
+        }
+    }
+
+    if (path === 'injection.world.position') {
+        // Delete global world state
+        if (data.global_world_state) {
+            delete data.global_world_state;
+            madeChanges = true;
+        }
+
+        // Clear edges needing consolidation
+        if (data.graph?._edgesNeedingConsolidation?.length > 0) {
+            data.graph._edgesNeedingConsolidation = [];
+            madeChanges = true;
+        }
+
+        // Reset graph message count
+        if (data.graph_message_count !== 0) {
+            data.graph_message_count = 0;
+            madeChanges = true;
+        }
+    }
+
+    if (madeChanges) {
+        await saveOpenVaultData();
+        refreshAllUI();
+    }
+}
+
+/**
  * Set settings value using lodash.set
  * @param {string} path - Lodash path (dot notation)
  * @param {*} value - Value to set
  */
-export function setSetting(path, value) {
+export async function setSetting(path, value) {
     const deps = getDeps();
     const lodash = deps.getContext()?.lodash;
     const settings = deps.getExtensionSettings()[extensionName];
@@ -115,6 +180,9 @@ export function setSetting(path, value) {
         current[numLastKey] = value;
     }
     deps.saveSettingsDebounced();
+
+    // Handle side effects (e.g., wipe data on disable)
+    await handleSettingChangeSideEffects(path, value);
 }
 
 /**
