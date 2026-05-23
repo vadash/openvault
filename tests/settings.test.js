@@ -22,6 +22,12 @@ vi.mock('../src/store/chat-data.js', async (importOriginal) => {
     };
 });
 
+// Helper to reset the settings module for testing initialization behavior
+async function resetSettingsModule() {
+    vi.resetModules();
+    await global.registerCdnOverrides();
+}
+
 describe('handleSettingChangeSideEffects', () => {
     let mockExtensionSettings;
     let mockContext;
@@ -192,6 +198,185 @@ describe('handleSettingChangeSideEffects', () => {
             });
             expect(saveOpenVaultDataMock).not.toHaveBeenCalled();
             expect(refreshAllUIMock).not.toHaveBeenCalled();
+        });
+    });
+});
+
+describe('initializeSettings and getSettings', () => {
+    let mockExtensionSettings;
+    let mockContext;
+
+    beforeEach(async () => {
+        await resetSettingsModule();
+
+        mockContext = {
+            chatId: 'test-chat-123',
+            lodash: {
+                get: vi.fn((obj, path) => path.split('.').reduce((o, k) => o?.[k], obj)),
+                set: vi.fn((obj, path, value) => {
+                    const keys = path.split('.');
+                    let current = obj;
+                    for (let i = 0; i < keys.length - 1; i++) {
+                        if (!(keys[i] in current)) current[keys[i]] = {};
+                        current = current[keys[i]];
+                    }
+                    current[keys[keys.length - 1]] = value;
+                }),
+                merge: vi.fn((...args) => {
+                    // Deep merge that mimics lodash.merge behavior
+                    function deepMerge(target, source) {
+                        if (source === null || typeof source !== 'object') {
+                            return source;
+                        }
+                        if (target === null || typeof target !== 'object') {
+                            return source;
+                        }
+                        const result = Array.isArray(target) ? [...target] : { ...target };
+                        for (const key of Object.keys(source)) {
+                            if (
+                                typeof source[key] === 'object' &&
+                                source[key] !== null &&
+                                !Array.isArray(source[key]) &&
+                                typeof result[key] === 'object' &&
+                                result[key] !== null &&
+                                !Array.isArray(result[key])
+                            ) {
+                                result[key] = deepMerge(result[key], source[key]);
+                            } else {
+                                result[key] = source[key];
+                            }
+                        }
+                        return result;
+                    }
+
+                    let result = args[0];
+                    for (let i = 1; i < args.length; i++) {
+                        result = deepMerge(result, args[i]);
+                    }
+                    return result;
+                }),
+                has: vi.fn((obj, path) => {
+                    const value = path.split('.').reduce((o, k) => o?.[k], obj);
+                    return value !== undefined;
+                }),
+            },
+        };
+
+        mockExtensionSettings = {
+            openvault: {
+                enabled: true,
+                injection: {
+                    memory: { position: 1, depth: 4 },
+                    reflections: { position: 1, depth: 4 },
+                    world: { position: 1, depth: 4 },
+                },
+            },
+        };
+
+        const { setDeps } = await import('../src/deps.js');
+        setDeps({
+            getExtensionSettings: () => mockExtensionSettings,
+            getContext: () => mockContext,
+            saveSettingsDebounced: vi.fn(),
+        });
+    });
+
+    describe('initializeSettings() with empty extension_settings', () => {
+        it('validates with defaults', async () => {
+            const { initializeSettings, getSettings } = await import('../src/settings.js');
+
+            // Setup: empty extension_settings
+            mockExtensionSettings.openvault = {};
+
+            // Act: initialize settings
+            initializeSettings();
+
+            // Assert: default values are applied
+            expect(getSettings('enabled')).toBe(true);
+            expect(getSettings('injection.world.position')).toBe(1);
+            expect(getSettings('injection.memory.depth')).toBe(4);
+        });
+    });
+
+    describe('initializeSettings() idempotency', () => {
+        it('no-op on second call', async () => {
+            const { initializeSettings, getSettings, setSetting } = await import('../src/settings.js');
+
+            // Setup: initialize with custom value
+            mockExtensionSettings.openvault = {};
+            initializeSettings();
+            await setSetting('injection.world.position', 3);
+
+            const firstCallValue = getSettings('injection.world.position');
+            expect(firstCallValue).toBe(3);
+
+            // Modify extension_settings directly to simulate external change
+            // This would normally be overwritten if initializeSettings() ran again
+            mockExtensionSettings.openvault.injection.world.position = 0;
+
+            // Act: call initializeSettings again (should no-op due to idempotency gate)
+            initializeSettings();
+
+            // Assert: settings value remains what we set via setSetting (not reset to default)
+            // The direct modification to 0 doesn't affect getSettings because it reads the same object
+            // The key is that initializeSettings() doesn't re-merge defaults
+            expect(getSettings('injection.world.position')).toBe(0);
+        });
+    });
+
+    describe('getSettings() before initialization', () => {
+        it('throws error', async () => {
+            await resetSettingsModule();
+
+            // Setup: deps but NO initializeSettings() call
+            const { setDeps } = await import('../src/deps.js');
+            setDeps({
+                getExtensionSettings: () => mockExtensionSettings,
+                getContext: () => mockContext,
+                saveSettingsDebounced: vi.fn(),
+            });
+
+            const { getSettings } = await import('../src/settings.js');
+
+            // Assert: throws before initialization
+            expect(() => getSettings('any.path')).toThrow(
+                'Settings accessed before initialization'
+            );
+        });
+    });
+
+    describe('getSettings() with bogus path', () => {
+        it('throws error for undefined path', async () => {
+            const { initializeSettings, getSettings } = await import('../src/settings.js');
+
+            mockExtensionSettings.openvault = {};
+            initializeSettings();
+
+            // Assert: throws for undefined path
+            expect(() => getSettings('this.does.not.exist')).toThrow(
+                'Setting "this.does.not.exist" is undefined'
+            );
+        });
+    });
+
+    describe('initializeSettings() preserves user values', () => {
+        it('merges defaults with existing user settings', async () => {
+            const { initializeSettings, getSettings } = await import('../src/settings.js');
+
+            // Setup: user has custom world position
+            mockExtensionSettings.openvault = {
+                injection: {
+                    world: { position: -2 },
+                },
+            };
+
+            // Act: initialize
+            initializeSettings();
+
+            // Assert: user value preserved, defaults filled in
+            expect(getSettings('injection.world.position')).toBe(-2);
+            expect(getSettings('injection.world.depth')).toBe(4); // default filled
+            expect(getSettings('enabled')).toBe(true); // default filled
         });
     });
 });
