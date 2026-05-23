@@ -12,6 +12,7 @@ vi.mock('../../src/state.js', async () => {
 });
 
 import { extractMemories } from '../../src/extraction/extract.js';
+import { createUsageTracker } from '../../src/utils/usage-tracker.js';
 
 /**
  * Standard LLM response data for extraction tests.
@@ -203,5 +204,101 @@ describe('extractMemories pipeline', () => {
         await expect(extractMemories([0, 1], 'test-chat')).rejects.toThrow(
             expect.objectContaining({ name: 'AbortError' })
         );
+    });
+});
+
+describe('usage tracker integration', () => {
+    let mockContext;
+
+    beforeEach(() => {
+        const mockData = {
+            schema_version: 2,
+            memories: [],
+            character_states: {},
+            processed_message_ids: [],
+            graph: { nodes: {}, edges: {} },
+            communities: {},
+            reflection_state: {},
+            graph_message_count: 0,
+        };
+
+        mockContext = {
+            chat: [
+                { mes: 'Hello', is_user: true, name: 'User', send_date: '1000000' },
+                { mes: 'Welcome to the Castle', is_user: false, name: 'King Aldric', send_date: '1000001' },
+            ],
+            name1: 'User',
+            name2: 'King Aldric',
+            characterId: 'char1',
+            characters: { char1: { description: '' } },
+            chatMetadata: { openvault: mockData },
+            chatId: 'test-chat',
+            powerUserSettings: {},
+        };
+    });
+
+    afterEach(() => {
+        resetDeps();
+        vi.clearAllMocks();
+    });
+
+    it('tracker accumulates LLM calls through extraction pipeline', async () => {
+        // Create tracker
+        const tracker = createUsageTracker();
+
+        // Mock sendRequest to return responses with usage data
+        const sendRequest = vi
+            .fn()
+            .mockResolvedValueOnce({
+                choices: [
+                    {
+                        message: { content: EXTRACTION_RESPONSES.events },
+                    },
+                ],
+                model: 'gpt-4o',
+                usage: {
+                    prompt_tokens: 100,
+                    completion_tokens: 50,
+                    cache_read_tokens: 10,
+                    cache_write_tokens: 5,
+                },
+            })
+            .mockResolvedValueOnce({
+                choices: [
+                    {
+                        message: { content: EXTRACTION_RESPONSES.graph },
+                    },
+                ],
+                model: 'gpt-4o',
+                usage: {
+                    prompt_tokens: 200,
+                    completion_tokens: 100,
+                },
+            });
+
+        setupTestContext({
+            context: mockContext,
+            settings: getExtractionSettings(),
+            deps: {
+                connectionManager: getMockConnectionManager(sendRequest),
+                fetch: vi.fn(async () => ({
+                    ok: true,
+                    json: async () => ({ embedding: [0.1, 0.2] }),
+                })),
+                saveChatConditional: vi.fn(async () => true),
+            },
+        });
+
+        // Call extractMemories with tracker
+        const result = await extractMemories([0, 1], 'test-chat', { tracker });
+
+        expect(result.status).toBe('success');
+
+        // Verify tracker accumulated the calls
+        const summary = tracker.getSummary();
+        expect(summary).toContain('2 calls');
+        expect(summary).toContain('450 tokens'); // (100+50) + (200+100) = 450
+        expect(summary).toContain('models: gpt-4o');
+        expect(summary).toContain('cache: 10 read / 5 write');
     });
 });

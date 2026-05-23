@@ -706,9 +706,10 @@ async function synthesizeWorldState(data, settings, characterName, userName) {
  * @param {'auto'|'en'|'ru'} contextParams.outputLanguage
  * @param {Array} existingMemories - Curated memory subset for prompt context
  * @param {AbortSignal} [abortSignal] - Abort signal for mid-request cancellation
+ * @param {object} [tracker] - Usage tracker for recording LLM calls
  * @returns {Promise<{events: ExtractedEvent[]}>}
  */
-async function fetchEventsFromLLM(contextParams, existingMemories, abortSignal) {
+async function fetchEventsFromLLM(contextParams, existingMemories, abortSignal, tracker) {
     const prompt = buildEventExtractionPrompt({
         messages: contextParams.messagesText,
         names: contextParams.names,
@@ -726,6 +727,7 @@ async function fetchEventsFromLLM(contextParams, existingMemories, abortSignal) 
     const eventJson = await callLLM(prompt, LLM_CONFIGS.extraction_events, {
         structured: true,
         signal: abortSignal,
+        tracker,
     });
     record('llm_events', performance.now() - t0);
     return await parseEventExtractionResponse(eventJson);
@@ -743,9 +745,10 @@ async function fetchEventsFromLLM(contextParams, existingMemories, abortSignal) 
  * @param {'auto'|'en'|'ru'} contextParams.outputLanguage
  * @param {string[]} formattedEvents - Pre-formatted event strings for the prompt
  * @param {AbortSignal} [abortSignal] - Abort signal for mid-request cancellation
+ * @param {object} [tracker] - Usage tracker for recording LLM calls
  * @returns {Promise<GraphExtraction>}
  */
-async function fetchGraphFromLLM(contextParams, formattedEvents, abortSignal) {
+async function fetchGraphFromLLM(contextParams, formattedEvents, abortSignal, tracker) {
     try {
         const prompt = buildGraphExtractionPrompt({
             messages: contextParams.messagesText,
@@ -764,6 +767,7 @@ async function fetchGraphFromLLM(contextParams, formattedEvents, abortSignal) {
         const graphJson = await callLLM(prompt, LLM_CONFIGS.extraction_graph, {
             structured: true,
             signal: abortSignal,
+            tracker,
         });
         record('llm_graph', performance.now() - t0);
         return await parseGraphExtractionResponse(graphJson);
@@ -873,7 +877,7 @@ async function processGraphUpdates(graphData, entities, relationships, settings)
  * Phase 2: Reflections + Communities (non-critical, deferred during backfill)
  * @param {number[]} [messageIds=null] - Optional specific message IDs for targeted extraction
  * @param {string} [targetChatId=null] - Optional chat ID to verify before saving
- * @param {ExtractionOptions} [options={}] - Extraction options
+ * @param {ExtractionOptions & { tracker?: object }} [options={}] - Extraction options
  * @returns {Promise<{status: string, events_created?: number, messages_processed?: number, reason?: string}>}
  */
 export async function extractMemories(messageIds = null, targetChatId = null, options = {}) {
@@ -963,13 +967,18 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
 
         // Stage 1: Event extraction (LLM call)
         const existingMemories = await selectMemoriesForExtraction(data, settings);
-        const { events: rawEvents } = await fetchEventsFromLLM(contextParams, existingMemories, abortSignal);
+        const { events: rawEvents } = await fetchEventsFromLLM(
+            contextParams,
+            existingMemories,
+            abortSignal,
+            options.tracker
+        );
 
         // Stage 2: Graph extraction (LLM call)
         let graphResult = { entities: [], relationships: [] };
         await rpmDelay(settings, 'Inter-call rate limit');
         const formattedEvents = rawEvents.map((e, i) => `${i + 1}. [${e.importance}★] ${e.summary}`);
-        graphResult = await fetchGraphFromLLM(contextParams, formattedEvents, abortSignal);
+        graphResult = await fetchGraphFromLLM(contextParams, formattedEvents, abortSignal, options.tracker);
 
         // Stage 3: Enrich & dedup events
         const messageIdsArray = messages.map((m) => m.id);
