@@ -270,8 +270,9 @@ export function calculateScore(
     }
     const distance = Math.max(0, chatLength - maxMessagePosition);
 
-    // Get importance (1-5, default 3)
-    const importance = memory.importance || 3;
+    // Get importance (1-5, default 3) — sanitize against NaN/invalid types
+    const rawImportance = Number(memory.importance);
+    const importance = Number.isNaN(rawImportance) || rawImportance <= 0 ? 3 : Math.min(5, Math.floor(rawImportance));
 
     // Calculate lambda: higher importance = slower decay
     // importance 5 -> lambda = 0.05 / 25 = 0.002 (very slow decay)

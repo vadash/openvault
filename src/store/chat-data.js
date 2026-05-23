@@ -308,7 +308,12 @@ export async function updateEntity(key, updates) {
         // intermediates that reference deleted nodes.
         for (const [rk, rv] of Object.entries(graph._mergeRedirects)) {
             if (rv === key && rk !== key) {
-                graph._mergeRedirects[rk] = newKey;
+                if (rk === newKey) {
+                    // Self-redirect: delete instead of creating "a": "a" entry
+                    delete graph._mergeRedirects[rk];
+                } else {
+                    graph._mergeRedirects[rk] = newKey;
+                }
             }
         }
 

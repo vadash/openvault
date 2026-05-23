@@ -614,14 +614,12 @@ export async function synthesizeReflections(data, characterNames, settings, opti
         }
 
         if (shouldReflect(data.reflection_state, characterName, reflectionThreshold)) {
+            // Cache previous importance outside the promise chain so catch can access it
+            const _previousImportance = data.reflection_state[characterName].importance_sum;
             reflectionPromises.push(
                 ladderQueue
                     .add(async () => {
-                        // Cache previous importance to restore on failure
-                        const _previousImportance = data.reflection_state[characterName].importance_sum;
                         // Reset accumulator BEFORE LLM call to prevent infinite retry loop on failure
-                        // The accumulated importance is "consumed" here - even if the LLM call fails,
-                        // we don't want to retry immediately (to avoid token burning)
                         data.reflection_state[characterName].importance_sum = 0;
                         const { reflections } = await generateReflections(
                             characterName,
@@ -634,6 +632,10 @@ export async function synthesizeReflections(data, characterNames, settings, opti
                     })
                     .catch((error) => {
                         if (error.name === 'AbortError') throw error;
+                        // Restore importance sum so the trigger state is preserved for next cycle
+                        if (data.reflection_state[characterName]) {
+                            data.reflection_state[characterName].importance_sum = _previousImportance;
+                        }
                         logError(`Reflection error for ${characterName}`, error);
                     })
             );
@@ -881,6 +883,11 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         return { status: 'skipped', reason: 'disabled' };
     }
 
+    // Early chat-boundary check: reject immediately if chat already changed
+    if (targetChatId && getCurrentChatId() !== targetChatId) {
+        return { status: 'skipped', reason: 'chat_changed' };
+    }
+
     const deps = getDeps();
     const settings = deps.getExtensionSettings()[extensionName];
     const context = deps.getContext();
@@ -962,6 +969,9 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         };
 
         // Stage 1: Event extraction (LLM call)
+        if (targetChatId && getCurrentChatId() !== targetChatId) {
+            throw new Error('Chat changed during extraction');
+        }
         const existingMemories = await selectMemoriesForExtraction(data, settings);
         const { events: rawEvents } = await fetchEventsFromLLM(
             contextParams,
@@ -971,6 +981,9 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         );
 
         // Stage 2: Graph extraction (LLM call)
+        if (targetChatId && getCurrentChatId() !== targetChatId) {
+            throw new Error('Chat changed during extraction');
+        }
         let graphResult = { entities: [], relationships: [] };
         await rpmDelay(settings, 'Inter-call rate limit');
         const formattedEvents = rawEvents.map((e, i) => `${i + 1}. [${e.importance}★] ${e.summary}`);
@@ -992,6 +1005,11 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         // Stamp embedding model ID on first successful embedding generation
         if (events.length > 0 && !data.embedding_model_id && events.some((e) => hasEmbedding(e))) {
             data.embedding_model_id = settings.embeddingSource;
+        }
+
+        // Chat-boundary check before mutating in-memory data
+        if (targetChatId && getCurrentChatId() !== targetChatId) {
+            throw new Error('Chat changed during extraction');
         }
 
         // Stage 4: Graph updates

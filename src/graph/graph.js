@@ -25,12 +25,7 @@ import { getDeps } from '../deps.js';
 import { getDocumentEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
 import { parseConsolidationResponse } from '../extraction/structured.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
-import {
-    buildEdgeConsolidationPrompt,
-    PREFILL_PRESETS,
-    resolveExtractionPreamble,
-    resolveOutputLanguage,
-} from '../prompts/index.js';
+import { buildEdgeConsolidationPrompt, resolveExtractionPreamble, resolveOutputLanguage } from '../prompts/index.js';
 import { cosineSimilarity, tokenize } from '../retrieval/math.js';
 import { getEmbedding, hasEmbedding, setEmbedding } from '../utils/embedding-codec.js';
 import { logDebug, logError } from '../utils/logging.js';
@@ -573,7 +568,8 @@ export async function consolidateEdges(graphData, _settings) {
     const extensionSettings = deps.getExtensionSettings()?.[extensionName] || {};
     const preamble = resolveExtractionPreamble(extensionSettings);
     const outputLanguage = resolveOutputLanguage(extensionSettings);
-    const prefill = PREFILL_PRESETS.json_only.value;
+    // Targeted prefill locks in the exact schema key, avoiding generic key completion errors
+    const prefill = '{\n  "consolidated_description": "';
     const maxConcurrency = extensionSettings.maxConcurrency;
     const ladderQueue = await createLadderQueue(maxConcurrency);
 
