@@ -45,16 +45,15 @@ export function getOpenVaultData() {
             reflection_state: {},
             graph: createEmptyGraph(),
             graph_message_count: 0,
-            settings: {
-                injection: {
-                    memory: { position: 1, depth: 4 },
-                    reflections: { position: 1, depth: 4 },
-                    world: { position: 1, depth: 4 },
-                },
-            },
         };
     }
     const data = context.chatMetadata[METADATA_KEY];
+
+    // Migration: Delete old chat-local settings that shadowed globals
+    if (data.settings) {
+        logWarn('Old chat-local settings found and ignored. Using global settings.');
+        delete data.settings;
+    }
 
     return data;
 }
