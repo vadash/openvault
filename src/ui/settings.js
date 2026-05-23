@@ -28,7 +28,7 @@ import { updateEventListeners } from '../events.js';
 import { executeEmergencyCut } from '../extraction/extract.js';
 import { formatForClipboard, getAll as getPerfData } from '../perf/store.js';
 import { getSettings, setSetting } from '../settings.js';
-import { deleteMemoriesByType } from '../store/chat-data.js';
+import { deleteMemoriesByType, deleteWorldState } from '../store/chat-data.js';
 import { logDebug, logError, logInfo, logWarn } from '../utils/logging.js';
 import { createUsageTracker } from '../utils/usage-tracker.js';
 import { exportToClipboard } from './export-debug.js';
@@ -897,10 +897,27 @@ function bindInjectionSettings() {
     });
 
     // World position selector
-    $('#openvault_world_position').on('change', function () {
+    $('#openvault_world_position').on('change', async function () {
         const position = parseInt($(this).val(), 10);
-        setSetting('injection.world.position', position);
-        updateInjectionUI('world');
+        const settings = getSettings();
+        const previousPosition = settings.injection?.world?.position ?? 1;
+
+        if (position === -2) {
+            // Revert the dropdown to previous value
+            $(this).val(previousPosition);
+
+            // Show confirmation dialog
+            if (confirm('Are you sure you want to disable World Info? This will delete the current world state.')) {
+                // User confirmed - delete world state and set position
+                await deleteWorldState();
+                setSetting('injection.world.position', position);
+                updateInjectionUI('world');
+            }
+            // If cancelled, dropdown is already reverted to previous value
+        } else {
+            setSetting('injection.world.position', position);
+            updateInjectionUI('world');
+        }
     });
 
     // World depth input

@@ -197,6 +197,26 @@ export async function deleteMemoriesByType(type) {
 }
 
 /**
+ * Delete the global world state.
+ * @returns {Promise<boolean>} True if deleted, false if not found
+ */
+export async function deleteWorldState() {
+    const data = getOpenVaultData();
+    if (!data) {
+        return false;
+    }
+
+    if (data.global_world_state) {
+        delete data.global_world_state;
+        await getDeps().saveChatConditional();
+        logDebug('Deleted world state');
+        return true;
+    }
+
+    return false;
+}
+
+/**
  * Update an entity's fields. Handles rename by rewriting edges and merge redirects.
  * @param {string} key - Current normalized entity key
  * @param {Object} updates - { name?, type?, description?, aliases? }
