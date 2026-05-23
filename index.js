@@ -11,10 +11,11 @@
 import { extensionName, MEMORIES_KEY } from './src/constants.js';
 import { getDeps } from './src/deps.js';
 import { updateEventListeners } from './src/events.js';
+import { initializeSettings } from './src/settings.js';
 import { isSessionDisabled, setChatLoadingCooldown } from './src/state.js';
 import { getOpenVaultData } from './src/store/chat-data.js';
 import { refreshAllUI } from './src/ui/render.js';
-import { loadSettings } from './src/ui/settings.js';
+import { initSettingsUI } from './src/ui/settings.js';
 import { setStatus } from './src/ui/status.js';
 import { showToast } from './src/utils/dom.js';
 import { logDebug, logError, logInfo } from './src/utils/logging.js';
@@ -140,7 +141,8 @@ jQuery(() => {
             return;
         }
 
-        await loadSettings();
+        await initializeSettings();
+        await initSettingsUI();
         registerCommands();
 
         // Load perf data from current chat into memory store
