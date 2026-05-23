@@ -14,6 +14,7 @@ Agentic memory extension for SillyTavern providing POV-aware memory, witness tra
 ### 2. Environment Boundaries
 - **Access SillyTavern globals exclusively via `getDeps()`.** (`src/deps.js`). Never access `getContext`, `eventSource`, or `fetch` directly
 - **Access settings exclusively via `src/settings.js`.** Use `getSettings(path, default)` and `setSetting(path, val)`. Never hardcode fallbacks; pull from `defaultSettings` in `src/constants.js`
+- **Respect passed `settings` parameters.** When a function receives `settings`, use it first via optional chaining (`settings?.path?.value ?? getSettings(...)`). Functions called during backfill capture settings at start — calling `getSettings()` directly reads stale global state
 - **Define all magic strings and thresholds centrally.** Place enums (e.g., `ENTITY_TYPES`), thresholds, and API endpoints in `src/constants.js` and freeze them (`Object.freeze({...})`)
 
 ### 3. Code & State Safety

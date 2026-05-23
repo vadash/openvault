@@ -554,18 +554,19 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
 /**
  * Consolidate graph edges that have exceeded token budget.
  * @param {GraphData} graphData - The graph object
- * @param {Object} _settings - Extension settings
+ * @param {Object} settings - Extension settings
  * @returns {Promise<{count: number}>} Consolidation result with count of processed edges
  */
-export async function consolidateEdges(graphData, _settings) {
+export async function consolidateEdges(graphData, settings) {
     if (!graphData._edgesNeedingConsolidation?.length) {
         return { count: 0 };
     }
 
     const toProcess = graphData._edgesNeedingConsolidation.slice(0, CONSOLIDATION.MAX_CONSOLIDATION_BATCH);
 
+    // Use passed settings first (for backfill), fall back to global state
     const deps = getDeps();
-    const extensionSettings = deps.getExtensionSettings()?.[extensionName] || {};
+    const extensionSettings = settings ?? deps.getExtensionSettings()?.[extensionName] ?? {};
     const preamble = resolveExtractionPreamble(extensionSettings);
     const outputLanguage = resolveOutputLanguage(extensionSettings);
     // Targeted prefill locks in the exact schema key, avoiding generic key completion errors
