@@ -279,6 +279,7 @@ export async function updateCharacterStatesFromEvents(events, data, validCharNam
 
     // Build valid set from known names + all characters_involved from current events
     // Include both original names and their transliterations for cross-script matching
+    // Note: witnesses are NOT added to validSet - they must match existing valid names
     const validSet = new Set();
     for (const n of validCharNames) {
         const lower = n.toLowerCase();
@@ -289,13 +290,6 @@ export async function updateCharacterStatesFromEvents(events, data, validCharNam
     for (const event of events) {
         for (const char of event.characters_involved || []) {
             const lower = char.toLowerCase();
-            validSet.add(lower);
-            const translit = await transliterateCyrToLat(lower);
-            if (translit !== lower) validSet.add(translit);
-        }
-        // Include witnesses in valid set for group-chat scenarios
-        for (const witness of event.witnesses || []) {
-            const lower = witness.toLowerCase();
             validSet.add(lower);
             const translit = await transliterateCyrToLat(lower);
             if (translit !== lower) validSet.add(translit);

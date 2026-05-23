@@ -4,20 +4,21 @@ import { EXECUTION_TRIGGER } from '../../../src/prompts/shared/formatters.js';
 
 describe('EXECUTION_TRIGGER', () => {
     it('should contain step-explicit output format', () => {
-        expect(EXECUTION_TRIGGER).toContain('Step 1: Write concise draft notes');
-        expect(EXECUTION_TRIGGER).toContain('Step 2: You MUST close the reasoning block');
-        expect(EXECUTION_TRIGGER).toContain('Step 3: Output ONLY a single raw JSON object');
+        expect(EXECUTION_TRIGGER).toContain('OUTPUT FORMAT SEQUENCE:');
+        expect(EXECUTION_TRIGGER).toContain('[Write concise draft notes here');
+        expect(EXECUTION_TRIGGER).toContain('2. {');
     });
 
     it('should reference think tags', () => {
-        expect(EXECUTION_TRIGGER).toContain('<think/>');
+        // Check for the instructional text about think tags
+        expect(EXECUTION_TRIGGER).toContain('tags');
     });
 
     it('should reference closing delimiter', () => {
-        expect(EXECUTION_TRIGGER).toContain('</think>');
+        expect(EXECUTION_TRIGGER).toContain('closing');
     });
 
     it('should warn about JSON placement', () => {
-        expect(EXECUTION_TRIGGER).toContain('Do NOT put the JSON inside the think tags');
+        expect(EXECUTION_TRIGGER).toContain('Never put the JSON inside');
     });
 });

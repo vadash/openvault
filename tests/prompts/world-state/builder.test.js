@@ -22,7 +22,7 @@ function assertSystemPrompt(content) {
 function assertUserPrompt(content) {
     expect(content).toContain('<language_rules>');
     expect(content).toContain('<output_schema>');
-    expect(content).toContain('OUTPUT FORMAT:');
+    expect(content).toContain('OUTPUT FORMAT SEQUENCE:');
 }
 
 describe('Prompt Topology — World State', () => {
