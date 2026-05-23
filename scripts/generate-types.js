@@ -32,6 +32,8 @@ const auxiliaryTypeStore = createAuxiliaryTypeStore();
 
 // --- 3. Import schemas from browser-accessible source files ---
 
+const schemas = await (await import('../src/store/schemas.js')).getSchemas();
+
 const {
     MemorySchema,
     GraphNodeSchema,
@@ -71,7 +73,7 @@ const {
     GraphPromptParamsSchema,
     EdgeConsolidationParamsSchema,
     ReflectionPromptParamsSchema,
-} = await import('../src/store/schemas.js');
+} = schemas;
 
 // --- 4. Map: Type Name -> Zod Schema ---
 

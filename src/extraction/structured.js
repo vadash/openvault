@@ -3,10 +3,17 @@ import { cdnImport } from '../utils/cdn.js';
 const { z } = await cdnImport('zod');
 
 import { ENTITY_TYPES } from '../constants.js';
-// Import base schemas from store/schemas.js
-import { BaseEntitySchema, BaseRelationshipSchema, EventExtractionSchema, EventSchema } from '../store/schemas.js';
+import { getSchemas } from '../store/schemas.js';
 import { logError, logWarn } from '../utils/logging.js';
 import { safeParseJSON, stripMarkdownFences, stripThinkingTags } from '../utils/text.js';
+
+// Get base schemas via factory (top-level await is fine since we already await cdnImport)
+const {
+    BaseEntitySchema,
+    BaseRelationshipSchema,
+    EventSchema,
+    EventExtractionSchema,
+} = await getSchemas();
 
 // --- Schemas Extended with .catch() Fallbacks for LLM Validation ---
 
