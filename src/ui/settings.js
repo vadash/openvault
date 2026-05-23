@@ -848,7 +848,7 @@ function bindInjectionSettings() {
     $('#openvault_memory_position').on('change', function () {
         const position = parseInt($(this).val(), 10);
         setSetting('injection.memory.position', position).catch(() => {});
-        updateInjectionUI('memory');
+        // No need to call updateInjectionUI - the dropdown already shows the selected value
     });
 
     // Memory depth input
