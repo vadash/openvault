@@ -610,6 +610,10 @@ export async function synthesizeReflections(data, characterNames, settings, opti
         return;
     }
 
+    logDebug(
+        `[Extraction] Reflection synthesis running: position=${reflectionsPosition}, characters=${characterNames.length}`
+    );
+
     const reflectionThreshold = settings.reflectionThreshold;
     const ladderQueue = await createLadderQueue(settings.maxConcurrency);
     const reflectionPromises = [];
@@ -668,6 +672,8 @@ async function synthesizeWorldState(data, settings, characterName, userName) {
             logDebug('[Extraction] World state synthesis disabled (position=-2), skipping generation');
             return;
         }
+
+        logDebug(`[Extraction] World state synthesis running: position=${worldPosition}`);
 
         const nodes = data.graph?.nodes || {};
         const nodeKeys = Object.keys(nodes);
@@ -1027,7 +1033,14 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
 
         // Stage 4: Graph updates
         await processGraphUpdates(data.graph, graphResult.entities, graphResult.relationships, settings);
-        incrementGraphMessageCount(messages.length, data);
+
+        // Only increment graph message count if world synthesis is enabled
+        const worldPosition = getSettings('injection.world.position', defaultSettings.injection.world.position);
+        if (worldPosition !== -2) {
+            incrementGraphMessageCount(messages.length, data);
+        } else {
+            logDebug('[Extraction] World synthesis disabled (position=-2), skipping graph_message_count increment');
+        }
 
         // ===== PHASE 1 COMMIT: Events + Graph are done =====
         if (events.length > 0) {
@@ -1055,7 +1068,19 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         try {
             // Stage 5: Reflection check (per character in new events)
             if (events.length > 0) {
-                accumulateImportance(data.reflection_state, events);
+                // Only accumulate importance if reflections are enabled
+                const reflectionsPosition = getSettings(
+                    'injection.reflections.position',
+                    defaultSettings.injection.reflections.position
+                );
+                if (reflectionsPosition !== -2) {
+                    accumulateImportance(data.reflection_state, events);
+                    logDebug(
+                        `[Extraction] Reflections enabled (position=${reflectionsPosition}), accumulated importance for ${events.length} events`
+                    );
+                } else {
+                    logDebug('[Extraction] Reflections disabled (position=-2), skipping importance accumulation');
+                }
 
                 // ===== Backfill guard: skip Phase 2 LLM synthesis =====
                 if (options.isBackfill) {
@@ -1075,11 +1100,20 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             }
 
             // Stage 6: World state synthesis (interval check)
-            const worldStateInterval = settings.worldStateInterval;
-            const prevCount = (data.graph_message_count || 0) - messages.length;
-            const currCount = data.graph_message_count || 0;
-            if (Math.floor(currCount / worldStateInterval) > Math.floor(prevCount / worldStateInterval)) {
-                await synthesizeWorldState(data, settings, characterName, userName);
+            // Only check interval if world synthesis is enabled
+            const worldPosition = getSettings('injection.world.position', defaultSettings.injection.world.position);
+            if (worldPosition !== -2) {
+                const worldStateInterval = settings.worldStateInterval;
+                const prevCount = (data.graph_message_count || 0) - messages.length;
+                const currCount = data.graph_message_count || 0;
+                if (Math.floor(currCount / worldStateInterval) > Math.floor(prevCount / worldStateInterval)) {
+                    logDebug(
+                        `[Extraction] World synthesis interval triggered (${currCount}/${worldStateInterval} messages)`
+                    );
+                    await synthesizeWorldState(data, settings, characterName, userName);
+                }
+            } else {
+                logDebug('[Extraction] World synthesis disabled (position=-2), skipping interval check');
             }
 
             // Final save — Phase 2 enrichment persisted
@@ -1394,12 +1428,18 @@ export async function extractAllMessages(optionsOrCallback) {
         );
         const worldPosition = getSettings('injection.world.position', defaultSettings.injection.world.position);
 
-        // Skip Phase 2 entirely if both features are disabled
+        // Skip Phase 2 entirely only if BOTH features are disabled
+        // Otherwise run it — individual -2 guards inside synthesizeReflections/synthesizeWorldState will block disabled features
         if (reflectionsPosition === -2 && worldPosition === -2) {
-            logInfo('Backfill Phase 2 skipped: both reflections and world synthesis disabled');
+            logInfo(
+                'Backfill Phase 2 skipped: both reflections (position=-2) and world synthesis (position=-2) disabled'
+            );
         } else {
-            // Update existing progress toast for the final heavy lifting
-            logInfo('Backfill Phase 1 complete. Running final Phase 2 synthesis...');
+            // Log which features are enabled for debugging
+            const enabledFeatures = [];
+            if (reflectionsPosition !== -2) enabledFeatures.push(`reflections(position=${reflectionsPosition})`);
+            if (worldPosition !== -2) enabledFeatures.push(`world(position=${worldPosition})`);
+            logInfo(`Backfill Phase 1 complete. Running final Phase 2 synthesis for: ${enabledFeatures.join(', ')}`);
             onPhase2Start?.();
 
             try {
