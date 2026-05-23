@@ -81,7 +81,12 @@ export function getSettings(path, defaultValue) {
         return settings;
     }
 
-    return lodash?.get(settings, path, defaultValue) ?? defaultValue;
+    const result = lodash?.get(settings, path, defaultValue) ?? defaultValue;
+    // DEBUG: Log retrieval
+    if (path.includes('injection') && path.includes('position')) {
+        console.log(`[OpenVault DEBUG] getSettings(${path}): returned ${result}, default=${defaultValue}`);
+    }
+    return result;
 }
 
 /**
@@ -159,6 +164,10 @@ export async function setSetting(path, value) {
     const lodash = deps.getContext()?.lodash;
     const settings = deps.getExtensionSettings()[extensionName];
 
+    // DEBUG: Log before setting
+    const oldValue = lodash?.get(settings, path);
+    console.log(`[OpenVault DEBUG] setSetting(${path}): old=${oldValue}, new=${value}`);
+
     if (lodash?.set) {
         lodash.set(settings, path, value);
     } else {
@@ -179,6 +188,11 @@ export async function setSetting(path, value) {
         const numLastKey = /^\d+$/.test(lastKey) ? parseInt(lastKey, 10) : lastKey;
         current[numLastKey] = value;
     }
+
+    // DEBUG: Verify setting was written
+    const newValue = lodash?.get(settings, path);
+    console.log(`[OpenVault DEBUG] setSetting(${path}): verified value is now ${newValue}`);
+
     deps.saveSettingsDebounced();
 
     // Handle side effects (e.g., wipe data on disable)
