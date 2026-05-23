@@ -120,9 +120,9 @@ export function expandMainCharacterKeys(baseKeys, graphNodes) {
  * Find graph node keys that are Cyrillic transliterations of known main character names.
  * @param {string[]} baseKeys - Normalized English main character keys
  * @param {Object.<string, GraphNode>} graphNodes - Graph nodes keyed by normalized name
- * @returns {string[]} Cyrillic node keys matching main characters
+ * @returns {Promise<string[]>} Cyrillic node keys matching main characters
  */
-export function findCrossScriptCharacterKeys(baseKeys, graphNodes) {
+export async function findCrossScriptCharacterKeys(baseKeys, graphNodes) {
     const CYRILLIC_RE = /\p{Script=Cyrillic}/u;
     const crossScriptKeys = [];
 
@@ -131,7 +131,7 @@ export function findCrossScriptCharacterKeys(baseKeys, graphNodes) {
         if (baseKeys.includes(nodeKey)) continue;
         if (!CYRILLIC_RE.test(nodeKey)) continue;
 
-        const transliterated = transliterateCyrToLat(nodeKey);
+        const transliterated = await transliterateCyrToLat(nodeKey);
         for (const baseKey of baseKeys) {
             if (
                 levenshteinDistance(transliterated, baseKey) <=
@@ -306,8 +306,8 @@ export async function hasSufficientTokenOverlap(
 ) {
     // 1. NEW: Stem equality — immediate merge for morphological variants
     if (keyA && keyB) {
-        const stemA = stemWord(keyA);
-        const stemB = stemWord(keyB);
+        const stemA = await stemWord(keyA);
+        const stemB = await stemWord(keyB);
         if (stemA && stemB && stemA === stemB) return true;
     }
 
@@ -365,8 +365,12 @@ export async function hasSufficientTokenOverlap(
     const overlapRatio = overlapCount / minSize;
 
     // Check 4: Stem-based comparison (catches Russian morphological variants)
-    const stemmedA = new Set([...significantA].map((t) => stemWord(t)).filter((s) => s.length >= 2));
-    const stemmedB = new Set([...significantB].map((t) => stemWord(t)).filter((s) => s.length >= 2));
+    const stemmedA = new Set(
+        (await Promise.all([...significantA].map((t) => stemWord(t)))).filter((s) => s.length >= 2)
+    );
+    const stemmedB = new Set(
+        (await Promise.all([...significantB].map((t) => stemWord(t)))).filter((s) => s.length >= 2)
+    );
     if (stemmedA.size > 0 && stemmedB.size > 0) {
         let stemOverlap = 0;
         for (const s of stemmedA) {
@@ -442,11 +446,11 @@ export async function mergeOrInsertEntity(graphData, name, type, description, ca
             const latKey = keyIsCyrillic ? existingKey : key;
 
             if (
-                levenshteinDistance(transliterateCyrToLat(cyrKey), latKey) <=
+                levenshteinDistance(await transliterateCyrToLat(cyrKey), latKey) <=
                 getCrossScriptMaxDistance(cyrKey.length, latKey.length)
             ) {
                 logDebug(
-                    `[graph] Cross-script merge: "${name}" (${key}) → "${node.name}" (${existingKey}), transliterated: "${transliterateCyrToLat(cyrKey)}"`
+                    `[graph] Cross-script merge: "${name}" (${key}) → "${node.name}" (${existingKey}), transliterated: "${await transliterateCyrToLat(cyrKey)}"`
                 );
                 upsertEntity(graphData, node.name, type, description, cap);
                 if (!node.aliases) node.aliases = [];
@@ -565,7 +569,7 @@ export async function consolidateEdges(graphData, _settings) {
                     const prompt = buildEdgeConsolidationPrompt(edge, preamble, outputLanguage, prefill);
                     const response = await callLLM(prompt, LLM_CONFIGS.edge_consolidation, { structured: true });
 
-                    const result = parseConsolidationResponse(response);
+                    const result = await parseConsolidationResponse(response);
                     if (result.consolidated_description) {
                         edge.description = result.consolidated_description;
                         edge._descriptionTokens = await countTokens(result.consolidated_description);
