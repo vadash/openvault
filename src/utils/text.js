@@ -536,14 +536,29 @@ export function sortMemoriesBySequence(memories, ascending = true) {
 
 /**
  * Get the effective position of a memory in the chat timeline.
- * Uses average of message_ids (original chat indices at extraction time).
- * Known tradeoff: if messages are deleted, stored indices become stale relative
- * to current chatLength. Impact is marginal — bucket thresholds are wide (100/500).
- * Fixing would require O(N) lookups to re-map indices; not worth the cost.
+ * Uses message_fingerprints when chatFingerprintMap is available for accurate
+ * position resolution (handles deleted/trimmed messages). Falls back to message_ids
+ * for legacy data or when map is unavailable.
  * @param {Object} memory - Memory object
+ * @param {Map<string, number>|null} [chatFingerprintMap] - Map of fingerprint to current position
  * @returns {number} Position as message number
  */
-export function getMemoryPosition(memory) {
+export function getMemoryPosition(memory, chatFingerprintMap = null) {
+    // Prefer message_fingerprints when map is available (accurate after deletes/trims)
+    if (chatFingerprintMap && memory.message_fingerprints?.length > 0) {
+        let maxPos = 0;
+        let found = false;
+        for (const fp of memory.message_fingerprints) {
+            const pos = chatFingerprintMap.get(fp);
+            if (pos !== undefined) {
+                found = true;
+                if (pos > maxPos) maxPos = pos;
+            }
+        }
+        if (found) return maxPos;
+    }
+
+    // Fall back to legacy message_ids
     const msgIds = memory.message_ids || [];
     if (msgIds.length > 0) {
         const sum = msgIds.reduce((a, b) => a + b, 0);
@@ -563,9 +578,10 @@ const LEADING_UP_SIZE = 500; // "Leading Up" = messages 101-500 ago
  * Assign memories to temporal buckets based on chat position
  * @param {Object[]} memories - Array of memory objects
  * @param {number} chatLength - Current chat length
+ * @param {Map<string, number>|null} [chatFingerprintMap] - Map of fingerprint to current position
  * @returns {Object} Object with old, mid, recent arrays
  */
-export function assignMemoriesToBuckets(memories, chatLength) {
+export function assignMemoriesToBuckets(memories, chatLength, chatFingerprintMap = null) {
     const result = { old: [], mid: [], recent: [] };
 
     if (!memories || memories.length === 0) {
@@ -577,7 +593,7 @@ export function assignMemoriesToBuckets(memories, chatLength) {
     const midThreshold = Math.max(0, chatLength - LEADING_UP_SIZE);
 
     for (const memory of memories) {
-        const position = getMemoryPosition(memory);
+        const position = getMemoryPosition(memory, chatFingerprintMap);
 
         if (chatLength === 0 || position >= recentThreshold) {
             result.recent.push(memory);

@@ -628,7 +628,7 @@ export async function synthesizeReflections(data, characterNames, settings, opti
                                 data[CHARACTERS_KEY] || {}
                             );
                             if (reflections.length > 0) {
-                                addMemories(reflections);
+                                addMemories(reflections, data); // Pass local closed-over data reference
                             }
                         } catch (innerError) {
                             // Restore on failure to prevent data loss!
@@ -983,19 +983,19 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
 
         // Stage 4: Graph updates
         await processGraphUpdates(data.graph, graphResult.entities, graphResult.relationships, settings);
-        incrementGraphMessageCount(messages.length);
+        incrementGraphMessageCount(messages.length, data);
 
         // ===== PHASE 1 COMMIT: Events + Graph are done =====
         if (events.length > 0) {
             // Canonicalize cross-script character names before downstream consumption
             await canonicalizeEventCharNames(events, [characterName, userName], data.graph?.nodes);
-            addMemories(events);
+            addMemories(events, data);
             await updateCharacterStatesFromEvents(events, data, [characterName, userName]);
         }
 
         // Mark processed AFTER events are committed to memories
         const processedFps = messages.map((m) => getFingerprint(m));
-        markMessagesProcessed(processedFps);
+        markMessagesProcessed(processedFps, data);
         logDebug(`Phase 1 complete: ${events.length} events, ${processedFps.length} messages processed`);
 
         // Update IDF cache after Phase 1 commit — corpus has changed

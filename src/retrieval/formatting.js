@@ -85,6 +85,7 @@ export function formatMemory(memory) {
  * @param {string} characterName - Character name for header
  * @param {number} tokenBudget - Maximum token budget
  * @param {number} chatLength - Current chat length for context
+ * @param {Map<string, number>|null} [chatFingerprintMap] - Map of fingerprint to current position
  * @returns {string} Formatted context string
  */
 export async function formatContextForInjection(
@@ -93,7 +94,8 @@ export async function formatContextForInjection(
     emotionalInfo,
     _characterName,
     tokenBudget,
-    chatLength = 0
+    chatLength = 0,
+    chatFingerprintMap = null
 ) {
     const lines = ['<scene_memory>', `(#${chatLength} messages | ★=minor ★★★=notable ★★★★★=critical)`, ''];
 
@@ -109,7 +111,7 @@ export async function formatContextForInjection(
     const reflections = memories.filter((m) => m.type === 'reflection');
 
     // Assign only events to buckets (reflections go to subconscious_drives)
-    const buckets = assignMemoriesToBuckets(events, chatLength);
+    const buckets = assignMemoriesToBuckets(events, chatLength, chatFingerprintMap);
 
     // Helper to format present characters
     const formatPresent = () => {
@@ -171,7 +173,8 @@ export async function formatContextForInjection(
             // Add gap separator if not first memory
             if (i > 0) {
                 const prevMemory = filteredBuckets.old[i - 1];
-                const gap = getMemoryPosition(memory) - getMemoryPosition(prevMemory);
+                const gap =
+                    getMemoryPosition(memory, chatFingerprintMap) - getMemoryPosition(prevMemory, chatFingerprintMap);
                 const separator = getGapSeparator(gap);
                 if (separator) {
                     lines.push('');

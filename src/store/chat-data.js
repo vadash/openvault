@@ -411,10 +411,11 @@ export async function deleteCurrentChatData() {
 /**
  * Append new memories to the store.
  * @param {Memory[]} newMemories - Memory objects to add
+ * @param {OpenVaultData|null} [targetData] - Optional target data object (for pipeline isolation)
  * @returns {void}
  */
-export function addMemories(newMemories) {
-    const data = getOpenVaultData();
+export function addMemories(newMemories, targetData = null) {
+    const data = targetData || getOpenVaultData();
     if (!data || newMemories.length === 0) return;
     data[MEMORIES_KEY] = data[MEMORIES_KEY] || [];
     data[MEMORIES_KEY].push(...newMemories);
@@ -423,10 +424,11 @@ export function addMemories(newMemories) {
 /**
  * Record message fingerprints as processed.
  * @param {string[]} fingerprints - Message fingerprints to mark
+ * @param {OpenVaultData|null} [targetData] - Optional target data object (for pipeline isolation)
  * @returns {void}
  */
-export function markMessagesProcessed(fingerprints) {
-    const data = getOpenVaultData();
+export function markMessagesProcessed(fingerprints, targetData = null) {
+    const data = targetData || getOpenVaultData();
     if (!data || fingerprints.length === 0) return;
     data[PROCESSED_MESSAGES_KEY] = data[PROCESSED_MESSAGES_KEY] || [];
     data[PROCESSED_MESSAGES_KEY].push(...fingerprints);
@@ -435,10 +437,11 @@ export function markMessagesProcessed(fingerprints) {
 /**
  * Increment the graph message count.
  * @param {number} count - Number of messages to add
+ * @param {OpenVaultData|null} [targetData] - Optional target data object (for pipeline isolation)
  * @returns {void}
  */
-export function incrementGraphMessageCount(count) {
-    const data = getOpenVaultData();
+export function incrementGraphMessageCount(count, targetData = null) {
+    const data = targetData || getOpenVaultData();
     if (!data) return;
     data.graph_message_count = (data.graph_message_count || 0) + count;
 }

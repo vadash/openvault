@@ -298,6 +298,7 @@ function _initGraphState(data) {
  * @param {number} [minOverlapRatio=0.5] - Minimum overlap ratio
  * @param {string} [keyA=''] - Original key A for substring check
  * @param {string} [keyB=''] - Original key B for substring check
+ * @param {"PERSON" | "PLACE" | "ORGANIZATION" | "OBJECT" | "CONCEPT"} [type='OBJECT'] - Entity type
  * @returns {Promise<boolean>}
  */
 export async function hasSufficientTokenOverlap(
@@ -305,8 +306,15 @@ export async function hasSufficientTokenOverlap(
     tokensB,
     minOverlapRatio = ENTITY_TOKEN_OVERLAP_MIN_RATIO,
     keyA = '',
-    keyB = ''
+    keyB = '',
+    type = ENTITY_TYPES.OBJECT
 ) {
+    // PERSON entities: names are unique identifiers, skip LCS/substring checks
+    // to prevent false merges like "Саша" and "Паша" (3/4 char overlap = 0.75 > 0.6)
+    if (type === ENTITY_TYPES.PERSON) {
+        return false;
+    }
+
     // 1. NEW: Stem equality — immediate merge for morphological variants
     if (keyA && keyB) {
         const stemA = await stemWord(keyA);
@@ -410,7 +418,7 @@ export async function shouldMergeEntities(cosine, threshold, tokensA, keyA, keyB
     if (cosine < threshold - 0.1) return false;
 
     const tokensB = new Set(keyB.split(/\s+/));
-    return await hasSufficientTokenOverlap(tokensA, tokensB, GRAPH_JACCARD_DUPLICATE_THRESHOLD, keyA, keyB);
+    return await hasSufficientTokenOverlap(tokensA, tokensB, GRAPH_JACCARD_DUPLICATE_THRESHOLD, keyA, keyB, type);
 }
 
 /**

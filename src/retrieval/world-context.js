@@ -61,8 +61,68 @@ export async function retrieveWorldContext(
     }
 
     // Local mode: requires queryEmbedding for cosine similarity
+    // Fallback: if no embedding, use mentions count + keyword matching
     if (!queryEmbedding) {
-        return { text: '', entityKeys: [], isMacroIntent: false };
+        const scored = [];
+        const queryLower = userMessagesString?.toLowerCase() || '';
+
+        for (const [key, node] of Object.entries(graphData.nodes)) {
+            let score = node.mentions || 0; // Base score on frequency
+
+            // Keyword matching with Unicode-aware boundary regex
+            const nameLower = node.name?.toLowerCase() || '';
+            if (queryLower && nameLower) {
+                const escapedName = nameLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`(?<![\\p{L}\\p{N}_])${escapedName}(?![\\p{L}\\p{N}])`, 'iu');
+                if (regex.test(queryLower)) {
+                    score += 100; // Strong boost for name in query
+                }
+            }
+
+            // Check aliases
+            if (
+                node.aliases?.some((alias) => {
+                    const aliasLower = alias.toLowerCase();
+                    const escapedAlias = aliasLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const aliasRegex = new RegExp(`(?<![\\p{L}\\p{N}_])${escapedAlias}(?![\\p{L}\\p{N}])`, 'iu');
+                    return aliasRegex.test(queryLower);
+                })
+            ) {
+                score += 100;
+            }
+
+            scored.push({ key, node, score });
+        }
+
+        // Sort by score descending
+        scored.sort((a, b) => b.score - a.score);
+
+        // Select entities within token budget (reuse selection logic)
+        const selected = [];
+        let usedTokens = 0;
+
+        for (const { key, node } of scored) {
+            const entry = formatEntityEntry(key, node, graphData);
+            const tokens = await countTokens(entry);
+            if (usedTokens + tokens > tokenBudget) break;
+            selected.push({ key, entry });
+            usedTokens += tokens;
+        }
+
+        if (selected.length === 0) {
+            return { text: '', entityKeys: [], isMacroIntent: false };
+        }
+
+        const text =
+            '<world_context>\n[This is background knowledge about the world, its communities, and broader context the character is aware of]\n' +
+            selected.map((s) => s.entry).join('\n\n') +
+            '\n</world_context>';
+
+        return {
+            text,
+            entityKeys: selected.map((s) => s.key),
+            isMacroIntent: false,
+        };
     }
 
     // Score entities by cosine similarity
