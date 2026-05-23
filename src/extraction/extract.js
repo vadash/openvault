@@ -1385,18 +1385,30 @@ export async function extractAllMessages(optionsOrCallback) {
         }
     }
 
-    // ===== NEW: Run final Phase 2 synthesis (skip for Emergency Cut - speed priority) =====
+    // ===== Run final Phase 2 synthesis (skip for Emergency Cut - speed priority) =====
+    // Also skip if both reflections AND world are disabled - no Phase 2 work needed
     if (!isEmergencyCut) {
-        // Update existing progress toast for the final heavy lifting
-        logInfo('Backfill Phase 1 complete. Running final Phase 2 synthesis...');
-        onPhase2Start?.();
+        const reflectionsPosition = getSettings(
+            'injection.reflections.position',
+            defaultSettings.injection.reflections.position
+        );
+        const worldPosition = getSettings('injection.world.position', defaultSettings.injection.world.position);
 
-        try {
-            await runPhase2Enrichment(data, settings, targetChatId, { abortSignal });
-        } catch (error) {
-            logError('Final Phase 2 enrichment failed', error);
-            onError?.(new Error('Events saved, but final summarization failed. You can re-run later.'));
-            // Don't throw - Phase 1 data is safe
+        // Skip Phase 2 entirely if both features are disabled
+        if (reflectionsPosition === -2 && worldPosition === -2) {
+            logInfo('Backfill Phase 2 skipped: both reflections and world synthesis disabled');
+        } else {
+            // Update existing progress toast for the final heavy lifting
+            logInfo('Backfill Phase 1 complete. Running final Phase 2 synthesis...');
+            onPhase2Start?.();
+
+            try {
+                await runPhase2Enrichment(data, settings, targetChatId, { abortSignal });
+            } catch (error) {
+                logError('Final Phase 2 enrichment failed', error);
+                onError?.(new Error('Events saved, but final summarization failed. You can re-run later.'));
+                // Don't throw - Phase 1 data is safe
+            }
         }
     } else {
         logInfo('[Emergency Cut Debug] Skipping Phase 2 enrichment for speed');
