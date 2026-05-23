@@ -53,10 +53,10 @@ global.toastr = {
 import { defaultSettings, extensionName } from '../src/constants.js';
 // ── Shared test context helper ──
 import { setDeps } from '../src/deps.js';
-
 // ── CDN import overrides: local packages instead of network fetches ──
 // Must run BEFORE source modules are imported (top-level await in setupFiles).
 import { _setTestOverride } from '../src/utils/cdn.js';
+import { lodash as testLodash } from './stubs/lib.js';
 
 const CDN_SPECS = {
     zod: () => import('zod'),
@@ -113,6 +113,7 @@ global.setupTestContext = (overrides = {}) => {
             },
         }),
         Date: { now: () => 1000000 },
+        lodash: testLodash,
         ...overrides.deps,
     });
 };

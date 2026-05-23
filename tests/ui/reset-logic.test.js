@@ -3,6 +3,16 @@ import { defaultSettings } from '../../src/constants.js';
 
 // Create a shared mock function that will persist across test runs
 const updateUIMock = vi.fn();
+const mockGetSettings = vi.fn((path) => {
+    // Simple path resolver for defaultSettings
+    if (!path) return defaultSettings;
+    const keys = path.split('.');
+    let value = defaultSettings;
+    for (const key of keys) {
+        value = value?.[key];
+    }
+    return value;
+});
 
 // Mock UI dependencies - use importOriginal to include all exports
 vi.mock('../../src/ui/render.js', async (importOriginal) => {
@@ -10,6 +20,15 @@ vi.mock('../../src/ui/render.js', async (importOriginal) => {
     return {
         ...actual,
         updateUI: updateUIMock,
+    };
+});
+
+// Mock settings to avoid initialization requirement
+vi.mock('../../src/settings.js', async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...actual,
+        getSettings: mockGetSettings,
     };
 });
 

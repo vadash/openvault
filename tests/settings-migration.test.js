@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { extensionName } from '../src/constants.js';
 import { setDeps } from '../src/deps.js';
-import { loadSettings } from '../src/settings.js';
+import { __resetSettingsState, loadSettings } from '../src/settings.js';
 
 describe('ST Vector migration', () => {
     let mockConsole;
@@ -13,6 +13,9 @@ describe('ST Vector migration', () => {
     let mockExtensionSettings;
 
     beforeEach(() => {
+        // Reset settings state before each test
+        __resetSettingsState();
+
         // Mock console
         mockConsole = {
             error: vi.fn(),
@@ -42,12 +45,19 @@ describe('ST Vector migration', () => {
             getContext: () => ({
                 console: mockConsole,
                 toastr: mockToastr,
-                lodash: {
-                    merge: vi.fn((defaults, existing) => ({ ...defaults, ...existing })),
-                },
             }),
             getExtensionSettings: () => mockExtensionSettings,
             saveSettingsDebounced: vi.fn(),
+            lodash: {
+                merge: vi.fn((defaults, existing) => ({ ...defaults, ...existing })),
+                get: vi.fn((obj, path) => path.split('.').reduce((o, k) => o?.[k], obj)),
+                set: vi.fn((obj, path, value) => {
+                    const keys = path.split('.');
+                    const last = keys.pop();
+                    const target = keys.reduce((o, k) => (o[k] = o[k] || {}), obj);
+                    target[last] = value;
+                }),
+            },
         });
     });
 

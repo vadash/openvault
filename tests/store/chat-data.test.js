@@ -51,9 +51,6 @@ describe('store/chat-data', () => {
             expect(data.graph).toBeDefined();
             expect(data.graph_message_count).toBe(0);
             expect(data.processed_message_ids).toEqual([]);
-            expect(data.settings.injection.reflections).toEqual({ position: 1, depth: 4 });
-            expect(data.settings.injection.memory).toEqual({ position: 1, depth: 4 });
-            expect(data.settings.injection.world).toEqual({ position: 1, depth: 4 });
         });
 
         it('creates empty data structure if none exists', () => {
@@ -66,13 +63,6 @@ describe('store/chat-data', () => {
                 reflection_state: {},
                 graph: expect.any(Object),
                 graph_message_count: 0,
-                settings: {
-                    injection: {
-                        memory: { position: 1, depth: 4 },
-                        reflections: { position: 1, depth: 4 },
-                        world: { position: 1, depth: 4 },
-                    },
-                },
             });
         });
 

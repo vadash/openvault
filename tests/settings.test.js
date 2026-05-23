@@ -339,9 +339,7 @@ describe('initializeSettings and getSettings', () => {
             const { getSettings } = await import('../src/settings.js');
 
             // Assert: throws before initialization
-            expect(() => getSettings('any.path')).toThrow(
-                'Settings accessed before initialization'
-            );
+            expect(() => getSettings('any.path')).toThrow('Settings accessed before initialization');
         });
     });
 
@@ -353,9 +351,7 @@ describe('initializeSettings and getSettings', () => {
             initializeSettings();
 
             // Assert: throws for undefined path
-            expect(() => getSettings('this.does.not.exist')).toThrow(
-                'Setting "this.does.not.exist" is undefined'
-            );
+            expect(() => getSettings('this.does.not.exist')).toThrow('Setting "this.does.not.exist" is undefined');
         });
     });
 

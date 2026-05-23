@@ -21,11 +21,16 @@ vi.mock('../../src/state.js', async () => {
 // Mock settings module to control getSettings
 vi.mock('../../src/settings.js', async () => {
     const actual = await vi.importActual('../../src/settings.js');
-    _mockGetSettings.mockImplementation((path, defaultValue) => {
+    _mockGetSettings.mockImplementation((path) => {
         // Check our override map first
         if (path in _mockSettingsValues) return _mockSettingsValues[path];
-        // Fall back to real implementation
-        return actual.getSettings(path, defaultValue);
+        // Return from defaultSettings if available
+        const keys = path.split('.');
+        let value = actual.defaultSettings;
+        for (const key of keys) {
+            value = value?.[key];
+        }
+        return value;
     });
     return {
         ...actual,
@@ -281,7 +286,7 @@ describe('retrieveAndInjectContext with position-based disable', () => {
         // retrieveAndInjectContext doesn't return world in its result object
         // World context is injected via injectContext() and stored in cachedContent
         // We verify the disable worked by checking getSettings was called
-        expect(_mockGetSettings).toHaveBeenCalledWith('injection.world.position', expect.any(Number));
+        expect(_mockGetSettings).toHaveBeenCalledWith('injection.world.position');
     });
 
     it('should include reflections when injection.reflections.position is not -2', async () => {
@@ -337,7 +342,7 @@ describe('retrieveAndInjectContext with position-based disable', () => {
 
         // The reflection should be in the candidate set when position is not -2
         // We verify this by checking that getSettings was called with the correct path
-        expect(_mockGetSettings).toHaveBeenCalledWith('injection.reflections.position', expect.any(Number));
+        expect(_mockGetSettings).toHaveBeenCalledWith('injection.reflections.position');
     });
 });
 
@@ -472,7 +477,7 @@ describe('integration: stream position disable', () => {
         const reflectionIds = result?.memories?.filter((m) => m.type === 'reflection').map((m) => m.id) || [];
         expect(reflectionIds).not.toContain('r1');
         // Verify both settings were checked
-        expect(_mockGetSettings).toHaveBeenCalledWith('injection.reflections.position', expect.any(Number));
-        expect(_mockGetSettings).toHaveBeenCalledWith('injection.world.position', expect.any(Number));
+        expect(_mockGetSettings).toHaveBeenCalledWith('injection.reflections.position');
+        expect(_mockGetSettings).toHaveBeenCalledWith('injection.world.position');
     });
 });

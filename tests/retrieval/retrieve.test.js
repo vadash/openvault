@@ -3,6 +3,28 @@ import { defaultSettings, extensionName } from '../../src/constants.js';
 import { resetDeps } from '../../src/deps.js';
 import { updateInjection } from '../../src/retrieval/retrieve.js';
 
+// Mock getSettings to avoid initialization requirement
+// Must use vi.hoisted for mock factory variables
+const { mockGetSettings } = vi.hoisted(() => ({
+    mockGetSettings: vi.fn((path) => {
+        if (!path) return defaultSettings;
+        const keys = path.split('.');
+        let value = defaultSettings;
+        for (const key of keys) {
+            value = value?.[key];
+        }
+        return value;
+    }),
+}));
+
+vi.mock('../../src/settings.js', async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...actual,
+        getSettings: mockGetSettings,
+    };
+});
+
 describe('retrieve pipeline', () => {
     let mockSetPrompt;
 

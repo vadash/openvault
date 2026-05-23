@@ -31,6 +31,7 @@ export default defineConfig({
             '../../../../../script.js': path.resolve(__dirname, 'tests/stubs/extensions.js'),
             '../../../../../../script.js': path.resolve(__dirname, 'tests/stubs/extensions.js'),
             '../../../shared.js': path.resolve(__dirname, 'tests/stubs/shared.js'),
+            '../../../../../lib.js': path.resolve(__dirname, 'tests/stubs/lib.js'),
         },
     },
 });

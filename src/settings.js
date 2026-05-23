@@ -68,7 +68,7 @@ const REQUIRED_SETTINGS_PATHS = [
  */
 function validateSettingsStructure(settings) {
     const deps = getDeps();
-    const { lodash } = deps.getContext();
+    const lodash = deps.lodash;
 
     for (const path of REQUIRED_SETTINGS_PATHS) {
         if (lodash.get(settings, path) === undefined) {
@@ -91,7 +91,7 @@ export function initializeSettings() {
     const deps = getDeps();
     const context = deps.getContext();
     const extensionSettings = deps.getExtensionSettings();
-    const { lodash } = context;
+    const lodash = deps.lodash;
 
     // Deep merge defaults with existing user settings
     extensionSettings[extensionName] = lodash.merge(
@@ -154,7 +154,7 @@ export function getSettings(path) {
     }
 
     const deps = getDeps();
-    const lodash = deps.getContext()?.lodash;
+    const lodash = deps.lodash;
     const settings = deps.getExtensionSettings()[extensionName];
 
     if (path === undefined) {
@@ -240,7 +240,7 @@ async function handleSettingChangeSideEffects(path, value) {
  */
 export async function setSetting(path, value) {
     const deps = getDeps();
-    const lodash = deps.getContext()?.lodash;
+    const lodash = deps.lodash;
     const settings = deps.getExtensionSettings()[extensionName];
 
     if (lodash?.set) {
@@ -277,8 +277,16 @@ export async function setSetting(path, value) {
  */
 export function hasSettings(path) {
     const deps = getDeps();
-    const lodash = deps.getContext()?.lodash;
+    const lodash = deps.lodash;
     const settings = deps.getExtensionSettings()[extensionName];
 
     return lodash?.has(settings, path) ?? false;
+}
+
+/**
+ * Reset settings initialization state for tests.
+ * @internal
+ */
+export function __resetSettingsState() {
+    settingsInitialized = false;
 }

@@ -5,6 +5,7 @@
  * All external dependencies (SillyTavern, browser globals) are accessed through this module.
  */
 
+import { lodash as stLodash } from '../../../../../lib.js';
 import {
     eventSource as stEventSource,
     event_types as stEventTypes,
@@ -77,6 +78,9 @@ const defaultDeps = {
 
     // Fetch (for embeddings)
     fetch: (...args) => fetch(...args),
+
+    // Lodash for settings merge/get/set operations
+    lodash: stLodash,
 };
 
 // Current active dependencies (can be replaced for testing)
