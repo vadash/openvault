@@ -56,6 +56,7 @@ import {
     getCurrentChatId,
     getOpenVaultData,
     incrementGraphMessageCount,
+    incrementSceneCounter,
     markMessagesProcessed,
     saveOpenVaultData,
 } from '../store/chat-data.js';
@@ -67,6 +68,7 @@ import { isExtensionEnabled, safeSetExtensionPrompt, yieldToMain } from '../util
 import { jaccardSimilarity, sliceToTokenBudget, sortMemoriesBySequence } from '../utils/text.js';
 import { countTokens } from '../utils/tokens.js';
 import { resolveCharacterName, transliterateCyrToLat } from '../utils/transliterate.js';
+import { extractSceneState } from './scene-state.js';
 import {
     getBackfillMessageIds,
     getBackfillStats,
@@ -1041,6 +1043,14 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             logDebug('[Extraction] World synthesis disabled (position=-2), skipping graph_message_count increment');
         }
 
+        // Only increment scene counter if scene extraction is enabled
+        const scenePosition = settings?.injection?.scene?.position ?? getSettings('injection.scene.position');
+        if (scenePosition !== -2) {
+            incrementSceneCounter(messages.length, data);
+        } else {
+            logDebug('[Extraction] Scene extraction disabled (position=-2), skipping scene_counter increment');
+        }
+
         // ===== PHASE 1 COMMIT: Events + Graph are done =====
         if (events.length > 0) {
             // Canonicalize cross-script character names before downstream consumption
@@ -1111,6 +1121,22 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
                 }
             } else {
                 logDebug('[Extraction] World synthesis disabled (position=-2), skipping interval check');
+            }
+
+            // Stage 7: Scene state extraction (interval check)
+            const scenePosition = settings?.injection?.scene?.position ?? getSettings('injection.scene.position');
+            if (scenePosition !== -2) {
+                const sceneStateInterval = settings.sceneStateInterval;
+                const sceneCounter = data.scene_counter || 0;
+                if (sceneCounter >= sceneStateInterval) {
+                    logDebug(
+                        `[Extraction] Scene state extraction triggered (counter=${sceneCounter}/${sceneStateInterval})`
+                    );
+                    await extractSceneState(data, chat, settings, { abortSignal });
+                    data.scene_counter = 0; // Reset after successful extraction
+                }
+            } else {
+                logDebug('[Extraction] Scene extraction disabled (position=-2), skipping extraction');
             }
 
             // Final save — Phase 2 enrichment persisted

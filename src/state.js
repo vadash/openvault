@@ -57,6 +57,7 @@ export const operationState = {
     generationInProgress: false,
     extractionInProgress: false,
     retrievalInProgress: false,
+    sceneExtractionInProgress: false,
 };
 
 // Generation lock timeout handle
@@ -140,6 +141,7 @@ export function clearAllLocks() {
     operationState.generationInProgress = false;
     operationState.extractionInProgress = false;
     operationState.retrievalInProgress = false;
+    operationState.sceneExtractionInProgress = false;
     _workerRunning = false;
     if (generationLockTimeout) {
         getDeps().clearTimeout(generationLockTimeout);

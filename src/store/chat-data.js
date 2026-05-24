@@ -475,6 +475,18 @@ export function incrementGraphMessageCount(count, targetData = null) {
 }
 
 /**
+ * Increment the scene counter.
+ * @param {number} count - Number of messages to add
+ * @param {OpenVaultData|null} [targetData] - Optional target data object (for pipeline isolation)
+ * @returns {void}
+ */
+export function incrementSceneCounter(count, targetData = null) {
+    const data = targetData || getOpenVaultData();
+    if (!data) return;
+    data.scene_counter = (data.scene_counter || 0) + count;
+}
+
+/**
  * Merge source entity into target entity. Source is deleted.
  * @param {string} sourceKey - Entity to absorb (will be deleted)
  * @param {string} targetKey - Entity that survives

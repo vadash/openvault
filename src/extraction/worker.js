@@ -22,6 +22,7 @@ import { setStatus } from '../ui/status.js';
 import { logDebug, logError } from '../utils/logging.js';
 import { isExtensionEnabled } from '../utils/st-helpers.js';
 import { extractMemories } from './extract.js';
+import { extractSceneState } from './scene-state.js';
 import { getNextBatch } from './scheduler.js';
 
 const BACKOFF_SCHEDULE_SECONDS = [1, 2, 3, 10, 20, 30, 30, 60, 60];
@@ -110,43 +111,80 @@ async function runWorkerLoop() {
 
             // Get next batch
             const batch = await getNextBatch(chat, data, tokenBudget, false, maxTurns);
-            if (!batch) break; // No complete batches, go to sleep
 
-            // Process
-            setStatus('extracting');
-            logDebug(`Worker: Processing batch [${batch[0]}..${batch[batch.length - 1]}]`);
+            // Path A: Memory batch available
+            if (batch) {
+                setStatus('extracting');
+                logDebug(`Worker: Processing batch [${batch[0]}..${batch[batch.length - 1]}]`);
 
-            try {
-                await extractMemories(batch, targetChatId, { silent: true });
-                retryCount = 0;
-                cumulativeBackoffMs = 0;
-                refreshAllUI();
-            } catch (err) {
-                // Fast-fail on abort or chat switch — don't retry, just stop
-                if (err.name === 'AbortError' || err.message === 'Chat changed during extraction') {
-                    logDebug('Worker: Aborted or chat changed during extraction. Halting immediately.');
-                    break;
+                try {
+                    await extractMemories(batch, targetChatId, { silent: true });
+                    retryCount = 0;
+                    cumulativeBackoffMs = 0;
+                    refreshAllUI();
+                } catch (err) {
+                    // Fast-fail on abort or chat switch — don't retry, just stop
+                    if (err.name === 'AbortError' || err.message === 'Chat changed during extraction') {
+                        logDebug('Worker: Aborted or chat changed during extraction. Halting immediately.');
+                        break;
+                    }
+
+                    retryCount++;
+                    const scheduleIndex = Math.min(retryCount - 1, BACKOFF_SCHEDULE_SECONDS.length - 1);
+                    const backoffMs = BACKOFF_SCHEDULE_SECONDS[scheduleIndex] * 1000;
+                    cumulativeBackoffMs += backoffMs;
+
+                    if (cumulativeBackoffMs >= MAX_BACKOFF_TOTAL_MS) {
+                        logDebug(
+                            `Worker: Backoff limit exceeded (${Math.round(cumulativeBackoffMs / 1000)}s), stopping.`
+                        );
+                        break;
+                    }
+
+                    logDebug(
+                        `Worker: Batch failed (attempt ${retryCount}), retrying in ${BACKOFF_SCHEDULE_SECONDS[scheduleIndex]}s`
+                    );
+                    await interruptibleSleep(backoffMs, lastSeenGeneration);
+                    continue; // Retry same batch
                 }
 
-                retryCount++;
-                const scheduleIndex = Math.min(retryCount - 1, BACKOFF_SCHEDULE_SECONDS.length - 1);
-                const backoffMs = BACKOFF_SCHEDULE_SECONDS[scheduleIndex] * 1000;
-                cumulativeBackoffMs += backoffMs;
-
-                if (cumulativeBackoffMs >= MAX_BACKOFF_TOTAL_MS) {
-                    logDebug(`Worker: Backoff limit exceeded (${Math.round(cumulativeBackoffMs / 1000)}s), stopping.`);
-                    break;
-                }
-
-                logDebug(
-                    `Worker: Batch failed (attempt ${retryCount}), retrying in ${BACKOFF_SCHEDULE_SECONDS[scheduleIndex]}s`
-                );
-                await interruptibleSleep(backoffMs, lastSeenGeneration);
-                continue; // Retry same batch
+                // Yield to browser between batches
+                await new Promise((r) => setTimeout(r, 2000));
+                continue; // Next iteration
             }
 
-            // Yield to browser between batches
-            await new Promise((r) => setTimeout(r, 2000));
+            // Path B: No memory batch pending — check standalone scene extraction
+            const scenePosition = settings?.injection?.scene?.position;
+            const sceneStateInterval = settings?.sceneStateInterval;
+            const sceneCounter = data?.scene_counter || 0;
+
+            if (
+                scenePosition !== -2 &&
+                sceneCounter >= sceneStateInterval &&
+                !operationState.extractionInProgress &&
+                !operationState.sceneExtractionInProgress
+            ) {
+                logDebug(
+                    `Worker: Standalone scene extraction triggered (counter=${sceneCounter}/${sceneStateInterval})`
+                );
+                operationState.sceneExtractionInProgress = true;
+                try {
+                    await extractSceneState(data, chat, settings, { abortSignal: getSessionSignal() });
+                    data.scene_counter = 0;
+                    refreshAllUI();
+                } catch (err) {
+                    if (err.name === 'AbortError') {
+                        logDebug('Worker: Scene extraction aborted. Clean exit.');
+                        break;
+                    }
+                    logError('Worker: Scene extraction failed', err);
+                } finally {
+                    operationState.sceneExtractionInProgress = false;
+                }
+            }
+
+            // No work available — exit loop
+            break;
         }
     } catch (err) {
         if (err.name === 'AbortError') {
