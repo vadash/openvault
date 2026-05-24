@@ -102,6 +102,7 @@ Everything stays on your machine. The in-browser embedding model means no text g
 
 ## Version History
 
+- **26** - Added 4th inject block - scene memory. Track clothing, posture, location, props, and time of day.
 - **25** - Simplified community logic. Less LLM calls - same result
 - **24** - Removed ST vector support. Maintaining 2 version of logic introduce complexity and bugs. UI -> Adv -> Injections added disable toggles if u dont wanna inject char thoughts and community info
 - **23** - CoD https://arxiv.org/abs/2502.18600
