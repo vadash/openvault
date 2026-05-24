@@ -664,16 +664,16 @@
                             <h4 style="margin-bottom: 10px;">Scene Position</h4>
                             <label for="openvault_scene_position">Position:</label>
                             <select id="openvault_scene_position" class="text_pole" style="width: 100%; margin-bottom: 8px;">
-                                <option value="4" selected>In-chat (At message depth)</option>
+                                <option value="4" selected>In-chat (dynamic depth)</option>
                                 <option value="-1">Custom (Use macro manually)</option>
                                 <option value="-2">Disabled</option>
                             </select>
 
-                            <div id="openvault_scene_depth_container" style="display:none;">
-                                <label for="openvault_scene_depth">Depth:</label>
-                                <input type="number" id="openvault_scene_depth" class="text_pole" min="0" max="50" value="4" style="width: 80px;" />
-                                <small>Messages from end</small>
-                            </div>
+                            <!-- Scene depth is computed dynamically from source_fp position, not user-configurable -->
+                            <small class="text-muted" style="margin-top: 8px;">
+                                <i class="fa-solid fa-info-circle"></i>
+                                Scene state is injected at the message where it was extracted. Depth adjusts automatically as chat grows.
+                            </small>
 
                             <div id="openvault_scene_macro_container" style="display:none; margin-top: 8px;">
                                 <label>Macro:</label>

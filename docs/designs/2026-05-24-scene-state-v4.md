@@ -164,16 +164,27 @@ This ensures:
 
 ### Injection mechanism
 
-Follows the exact same pattern as memory/reflections/world:
-- New setting path: `injection.scene.position` (default: 4 = In-chat), `injection.scene.depth` (default: 4)
+Follows the exact same pattern as memory/reflections/world with one key difference:
+- New setting path: `injection.scene.position` (default: 4 = In-chat). **No depth setting — depth is calculated dynamically.**
 - New extension prompt key: `openvault_scene`
 - New macro: `{{openvault_scene}}`
-- 4th dropdown in the "Injection Positions" section of the Adv tab
-- Supports all position options including Disabled (-2) and Custom (-1)
+- 4th dropdown in the "Injection Positions" section of the Adv tab — **only 3 options, no depth input**
+- Supports In-chat (4), Custom (-1), and Disabled (-2) only
+
+**Dynamic depth algorithm:**
+1. Perform backward-scan lookup (`findCurrentSceneState`) to find the current state
+2. Resolve `state.source_fp` to chat index using the fingerprint→index map
+3. Compute `depth = chat.length - source_index`
+4. Pass this computed depth to `safeSetExtensionPrompt`
+
+**Edge cases:**
+- If `source_fp` doesn't resolve (message deleted), fall back to depth=4 (safe default)
+- If computed depth < 0, clamp to depth=0 (inject at very bottom)
+- Short chats guard: if `chat.length < 4`, fall back to position 1 (AFTER_MAIN)
 
 ### Short chats guard
 
-When injection position is `IN_CHAT` (4) and `chat.length < depth`, fall back to injecting at `AFTER_MAIN` (1) for that turn. Once the chat grows past the depth threshold, resume normal `IN_CHAT` injection. This prevents undefined behavior on new chats with only 1–2 messages.
+When injection position is `IN_CHAT` (4) and `chat.length < 4`, fall back to injecting at `AFTER_MAIN` (1) for that turn. Once the chat grows past 4 messages, resume normal `IN_CHAT` injection with dynamic depth calculation. This prevents undefined behavior on new chats with only 1–2 messages.
 
 ### Where it is injected in the pipeline
 
@@ -224,19 +235,40 @@ injection: {
     memory: { position: 1, depth: 4 },
     reflections: { position: 1, depth: 4 },
     world: { position: 1, depth: 4 },
-    scene: { position: 4, depth: 4 },  // Default: In-chat at depth 4
+    scene: { position: 4 },  // Default: In-chat. Depth is calculated dynamically from source_fp
 }
 ```
+
+**Dynamic depth calculation:** Scene state injection depth is computed from the state's `source_fp` position:
+1. Backward-scan finds the current state (most recent state at or before last message)
+2. Resolve the state's `source_fp` to its chat index via fingerprint map
+3. Compute `depth = chat.length - source_index`
+4. Clamp to minimum depth of 2 (ensures injection after last complete pair, never at bottom)
+5. Inject at that dynamic depth
+
+**Minimum depth rationale:** Depth is clamped to minimum 2 to ensure scene state is injected **after the last complete User+Bot pair**, never at the very bottom (depth=0) or just before the generation request (depth=1). This prevents the scene state from appearing in awkward positions that could confuse generation or appear after the user's pending message.
+
+This makes the state "move down" as chat grows. If state was extracted at message 6:
+- At chat length 8: `depth = 8 - 6 = 2` → inject 2 messages from bottom (right after msg 6)
+- At chat length 10: `depth = 10 - 6 = 4` → inject 4 messages from bottom (still after msg 6)
+- Minimum depth=2 ensures it never injects closer to bottom than the last complete pair
+
+When new extraction happens at message 15, the injection point jumps to match the new source (depth recalculated from new source_fp).
 
 ### New UI elements
 
 1. **Slider** in extraction settings: "Scene State Interval" (range 2–10, default 3)
 2. **Dropdown** in Injection Positions: "Scene Position" — **only 3 options** (not the full position suite):
-   - **In-chat (position 4)** — Default. Leverages recency bias, most effective placement.
+   - **In-chat (position 4)** — Default. Dynamic depth calculated from source_fp.
    - **Custom (-1)** — Macro-only for advanced users who want manual placement.
    - **Disabled (-2)** — Stops extraction and injection.
 
-   Rationale: Positions 0-3 place scene state too far from the conversation context (before/after char defs, before/after author's note). Scene state must be near the bottom of the prompt to leverage recency bias. Offering positions 0-3 would invite suboptimal configurations.
+   **NO depth input for Scene Position.** Depth is computed dynamically from the state's `source_fp` position — the state "moves down" as the chat grows, jumping to the new source position when fresh extraction happens. This provides:
+   - **Swipe protection:** State persists at its source fingerprint; backward-scan finds correct state regardless of swipe direction
+   - **Natural positioning:** Scene context appears right after where it was extracted, maintaining narrative continuity
+   - **Zero user configuration:** The interval slider controls extraction frequency; positioning is fully automatic
+
+   Rationale: Positions 0-3 place scene state too far from the conversation context. Scene state must be near the bottom for recency bias. Depth is meaningless as a user setting because it's derived from the state's position in chat.
 
 ### Disable semantics
 
@@ -259,8 +291,8 @@ Note: `safeSetExtensionPrompt` in `st-helpers.js` already handles `-2` correctly
 
 | File | Change |
 |------|--------|
-| `src/constants.js` | Add `sceneStateInterval` to `defaultSettings`, add `scene` to `injection` defaults |
-| `src/settings.js` | Add `injection.scene.position`, `injection.scene.depth`, `sceneStateInterval` to required paths |
+| `src/constants.js` | Add `sceneStateInterval` to `defaultSettings`, add `scene` to `injection` defaults (position only, no depth) |
+| `src/settings.js` | Add `injection.scene.position`, `sceneStateInterval` to required paths (NO depth path) |
 | `templates/settings_panel.html` | Add slider for interval, add 4th dropdown for Scene Position |
 | `src/ui/settings.js` | Add event handlers for new slider and dropdown, `updateInjectionUI` for scene |
 | `src/retrieval/retrieve.js` | Add `sceneText` parameter to `injectContext()`, backward-scan lookup from `scene_states` |

@@ -12,12 +12,11 @@ describe('Scene Position UI structure', () => {
             expect(html).toContain('id="openvault_scene_position"');
         });
 
-        it('has scene depth input with correct id', () => {
-            expect(html).toContain('id="openvault_scene_depth"');
-        });
-
-        it('has scene depth container for conditional visibility', () => {
-            expect(html).toContain('id="openvault_scene_depth_container"');
+        // Scene depth is NOT a user setting - computed dynamically from source_fp
+        // No depth input should exist
+        it('does NOT have scene depth input (depth is computed dynamically)', () => {
+            expect(html).not.toContain('id="openvault_scene_depth"');
+            expect(html).not.toContain('id="openvault_scene_depth_container"');
         });
 
         it('has scene macro container for custom position', () => {
@@ -32,13 +31,19 @@ describe('Scene Position UI structure', () => {
             expect(html).toContain('{{openvault_scene}}');
         });
 
+        it('has hint explaining dynamic depth behavior', () => {
+            // Check that the hint about dynamic depth appears
+            expect(html).toContain('Scene state is injected at the message where it was extracted');
+            expect(html).toContain('Depth adjusts automatically');
+        });
+
         it('scene dropdown has only the three effective options', () => {
             const sceneMatch = html.match(/<select id="openvault_scene_position"[^>]*>([\s\S]*?)<\/select>/i);
             expect(sceneMatch).toBeTruthy();
             const sceneOptions = sceneMatch[1];
 
             // Scene position only supports 3 options:
-            // - In-chat (position 4) - leverages recency bias, most effective
+            // - In-chat (position 4) - dynamic depth from source_fp
             // - Custom (-1) - macro-only for advanced users
             // - Disabled (-2) - turns off extraction and injection
             // Positions 0-3 are intentionally excluded to prevent suboptimal configurations
@@ -58,6 +63,15 @@ describe('Scene Position UI structure', () => {
 
             // Position 4 should be selected by default for scene
             expect(sceneOptions).toContain('value="4" selected');
+        });
+
+        it('In-chat option text mentions dynamic depth', () => {
+            const sceneMatch = html.match(/<select id="openvault_scene_position"[^>]*>([\s\S]*?)<\/select>/i);
+            expect(sceneMatch).toBeTruthy();
+            const sceneOptions = sceneMatch[1];
+
+            // The In-chat option should mention dynamic depth in the label
+            expect(sceneOptions).toContain('In-chat (dynamic depth)');
         });
     });
 

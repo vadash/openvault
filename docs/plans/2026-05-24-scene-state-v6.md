@@ -16,8 +16,8 @@
 - Modify: `src/store/chat-data.js` (Purpose: Add `scene_states: {}`, `scene_ledger: []`, `scene_counter: 0` to default fields in `getOpenVaultData()`)
 - Create: `src/store/migrations/v8.js` (Purpose: Backfill new fields on existing chats — set `scene_states` to `{}`, `scene_ledger` to `[]`, `scene_counter` to `0`)
 - Modify: `src/store/migrations/index.js` (Purpose: Register v8 migration, bump `CURRENT_SCHEMA_VERSION` to 8)
-- Modify: `src/constants.js` (Purpose: Add `sceneStateInterval: 3` to `defaultSettings`, add `scene: { position: 4, depth: 4 }` to `injection` defaults)
-- Modify: `src/settings.js` (Purpose: Add `'injection.scene.position'`, `'injection.scene.depth'`, `'sceneStateInterval'` to `REQUIRED_SETTINGS_PATHS`)
+- Modify: `src/constants.js` (Purpose: Add `sceneStateInterval: 3` to `defaultSettings`, add `scene: { position: 4 }` to `injection` defaults — depth is hardcoded, not user-configurable)
+- Modify: `src/settings.js` (Purpose: Add `'injection.scene.position'` and `'sceneStateInterval'` to `REQUIRED_SETTINGS_PATHS` — NO depth path)
 - Modify: `include/DATA_SCHEMA.md` (Purpose: Document `scene_states`, `scene_ledger`, `scene_counter` schemas)
 
 **Instructions for Execution Agent:**
@@ -28,8 +28,8 @@
    - In `src/store/chat-data.js`: Add `scene_states: {}`, `scene_ledger: []`, `scene_counter: 0` to the defaults in `getOpenVaultData()`.
    - Create `src/store/migrations/v8.js`: Export `migrateToV8(data, _chat)` that backfills `scene_states` to `{}` if missing, `scene_ledger` to `[]` if missing, `scene_counter` to `0` if missing. Return whether any change was made.
    - In `src/store/migrations/index.js`: Import `migrateToV8`, add to `MIGRATIONS` array, bump `CURRENT_SCHEMA_VERSION` to 8.
-   - In `src/constants.js`: Add `sceneStateInterval: 3` to `defaultSettings`. Add `scene: { position: 4, depth: 4 }` to the `injection` object in `defaultSettings`.
-   - In `src/settings.js`: Add `'injection.scene.position'`, `'injection.scene.depth'`, `'sceneStateInterval'` to `REQUIRED_SETTINGS_PATHS`.
+   - In `src/constants.js`: Add `sceneStateInterval: 3` to `defaultSettings`. Add `scene: { position: 4 }` to the `injection` object in `defaultSettings`. Scene depth is NOT a user setting — it's computed dynamically from the state's `source_fp` position: `depth = chat.length - source_index`.
+   - In `src/settings.js`: Add `'injection.scene.position'` and `'sceneStateInterval'` to `REQUIRED_SETTINGS_PATHS`. Do NOT add a depth path — scene depth is calculated, not configured.
    - In `include/DATA_SCHEMA.md`: Document `scene_states` (fingerprint-keyed map of scene snapshots), `scene_ledger` (append-only transition array), `scene_counter` (message counter).
 4. **Verify:** Run `npx vitest run tests/store/schemas-scene.test.js tests/store/migrations/v8.test.js` and ensure all pass.
 5. **Commit:** `feat(scene-state): add schemas, migration v8, and settings defaults`
@@ -43,7 +43,7 @@
 **Depends on:** Task 1 (schemas and defaults).
 
 **Files to modify/create:**
-- Create: `src/extraction/scene-state.js` (Purpose: Core extraction function, state map management, ledger diffing, backward-scan lookup, pruning)
+- Create: `src/extraction/scene-state.js` (Purpose: Core extraction function, state map management, ledger diffing, backward-scan lookup, pruning, dynamic depth calculation)
 - Create: `src/prompts/scene-state/role.js` (Purpose: System role definition for scene state extraction)
 - Create: `src/prompts/scene-state/rules.js` (Purpose: State inertia, stale character eviction, clothing transition, prop eviction rules)
 - Create: `src/prompts/scene-state/schema.js` (Purpose: Output schema description for the LLM prompt)
@@ -59,6 +59,7 @@
    - **`diffLedger(prevState, newState, lastFp)`**: Returns a ledger entry `{ fp, location, time }` if location or time changed, returns `null` if unchanged. Test with matching states, changed location only, changed time only, both changed.
    - **`getSceneExtractionWindow(chat, sceneStates, skipSystem=true)`**: Given chat array and scene state map, returns all real messages since the last `source_fp`. If map is empty (cold start), returns all messages. Skips `is_system` messages.
    - **`findCurrentSceneState(chat, sceneStates)`**: The backward-scan lookup. Given a chat array and state map, walks backward from the last message and returns the first state whose fingerprint key matches a message fingerprint. Returns `null` if no match found. Test: exact match at last message, match at earlier message (interval gap), empty map, all messages before any extraction. **Implementation detail:** Build a temporary `Set` of state map keys for O(1) membership checks during the backward walk, rather than `key in sceneStates` on each iteration.
+   - **`computeDynamicDepth(state, chat, fpMap)`**: Given a state with `source_fp` and a chat with fingerprint map, computes injection depth as `chat.length - sourceIndex`. **Minimum depth is clamped to 2** to ensure scene state injects after the last complete User+Bot pair, never at the very bottom. Test: state at index 6, chat length 8 → depth 2. Test: state at index 10, chat length 15 → depth 5. Test: `source_fp` not in map → fallback 4. Test: computed depth < 2 → clamp to 2. Test: null state → fallback 4.
    - **`shouldTriggerSceneExtraction(sceneCounter, interval)`**: Returns `true` when `sceneCounter >= interval`.
    Use `it.each()` for all parameterized cases. Run tests to ensure they fail.
 3. **Implement Minimal Code:**
@@ -68,7 +69,14 @@
    - Create `src/prompts/scene-state/examples/en.js` and `ru.js`: Provide 1-2 few-shot examples showing previous state → new messages → updated state. Follow `src/prompts/world-state/examples/en.js` structure.
    - Create `src/prompts/scene-state/examples/index.js`: Language-aware selector, same pattern as `src/prompts/world-state/examples/index.js`.
    - Create `src/prompts/scene-state/builder.js`: Export `buildSceneStatePrompt(prevState, messages, outputLanguage, prefill)` following the world-state builder pattern. System prompt assembled with `assembleSystemPrompt({ role, examples, outputLanguage })`. User prompt contains `<previous_state>` XML block (previous state JSON or "No previous state — this is the first extraction."), `<new_messages>` block with the message text, and constraints assembled with `assembleUserConstraints()`.
-   - Create `src/extraction/scene-state.js`: Export the pure helper functions (`pruneStateMap`, `diffLedger`, `getSceneExtractionWindow`, `findCurrentSceneState`, `shouldTriggerSceneExtraction`). Also export `async function extractSceneState(data, chat, settings, { abortSignal })` which: (1) gets extraction window, (2) builds prompt, (3) calls LLM via `getDeps().fetch` or the shared LLM call utility, (4) validates response with `SceneStateSchema` (import from `schemas.js` via `getSchemas()`), (5) stores in `data.scene_states[lastFp]`, (6) calls `diffLedger` and appends to `data.scene_ledger` if changed, (7) calls `pruneStateMap` on `data.scene_states`. Read `src/extraction/extract.js` to find how LLM calls are made (look for the shared `callLLM` or `fetchWithTimeout` pattern used by world state synthesis).
+   - Create `src/extraction/scene-state.js`: Export the pure helper functions (`pruneStateMap`, `diffLedger`, `getSceneExtractionWindow`, `findCurrentSceneState`, `shouldTriggerSceneExtraction`, `computeDynamicDepth`). The `computeDynamicDepth(state, chat, fpMap)` function:
+     - If no state or no `source_fp`, return fallback `4`
+     - Resolve `state.source_fp` to index via `fpMap.get(source_fp)`
+     - If not found (message deleted), return fallback `4`
+     - Compute `depth = chat.length - sourceIndex`
+     - If `depth < 0`, clamp to `0`
+     - Return computed depth
+   Also export `async function extractSceneState(data, chat, settings, { abortSignal })` which: (1) gets extraction window, (2) builds prompt, (3) calls LLM via `getDeps().fetch` or the shared LLM call utility, (4) validates response with `SceneStateSchema` (import from `schemas.js` via `getSchemas()`), (5) stores in `data.scene_states[lastFp]`, (6) calls `diffLedger` and appends to `data.scene_ledger` if changed, (7) calls `pruneStateMap` on `data.scene_states`. Read `src/extraction/extract.js` to find how LLM calls are made (look for the shared `callLLM` or `fetchWithTimeout` pattern used by world state synthesis).
 4. **Verify:** Run `npx vitest run tests/extraction/scene-state.test.js` and ensure all pass.
 5. **Commit:** `feat(scene-state): add extraction module, prompt builder, and state management`
 
@@ -114,18 +122,26 @@
 
 **Files to modify/create:**
 - Modify: `src/retrieval/formatting.js` (Purpose: Add `formatSceneStateForInjection(sceneState)` — converts JSON to dense XML `<scene_status>` block)
-- Modify: `src/retrieval/retrieve.js` (Purpose: Add `sceneText` as 4th parameter to `injectContext()`, perform backward-scan lookup from `scene_states`, format and inject)
+- Modify: `src/retrieval/retrieve.js` (Purpose: Add `sceneText` as 4th parameter to `injectContext()`, perform backward-scan lookup, compute dynamic depth from `source_fp`, format and inject)
 - Modify: `src/injection/macros.js` (Purpose: Add `scene` to `cachedContent`, register `openvault_scene` macro)
 
 **Instructions for Execution Agent:**
 1. **Context Setup:** Read `src/retrieval/formatting.js` for existing formatting patterns. Read `src/retrieval/retrieve.js` — specifically `injectContext()` (lines 188-231) and `selectFormatAndInject()` (lines 240-322). Read `src/injection/macros.js` for macro registration and `cachedContent` structure.
 2. **Write Failing Tests:** Create `tests/retrieval/scene-formatting.test.js`. Test:
    - **`formatSceneStateForInjection(state)`**: Given a full scene state object (location, time, environment, 2 characters with clothing/posture/status, active_props), produces the XML `<scene_status>` block. Verify structure: `[Location]` header line, `[Time]` with environment, one line per character with `[Name]:` prefix containing posture, clothing, and status. Verify active props appear. Test with empty environment (omitted). Test with single character. Test with empty characters map (only location/time line).
-   - **Short chats guard:** When `position === 4` (IN_CHAT) and `chat.length < depth`, injection falls back to position `1` (AFTER_MAIN). Test this as a unit test on the fallback logic.
+   - **Dynamic depth calculation**: Test that given a state with `source_fp` at index 6 and `chat.length = 8`, computes `depth = 2`. Test that given `source_fp` at index 10 and `chat.length = 15`, computes `depth = 5`. Test edge case: `source_fp` not in chat → fallback to `depth = 4`. Test edge case: `depth < 0` → clamp to `0`.
+   - **Short chats guard:** When `chat.length < 4`, injection falls back to position `1` (AFTER_MAIN).
    Use `it.each()` for formatting variations. Run tests to ensure they fail.
 3. **Implement Minimal Code:**
    - In `src/retrieval/formatting.js`: Export `formatSceneStateForInjection(sceneState)` that converts the scene state JSON to the dense XML format from the design doc. Format: `<scene_status>` block with `[Location]: ... | [Time]: ...` header, then `[CharName]: Posture. Wearing: items. Status: status.` per character, then `</scene_status>`. One line per character. Approximately 60-100 tokens. Include environment in the header if present. Include active props in a `[Props]: ...` line if present.
-   - In `src/retrieval/retrieve.js`: Modify `injectContext()` signature to accept 4th parameter `sceneText = ''`. Add `cachedContent.scene = sceneText` (in `selectFormatAndInject`). Add `safeSetExtensionPrompt(sceneText, 'openvault_scene', scenePosition, sceneDepth)` following the exact same pattern as the other three. Implement the short chats guard: if `scenePosition === 4` and `chat.length < sceneDepth`, compute an effective position of `1` for this turn only — do **not** mutate the user's saved settings. In `selectFormatAndInject()`: before calling `injectContext()`, perform the backward-scan lookup using `findCurrentSceneState(chat, data.scene_states)` (imported from `scene-state.js`), then format the result with `formatSceneStateForInjection()`, and pass as the 4th argument.
+   - In `src/retrieval/retrieve.js`: Modify `injectContext()` signature to accept 4th parameter `sceneText = ''`. Add `cachedContent.scene = sceneText`. For scene injection with IN_CHAT (position 4):
+     - Perform backward-scan lookup using `findCurrentSceneState(chat, data.scene_states)` to find the current state
+     - If state found, resolve its `source_fp` to chat index using the `chatFingerprintMap` from `buildRetrievalContext()` (or build a fresh map)
+     - Compute dynamic depth: `depth = chat.length - source_index`
+     - Edge cases: if `source_fp` doesn't resolve (deleted message), fall back to `depth = 4`; if `depth < 0`, clamp to `depth = 0`
+     - Short chats guard: if `chat.length < 4`, use position `1` (AFTER_MAIN) for this turn only
+     - Pass computed depth to `safeSetExtensionPrompt(sceneText, 'openvault_scene', effectivePosition, computedDepth)`
+   - In `selectFormatAndInject()`: before calling `injectContext()`, perform the backward-scan lookup, resolve source_fp, compute depth, format with `formatSceneStateForInjection()`, and pass as the 4th argument. The retrieval context (`ctx`) already contains `chatFingerprintMap` for fingerprint→index resolution.
    - In `src/injection/macros.js`: Add `scene: ''` to `cachedContent`. In `initMacros()`, register `openvault_scene` macro with handler `() => cachedContent.scene`, following the exact same pattern as `openvault_world`.
 4. **Verify:** Run `npx vitest run tests/retrieval/scene-formatting.test.js` and ensure all pass.
 5. **Commit:** `feat(scene-state): add injection formatting, backward-scan lookup, and macro registration`
@@ -134,27 +150,32 @@
 
 ### Task 5: Settings UI — Dropdown and Slider
 
-**Objective:** Add the Scene Position dropdown (4th injection position) and Scene State Interval slider to the settings panel, wire up event handlers and disable semantics.
+**Objective:** Add the Scene Position dropdown (3 options: In-chat, Custom, Disabled) and Scene State Interval slider to the settings panel. NO depth input — scene depth is hardcoded and not user-configurable.
 
 **Depends on:** Task 1 (settings defaults), Task 4 (injection wiring).
 
 **Files to modify/create:**
-- Modify: `templates/settings_panel.html` (Purpose: Add Scene Position dropdown with depth input and macro display, add Scene State Interval slider in extraction settings)
-- Modify: `src/ui/settings.js` (Purpose: Add event handlers for scene position/depth, interval slider, disable confirmation, and `updateInjectionUI` for scene)
+- Modify: `templates/settings_panel.html` (Purpose: Add Scene Position dropdown with only 3 options (In-chat, Custom, Disabled) — NO depth input. Add Scene State Interval slider in extraction settings)
+- Modify: `src/ui/settings.js` (Purpose: Add event handlers for scene position dropdown (no depth handler), interval slider, disable confirmation, and `updateInjectionUI` for scene)
 - Modify: `src/settings.js` (Purpose: Add `injection.scene.position` to `handleSettingChangeSideEffects` for -2 disable wipe of `scene_states`, `scene_ledger`, and `scene_counter`)
 
 **Instructions for Execution Agent:**
-1. **Context Setup:** Read `templates/settings_panel.html` — find the injection position dropdowns section (around line 559-662) and find an existing slider (e.g., world state interval slider) for the pattern. Read `src/ui/settings.js` — find `bindInjectionSettings()` for the event handler pattern, `updateInjectionUI()` for UI state sync, and the -2 confirmation dialog pattern. Read `src/settings.js` for `handleSettingChangeSideEffects()`.
+1. **Context Setup:** Read `templates/settings_panel.html` — find the injection position dropdowns section. Read `src/ui/settings.js` — find `bindInjectionSettings()` for the event handler pattern, `updateInjectionUI()` for UI state sync, and the -2 confirmation dialog pattern. Read `src/settings.js` for `handleSettingChangeSideEffects()`.
 2. **Write Failing Tests:**
-   - Create `tests/ui/scene-settings.test.js`: Test `updateInjectionUI('scene')` — verify that when `injection.scene.position === 4`, the depth container is visible; when `position === -1`, the macro container is visible; when `position === -2`, neither shows. Use the existing UI structure test pattern (regex/string-matching on HTML, no JSDOM).
+   - Create `tests/ui/scene-settings.test.js`: Test `updateInjectionUI('scene')` — verify that when `injection.scene.position === 4` (In-chat), NO depth container is shown (scene depth is hardcoded, not configurable). When `position === -1` (Custom), the macro container is visible. When `position === -2` (Disabled), neither shows. Use the existing UI structure test pattern (regex/string-matching on HTML, no JSDOM).
    - Add to `tests/store/settings.test.js` or create `tests/settings/scene-side-effects.test.js`: Test that setting `injection.scene.position` to `-2` triggers `handleSettingChangeSideEffects` which wipes `scene_states` to `{}`, `scene_ledger` to `[]`, and `scene_counter` to `0`. Run tests to ensure they fail.
 3. **Implement Minimal Code:**
    - In `templates/settings_panel.html`:
-     - In the Injection Positions `<details>` section, after the World Position dropdown, add a 4th dropdown for Scene Position following the **exact same HTML pattern** as the World Position dropdown. Same select options (0-4, -1, -2), same depth input with container, same macro display. Use IDs: `openvault_scene_position`, `openvault_scene_depth`, etc.
+     - In the Injection Positions `<details>` section, after the World Position dropdown, add a 4th dropdown for Scene Position with **only 3 options** (not the full 0-4 range):
+       - `<option value="4">In-chat</option>` (default, selected)
+       - `<option value="-1">Custom (macro only)</option>`
+       - `<option value="-2">Disabled</option>`
+     - **NO depth input** — scene depth is hardcoded to 4 internally, not exposed in UI.
+     - Include the macro display (same pattern as other dropdowns) for Custom position.
      - In the extraction settings section, add a slider for "Scene State Interval" (range 2-10, default 3, step 1). Follow the existing slider pattern for `worldStateInterval`. Use ID `openvault_scene_state_interval`.
    - In `src/ui/settings.js`:
-     - In `bindInjectionSettings()`: Add change handler for `#openvault_scene_position` with -2 confirmation guard (matching the reflections/world pattern). Add input handler for `#openvault_scene_depth`. Add input handler for `#openvault_scene_state_interval`.
-     - In `updateInjectionUI()`: Add a call to `updateType('scene')` so the scene dropdown/depth/macro UI stays synced.
+     - In `bindInjectionSettings()`: Add change handler for `#openvault_scene_position` with -2 confirmation guard (matching the reflections/world pattern). **NO depth input handler** — scene depth is not configurable. Add input handler for `#openvault_scene_state_interval`.
+     - In `updateInjectionUI()`: Add a case for `'scene'` that shows/hides only the macro container (for Custom position), never a depth container.
    - In `src/settings.js`:
      - In `handleSettingChangeSideEffects()`: Add `path !== 'injection.scene.position'` to the early-return guard. Add a new `if (path === 'injection.scene.position')` block that: sets `data.scene_states = {}`, sets `data.scene_ledger = []`, sets `data.scene_counter = 0`. Follow the exact pattern of the `injection.world.position` block.
 4. **Verify:** Run `npx vitest run tests/ui/scene-settings.test.js tests/settings/scene-side-effects.test.js` and ensure all pass.

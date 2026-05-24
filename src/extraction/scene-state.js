@@ -101,6 +101,42 @@ export function getSceneExtractionWindow(chat, sceneStates, skipSystem = true) {
 }
 
 /**
+ * Compute dynamic injection depth from the state's source_fp position.
+ * Depth is calculated as: chat.length - sourceIndex (messages from bottom).
+ * Minimum depth is clamped to 2 to ensure scene state injects after the last
+ * complete User+Bot pair, never at the very bottom where it could interfere
+ * with generation context.
+ * @param {SceneState | null} state - The scene state (must have source_fp)
+ * @param {number} chatLength - Current chat length
+ * @param {Map<string, number>} fpMap - Fingerprint to index map
+ * @returns {number} Computed depth (fallback to 4 if state invalid, min clamp to 2)
+ */
+export function computeDynamicDepth(state, chatLength, fpMap) {
+    // Fallback depth when state is missing or invalid
+    const fallbackDepth = 4;
+    // Minimum depth: 2 messages from bottom (after last complete pair)
+    const minDepth = 2;
+
+    if (!state || !state.source_fp) {
+        return fallbackDepth;
+    }
+
+    // Resolve source_fp to index
+    const sourceIndex = fpMap.get(state.source_fp);
+
+    if (sourceIndex === undefined) {
+        // Message was deleted, use fallback
+        return fallbackDepth;
+    }
+
+    // Compute depth (messages from bottom)
+    const depth = chatLength - sourceIndex;
+
+    // Clamp to minDepth (never inject at very bottom)
+    return Math.max(minDepth, depth);
+}
+
+/**
  * Find the current scene state by backward-scan lookup.
  * Walks backward from the last message and returns the first state whose fingerprint key matches a message fingerprint.
  * @param {Array<{fingerprint: string}>} chat - Chat messages array

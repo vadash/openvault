@@ -200,4 +200,66 @@ describe('Scene State extraction helpers', () => {
             expect(result).toBe(expected);
         });
     });
+
+    describe('computeDynamicDepth', () => {
+        it.each([
+            [
+                'state at index 6, chat length 8 returns depth 2',
+                { location: 'Kitchen', time: 'Morning', source_fp: 'fp-6' },
+                8,
+                new Map([['fp-6', 6]]),
+                2,
+            ],
+            [
+                'state at index 10, chat length 15 returns depth 5',
+                { location: 'Bedroom', time: 'Night', source_fp: 'fp-10' },
+                15,
+                new Map([['fp-10', 10]]),
+                5,
+            ],
+            [
+                'source_fp not in map returns fallback 4',
+                { location: 'Office', time: 'Day', source_fp: 'fp-missing' },
+                10,
+                new Map([
+                    ['fp-1', 1],
+                    ['fp-2', 2],
+                ]),
+                4,
+            ],
+            ['null state returns fallback 4', null, 10, new Map([['fp-1', 1]]), 4],
+            [
+                'state without source_fp returns fallback 4',
+                { location: 'Garden', time: 'Afternoon' },
+                10,
+                new Map([['fp-1', 1]]),
+                4,
+            ],
+            [
+                'depth < 2 clamps to 2 (minimum depth)',
+                { location: 'Future', time: 'Tomorrow', source_fp: 'fp-100' },
+                5,
+                new Map([['fp-100', 100]]),
+                2,
+            ],
+            [
+                'depth exactly 2 returns 2',
+                { location: 'Recent', time: 'Now', source_fp: 'fp-3' },
+                5,
+                new Map([['fp-3', 3]]),
+                2,
+            ],
+            [
+                'state at index 0, chat length 4 returns depth 4',
+                { location: 'Start', time: 'Begin', source_fp: 'fp-0' },
+                4,
+                new Map([['fp-0', 0]]),
+                4,
+            ],
+        ])('$desc', async (_desc, state, chatLength, fpMap, expected) => {
+            const { computeDynamicDepth } = await import('../../src/extraction/scene-state.js');
+            const result = computeDynamicDepth(state, chatLength, fpMap);
+            expect(result).toBe(expected);
+        });
+    });
 });

@@ -60,8 +60,7 @@ const REQUIRED_SETTINGS_PATHS = [
     'injection.reflections.depth',
     'injection.world.position',
     'injection.world.depth',
-    'injection.scene.position',
-    'injection.scene.depth',
+    'injection.scene.position', // depth is computed dynamically, not a setting
 ];
 
 /**

@@ -123,7 +123,7 @@ export const defaultSettings = {
         memory: { position: 1, depth: 4 },
         reflections: { position: 1, depth: 4 },
         world: { position: 1, depth: 4 },
-        scene: { position: 4, depth: 4 },
+        scene: { position: 4 }, // depth computed dynamically from source_fp
     },
 };
 

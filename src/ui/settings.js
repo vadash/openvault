@@ -941,11 +941,8 @@ function bindInjectionSettings() {
         }
     });
 
-    // Scene depth input
-    $('#openvault_scene_depth').on('input', function () {
-        const depth = parseInt($(this).val(), 10) || 4;
-        setSetting('injection.scene.depth', depth).catch(() => {});
-    });
+    // Scene depth is NOT a user setting - computed dynamically from source_fp
+    // No depth input handler needed
 
     // Copy macro buttons
     $('#openvault_copy_memory_macro').on('click', () => {
@@ -991,7 +988,7 @@ function bindInjectionSettings() {
 
 /**
  * Update injection settings UI visibility based on position selection.
- * @param {'memory'|'reflections'|'world'|'both'} type - Which injection type to update
+ * @param {'memory'|'reflections'|'world'|'scene'|'both'} type - Which injection type to update
  */
 export function updateInjectionUI(type = 'both') {
     const settings = getSettings();
@@ -1013,10 +1010,22 @@ export function updateInjectionUI(type = 'both') {
         $(`#openvault_${t}_macro_container`).toggle(position === -1);
     };
 
+    // Scene has no depth container - depth is computed dynamically from source_fp
+    const updateScene = () => {
+        const position = settings.injection?.scene?.position ?? 4;
+
+        // Update selector
+        $('#openvault_scene_position').val(position);
+
+        // NO depth input for scene - depth is computed dynamically
+        // Show/hide macro info (only for CUSTOM)
+        $('#openvault_scene_macro_container').toggle(position === -1);
+    };
+
     if (type === 'both' || type === 'memory') updateType('memory');
     if (type === 'both' || type === 'reflections') updateType('reflections');
     if (type === 'both' || type === 'world') updateType('world');
-    if (type === 'both' || type === 'scene') updateType('scene');
+    if (type === 'both' || type === 'scene') updateScene();
 }
 
 // =============================================================================

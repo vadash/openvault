@@ -29,7 +29,7 @@ import {
 } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
-import { findCurrentSceneState } from '../extraction/scene-state.js';
+import { computeDynamicDepth, findCurrentSceneState } from '../extraction/scene-state.js';
 import { getFingerprint } from '../extraction/scheduler.js';
 import { cachedContent } from '../injection/macros.js';
 import { filterMemoriesByPOV, getActiveCharacters, getPOVContext } from '../pov.js';
@@ -186,8 +186,9 @@ export function buildRetrievalContext(opts = {}) {
  * @param {string} [reflectionText] - Formatted reflection context to inject
  * @param {string} [worldText] - World context to inject
  * @param {string} [sceneText] - Scene state context to inject
+ * @param {number} [sceneDepth] - Computed depth for scene injection (from source_fp position)
  */
-export function injectContext(memoryText, reflectionText = '', worldText = '', sceneText = '') {
+export function injectContext(memoryText, reflectionText = '', worldText = '', sceneText = '', sceneDepth = 4) {
     // Always update cachedContent for macro access
     // NOTE: cachedContent is a live object reference from macros.js.
     // Mutating its properties (not reassigning the binding) is intentional
@@ -205,7 +206,7 @@ export function injectContext(memoryText, reflectionText = '', worldText = '', s
     const worldPosition = getSettings('injection.world.position');
     const worldDepth = getSettings('injection.world.depth');
     const scenePosition = getSettings('injection.scene.position');
-    const sceneDepth = getSettings('injection.scene.depth');
+    // sceneDepth is passed as parameter (computed dynamically from source_fp), not from settings
 
     logDebug(
         `[injectContext] Memory: ${memoryText.length} chars, Reflections: ${reflectionText.length} chars, World: ${worldText.length} chars, Scene: ${sceneText.length} chars`
@@ -235,14 +236,15 @@ export function injectContext(memoryText, reflectionText = '', worldText = '', s
     }
 
     // Inject scene content (with short chats guard)
-    // When position === 4 (IN_CHAT) and chat.length < depth, fallback to position 1 (AFTER_MAIN)
+    // Dynamic depth is computed from source_fp position (passed as parameter)
+    // When position === 4 (IN_CHAT) and chat.length < 4, fallback to position 1 (AFTER_MAIN)
     const deps = getDeps();
     const context = deps.getContext();
     const chat = context.chat || [];
     let effectiveScenePosition = scenePosition;
-    if (scenePosition === 4 && chat.length < sceneDepth) {
+    if (scenePosition === 4 && chat.length < 4) {
         effectiveScenePosition = 1;
-        logDebug(`[injectContext] Scene: IN_CHAT fallback to AFTER_MAIN (chat=${chat.length}, depth=${sceneDepth})`);
+        logDebug(`[injectContext] Scene: IN_CHAT fallback to AFTER_MAIN (chat=${chat.length})`);
     }
 
     if (!sceneText) {
@@ -333,6 +335,7 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
 
     // Prepare scene state for injection
     let sceneText = '';
+    let computedSceneDepth = 4; // Default fallback
     const scenePosition = getSettings('injection.scene.position');
     const sceneDisabled = scenePosition === -2;
     const hasSceneStates = data.scene_states && Object.keys(data.scene_states).length > 0;
@@ -345,7 +348,11 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
         const currentSceneState = findCurrentSceneState(chat, data.scene_states);
         if (currentSceneState) {
             sceneText = formatSceneStateForInjection(currentSceneState);
-            logDebug(`[Scene State] Retrieved scene state: ${currentSceneState.location}, ${currentSceneState.time}`);
+            // Compute dynamic depth from source_fp position
+            computedSceneDepth = computeDynamicDepth(currentSceneState, chat.length, ctx.chatFingerprintMap);
+            logDebug(
+                `[Scene State] Retrieved scene state: ${currentSceneState.location}, ${currentSceneState.time}, depth=${computedSceneDepth}`
+            );
         } else {
             logDebug('[Scene State] No current scene state found');
         }
@@ -353,8 +360,8 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
         logDebug(`[Scene State] Skipped injection (disabled=${sceneDisabled} or no scene states=${!hasSceneStates})`);
     }
 
-    // Inject memory, reflection, world, and scene content
-    injectContext(memoryText, reflectionText, worldText, sceneText);
+    // Inject memory, reflection, world, and scene content (with computed depth)
+    injectContext(memoryText, reflectionText, worldText, sceneText, computedSceneDepth);
 
     // Cache injected context for debug export
     cacheRetrievalDebug({
