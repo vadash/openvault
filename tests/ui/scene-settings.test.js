@@ -32,16 +32,20 @@ describe('Scene Position UI structure', () => {
             expect(html).toContain('{{openvault_scene}}');
         });
 
-        it('scene dropdown has all required options including Disabled', () => {
+        it('scene dropdown has only the three effective options', () => {
             const sceneMatch = html.match(/<select id="openvault_scene_position"[^>]*>([\s\S]*?)<\/select>/i);
             expect(sceneMatch).toBeTruthy();
             const sceneOptions = sceneMatch[1];
 
-            // Standard positions
-            expect(sceneOptions).toContain('value="0"');
-            expect(sceneOptions).toContain('value="1"');
-            expect(sceneOptions).toContain('value="2"');
-            expect(sceneOptions).toContain('value="3"');
+            // Scene position only supports 3 options:
+            // - In-chat (position 4) - leverages recency bias, most effective
+            // - Custom (-1) - macro-only for advanced users
+            // - Disabled (-2) - turns off extraction and injection
+            // Positions 0-3 are intentionally excluded to prevent suboptimal configurations
+            expect(sceneOptions).not.toContain('value="0"');
+            expect(sceneOptions).not.toContain('value="1"');
+            expect(sceneOptions).not.toContain('value="2"');
+            expect(sceneOptions).not.toContain('value="3"');
             expect(sceneOptions).toContain('value="4"'); // In-chat
             expect(sceneOptions).toContain('value="-1"'); // Custom
             expect(sceneOptions).toContain('value="-2"'); // Disabled

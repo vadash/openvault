@@ -231,7 +231,12 @@ injection: {
 ### New UI elements
 
 1. **Slider** in extraction settings: "Scene State Interval" (range 2–10, default 3)
-2. **4th dropdown** in Injection Positions: "Scene Position" — follows exact same HTML/JS pattern as the other three dropdowns, with all position options including Disabled and Custom
+2. **Dropdown** in Injection Positions: "Scene Position" — **only 3 options** (not the full position suite):
+   - **In-chat (position 4)** — Default. Leverages recency bias, most effective placement.
+   - **Custom (-1)** — Macro-only for advanced users who want manual placement.
+   - **Disabled (-2)** — Stops extraction and injection.
+
+   Rationale: Positions 0-3 place scene state too far from the conversation context (before/after char defs, before/after author's note). Scene state must be near the bottom of the prompt to leverage recency bias. Offering positions 0-3 would invite suboptimal configurations.
 
 ### Disable semantics
 
