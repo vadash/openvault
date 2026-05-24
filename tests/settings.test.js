@@ -59,6 +59,15 @@ describe('handleSettingChangeSideEffects', () => {
                 _edgesNeedingConsolidation: ['edge1__edge2', 'edge3__edge4'],
             },
             graph_message_count: 42,
+            scene_states: {
+                'scene-001': { location: 'Forest', timestamp: 100 },
+                'scene-002': { location: 'Cabin', timestamp: 200 },
+            },
+            scene_ledger: [
+                { message_id: 100, scene_id: 'scene-001' },
+                { message_id: 200, scene_id: 'scene-002' },
+            ],
+            scene_counter: 5,
         };
 
         mockContext = {
@@ -75,6 +84,7 @@ describe('handleSettingChangeSideEffects', () => {
                     memory: { position: 1, depth: 4 },
                     reflections: { position: 1, depth: 4 },
                     world: { position: 1, depth: 4 },
+                    scene: { position: 4, depth: 4 },
                 },
             },
         };
@@ -156,6 +166,46 @@ describe('handleSettingChangeSideEffects', () => {
         });
     });
 
+    describe('scene position = -2 (disabled)', () => {
+        it('wipes scene_states, scene_ledger, and scene_counter', async () => {
+            const { setSetting } = await import('../src/settings.js');
+
+            // Act: disable scene
+            await setSetting('injection.scene.position', -2);
+
+            // Assert: scene data wiped
+            expect(mockOpenVaultData.scene_states).toEqual({});
+            expect(mockOpenVaultData.scene_ledger).toEqual([]);
+            expect(mockOpenVaultData.scene_counter).toBe(0);
+            expect(saveOpenVaultDataMock).toHaveBeenCalled();
+            expect(refreshAllUIMock).toHaveBeenCalled();
+        });
+
+        it('handles missing scene_states gracefully', async () => {
+            const { setSetting } = await import('../src/settings.js');
+
+            // Remove scene_states
+            delete mockOpenVaultData.scene_states;
+
+            await setSetting('injection.scene.position', -2);
+
+            expect(mockOpenVaultData.scene_ledger).toEqual([]);
+            expect(mockOpenVaultData.scene_counter).toBe(0);
+        });
+
+        it('handles missing scene_ledger gracefully', async () => {
+            const { setSetting } = await import('../src/settings.js');
+
+            // Remove scene_ledger
+            delete mockOpenVaultData.scene_ledger;
+
+            await setSetting('injection.scene.position', -2);
+
+            expect(mockOpenVaultData.scene_states).toEqual({});
+            expect(mockOpenVaultData.scene_counter).toBe(0);
+        });
+    });
+
     describe('non-disable values do not trigger wipes', () => {
         it('does not wipe data when setting position to 0', async () => {
             const { setSetting } = await import('../src/settings.js');
@@ -196,6 +246,22 @@ describe('handleSettingChangeSideEffects', () => {
                 last_reflection_message: 100,
                 accumulator: ['some', 'data'],
             });
+            expect(saveOpenVaultDataMock).not.toHaveBeenCalled();
+            expect(refreshAllUIMock).not.toHaveBeenCalled();
+        });
+
+        it('does not wipe scene data when setting scene position to 4', async () => {
+            const { setSetting } = await import('../src/settings.js');
+
+            await setSetting('injection.scene.position', 4);
+
+            // Scene data should remain intact
+            expect(mockOpenVaultData.scene_states).toEqual({
+                'scene-001': { location: 'Forest', timestamp: 100 },
+                'scene-002': { location: 'Cabin', timestamp: 200 },
+            });
+            expect(mockOpenVaultData.scene_ledger).toHaveLength(2);
+            expect(mockOpenVaultData.scene_counter).toBe(5);
             expect(saveOpenVaultDataMock).not.toHaveBeenCalled();
             expect(refreshAllUIMock).not.toHaveBeenCalled();
         });

@@ -416,6 +416,13 @@
                         </label>
                         <input type="range" id="openvault_max_reflections" min="10" max="200" step="10" />
                         <small class="openvault-hint">Maximum stored insights per character. Older ones are archived when exceeded</small>
+
+                        <label for="openvault_scene_state_interval">
+                            Scene State Interval: <span id="openvault_scene_state_interval_value">3</span>
+                            <small class="openvault-default-hint" data-default-key="sceneStateInterval"></small>
+                        </label>
+                        <input type="range" id="openvault_scene_state_interval" min="2" max="10" step="1" value="3" />
+                        <small class="openvault-hint">How often scene state is extracted (in messages). Scene state tracks physical continuity like location, clothing, posture</small>
                     </div>
                 </details>
 
@@ -646,6 +653,36 @@
                                 <label>Macro:</label>
                                 <code>{{openvault_world}}</code>
                                 <button id="openvault_copy_world_macro" class="menu_button" style="padding: 2px 8px; font-size: 0.9em; margin-left: 8px;">
+                                    <i class="fa-solid fa-copy"></i>
+                                </button>
+                                <small style="display: block; margin-top: 4px;">Place this macro in your prompt or character card</small>
+                            </div>
+                        </div>
+
+                        <!-- Scene Position -->
+                        <div style="margin-bottom: 20px;">
+                            <h4 style="margin-bottom: 10px;">Scene Position</h4>
+                            <label for="openvault_scene_position">Position:</label>
+                            <select id="openvault_scene_position" class="text_pole" style="width: 100%; margin-bottom: 8px;">
+                                <option value="0">↑Char (Before character definitions)</option>
+                                <option value="1">↓Char (After character definitions)</option>
+                                <option value="2">↑AN (Before author's note)</option>
+                                <option value="3">↓AN (After author's note)</option>
+                                <option value="4" selected>In-chat (At message depth)</option>
+                                <option value="-1">Custom (Use macro manually)</option>
+                                <option value="-2">Disabled</option>
+                            </select>
+
+                            <div id="openvault_scene_depth_container" style="display:none;">
+                                <label for="openvault_scene_depth">Depth:</label>
+                                <input type="number" id="openvault_scene_depth" class="text_pole" min="0" max="50" value="4" style="width: 80px;" />
+                                <small>Messages from end</small>
+                            </div>
+
+                            <div id="openvault_scene_macro_container" style="display:none; margin-top: 8px;">
+                                <label>Macro:</label>
+                                <code>{{openvault_scene}}</code>
+                                <button id="openvault_copy_scene_macro" class="menu_button" style="padding: 2px 8px; font-size: 0.9em; margin-left: 8px;">
                                     <i class="fa-solid fa-copy"></i>
                                 </button>
                                 <small style="display: block; margin-top: 4px;">Place this macro in your prompt or character card</small>

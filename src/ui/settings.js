@@ -779,6 +779,7 @@ function bindUIElements() {
         updateWordsDisplay(v, 'openvault_world_context_budget_words')
     );
     bindSetting('world_state_interval', 'worldStateInterval');
+    bindSetting('scene_state_interval', 'sceneStateInterval');
 
     // Forgetfulness curve settings
     bindSetting('forgetfulness_lambda', 'forgetfulnessBaseLambda', 'float');
@@ -917,6 +918,35 @@ function bindInjectionSettings() {
         setSetting('injection.world.depth', depth).catch(() => {});
     });
 
+    // Scene position selector
+    $('#openvault_scene_position').on('change', async function () {
+        const position = parseInt($(this).val(), 10);
+        const settings = getSettings();
+        const previousPosition = settings.injection?.scene?.position ?? 4;
+
+        if (position === -2) {
+            // Revert the dropdown to previous value
+            $(this).val(previousPosition);
+
+            // Show confirmation dialog
+            if (confirm('Are you sure you want to disable Scene State? This will delete all scene continuity data.')) {
+                // User confirmed - set position (side effects handler will wipe data)
+                await setSetting('injection.scene.position', position);
+                updateInjectionUI('scene');
+            }
+            // If cancelled, dropdown is already reverted to previous value
+        } else {
+            await setSetting('injection.scene.position', position);
+            updateInjectionUI('scene');
+        }
+    });
+
+    // Scene depth input
+    $('#openvault_scene_depth').on('input', function () {
+        const depth = parseInt($(this).val(), 10) || 4;
+        setSetting('injection.scene.depth', depth).catch(() => {});
+    });
+
     // Copy macro buttons
     $('#openvault_copy_memory_macro').on('click', () => {
         navigator.clipboard
@@ -943,6 +973,16 @@ function bindInjectionSettings() {
             .writeText('{{openvault_world}}')
             .then(
                 () => showToast('success', 'Copied {{openvault_world}} to clipboard'),
+                () => showToast('error', 'Failed to copy')
+            )
+            .catch(() => {});
+    });
+
+    $('#openvault_copy_scene_macro').on('click', () => {
+        navigator.clipboard
+            .writeText('{{openvault_scene}}')
+            .then(
+                () => showToast('success', 'Copied {{openvault_scene}} to clipboard'),
                 () => showToast('error', 'Failed to copy')
             )
             .catch(() => {});
@@ -976,6 +1016,7 @@ export function updateInjectionUI(type = 'both') {
     if (type === 'both' || type === 'memory') updateType('memory');
     if (type === 'both' || type === 'reflections') updateType('reflections');
     if (type === 'both' || type === 'world') updateType('world');
+    if (type === 'both' || type === 'scene') updateType('scene');
 }
 
 // =============================================================================
@@ -1074,6 +1115,9 @@ export function updateUI() {
 
     $('#openvault_world_state_interval').val(settings.worldStateInterval);
     $('#openvault_world_state_interval_value').text(settings.worldStateInterval);
+
+    $('#openvault_scene_state_interval').val(settings.sceneStateInterval);
+    $('#openvault_scene_state_interval_value').text(settings.sceneStateInterval);
 
     // =========================================================================
     // NEW: Sync 7 previously-unbound settings to their HTML elements.

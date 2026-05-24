@@ -266,6 +266,7 @@ export const UI_DEFAULT_HINTS = {
     maxInsightsPerReflection: defaultSettings.maxInsightsPerReflection,
     worldContextBudget: defaultSettings.worldContextBudget,
     worldStateInterval: defaultSettings.worldStateInterval,
+    sceneStateInterval: defaultSettings.sceneStateInterval,
     // Decay & forgetfulness curve tuning
     forgetfulnessBaseLambda: defaultSettings.forgetfulnessBaseLambda,
     bucketMinRepresentation: defaultSettings.bucketMinRepresentation,

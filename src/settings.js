@@ -178,7 +178,11 @@ export function getSettings(path) {
  */
 async function handleSettingChangeSideEffects(path, value) {
     // Only handle side effects for injection position = -2 (DISABLED)
-    if (path !== 'injection.reflections.position' && path !== 'injection.world.position') {
+    if (
+        path !== 'injection.reflections.position' &&
+        path !== 'injection.world.position' &&
+        path !== 'injection.scene.position'
+    ) {
         return;
     }
 
@@ -226,6 +230,26 @@ async function handleSettingChangeSideEffects(path, value) {
         // Reset graph message count
         if (data.graph_message_count !== 0) {
             data.graph_message_count = 0;
+            madeChanges = true;
+        }
+    }
+
+    if (path === 'injection.scene.position') {
+        // Wipe scene states
+        if (data.scene_states && Object.keys(data.scene_states).length > 0) {
+            data.scene_states = {};
+            madeChanges = true;
+        }
+
+        // Clear scene ledger
+        if (data.scene_ledger?.length > 0) {
+            data.scene_ledger = [];
+            madeChanges = true;
+        }
+
+        // Reset scene counter
+        if (data.scene_counter !== 0) {
+            data.scene_counter = 0;
             madeChanges = true;
         }
     }
