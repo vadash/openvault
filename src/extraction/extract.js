@@ -536,13 +536,13 @@ export async function filterSimilarEvents(
 
                     if (jaccard < jaccardThreshold * 0.5) {
                         logDebug(
-                            `Dedup: Cosine ${(similarity * 100).toFixed(1)}% but Jaccard ${(jaccard * 100).toFixed(1)}% too low — keeping:\n  "${event.summary}"\n  vs existing: "${memory.summary}"`
+                            `Dedup: Cosine ${(similarity * 100).toFixed(1)}% but Jaccard ${(jaccard * 100).toFixed(1)}% too low — keeping: "${event.summary}" ≈ "${memory.summary}"`
                         );
                         continue;
                     }
 
                     logDebug(
-                        `Dedup: Skipping new event:\n  "${event.summary}"\n  (${(similarity * 100).toFixed(1)}% similar to existing memory:\n  "${memory.summary}")`
+                        `Dedup skip (${(similarity * 100).toFixed(1)}%): "${event.summary}" ≈ "${memory.summary}"`
                     );
                     isDuplicate = true;
                     memory.mentions = (memory.mentions || 1) + 1;
@@ -570,7 +570,7 @@ export async function filterSimilarEvents(
             const jaccard = jaccardSimilarity(eventTokens, keptTokens);
             if (jaccard >= jaccardThreshold) {
                 logDebug(
-                    `Dedup: Skipping new event:\n  "${event.summary}"\n  (Jaccard ${(jaccard * 100).toFixed(1)}% with kept event:\n  "${keptEvent.summary}")`
+                    `Dedup skip (Jaccard ${(jaccard * 100).toFixed(1)}%): "${event.summary}" ≈ "${keptEvent.summary}"`
                 );
                 isDuplicate = true;
                 keptEvent.mentions = (keptEvent.mentions || 1) + 1;

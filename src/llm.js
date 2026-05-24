@@ -161,8 +161,10 @@ export async function callLLM(messages, config, options = {}) {
 
         // Extract content from full API response (choices[0].message.content)
         let content;
-        if (result && typeof result === 'object' && 'choices' in result && result.choices?.[0]?.message?.content) {
+        let reasoningContent;
+        if (result && typeof result === 'object' && 'choices' in result && result.choices?.[0]?.message) {
             content = result.choices[0].message.content;
+            reasoningContent = result.choices[0].message.reasoning_content ?? result.choices[0].message.reasoning ?? '';
 
             // Record usage if tracker provided
             if (options.tracker && typeof options.tracker.record === 'function') {
@@ -178,10 +180,17 @@ export async function callLLM(messages, config, options = {}) {
         } else {
             // Fallback for legacy response format or malformed response
             content = result && typeof result === 'object' && 'content' in result ? result.content : result || '';
+            reasoningContent = '';
         }
 
         logDebug(`LLM response received (${content.length} chars)`);
-        logRequest(errorContext, { messages, maxTokens, profileId: targetProfileId, response: content });
+        logRequest(errorContext, {
+            messages,
+            maxTokens,
+            profileId: targetProfileId,
+            response: content,
+            reasoning: reasoningContent,
+        });
 
         if (content.length === 0) {
             logDebug(`ERROR: Empty LLM response! Full result: ${JSON.stringify(result).substring(0, 200)}`);

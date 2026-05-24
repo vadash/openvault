@@ -173,7 +173,7 @@ async function selectRelevantMemoriesSimple(memories, ctx, limit, allHiddenMemor
  * @param {number} chatLength - Current chat length
  * @param {Map<string, number>|null} [chatFingerprintMap=null] - Message fingerprint map for accurate positions
  * @param {number} [minRepresentation=0.20] - Minimum 20% per bucket
- * @returns {Promise<Memory[]>} Selected memories
+ * @returns {Promise<{memories: Memory[], totalTokens: number}>} Selected memories and token usage
  */
 export async function selectMemoriesWithSoftBalance(
     scoredMemories,
@@ -182,8 +182,8 @@ export async function selectMemoriesWithSoftBalance(
     chatFingerprintMap = null,
     minRepresentation = 0.2
 ) {
-    if (!scoredMemories || scoredMemories.length === 0) return [];
-    if (tokenBudget <= 0) return [];
+    if (!scoredMemories || scoredMemories.length === 0) return { memories: [], totalTokens: 0 };
+    if (tokenBudget <= 0) return { memories: [], totalTokens: 0 };
 
     // Group all candidates by bucket first
     const bucketCandidates = { old: [], mid: [], recent: [] };
@@ -230,7 +230,7 @@ export async function selectMemoriesWithSoftBalance(
         }
     }
 
-    return selected;
+    return { memories: selected, totalTokens };
 }
 
 /**
@@ -256,7 +256,7 @@ export async function selectRelevantMemories(memories, ctx) {
         hiddenMemories,
         ctx.idfCache || null
     );
-    const finalResults = await selectMemoriesWithSoftBalance(
+    const { memories: finalResults, totalTokens: usedTokens } = await selectMemoriesWithSoftBalance(
         scoredResults,
         finalTokens,
         ctx.chatLength,
@@ -298,6 +298,7 @@ export async function selectRelevantMemories(memories, ctx) {
     cacheRetrievalDebug({
         tokenBudget: {
             budget: finalTokens,
+            used: usedTokens,
             scoredCount: scoredMemories.length,
             selectedCount: finalResults.length,
             trimmedByBudget: scoredMemories.length - finalResults.length,
@@ -325,7 +326,7 @@ export async function selectRelevantMemories(memories, ctx) {
     }
 
     logDebug(
-        `Retrieval: ${activeMemories.length} active memories -> ${scoredMemories.length} scored -> ${finalResults.length} after token filter (${finalTokens} budget)`
+        `Retrieval: ${activeMemories.length} active memories -> ${scoredMemories.length} scored -> ${finalResults.length} selected (${usedTokens}/${finalTokens} tokens)`
     );
     return { memories: finalResults };
 }

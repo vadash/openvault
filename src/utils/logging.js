@@ -109,10 +109,16 @@ export function logRequest(label, data) {
         // FULL OUTPUT: Show complete request/response for prompt tuning
         const responseLength = typeof data.response === 'string' ? data.response.length : 0;
         const messageCount = Array.isArray(data.messages) ? data.messages.length : 0;
-        group(`[OpenVault] ✅ ${label} — FULL (${responseLength} chars, ${messageCount} messages)`);
+        const reasoningLength = typeof data.reasoning === 'string' ? data.reasoning.length : 0;
+        group(
+            `[OpenVault] ✅ ${label} — FULL (${responseLength} chars, ${messageCount} messages${reasoningLength > 0 ? `, ${reasoningLength} reasoning` : ''})`
+        );
         c.log('Profile:', data.profileId);
         c.log('Max Tokens:', data.maxTokens);
         c.log('Messages:', data.messages);
+        if (data.reasoning) {
+            c.log('Reasoning:', data.reasoning);
+        }
         c.log('Response:', data.response);
         groupEnd();
     } else {
