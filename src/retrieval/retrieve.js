@@ -354,6 +354,7 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
             logDebug(
                 `[Scene State] Retrieved scene state: ${currentSceneState.location}, ${currentSceneState.time}, depth=${computedSceneDepth}`
             );
+            logDebug(`[Scene State] Formatted scene text (${sceneText.length} chars): ${sceneText.slice(0, 100)}...`);
         } else {
             logDebug('[Scene State] No current scene state found');
         }
