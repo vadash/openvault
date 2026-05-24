@@ -97,6 +97,8 @@ export const defaultSettings = {
     // World context settings
     worldContextBudget: 2000,
     worldStateInterval: 100,
+    // Scene state settings
+    sceneStateInterval: 3,
     // Entity settings
     // Query context settings (previously only in QUERY_CONTEXT_DEFAULTS)
     entityWindowSize: 10, // messages to scan for entities
@@ -121,6 +123,7 @@ export const defaultSettings = {
         memory: { position: 1, depth: 4 },
         reflections: { position: 1, depth: 4 },
         world: { position: 1, depth: 4 },
+        scene: { position: 4, depth: 4 },
     },
 };
 

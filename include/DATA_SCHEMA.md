@@ -10,7 +10,7 @@ All extension state lives within SillyTavern's `context.chatMetadata.openvault`.
 
 ```typescript
 {
-  schema_version: number,      // Tracks migration state (Current: 7)
+  schema_version: number,      // Tracks migration state (Current: 8)
   embedding_model_id: string,  // Tracks which model generated stored embeddings
   
   memories: [{                 // Both events and reflections
@@ -52,6 +52,32 @@ All extension state lives within SillyTavern's `context.chatMetadata.openvault`.
   global_world_state: { 
     summary: string, last_updated: number 
   },
+  
+  scene_states: {
+    [fingerprint: string]: {
+      location: string,          // Current scene location
+      time: string,              // Scene time (natural language, e.g., "Friday evening")
+      environment?: string,      // Optional atmosphere details
+      characters: {
+        [charName: string]: {
+          clothing: string[],    // Array of clothing items
+          posture: string,       // Physical posture description
+          physical_status: string[], // Physical condition (e.g., "tired", "blushing")
+          mental_status: string[]    // Mental state (e.g., "nervous", "excited")
+        }
+      },
+      active_props: string[],    // Props in use (e.g., "wine glass", "book")
+      source_fp: string          // Fingerprint of source message
+    }
+  },
+  
+  scene_ledger: [{
+    fp: string,                  // Message fingerprint triggering scene change
+    location: string,            // New location after transition
+    time: string                 // New time after transition
+  }],
+  
+  scene_counter: number,         // Message counter for scene extraction interval
   
   character_states: { 
     [charName: string]: { 

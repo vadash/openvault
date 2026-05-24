@@ -206,6 +206,10 @@ describe('v4 migration - add injection.reflections', () => {
                     world: { position: 1, depth: 4 },
                 },
             },
+            // v8 fields already present (no changes from v8)
+            scene_states: {},
+            scene_ledger: [],
+            scene_counter: 0,
         };
 
         const result = runSchemaMigrations(data, []);
@@ -263,7 +267,7 @@ describe('v5 migration - convert reflection toggles to position -2', () => {
         const result = runSchemaMigrations(data, []);
 
         expect(result).toBe(true);
-        expect(data.schema_version).toBe(7);
+        expect(data.schema_version).toBe(8);
         expect(data.settings.injection.reflections.position).toBe(-2);
     });
 
@@ -320,12 +324,16 @@ describe('v5 migration - convert reflection toggles to position -2', () => {
     it('handles data with no settings object', () => {
         const data = {
             schema_version: 4,
+            // v8 fields already present (no changes from v8)
+            scene_states: {},
+            scene_ledger: [],
+            scene_counter: 0,
         };
 
         const result = runSchemaMigrations(data, []);
 
         expect(result).toBe(false);
-        expect(data.schema_version).toBe(7);
+        expect(data.schema_version).toBe(8);
     });
 
     it('is idempotent - running twice produces the same result', () => {
@@ -390,6 +398,10 @@ describe('v6 migration - remove community data', () => {
         const data = {
             schema_version: 5,
             settings: {},
+            // v8 fields already present (no changes from v8)
+            scene_states: {},
+            scene_ledger: [],
+            scene_counter: 0,
         };
 
         const result = runSchemaMigrations(data, []);
@@ -429,6 +441,10 @@ describe('v7 migration - delete Level 2+ reflections', () => {
                 { id: 'm1', type: 'event', summary: 'Event 1' },
                 { id: 'm2', type: 'reflection', summary: 'Level 1 reflection', level: 1 },
             ],
+            // v8 fields already present (no changes from v8)
+            scene_states: {},
+            scene_ledger: [],
+            scene_counter: 0,
         };
 
         const result = runSchemaMigrations(data, []);
@@ -475,6 +491,10 @@ describe('v7 migration - delete Level 2+ reflections', () => {
         const dataWithoutL2 = {
             schema_version: 6,
             memories: [{ id: 'm1', type: 'reflection', level: 1 }],
+            // v8 fields already present (no changes from v8)
+            scene_states: {},
+            scene_ledger: [],
+            scene_counter: 0,
         };
 
         expect(runSchemaMigrations(dataWithL2, [])).toBe(true);
@@ -501,6 +521,10 @@ describe('v7 migration - delete Level 2+ reflections', () => {
         const data = {
             schema_version: 6,
             memories: [{ id: 'm1', type: 'reflection', summary: 'No level specified' }],
+            // v8 fields already present (no changes from v8)
+            scene_states: {},
+            scene_ledger: [],
+            scene_counter: 0,
         };
 
         const result = runSchemaMigrations(data, []);

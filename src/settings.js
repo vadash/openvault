@@ -41,6 +41,7 @@ const REQUIRED_SETTINGS_PATHS = [
     'maxInsightsPerReflection',
     'worldContextBudget',
     'worldStateInterval',
+    'sceneStateInterval',
     'entityWindowSize',
     'embeddingWindowSize',
     'recencyDecayFactor',
@@ -59,6 +60,8 @@ const REQUIRED_SETTINGS_PATHS = [
     'injection.reflections.depth',
     'injection.world.position',
     'injection.world.depth',
+    'injection.scene.position',
+    'injection.scene.depth',
 ];
 
 /**

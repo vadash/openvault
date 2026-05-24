@@ -141,6 +141,30 @@ export async function getSchemas() {
         events: z.array(EventSchema),
     });
 
+    // --- Scene State Schemas ---
+
+    const SceneCharacterSchema = z.object({
+        clothing: z.array(z.string()),
+        posture: z.string(),
+        physical_status: z.array(z.string()),
+        mental_status: z.array(z.string()),
+    });
+
+    const SceneStateSchema = z.object({
+        location: z.string(),
+        time: z.string(),
+        environment: z.string().optional(),
+        characters: z.record(z.string(), SceneCharacterSchema).default({}),
+        active_props: z.array(z.string()).default([]),
+        source_fp: z.string(),
+    });
+
+    const SceneLedgerEntrySchema = z.object({
+        fp: z.string(),
+        location: z.string(),
+        time: z.string(),
+    });
+
     // --- OpenVault Data Schema ---
 
     const CharacterDataSchema = z.object({
@@ -431,6 +455,9 @@ export async function getSchemas() {
         GraphPromptParamsSchema,
         EdgeConsolidationParamsSchema,
         ReflectionPromptParamsSchema,
+        SceneCharacterSchema,
+        SceneStateSchema,
+        SceneLedgerEntrySchema,
     };
 
     return _schemas;

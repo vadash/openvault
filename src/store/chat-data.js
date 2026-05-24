@@ -45,6 +45,9 @@ export function getOpenVaultData() {
             reflection_state: {},
             graph: createEmptyGraph(),
             graph_message_count: 0,
+            scene_states: {},
+            scene_ledger: [],
+            scene_counter: 0,
         };
     }
     const data = context.chatMetadata[METADATA_KEY];

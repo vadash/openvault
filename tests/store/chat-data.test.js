@@ -45,24 +45,30 @@ describe('store/chat-data', () => {
     describe('getOpenVaultData', () => {
         it('creates complete schema for new chats', () => {
             const data = getOpenVaultData();
-            expect(data.schema_version).toBe(7);
+            expect(data.schema_version).toBe(8);
             expect(data.memories).toEqual([]);
             expect(data.character_states).toEqual({});
             expect(data.graph).toBeDefined();
             expect(data.graph_message_count).toBe(0);
             expect(data.processed_message_ids).toEqual([]);
+            expect(data.scene_states).toEqual({});
+            expect(data.scene_ledger).toEqual([]);
+            expect(data.scene_counter).toBe(0);
         });
 
         it('creates empty data structure if none exists', () => {
             const data = getOpenVaultData();
             expect(data).toEqual({
-                schema_version: 7,
+                schema_version: 8,
                 [MEMORIES_KEY]: [],
                 [CHARACTERS_KEY]: {},
                 processed_message_ids: [],
                 reflection_state: {},
                 graph: expect.any(Object),
                 graph_message_count: 0,
+                scene_states: {},
+                scene_ledger: [],
+                scene_counter: 0,
             });
         });
 
