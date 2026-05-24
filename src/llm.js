@@ -14,6 +14,7 @@ import {
     getEdgeConsolidationJsonSchema,
     getEventExtractionJsonSchema,
     getGraphExtractionJsonSchema,
+    getSceneStateJsonSchema,
     getUnifiedReflectionJsonSchema,
 } from './extraction/structured.js';
 import { getSessionSignal } from './state.js';
@@ -97,6 +98,13 @@ export const LLM_CONFIGS = {
         errorContext: 'Edge consolidation',
         timeoutMs: 60000,
         getJsonSchema: getEdgeConsolidationJsonSchema,
+    },
+    sceneState: {
+        profileSettingKey: 'extractionProfile',
+        maxTokens: 4000,
+        errorContext: 'Scene state extraction',
+        timeoutMs: 120000,
+        getJsonSchema: getSceneStateJsonSchema,
     },
 };
 

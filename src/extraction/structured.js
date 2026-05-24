@@ -116,6 +116,24 @@ async function getExtendedSchemas() {
             consolidated_description: z.string().min(1, 'Consolidated description is required'),
         });
 
+        // SceneStateSchema (extended with catch fallbacks for LLM output)
+        const { SceneCharacterSchema } = await getSchemas();
+        exported.SceneCharacterLLMSchema = z.object({
+            clothing: z.array(z.string()).catch([]),
+            posture: z.string().catch('unknown posture'),
+            physical_status: z.array(z.string()).catch([]),
+            mental_status: z.array(z.string()).catch([]),
+        });
+
+        exported.SceneStateLLMSchema = z.object({
+            location: z.string().min(1, 'Location is required').catch('Unknown location'),
+            time: z.string().min(1, 'Time is required').catch('Unknown time'),
+            environment: z.string().optional().catch(undefined),
+            characters: z.record(z.string(), exported.SceneCharacterLLMSchema).catch({}),
+            active_props: z.array(z.string()).catch([]),
+            source_fp: z.string().min(1, 'Source fingerprint is required').catch('unknown'),
+        });
+
         _extended = exported;
     }
     return _extended;
@@ -510,4 +528,25 @@ export async function parseConsolidationResponse(content, prefill = undefined) {
         (data) => recoverBareString(data, 'consolidated_description'),
         prefill ?? defaultPrefill
     );
+}
+
+// --- Scene State Schema ---
+
+/**
+ * Get jsonSchema for scene state extraction
+ * @returns {Promise<Object>} ConnectionManager jsonSchema object
+ */
+export async function getSceneStateJsonSchema() {
+    const { SceneStateLLMSchema } = await getExtendedSchemas();
+    return toJsonSchema(SceneStateLLMSchema, 'SceneState');
+}
+
+/**
+ * Parse scene state response
+ * @param {string} content - Raw LLM response
+ * @returns {Promise<Object>} Validated scene state
+ */
+export async function parseSceneStateResponse(content) {
+    const { SceneStateLLMSchema } = await getExtendedSchemas();
+    return parseStructuredResponse(content, SceneStateLLMSchema);
 }
