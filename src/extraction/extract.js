@@ -1081,10 +1081,13 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             logDebug('[Extraction] World synthesis disabled (position=-2), skipping graph_message_count increment');
         }
 
-        // Only increment scene counter if scene extraction is enabled
+        // Only increment scene counter if scene extraction is enabled AND not during backfill
+        // Backfill skips scene extraction (Stage 7), so counter should not accumulate
         const scenePosition = settings?.injection?.scene?.position ?? getSettings('injection.scene.position');
-        if (scenePosition !== -2) {
+        if (scenePosition !== -2 && !options.isBackfill) {
             incrementSceneCounter(messages.length, data);
+        } else if (options.isBackfill) {
+            logDebug('[Extraction] Backfill mode: skipping scene_counter increment');
         } else {
             logDebug('[Extraction] Scene extraction disabled (position=-2), skipping scene_counter increment');
         }

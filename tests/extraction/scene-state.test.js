@@ -100,6 +100,7 @@ describe('Scene State extraction helpers', () => {
                     { send_date: 'fp-3', is_system: false, mes: 'Third message' },
                 ],
                 {},
+                { sceneStateMaxTurnStart: 10 },
                 true,
                 ['fp-1', 'fp-2', 'fp-3'],
             ],
@@ -112,6 +113,7 @@ describe('Scene State extraction helpers', () => {
                     { send_date: 'fp-4', is_system: false, mes: 'Message 4' },
                 ],
                 { 'fp-2': { location: 'Kitchen', time: 'Morning', source_fp: 'fp-2' } },
+                { sceneStateMaxTurnStart: 10 },
                 true,
                 ['fp-3', 'fp-4'],
             ],
@@ -123,6 +125,7 @@ describe('Scene State extraction helpers', () => {
                     { send_date: 'fp-2', is_system: false, mes: 'Bot response' },
                 ],
                 {},
+                { sceneStateMaxTurnStart: 10 },
                 true,
                 ['fp-1', 'fp-2'],
             ],
@@ -134,12 +137,13 @@ describe('Scene State extraction helpers', () => {
                     { send_date: 'fp-2', is_system: false, mes: 'Bot response' },
                 ],
                 {},
+                { sceneStateMaxTurnStart: 10 },
                 false,
                 ['fp-1', 'fp-sys', 'fp-2'],
             ],
-        ])('$desc', async (_desc, chat, sceneStates, skipSystem, expectedFps) => {
+        ])('$desc', async (_desc, chat, sceneStates, settings, skipSystem, expectedFps) => {
             const { getSceneExtractionWindow } = await import('../../src/extraction/scene-state.js');
-            const result = getSceneExtractionWindow(chat, sceneStates, skipSystem);
+            const result = getSceneExtractionWindow(chat, sceneStates, settings, skipSystem);
             // Use send_date for fingerprint comparison since getFingerprint uses send_date
             expect(result.map((m) => m.send_date)).toEqual(expectedFps);
         });

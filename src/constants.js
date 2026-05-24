@@ -99,6 +99,7 @@ export const defaultSettings = {
     worldStateInterval: 100,
     // Scene state settings
     sceneStateInterval: 3,
+    sceneStateMaxTurnStart: 10, // Max turns for cold start extraction window
     // Entity settings
     // Query context settings (previously only in QUERY_CONTEXT_DEFAULTS)
     entityWindowSize: 10, // messages to scan for entities

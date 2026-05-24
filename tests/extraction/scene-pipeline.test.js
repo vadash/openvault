@@ -130,7 +130,7 @@ describe('Scene State Pipeline Integration', () => {
         resetDeps();
     });
 
-    it('increments scene_counter by real message count on extraction', async () => {
+    it('does NOT increment scene_counter during backfill (counter stays 0)', async () => {
         global.setupTestContext({
             context: mockContext,
             settings: getExtractionSettings({
@@ -152,8 +152,41 @@ describe('Scene State Pipeline Integration', () => {
             },
         });
 
-        // Process messages 0, 1, 3, 4 (skip system at index 2)
+        // Process messages 0, 1, 3, 4 (skip system at index 2) with isBackfill=true
         const result = await extractMemories([0, 1, 3, 4], 'test-chat-123', { silent: true, isBackfill: true });
+
+        expect(result.status).toBe('success');
+
+        // scene_counter should NOT be incremented during backfill (stays 0)
+        expect(mockData.scene_counter).toBe(0);
+        // extractSceneState should NOT be called (Phase 2 skipped during backfill)
+        expect(extractSceneState).not.toHaveBeenCalled();
+    });
+
+    it('increments scene_counter by real message count on normal extraction', async () => {
+        global.setupTestContext({
+            context: mockContext,
+            settings: getExtractionSettings({
+                sceneStateInterval: 10,
+                injection: {
+                    memory: { position: 1, depth: 4 },
+                    reflections: { position: 1, depth: 4 },
+                    world: { position: 1, depth: 4 },
+                    scene: { position: 4, depth: 4 },
+                },
+            }),
+            deps: {
+                connectionManager: getMockConnectionManager(mockSendRequest()),
+                fetch: vi.fn(async () => ({
+                    ok: true,
+                    json: async () => ({ embedding: [0.1, 0.2] }),
+                })),
+                saveChatConditional: vi.fn(async () => true),
+            },
+        });
+
+        // Process messages 0, 1, 3, 4 (skip system at index 2) - NO isBackfill
+        const result = await extractMemories([0, 1, 3, 4], 'test-chat-123', { silent: true });
 
         expect(result.status).toBe('success');
 

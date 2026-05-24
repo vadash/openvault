@@ -11,6 +11,7 @@ import { buildSceneStatePrompt } from '../prompts/scene-state/builder.js';
 import { getSettings } from '../settings.js';
 import { logDebug, logError, logInfo } from '../utils/logging.js';
 import { stripThinkingTags } from '../utils/text.js';
+import { countTurns, snapToTurnBoundary } from '../utils/tokens.js';
 import { getFingerprint } from './scheduler.js';
 import { parseSceneStateResponse } from './structured.js';
 
@@ -64,16 +65,51 @@ export function diffLedger(prevState, newState, lastFp) {
 
 /**
  * Get messages since the last scene state extraction.
- * @param {Array<{fingerprint: string, is_system?: boolean, mes?: string, name?: string}>} chat - Chat messages array
+ * Cold start is limited to sceneStateMaxTurnStart (default 10) to prevent
+ * processing entire chat history on first extraction after backfill.
+ * @param {Array<{fingerprint: string, is_system?: boolean, mes?: string, name?: string, is_user?: boolean}>} chat - Chat messages array
  * @param {Record<string, SceneState>} sceneStates - Scene state map
+ * @param {object} settings - Settings object (for sceneStateMaxTurnStart)
  * @param {boolean} [skipSystem=true] - Skip system messages
  * @returns {Array<{fingerprint: string, is_system?: boolean, mes?: string, name?: string}>} Messages since last extraction
  */
-export function getSceneExtractionWindow(chat, sceneStates, skipSystem = true) {
+export function getSceneExtractionWindow(chat, sceneStates, settings, skipSystem = true) {
     if (!chat?.length) return [];
     if (!sceneStates || Object.keys(sceneStates).length === 0) {
-        // Cold start: return all messages (respecting skipSystem)
-        return chat.filter((m) => !skipSystem || !m.is_system);
+        // Cold start: limit to maxTurnStart to prevent processing entire history
+        const maxTurns = settings?.sceneStateMaxTurnStart ?? 10;
+        const nonSystemIndices = [];
+        for (let i = 0; i < chat.length; i++) {
+            if (!skipSystem || !chat[i].is_system) {
+                nonSystemIndices.push(i);
+            }
+        }
+
+        // If under limit, return all
+        const turnCount = countTurns(chat, nonSystemIndices);
+        if (turnCount <= maxTurns) {
+            return chat.filter((m) => !skipSystem || !m.is_system);
+        }
+
+        // Take last N turns: walk backward to find the cutoff
+        // Build indices from end, snap to turn boundary
+        const reversedIndices = [...nonSystemIndices].reverse();
+        const selectedIndices = [];
+        let turnsFound = 0;
+
+        for (const idx of reversedIndices) {
+            selectedIndices.unshift(idx);
+            // Re-count turns in selected window
+            const windowTurns = countTurns(chat, selectedIndices);
+            if (windowTurns >= maxTurns) {
+                // Snap forward to include full turn (don't orphan user messages)
+                const snapped = snapToTurnBoundary(chat, selectedIndices, false);
+                return snapped.map((i) => chat[i]).filter((m) => !skipSystem || !m.is_system);
+            }
+        }
+
+        // Fallback: return what we have
+        return selectedIndices.map((i) => chat[i]).filter((m) => !skipSystem || !m.is_system);
     }
 
     // Find the most recent state's source_fp
@@ -83,16 +119,60 @@ export function getSceneExtractionWindow(chat, sceneStates, skipSystem = true) {
     const lastSourceFp = lastState?.source_fp;
 
     if (!lastSourceFp) {
-        // No valid source_fp: return all messages
-        return chat.filter((m) => !skipSystem || !m.is_system);
+        // No valid source_fp: treat as cold start with limit
+        const maxTurns = settings?.sceneStateMaxTurnStart ?? 10;
+        const nonSystemIndices = [];
+        for (let i = 0; i < chat.length; i++) {
+            if (!skipSystem || !chat[i].is_system) {
+                nonSystemIndices.push(i);
+            }
+        }
+
+        const turnCount = countTurns(chat, nonSystemIndices);
+        if (turnCount <= maxTurns) {
+            return chat.filter((m) => !skipSystem || !m.is_system);
+        }
+
+        const reversedIndices = [...nonSystemIndices].reverse();
+        const selectedIndices = [];
+        for (const idx of reversedIndices) {
+            selectedIndices.unshift(idx);
+            if (countTurns(chat, selectedIndices) >= maxTurns) {
+                const snapped = snapToTurnBoundary(chat, selectedIndices, false);
+                return snapped.map((i) => chat[i]).filter((m) => !skipSystem || !m.is_system);
+            }
+        }
+        return selectedIndices.map((i) => chat[i]).filter((m) => !skipSystem || !m.is_system);
     }
 
     // Find the index of the lastSourceFp message
     const lastIndex = chat.findIndex((m) => getFingerprint(m) === lastSourceFp);
 
     if (lastIndex === -1) {
-        // Message not found: return all messages
-        return chat.filter((m) => !skipSystem || !m.is_system);
+        // Message not found: treat as cold start with limit
+        const maxTurns = settings?.sceneStateMaxTurnStart ?? 10;
+        const nonSystemIndices = [];
+        for (let i = 0; i < chat.length; i++) {
+            if (!skipSystem || !chat[i].is_system) {
+                nonSystemIndices.push(i);
+            }
+        }
+
+        const turnCount = countTurns(chat, nonSystemIndices);
+        if (turnCount <= maxTurns) {
+            return chat.filter((m) => !skipSystem || !m.is_system);
+        }
+
+        const reversedIndices = [...nonSystemIndices].reverse();
+        const selectedIndices = [];
+        for (const idx of reversedIndices) {
+            selectedIndices.unshift(idx);
+            if (countTurns(chat, selectedIndices) >= maxTurns) {
+                const snapped = snapToTurnBoundary(chat, selectedIndices, false);
+                return snapped.map((i) => chat[i]).filter((m) => !skipSystem || !m.is_system);
+            }
+        }
+        return selectedIndices.map((i) => chat[i]).filter((m) => !skipSystem || !m.is_system);
     }
 
     // Return messages after the lastSourceFp
@@ -264,8 +344,8 @@ export async function extractSceneState(data, chat, settings, { abortSignal } = 
         throw new DOMException('Aborted', 'AbortError');
     }
 
-    // Get extraction window
-    const window = getSceneExtractionWindow(chat, data.scene_states || {}, true);
+    // Get extraction window (pass settings for cold start limit)
+    const window = getSceneExtractionWindow(chat, data.scene_states || {}, settings, true);
     if (!window?.length) {
         logDebug('[SceneState] No messages in extraction window');
         return null;

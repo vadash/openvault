@@ -94,10 +94,18 @@ The extractor does **not** use a fixed N-message slice. Instead, it captures **a
 3. Collect all real messages (skip `is_system`) from that index + 1 to the end of chat.
 4. This is the extraction window — variable-length, bounded by actual message flow.
 
+**Cold start limit:** When `scene_states` is empty (first extraction after enablement or after backfill), the window is capped to `sceneStateMaxTurnStart` (default: 10 turns). This prevents processing the entire chat history on cold start, which would:
+- Cause context overflow on long chats
+- Waste tokens on irrelevant historical state (scene state is about current physical continuity)
+- Trigger unexpectedly after backfill when counter accumulated but no extraction ran
+
+The limit uses `snapToTurnBoundary` to ensure the window ends at a valid Bot→User boundary, never orphaning User messages from their Bot responses.
+
 This handles edge cases where:
 - The user changed the interval setting mid-chat.
 - Multiple messages arrived between worker ticks (fast typing, group chats).
 - The standalone path fires after a variable delay.
+- Backfill processed 100+ messages but scene extraction was skipped (counter does not accumulate during backfill).
 
 ### Extraction prompt
 
@@ -229,6 +237,7 @@ This replaces the need for the main model to print `[ 🕰️ 10:53 PM | 📍 Lo
 ```javascript
 // In defaultSettings:
 sceneStateInterval: 3,  // Messages between scene state extractions
+sceneStateMaxTurnStart: 10,  // Max turns for cold start extraction window
 
 // In injection defaults:
 injection: {
@@ -285,7 +294,7 @@ Note: `safeSetExtensionPrompt` in `st-helpers.js` already handles `-2` correctly
 - **Invalid JSON from LLM**: Zod validation rejects it. Old state preserved. Log error.
 - **First chat / no state**: `scene_states` is `{}` → backward scan finds nothing → nothing injected → no harm.
 - **Swipe/regenerate**: The backward-scan lookup naturally finds the most recent state at or before the current last message. If the swipe goes to a message before any extraction ran, no state is injected until the next extraction tick.
-- **Backfill**: Scene state extraction is skipped during backfill (same as reflections/world). Ledger backfill is not needed — it builds forward from when the feature is enabled.
+- **Backfill**: Scene state extraction is skipped during backfill (same as reflections/world). **Counter is NOT incremented during backfill** — this prevents the counter from accumulating to a high value that would trigger immediate extraction on the first new message after backfill, which would attempt to process the entire chat history (now capped by cold start limit). Ledger backfill is not needed — it builds forward from when the feature is enabled.
 
 ## Files Changed
 
