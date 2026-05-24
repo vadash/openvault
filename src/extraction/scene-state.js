@@ -134,6 +134,85 @@ export function shouldTriggerSceneExtraction(sceneCounter, interval) {
 }
 
 /**
+ * Resolve scene ledger entries to sub-batches for a given message batch.
+ * Implements backward-scan lookup: for each message, finds the most recent
+ * ledger entry whose fp corresponds to a message at or before its position.
+ *
+ * @param {SceneLedgerEntry[]} ledger - Scene ledger entries
+ * @param {Array<{fingerprint: string}>} chat - Full chat array
+ * @param {string[]} batchFps - Fingerprints of messages in the current batch
+ * @returns {Array<{startIdx: number, endIdx: number, location: string | null, time: string | null}>}
+ *   Sub-batch descriptors with scene context
+ */
+export function resolveLedgerForBatch(ledger, chat, batchFps) {
+    if (!batchFps?.length) return [];
+
+    // Empty ledger: single batch with null context
+    if (!ledger?.length) {
+        const indices = batchFps.map((fp) => chat.findIndex((m) => m.fingerprint === fp)).filter((i) => i >= 0);
+        if (indices.length === 0) return [];
+        return [{ startIdx: Math.min(...indices), endIdx: Math.max(...indices), location: null, time: null }];
+    }
+
+    // Build fingerprint→index map for O(1) resolution
+    const fpToIndex = new Map();
+    for (let i = 0; i < chat.length; i++) {
+        fpToIndex.set(chat[i].fingerprint, i);
+    }
+
+    // Resolve ledger fps to positions, filter out invalid entries
+    const resolvedLedger = ledger
+        .map((entry) => ({
+            ...entry,
+            pos: fpToIndex.get(entry.fp) ?? -1,
+        }))
+        .filter((entry) => entry.pos >= 0)
+        .sort((a, b) => b.pos - a.pos); // Sort by position descending (newest first)
+
+    // Resolve batch fingerprints to indices
+    const batchIndices = batchFps
+        .map((fp) => {
+            const idx = fpToIndex.get(fp);
+            return idx !== undefined ? idx : -1;
+        })
+        .filter((i) => i >= 0)
+        .sort((a, b) => a - b); // Sort ascending for sub-batch grouping
+
+    if (batchIndices.length === 0) return [];
+
+    // For each batch index, find the applicable scene context via backward scan
+    const subBatches = [];
+    let currentBatch = null;
+
+    for (const msgIdx of batchIndices) {
+        // Backward scan: find first ledger entry with pos <= msgIdx
+        const applicableEntry = resolvedLedger.find((entry) => entry.pos <= msgIdx);
+
+        const sceneContext = applicableEntry
+            ? { location: applicableEntry.location, time: applicableEntry.time }
+            : { location: null, time: null };
+
+        // Check if we can extend the current sub-batch
+        if (
+            currentBatch &&
+            currentBatch.location === sceneContext.location &&
+            currentBatch.time === sceneContext.time
+        ) {
+            currentBatch.endIdx = msgIdx;
+        } else {
+            // Start a new sub-batch
+            if (currentBatch) subBatches.push(currentBatch);
+            currentBatch = { startIdx: msgIdx, endIdx: msgIdx, ...sceneContext };
+        }
+    }
+
+    // Push the final sub-batch
+    if (currentBatch) subBatches.push(currentBatch);
+
+    return subBatches;
+}
+
+/**
  * Extract scene state from messages.
  * @param {object} data - OpenVault data object (will be mutated: scene_states, scene_ledger)
  * @param {Array<{fingerprint: string, is_system?: boolean, mes?: string, name?: string}>} chat - Chat messages array

@@ -21,7 +21,7 @@ import { EVENT_SCHEMA } from './schema.js';
 
 /**
  * Build the event extraction prompt (Stage 1).
- * @param {BasePromptParams} params - Prompt builder parameters
+ * @param {BasePromptParams & {extractionContext?: {location: string | null, time: string | null}}} params - Prompt builder parameters
  * @returns {LLMMessages} Array of {role, content} message objects
  */
 export function buildEventExtractionPrompt({
@@ -31,6 +31,7 @@ export function buildEventExtractionPrompt({
     preamble,
     prefill,
     outputLanguage = 'auto',
+    extractionContext,
 }) {
     const { char: characterName, user: userName } = names;
     const safeCharName = characterName || 'Character';
@@ -52,6 +53,14 @@ export function buildEventExtractionPrompt({
     const contextParts = [memoriesSection, charactersSection].filter(Boolean).join('\n');
     const contextSection = contextParts ? `<context>\n${contextParts}\n</context>\n` : '';
 
+    const extractionContextSection =
+        extractionContext?.location || extractionContext?.time
+            ? `<extraction_context>
+Scene: ${extractionContext.location || 'Unknown location'}
+Time: ${extractionContext.time || 'Unknown time'}
+</extraction_context>\n`
+            : '';
+
     const languageInstruction = resolveLanguageInstruction(messages, outputLanguage);
     const constraints = assembleUserConstraints({
         rules: EVENT_RULES,
@@ -59,7 +68,7 @@ export function buildEventExtractionPrompt({
         languageInstruction,
     });
 
-    const userPrompt = `${contextSection}
+    const userPrompt = `${contextSection}${extractionContextSection}
 <messages>
 ${messages}
 </messages>

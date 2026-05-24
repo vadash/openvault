@@ -68,7 +68,7 @@ import { isExtensionEnabled, safeSetExtensionPrompt, yieldToMain } from '../util
 import { jaccardSimilarity, sliceToTokenBudget, sortMemoriesBySequence } from '../utils/text.js';
 import { countTokens } from '../utils/tokens.js';
 import { resolveCharacterName, transliterateCyrToLat } from '../utils/transliterate.js';
-import { extractSceneState } from './scene-state.js';
+import { extractSceneState, resolveLedgerForBatch } from './scene-state.js';
 import {
     getBackfillMessageIds,
     getBackfillStats,
@@ -725,9 +725,10 @@ async function synthesizeWorldState(data, settings, characterName, userName) {
  * @param {Array} existingMemories - Curated memory subset for prompt context
  * @param {AbortSignal} [abortSignal] - Abort signal for mid-request cancellation
  * @param {object} [tracker] - Usage tracker for recording LLM calls
+ * @param {{location: string | null, time: string | null}} [extractionContext] - Scene context for temporal stamping
  * @returns {Promise<{events: ExtractedEvent[]}>}
  */
-async function fetchEventsFromLLM(contextParams, existingMemories, abortSignal, tracker) {
+async function fetchEventsFromLLM(contextParams, existingMemories, abortSignal, tracker, extractionContext) {
     const prompt = buildEventExtractionPrompt({
         messages: contextParams.messagesText,
         names: contextParams.names,
@@ -739,6 +740,7 @@ async function fetchEventsFromLLM(contextParams, existingMemories, abortSignal, 
         preamble: contextParams.preamble,
         prefill: contextParams.prefill,
         outputLanguage: contextParams.outputLanguage,
+        extractionContext,
     });
 
     const t0 = performance.now();
@@ -806,6 +808,7 @@ async function fetchGraphFromLLM(contextParams, formattedEvents, abortSignal, tr
  * @param {string} batchId - Unique batch identifier
  * @param {Array} existingMemories - All existing memories (for dedup comparison)
  * @param {Object} settings - Extension settings
+ * @param {Array<{startIdx: number, endIdx: number, location: string | null, time: string | null}>} [sceneSubBatches] - Scene sub-batches for temporal stamping
  * @returns {Promise<{events: Array}>}
  */
 async function enrichAndDedupEvents(
@@ -814,13 +817,32 @@ async function enrichAndDedupEvents(
     messageFingerprintsArray,
     batchId,
     existingMemories,
-    settings
+    settings,
+    sceneSubBatches
 ) {
     const minMessageId = Math.min(...messageIdsArray);
+
+    /**
+     * Find scene context for an event based on its message_ids.
+     * @param {number[]} msgIds - Message IDs for the event
+     * @returns {{location: string | null, time: string | null}}
+     */
+    function findSceneForEvent(msgIds) {
+        if (!sceneSubBatches?.length) return { location: null, time: null };
+        const minMsgId = Math.min(...msgIds);
+        // Find the sub-batch that contains this event's earliest message
+        for (const subBatch of sceneSubBatches) {
+            if (minMsgId >= subBatch.startIdx && minMsgId <= subBatch.endIdx) {
+                return { location: subBatch.location, time: subBatch.time };
+            }
+        }
+        return { location: null, time: null };
+    }
 
     let events = [];
     for (let index = 0; index < rawEvents.length; index++) {
         const event = rawEvents[index];
+        const sceneContext = findSceneForEvent(event.message_ids || messageIdsArray);
         events.push({
             id: `event_${Date.now()}_${index}`,
             type: 'event',
@@ -833,7 +855,8 @@ async function enrichAndDedupEvents(
             batch_id: batchId,
             characters_involved: event.characters_involved || [],
             witnesses: (event.witnesses?.length > 0 ? event.witnesses : event.characters_involved) || [],
-            location: event.location || null,
+            location: sceneContext.location ?? event.location ?? null,
+            temporal_anchor: sceneContext.time ?? event.temporal_anchor ?? null,
             is_secret: event.is_secret || false,
             importance: event.importance || 3,
             emotional_impact: event.emotional_impact || {},
@@ -993,11 +1016,25 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             throw new Error('Chat changed during extraction');
         }
         const existingMemories = await selectMemoriesForExtraction(data, settings);
+
+        // Resolve scene ledger for temporal stamping
+        const batchFps = messages.map((m) => getFingerprint(m));
+        const sceneSubBatches =
+            data.scene_ledger?.length > 0 ? resolveLedgerForBatch(data.scene_ledger, chat, batchFps) : [];
+        const extractionContext = sceneSubBatches.length > 0 ? sceneSubBatches[sceneSubBatches.length - 1] : null;
+
+        if (sceneSubBatches.length > 0) {
+            logDebug(
+                `[Extraction] Scene ledger resolved: ${sceneSubBatches.length} sub-batches, current scene: ${extractionContext?.location}, ${extractionContext?.time}`
+            );
+        }
+
         const { events: rawEvents } = await fetchEventsFromLLM(
             contextParams,
             existingMemories,
             abortSignal,
-            options.tracker
+            options.tracker,
+            extractionContext
         );
 
         // Stage 2: Graph extraction (LLM call)
@@ -1019,7 +1056,8 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             messageFingerprintsArray,
             batchId,
             data.memories || [],
-            settings
+            settings,
+            sceneSubBatches
         );
 
         // Stamp embedding model ID on first successful embedding generation
