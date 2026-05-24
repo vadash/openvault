@@ -19,7 +19,7 @@ import {
     setGenerationLock,
     setSessionDisabled,
 } from './state.js';
-import { getOpenVaultData } from './store/chat-data.js';
+import { getOpenVaultData, incrementSceneCounter } from './store/chat-data.js';
 import { runSchemaMigrations } from './store/migrations/index.js';
 import { refreshAllUI, resetMemoryBrowserPage } from './ui/render.js';
 import { setStatus } from './ui/status.js';
@@ -378,6 +378,9 @@ export async function onMessageReceived(messageId) {
     if (!message || message.is_system) {
         return;
     }
+
+    // Increment scene counter for scene state extraction interval
+    incrementSceneCounter(1);
 
     wakeUpBackgroundWorker();
 }
