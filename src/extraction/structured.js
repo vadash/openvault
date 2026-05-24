@@ -117,7 +117,6 @@ async function getExtendedSchemas() {
         });
 
         // SceneStateSchema (extended with catch fallbacks for LLM output)
-        const { SceneCharacterSchema } = await getSchemas();
         exported.SceneCharacterLLMSchema = z.object({
             clothing: z.array(z.string()).catch([]),
             posture: z.string().catch('unknown posture'),

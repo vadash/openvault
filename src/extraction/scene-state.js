@@ -95,7 +95,6 @@ export function getSceneExtractionWindow(chat, sceneStates, settings, skipSystem
         // Build indices from end, snap to turn boundary
         const reversedIndices = [...nonSystemIndices].reverse();
         const selectedIndices = [];
-        let turnsFound = 0;
 
         for (const idx of reversedIndices) {
             selectedIndices.unshift(idx);

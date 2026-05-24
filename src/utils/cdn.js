@@ -26,6 +26,21 @@
 
 // @ts-check
 
+/**
+ * Minimal warn helper for CDN module.
+ * Inline implementation to avoid importing logging.js → deps.js chain,
+ * which breaks Node.js type generation script.
+ * @param {string} msg
+ * @param {string} [data]
+ */
+const _cdnLogWarn = (msg, data) => {
+    if (data !== undefined) {
+        console.warn(`[OpenVault] ${msg}`, data);
+    } else {
+        console.warn(`[OpenVault] ${msg}`);
+    }
+};
+
 /** @typedef {(pkg: string) => string | null} CdnMirrorFn */
 
 /**
@@ -124,7 +139,7 @@ export async function cdnImport(packageSpec) {
                 return mod;
             } catch (err) {
                 lastError = err;
-                console.warn(`[OpenVault CDN] ${url} failed (round ${round + 1}/${MAX_ROUNDS}): ${err.message}`);
+                _cdnLogWarn(`CDN import failed: ${url} (round ${round + 1}/${MAX_ROUNDS})`, err.message);
             }
         }
     }
