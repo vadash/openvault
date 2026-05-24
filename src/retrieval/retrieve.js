@@ -334,7 +334,7 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
     // Prepare scene state for injection
     let sceneText = '';
     const scenePosition = getSettings('injection.scene.position');
-    const sceneDisabled = scenePosition === -2 || scenePosition === -1;
+    const sceneDisabled = scenePosition === -2;
     const hasSceneStates = data.scene_states && Object.keys(data.scene_states).length > 0;
 
     if (hasSceneStates && !sceneDisabled) {

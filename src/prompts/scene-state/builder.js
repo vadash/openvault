@@ -20,10 +20,10 @@ import { SCENE_STATE_SCHEMA } from './schema.js';
  * @param {object|null} prevState - Previous scene state (null for cold start)
  * @param {string} messages - New message text to extract from
  * @param {'auto'|'en'|'ru'} [outputLanguage='auto'] - Output language
- * @param {string} [prefill='<thinking>\n'] - Assistant prefill text
+ * @param {string} [prefill='<think>\n'] - Assistant prefill text
  * @returns {LLMMessages} Array of {role, content} message objects
  */
-export function buildSceneStatePrompt(prevState, messages, outputLanguage = 'auto', prefill = '<thinking>\n') {
+export function buildSceneStatePrompt(prevState, messages, outputLanguage = 'auto', prefill = '<think>\n') {
     const systemPrompt = assembleSystemPrompt({
         role: SCENE_STATE_ROLE,
         examples: getSceneStateExamples(outputLanguage),

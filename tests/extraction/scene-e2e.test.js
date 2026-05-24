@@ -4,7 +4,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultSettings, extensionName } from '../../src/constants.js';
+import { defaultSettings } from '../../src/constants.js';
 import { resetDeps } from '../../src/deps.js';
 
 // Mock getSettings to avoid initialization requirement
@@ -51,8 +51,7 @@ vi.mock('../../src/llm.js', () => ({
 import { extractMemories } from '../../src/extraction/extract.js';
 import { findCurrentSceneState } from '../../src/extraction/scene-state.js';
 import { cachedContent } from '../../src/injection/macros.js';
-import { selectFormatAndInject } from '../../src/retrieval/retrieve.js';
-import { buildRetrievalContext } from '../../src/retrieval/retrieve.js';
+import { buildRetrievalContext, selectFormatAndInject } from '../../src/retrieval/retrieve.js';
 
 /**
  * Standard LLM response data for extraction tests.

@@ -247,7 +247,7 @@ export async function extractSceneState(data, chat, settings, { abortSignal } = 
     // Get output language and prefill from settings
     const outputLanguage = settings?.outputLanguage ?? getSettings('outputLanguage');
     const prefill = settings?.extractionPrefill ?? getSettings('extractionPrefill');
-    const prefillText = prefill === 'cn_compliance' ? '<thinking>\n' : prefill || '';
+    const prefillText = prefill === 'cn_compliance' ? '<think>\n' : prefill || '';
 
     // Build prompt
     const prompt = buildSceneStatePrompt(prevState, messagesText, outputLanguage, prefillText);

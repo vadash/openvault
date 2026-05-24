@@ -6,7 +6,7 @@ export const SCENE_STATE_RULES = `1. State Inertia (Preservation): Carry forward
 
 2. Stale Character Eviction: If a character has not been mentioned or referenced for 3+ message turns, remove them from the characters map. This prevents accumulating characters who have left the scene.
 
-3. Clothing Transition: When clothing changes are described, replace the entire clothing array for that character. Do not merge or append — a change of outfit means the previous outfit is gone.
+3. Clothing Transition: When a specific clothing item is explicitly removed, delete only that item from the character's clothing array. When a character performs a full outfit change, replace the entire array. If a removed item remains physically present in the scene (thrown on floor, held in hand), move it to active_props.
 
 4. Prop Eviction: Props that are used, consumed, discarded, or removed from the immediate scene should be removed from active_props. Only track props currently present and relevant to the immediate physical environment.
 

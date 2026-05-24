@@ -14,7 +14,7 @@ export const SCENE_STATE = [
     "Алиса": {
       "clothing": ["синий свитер", "джинсы"],
       "posture": "сидит на диване",
-      "physical_status": [" расслабленная"],
+      "physical_status": ["расслабленная"],
       "mental_status": ["довольная"]
     },
     "Борис": {
