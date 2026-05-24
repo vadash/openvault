@@ -250,6 +250,7 @@ export function injectContext(memoryText, reflectionText = '', worldText = '', s
     if (!sceneText) {
         safeSetExtensionPrompt('', 'openvault_scene', effectiveScenePosition, sceneDepth);
     } else {
+        logDebug(`[injectContext] Injecting scene at position=${effectiveScenePosition}, depth=${sceneDepth}`);
         safeSetExtensionPrompt(sceneText, 'openvault_scene', effectiveScenePosition, sceneDepth);
     }
 }
