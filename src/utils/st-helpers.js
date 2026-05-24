@@ -27,12 +27,13 @@ export function withTimeout(promise, ms, operation = 'Operation') {
 }
 
 // Position code mapping to ST extension_prompt_types
+// ST's valid positions: NONE=-1, IN_PROMPT=0, IN_CHAT=1, BEFORE_PROMPT=2
 const POSITION_MAP = {
     0: 0, // BEFORE_MAIN -> IN_PROMPT
     1: 0, // AFTER_MAIN -> IN_PROMPT (same slot, different ordering)
-    2: 2, // BEFORE_AN -> AN
-    3: 3, // AFTER_AN -> AN_SCOPE
-    4: 4, // IN_CHAT -> CHAT
+    2: 2, // BEFORE_AN -> BEFORE_PROMPT
+    3: 0, // AFTER_AN -> IN_PROMPT (ST has no "after AN" position, fallback to IN_PROMPT)
+    4: 1, // IN_CHAT -> IN_CHAT (ST uses 1, not 4)
 };
 
 /**
