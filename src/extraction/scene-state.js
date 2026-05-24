@@ -5,14 +5,12 @@
 
 // @ts-check
 
-import { extensionName } from '../constants.js';
-import { getDeps } from '../deps.js';
 import { callLLM, LLM_CONFIGS } from '../llm.js';
 import { buildSceneStatePrompt } from '../prompts/scene-state/builder.js';
-import { parseSceneStateResponse } from './structured.js';
 import { getSettings } from '../settings.js';
 import { logDebug, logError, logInfo } from '../utils/logging.js';
 import { stripThinkingTags } from '../utils/text.js';
+import { parseSceneStateResponse } from './structured.js';
 
 /** @typedef {import('../types.d.ts').SceneState} SceneState */
 /** @typedef {import('../types.d.ts').SceneLedgerEntry} SceneLedgerEntry */
@@ -32,7 +30,7 @@ export function pruneStateMap(map, maxEntries = 10) {
     const sortedKeys = keys.sort();
     const keepKeys = sortedKeys.slice(-maxEntries);
 
-    const result = {};
+    const result = /** @type {Record<string, SceneState>} */ ({});
     for (const key of keepKeys) {
         result[key] = map[key];
     }
@@ -64,10 +62,10 @@ export function diffLedger(prevState, newState, lastFp) {
 
 /**
  * Get messages since the last scene state extraction.
- * @param {Array<{fingerprint: string, is_system?: boolean, mes?: string}>} chat - Chat messages array
+ * @param {Array<{fingerprint: string, is_system?: boolean, mes?: string, name?: string}>} chat - Chat messages array
  * @param {Record<string, SceneState>} sceneStates - Scene state map
  * @param {boolean} [skipSystem=true] - Skip system messages
- * @returns {Array<{fingerprint: string, is_system?: boolean, mes?: string}>} Messages since last extraction
+ * @returns {Array<{fingerprint: string, is_system?: boolean, mes?: string, name?: string}>} Messages since last extraction
  */
 export function getSceneExtractionWindow(chat, sceneStates, skipSystem = true) {
     if (!chat?.length) return [];
@@ -161,7 +159,10 @@ export async function extractSceneState(data, chat, settings, { abortSignal } = 
 
     // Build messages text for prompt
     const messagesText = window
-        .map((m) => `<message fingerprint="${m.fingerprint}" sender="${m.name || 'Unknown'}">\n${m.mes || ''}\n</message>`)
+        .map(
+            (m) =>
+                `<message fingerprint="${m.fingerprint}" sender="${m.name || 'Unknown'}">\n${m.mes || ''}\n</message>`
+        )
         .join('\n');
 
     // Get output language and prefill from settings

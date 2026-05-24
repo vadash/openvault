@@ -73,6 +73,9 @@ const {
     GraphPromptParamsSchema,
     EdgeConsolidationParamsSchema,
     ReflectionPromptParamsSchema,
+    SceneStateSchema,
+    SceneLedgerEntrySchema,
+    SceneCharacterSchema,
 } = schemas;
 
 // --- 4. Map: Type Name -> Zod Schema ---
@@ -116,6 +119,9 @@ const typeMappings = [
     { name: 'GraphPromptParams', schema: GraphPromptParamsSchema },
     { name: 'EdgeConsolidationParams', schema: EdgeConsolidationParamsSchema },
     { name: 'ReflectionPromptParams', schema: ReflectionPromptParamsSchema },
+    { name: 'SceneCharacter', schema: SceneCharacterSchema },
+    { name: 'SceneState', schema: SceneStateSchema },
+    { name: 'SceneLedgerEntry', schema: SceneLedgerEntrySchema },
 ];
 
 // --- 5. Generate the .d.ts file ---

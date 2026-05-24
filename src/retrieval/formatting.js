@@ -78,6 +78,58 @@ export function formatMemory(memory) {
 }
 
 /**
+ * Format scene state for injection into prompt
+ * Produces a dense XML block (~60-100 tokens) with location, time, characters, and props.
+ * @param {Object} sceneState - Scene state object with location, time, environment, characters, active_props
+ * @returns {string} Formatted scene state XML block, or empty string if invalid
+ */
+export function formatSceneStateForInjection(sceneState) {
+    if (!sceneState || typeof sceneState !== 'object') return '';
+    if (!sceneState.location || !sceneState.time) return '';
+
+    const lines = ['<scene_status>'];
+
+    // Header: Location and Time (with optional environment)
+    const headerParts = [`[Location]: ${sceneState.location}`, `[Time]: ${sceneState.time}`];
+    if (sceneState.environment) {
+        headerParts.push(sceneState.environment);
+    }
+    lines.push(headerParts.join(' | '));
+
+    // Characters: one line per character
+    const characters = sceneState.characters || {};
+    for (const [name, char] of Object.entries(characters)) {
+        const charParts = [name];
+
+        // Posture (required)
+        charParts.push(char.posture || 'Unknown posture');
+
+        // Clothing (optional, omit if empty)
+        const clothing = char.clothing || [];
+        if (clothing.length > 0) {
+            charParts.push(`Wearing: ${clothing.join(', ')}`);
+        }
+
+        // Status: physical_status only (not mental_status)
+        const physicalStatus = char.physical_status || [];
+        if (physicalStatus.length > 0) {
+            charParts.push(`Status: ${physicalStatus.join(', ')}`);
+        }
+
+        lines.push(`[${charParts[0]}]: ${charParts.slice(1).join('. ')}.`);
+    }
+
+    // Props (optional, omit if empty)
+    const props = sceneState.active_props || [];
+    if (props.length > 0) {
+        lines.push(`[Props]: ${props.join(', ')}`);
+    }
+
+    lines.push('</scene_status>');
+    return lines.join('\n');
+}
+
+/**
  * Format context for injection into prompt using timeline buckets
  * @param {Object[]} memories - Selected memories
  * @param {string[]} presentCharacters - Characters present in the scene (excluding POV)

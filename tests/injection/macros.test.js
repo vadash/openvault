@@ -8,18 +8,19 @@ describe('injection/macros.js', () => {
         await global.registerCdnOverrides();
     });
 
-    it('has cachedContent with memory, reflections, and world properties', async () => {
+    it('has cachedContent with memory, reflections, world, and scene properties', async () => {
         setupTestContext();
         const { cachedContent } = await import('../../src/injection/macros.js');
 
         expect(cachedContent).toHaveProperty('memory');
         expect(cachedContent).toHaveProperty('reflections');
         expect(cachedContent).toHaveProperty('world');
+        expect(cachedContent).toHaveProperty('scene');
 
-        // Verify exactly these 3 properties exist
+        // Verify exactly these 4 properties exist
         const keys = Object.keys(cachedContent);
-        expect(keys).toHaveLength(3);
-        expect(keys.sort()).toEqual(['memory', 'reflections', 'world']);
+        expect(keys).toHaveLength(4);
+        expect(keys.sort()).toEqual(['memory', 'reflections', 'scene', 'world']);
     });
 
     it('registers openvault_reflections macro via new API (ST 1.16.0+)', async () => {

@@ -9,6 +9,7 @@ export const cachedContent = {
     memory: '',
     reflections: '',
     world: '',
+    scene: '',
 };
 
 /**
@@ -37,11 +38,17 @@ export function initMacros() {
             description: 'OpenVault injected world info content',
             category: 'misc',
         });
+        newRegistry.registerMacro('openvault_scene', {
+            handler: () => cachedContent.scene,
+            description: 'OpenVault injected scene state content',
+            category: 'misc',
+        });
     } else if (context.registerMacro) {
         // Legacy API (pre-1.16.0) — accepts (name, fn) directly
         context.registerMacro('openvault_memory', () => cachedContent.memory);
         context.registerMacro('openvault_reflections', () => cachedContent.reflections);
         context.registerMacro('openvault_world', () => cachedContent.world);
+        context.registerMacro('openvault_scene', () => cachedContent.scene);
     }
 }
 

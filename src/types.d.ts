@@ -260,6 +260,29 @@ export type OpenVaultData = {
         last_updated: number;
     } | undefined;
     embedding_model_id?: string | undefined;
+    scene_states?: {
+        [key: string]: {
+            location: string;
+            time: string;
+            environment?: string | undefined;
+            characters: {
+                [key: string]: {
+                    clothing: string[];
+                    posture: string;
+                    physical_status: string[];
+                    mental_status: string[];
+                };
+            };
+            active_props: string[];
+            source_fp: string;
+        };
+    } | undefined;
+    scene_ledger?: {
+        fp: string;
+        location: string;
+        time: string;
+    }[] | undefined;
+    scene_counter?: number | undefined;
 };
 
 export type ScoringConfig = {
@@ -621,6 +644,35 @@ export type ReflectionPromptParams = {
     preamble: string;
     prefill: string;
     outputLanguage?: ("auto" | "en" | "ru") | undefined;
+};
+
+export type SceneCharacter = {
+    clothing: string[];
+    posture: string;
+    physical_status: string[];
+    mental_status: string[];
+};
+
+export type SceneState = {
+    location: string;
+    time: string;
+    environment?: string | undefined;
+    characters: {
+        [key: string]: {
+            clothing: string[];
+            posture: string;
+            physical_status: string[];
+            mental_status: string[];
+        };
+    };
+    active_props: string[];
+    source_fp: string;
+};
+
+export type SceneLedgerEntry = {
+    fp: string;
+    location: string;
+    time: string;
 };
 
 // End of generated types

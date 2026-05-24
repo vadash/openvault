@@ -29,6 +29,7 @@ import {
 } from '../constants.js';
 import { getDeps } from '../deps.js';
 import { getQueryEmbedding, isEmbeddingsEnabled } from '../embeddings.js';
+import { findCurrentSceneState } from '../extraction/scene-state.js';
 import { getFingerprint } from '../extraction/scheduler.js';
 import { cachedContent } from '../injection/macros.js';
 import { filterMemoriesByPOV, getActiveCharacters, getPOVContext } from '../pov.js';
@@ -37,7 +38,7 @@ import { getOpenVaultData } from '../store/chat-data.js';
 import { logDebug, logError } from '../utils/logging.js';
 import { isExtensionEnabled, safeSetExtensionPrompt } from '../utils/st-helpers.js';
 import { cacheRetrievalDebug } from './debug-cache.js';
-import { formatContextForInjection } from './formatting.js';
+import { formatContextForInjection, formatSceneStateForInjection } from './formatting.js';
 import { selectRelevantMemories } from './scoring.js';
 import { retrieveWorldContext } from './world-context.js';
 
@@ -184,8 +185,9 @@ export function buildRetrievalContext(opts = {}) {
  * @param {string} memoryText - Formatted memory context to inject
  * @param {string} [reflectionText] - Formatted reflection context to inject
  * @param {string} [worldText] - World context to inject
+ * @param {string} [sceneText] - Scene state context to inject
  */
-export function injectContext(memoryText, reflectionText = '', worldText = '') {
+export function injectContext(memoryText, reflectionText = '', worldText = '', sceneText = '') {
     // Always update cachedContent for macro access
     // NOTE: cachedContent is a live object reference from macros.js.
     // Mutating its properties (not reassigning the binding) is intentional
@@ -193,6 +195,7 @@ export function injectContext(memoryText, reflectionText = '', worldText = '') {
     cachedContent.memory = memoryText || '';
     cachedContent.reflections = reflectionText || '';
     cachedContent.world = worldText || '';
+    cachedContent.scene = sceneText || '';
 
     // Get position settings - using getSettings
     const memoryPosition = getSettings('injection.memory.position');
@@ -201,9 +204,11 @@ export function injectContext(memoryText, reflectionText = '', worldText = '') {
     const reflectionDepth = getSettings('injection.reflections.depth');
     const worldPosition = getSettings('injection.world.position');
     const worldDepth = getSettings('injection.world.depth');
+    const scenePosition = getSettings('injection.scene.position');
+    const sceneDepth = getSettings('injection.scene.depth');
 
     logDebug(
-        `[injectContext] Memory: ${memoryText.length} chars, Reflections: ${reflectionText.length} chars, World: ${worldText.length} chars`
+        `[injectContext] Memory: ${memoryText.length} chars, Reflections: ${reflectionText.length} chars, World: ${worldText.length} chars, Scene: ${sceneText.length} chars`
     );
 
     // Inject memory content
@@ -228,6 +233,23 @@ export function injectContext(memoryText, reflectionText = '', worldText = '') {
     } else {
         safeSetExtensionPrompt(worldText, 'openvault_world', worldPosition, worldDepth);
     }
+
+    // Inject scene content (with short chats guard)
+    // When position === 4 (IN_CHAT) and chat.length < depth, fallback to position 1 (AFTER_MAIN)
+    const deps = getDeps();
+    const context = deps.getContext();
+    const chat = context.chat || [];
+    let effectiveScenePosition = scenePosition;
+    if (scenePosition === 4 && chat.length < sceneDepth) {
+        effectiveScenePosition = 1;
+        logDebug(`[injectContext] Scene: IN_CHAT fallback to AFTER_MAIN (chat=${chat.length}, depth=${sceneDepth})`);
+    }
+
+    if (!sceneText) {
+        safeSetExtensionPrompt('', 'openvault_scene', effectiveScenePosition, sceneDepth);
+    } else {
+        safeSetExtensionPrompt(sceneText, 'openvault_scene', effectiveScenePosition, sceneDepth);
+    }
 }
 
 /**
@@ -244,11 +266,13 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
     const relevantMemories = selectionResult.memories;
 
     if (!relevantMemories || relevantMemories.length === 0) {
-        // Clear cachedContent and world context if no memories found
+        // Clear cachedContent and world/scene context if no memories found
         cachedContent.memory = '';
         cachedContent.reflections = '';
         cachedContent.world = '';
-        injectContext('', '', '');
+        cachedContent.scene = '';
+        cachedContent.scene = '';
+        injectContext('', '', '', '');
         return null;
     }
 
@@ -307,8 +331,30 @@ export async function selectFormatAndInject(memoriesToUse, data, ctx) {
         logDebug(`[World Context] Skipped retrieval (disabled=${worldDisabled} or no graph nodes=${!hasGraphNodes})`);
     }
 
-    // Inject memory, reflection, and world content
-    injectContext(memoryText, reflectionText, worldText);
+    // Prepare scene state for injection
+    let sceneText = '';
+    const scenePosition = getSettings('injection.scene.position');
+    const sceneDisabled = scenePosition === -2 || scenePosition === -1;
+    const hasSceneStates = data.scene_states && Object.keys(data.scene_states).length > 0;
+
+    if (hasSceneStates && !sceneDisabled) {
+        // Get chat for backward-scan lookup
+        const deps = getDeps();
+        const chat = deps.getContext().chat || [];
+        // Perform backward-scan lookup to find current scene state
+        const currentSceneState = findCurrentSceneState(chat, data.scene_states);
+        if (currentSceneState) {
+            sceneText = formatSceneStateForInjection(currentSceneState);
+            logDebug(`[Scene State] Retrieved scene state: ${currentSceneState.location}, ${currentSceneState.time}`);
+        } else {
+            logDebug('[Scene State] No current scene state found');
+        }
+    } else {
+        logDebug(`[Scene State] Skipped injection (disabled=${sceneDisabled} or no scene states=${!hasSceneStates})`);
+    }
+
+    // Inject memory, reflection, world, and scene content
+    injectContext(memoryText, reflectionText, worldText, sceneText);
 
     // Cache injected context for debug export
     cacheRetrievalDebug({
@@ -331,7 +377,8 @@ export async function retrieveAndInjectContext() {
         cachedContent.memory = '';
         cachedContent.reflections = '';
         cachedContent.world = '';
-        injectContext('', '', '');
+        cachedContent.scene = '';
+        injectContext('', '', '', '');
         return null;
     }
 
@@ -344,7 +391,8 @@ export async function retrieveAndInjectContext() {
         cachedContent.memory = '';
         cachedContent.reflections = '';
         cachedContent.world = '';
-        injectContext('', '', '');
+        cachedContent.scene = '';
+        injectContext('', '', '', '');
         return null;
     }
 
@@ -354,7 +402,8 @@ export async function retrieveAndInjectContext() {
         cachedContent.memory = '';
         cachedContent.reflections = '';
         cachedContent.world = '';
-        injectContext('', '', '');
+        cachedContent.scene = '';
+        injectContext('', '', '', '');
         return null;
     }
     const memories = data[MEMORIES_KEY] || [];
@@ -364,7 +413,8 @@ export async function retrieveAndInjectContext() {
         cachedContent.memory = '';
         cachedContent.reflections = '';
         cachedContent.world = '';
-        injectContext('', '', '');
+        cachedContent.scene = '';
+        injectContext('', '', '', '');
         return null;
     }
 
@@ -407,7 +457,8 @@ export async function retrieveAndInjectContext() {
             logDebug('No memories available');
             cachedContent.memory = '';
             cachedContent.world = '';
-            injectContext('', '', '');
+            cachedContent.scene = '';
+            injectContext('', '', '', '');
             return null;
         }
 
@@ -431,7 +482,8 @@ export async function retrieveAndInjectContext() {
             logDebug('No relevant memories found');
             cachedContent.memory = '';
             cachedContent.world = '';
-            injectContext('', '', '');
+            cachedContent.scene = '';
+            injectContext('', '', '', '');
             return null;
         }
 
@@ -456,7 +508,8 @@ export async function updateInjection(pendingUserMessage = '') {
         cachedContent.memory = '';
         cachedContent.reflections = '';
         cachedContent.world = '';
-        injectContext('', '', '');
+        cachedContent.scene = '';
+        injectContext('', '', '', '');
         return;
     }
 
@@ -466,7 +519,8 @@ export async function updateInjection(pendingUserMessage = '') {
         cachedContent.memory = '';
         cachedContent.reflections = '';
         cachedContent.world = '';
-        injectContext('', '', '');
+        cachedContent.scene = '';
+        injectContext('', '', '', '');
         return;
     }
 
@@ -475,7 +529,8 @@ export async function updateInjection(pendingUserMessage = '') {
         cachedContent.memory = '';
         cachedContent.reflections = '';
         cachedContent.world = '';
-        injectContext('', '', '');
+        cachedContent.scene = '';
+        injectContext('', '', '', '');
         return;
     }
     const memories = data[MEMORIES_KEY] || [];
@@ -484,7 +539,8 @@ export async function updateInjection(pendingUserMessage = '') {
         cachedContent.memory = '';
         cachedContent.reflections = '';
         cachedContent.world = '';
-        injectContext('', '', '');
+        cachedContent.scene = '';
+        injectContext('', '', '', '');
         return;
     }
 
@@ -516,7 +572,8 @@ export async function updateInjection(pendingUserMessage = '') {
         cachedContent.memory = '';
         cachedContent.reflections = '';
         cachedContent.world = '';
-        injectContext('', '', '');
+        cachedContent.scene = '';
+        injectContext('', '', '', '');
         return;
     }
 
@@ -532,7 +589,8 @@ export async function updateInjection(pendingUserMessage = '') {
         cachedContent.memory = '';
         cachedContent.reflections = '';
         cachedContent.world = '';
-        injectContext('', '', '');
+        cachedContent.scene = '';
+        injectContext('', '', '', '');
         return;
     }
 

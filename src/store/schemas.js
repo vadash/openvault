@@ -193,6 +193,9 @@ export async function getSchemas() {
         graph_message_count: z.number().optional(),
         global_world_state: GlobalWorldStateSchema.optional(),
         embedding_model_id: z.string().optional(),
+        scene_states: z.record(z.string(), SceneStateSchema).optional(),
+        scene_ledger: z.array(SceneLedgerEntrySchema).optional(),
+        scene_counter: z.number().optional(),
     });
 
     // --- Config Schemas ---
