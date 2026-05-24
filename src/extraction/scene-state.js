@@ -6,6 +6,7 @@
 // @ts-check
 
 import { callLLM, LLM_CONFIGS } from '../llm.js';
+import { resolveExtractionPrefill } from '../prompts/index.js';
 import { buildSceneStatePrompt } from '../prompts/scene-state/builder.js';
 import { getSettings } from '../settings.js';
 import { logDebug, logError, logInfo } from '../utils/logging.js';
@@ -247,8 +248,7 @@ export async function extractSceneState(data, chat, settings, { abortSignal } = 
 
     // Get output language and prefill from settings
     const outputLanguage = settings?.outputLanguage ?? getSettings('outputLanguage');
-    const prefill = settings?.extractionPrefill ?? getSettings('extractionPrefill');
-    const prefillText = prefill === 'cn_compliance' ? '<think>\n' : prefill || '';
+    const prefillText = resolveExtractionPrefill(settings);
 
     // Build prompt
     const prompt = buildSceneStatePrompt(prevState, messagesText, outputLanguage, prefillText);
