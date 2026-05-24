@@ -21,7 +21,7 @@ import { EVENT_SCHEMA } from './schema.js';
 
 /**
  * Build the event extraction prompt (Stage 1).
- * @param {BasePromptParams & {extractionContext?: {location: string | null, time: string | null}}} params - Prompt builder parameters
+ * @param {BasePromptParams & {sceneSubBatches?: Array<{startIdx: number, endIdx: number, location: string | null, time: string | null}>}} params - Prompt builder parameters
  * @returns {LLMMessages} Array of {role, content} message objects
  */
 export function buildEventExtractionPrompt({
@@ -31,7 +31,7 @@ export function buildEventExtractionPrompt({
     preamble,
     prefill,
     outputLanguage = 'auto',
-    extractionContext,
+    sceneSubBatches,
 }) {
     const { char: characterName, user: userName } = names;
     const safeCharName = characterName || 'Character';
@@ -54,10 +54,10 @@ export function buildEventExtractionPrompt({
     const contextSection = contextParts ? `<context>\n${contextParts}\n</context>\n` : '';
 
     const extractionContextSection =
-        extractionContext?.location || extractionContext?.time
+        sceneSubBatches?.length > 0
             ? `<extraction_context>
-Scene: ${extractionContext.location || 'Unknown location'}
-Time: ${extractionContext.time || 'Unknown time'}
+The following batch contains scenes. Apply these parameters to the extracted events:
+${sceneSubBatches.map((batch, _i) => `- Messages ${batch.startIdx + 1} to ${batch.endIdx + 1}: Location: ${batch.location || 'Unknown location'} | Time: ${batch.time || 'Unknown time'}`).join('\n')}
 </extraction_context>\n`
             : '';
 

@@ -12,12 +12,12 @@ describe('Scene Ledger temporal stamping', () => {
 
     describe('resolveLedgerForBatch', () => {
         /**
-         * Helper to build mock chat with fingerprints at specific indices.
+         * Helper to build mock chat with send_date for fingerprints.
          * @param {number} count - Number of messages
-         * @returns {Array<{fingerprint: string}>}
+         * @returns {Array<{send_date: string}>}
          */
         function buildMockChat(count) {
-            return Array.from({ length: count }, (_, i) => ({ fingerprint: `fp-${i}` }));
+            return Array.from({ length: count }, (_, i) => ({ send_date: `fp-${i}` }));
         }
 
         /**
@@ -112,9 +112,10 @@ describe('Scene Ledger temporal stamping', () => {
             ],
         ])('$desc', async (_desc, chat, ledger, batchIndices, expected) => {
             const { resolveLedgerForBatch } = await import('../../src/extraction/scene-state.js');
+            const { getFingerprint } = await import('../../src/extraction/scheduler.js');
 
             // Convert indices to fingerprints for the batch
-            const batchFps = batchIndices.map((i) => chat[i].fingerprint);
+            const batchFps = batchIndices.map((i) => getFingerprint(chat[i]));
 
             const result = resolveLedgerForBatch(ledger, chat, batchFps);
 
@@ -140,6 +141,7 @@ describe('Scene Ledger temporal stamping', () => {
 
         it('handles ledger entries in any order (sorts by position internally)', async () => {
             const { resolveLedgerForBatch } = await import('../../src/extraction/scene-state.js');
+            const { getFingerprint } = await import('../../src/extraction/scheduler.js');
             const chat = buildMockChat(15);
             // Ledger entries in reverse order
             const ledger = buildLedger([
@@ -147,7 +149,7 @@ describe('Scene Ledger temporal stamping', () => {
                 { fpIndex: 5, location: 'Living Room', time: 'Morning' },
             ]);
 
-            const batchFps = chat.slice(0, 15).map((m) => m.fingerprint);
+            const batchFps = chat.slice(0, 15).map((m) => getFingerprint(m));
             const result = resolveLedgerForBatch(ledger, chat, batchFps);
 
             expect(result).toEqual([
@@ -159,13 +161,14 @@ describe('Scene Ledger temporal stamping', () => {
 
         it('handles message fingerprints not in chat gracefully', async () => {
             const { resolveLedgerForBatch } = await import('../../src/extraction/scene-state.js');
+            const { getFingerprint } = await import('../../src/extraction/scheduler.js');
             const chat = buildMockChat(5);
             const ledger = buildLedger([
                 { fpIndex: 2, location: 'Office', time: 'Day' },
                 { fpIndex: 99, location: 'Unknown', time: 'Future' }, // fp-99 not in chat
             ]);
 
-            const batchFps = chat.map((m) => m.fingerprint);
+            const batchFps = chat.map((m) => getFingerprint(m));
             const result = resolveLedgerForBatch(ledger, chat, batchFps);
 
             // fp-99 is ignored (not in chat), fp-2 applies from index 2

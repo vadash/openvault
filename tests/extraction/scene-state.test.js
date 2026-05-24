@@ -95,9 +95,9 @@ describe('Scene State extraction helpers', () => {
             [
                 'empty map returns all messages (cold start)',
                 [
-                    { fingerprint: 'fp-1', is_system: false, mes: 'First message' },
-                    { fingerprint: 'fp-2', is_system: false, mes: 'Second message' },
-                    { fingerprint: 'fp-3', is_system: false, mes: 'Third message' },
+                    { send_date: 'fp-1', is_system: false, mes: 'First message' },
+                    { send_date: 'fp-2', is_system: false, mes: 'Second message' },
+                    { send_date: 'fp-3', is_system: false, mes: 'Third message' },
                 ],
                 {},
                 true,
@@ -106,10 +106,10 @@ describe('Scene State extraction helpers', () => {
             [
                 'map with last extraction returns messages after source_fp',
                 [
-                    { fingerprint: 'fp-1', is_system: false, mes: 'Message 1' },
-                    { fingerprint: 'fp-2', is_system: false, mes: 'Message 2' },
-                    { fingerprint: 'fp-3', is_system: false, mes: 'Message 3' },
-                    { fingerprint: 'fp-4', is_system: false, mes: 'Message 4' },
+                    { send_date: 'fp-1', is_system: false, mes: 'Message 1' },
+                    { send_date: 'fp-2', is_system: false, mes: 'Message 2' },
+                    { send_date: 'fp-3', is_system: false, mes: 'Message 3' },
+                    { send_date: 'fp-4', is_system: false, mes: 'Message 4' },
                 ],
                 { 'fp-2': { location: 'Kitchen', time: 'Morning', source_fp: 'fp-2' } },
                 true,
@@ -118,9 +118,9 @@ describe('Scene State extraction helpers', () => {
             [
                 'skips system messages when skipSystem=true',
                 [
-                    { fingerprint: 'fp-1', is_system: false, mes: 'User message' },
-                    { fingerprint: 'fp-sys', is_system: true, mes: 'System note' },
-                    { fingerprint: 'fp-2', is_system: false, mes: 'Bot response' },
+                    { send_date: 'fp-1', is_system: false, mes: 'User message' },
+                    { send_date: 'fp-sys', is_system: true, mes: 'System note' },
+                    { send_date: 'fp-2', is_system: false, mes: 'Bot response' },
                 ],
                 {},
                 true,
@@ -129,9 +129,9 @@ describe('Scene State extraction helpers', () => {
             [
                 'includes system messages when skipSystem=false',
                 [
-                    { fingerprint: 'fp-1', is_system: false, mes: 'User message' },
-                    { fingerprint: 'fp-sys', is_system: true, mes: 'System note' },
-                    { fingerprint: 'fp-2', is_system: false, mes: 'Bot response' },
+                    { send_date: 'fp-1', is_system: false, mes: 'User message' },
+                    { send_date: 'fp-sys', is_system: true, mes: 'System note' },
+                    { send_date: 'fp-2', is_system: false, mes: 'Bot response' },
                 ],
                 {},
                 false,
@@ -140,7 +140,8 @@ describe('Scene State extraction helpers', () => {
         ])('$desc', async (_desc, chat, sceneStates, skipSystem, expectedFps) => {
             const { getSceneExtractionWindow } = await import('../../src/extraction/scene-state.js');
             const result = getSceneExtractionWindow(chat, sceneStates, skipSystem);
-            expect(result.map((m) => m.fingerprint)).toEqual(expectedFps);
+            // Use send_date for fingerprint comparison since getFingerprint uses send_date
+            expect(result.map((m) => m.send_date)).toEqual(expectedFps);
         });
     });
 
@@ -149,9 +150,9 @@ describe('Scene State extraction helpers', () => {
             [
                 'exact match at last message',
                 [
-                    { fingerprint: 'fp-1', mes: 'Message 1' },
-                    { fingerprint: 'fp-2', mes: 'Message 2' },
-                    { fingerprint: 'fp-3', mes: 'Message 3' },
+                    { send_date: 'fp-1', mes: 'Message 1' },
+                    { send_date: 'fp-2', mes: 'Message 2' },
+                    { send_date: 'fp-3', mes: 'Message 3' },
                 ],
                 { 'fp-3': { location: 'Garden', time: 'Afternoon', source_fp: 'fp-3' } },
                 { location: 'Garden', time: 'Afternoon', source_fp: 'fp-3' },
@@ -159,10 +160,10 @@ describe('Scene State extraction helpers', () => {
             [
                 'match at earlier message (interval gap)',
                 [
-                    { fingerprint: 'fp-1', mes: 'Message 1' },
-                    { fingerprint: 'fp-2', mes: 'Message 2' },
-                    { fingerprint: 'fp-3', mes: 'Message 3' },
-                    { fingerprint: 'fp-4', mes: 'Message 4' },
+                    { send_date: 'fp-1', mes: 'Message 1' },
+                    { send_date: 'fp-2', mes: 'Message 2' },
+                    { send_date: 'fp-3', mes: 'Message 3' },
+                    { send_date: 'fp-4', mes: 'Message 4' },
                 ],
                 {
                     'fp-2': { location: 'Kitchen', time: 'Morning', source_fp: 'fp-2' },
@@ -170,12 +171,12 @@ describe('Scene State extraction helpers', () => {
                 },
                 { location: 'Bedroom', time: 'Night', source_fp: 'fp-4' },
             ],
-            ['empty map returns null', [{ fingerprint: 'fp-1', mes: 'Message' }], {}, null],
+            ['empty map returns null', [{ send_date: 'fp-1', mes: 'Message' }], {}, null],
             [
                 'all messages before any extraction returns null',
                 [
-                    { fingerprint: 'fp-1', mes: 'Message 1' },
-                    { fingerprint: 'fp-2', mes: 'Message 2' },
+                    { send_date: 'fp-1', mes: 'Message 1' },
+                    { send_date: 'fp-2', mes: 'Message 2' },
                 ],
                 { 'fp-5': { location: 'Office', time: 'Day', source_fp: 'fp-5' } },
                 null,

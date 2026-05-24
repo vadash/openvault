@@ -725,10 +725,10 @@ async function synthesizeWorldState(data, settings, characterName, userName) {
  * @param {Array} existingMemories - Curated memory subset for prompt context
  * @param {AbortSignal} [abortSignal] - Abort signal for mid-request cancellation
  * @param {object} [tracker] - Usage tracker for recording LLM calls
- * @param {{location: string | null, time: string | null}} [extractionContext] - Scene context for temporal stamping
+ * @param {Array<{startIdx: number, endIdx: number, location: string | null, time: string | null}>} [sceneSubBatches] - Scene sub-batches for temporal context
  * @returns {Promise<{events: ExtractedEvent[]}>}
  */
-async function fetchEventsFromLLM(contextParams, existingMemories, abortSignal, tracker, extractionContext) {
+async function fetchEventsFromLLM(contextParams, existingMemories, abortSignal, tracker, sceneSubBatches) {
     const prompt = buildEventExtractionPrompt({
         messages: contextParams.messagesText,
         names: contextParams.names,
@@ -740,7 +740,7 @@ async function fetchEventsFromLLM(contextParams, existingMemories, abortSignal, 
         preamble: contextParams.preamble,
         prefill: contextParams.prefill,
         outputLanguage: contextParams.outputLanguage,
-        extractionContext,
+        sceneSubBatches,
     });
 
     const t0 = performance.now();
@@ -1021,11 +1021,11 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
         const batchFps = messages.map((m) => getFingerprint(m));
         const sceneSubBatches =
             data.scene_ledger?.length > 0 ? resolveLedgerForBatch(data.scene_ledger, chat, batchFps) : [];
-        const extractionContext = sceneSubBatches.length > 0 ? sceneSubBatches[sceneSubBatches.length - 1] : null;
 
         if (sceneSubBatches.length > 0) {
+            const lastBatch = sceneSubBatches[sceneSubBatches.length - 1];
             logDebug(
-                `[Extraction] Scene ledger resolved: ${sceneSubBatches.length} sub-batches, current scene: ${extractionContext?.location}, ${extractionContext?.time}`
+                `[Extraction] Scene ledger resolved: ${sceneSubBatches.length} sub-batches, current scene: ${lastBatch?.location}, ${lastBatch?.time}`
             );
         }
 
@@ -1034,7 +1034,7 @@ export async function extractMemories(messageIds = null, targetChatId = null, op
             existingMemories,
             abortSignal,
             options.tracker,
-            extractionContext
+            sceneSubBatches.length > 0 ? sceneSubBatches : undefined
         );
 
         // Stage 2: Graph extraction (LLM call)

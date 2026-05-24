@@ -10,6 +10,7 @@ import { buildSceneStatePrompt } from '../prompts/scene-state/builder.js';
 import { getSettings } from '../settings.js';
 import { logDebug, logError, logInfo } from '../utils/logging.js';
 import { stripThinkingTags } from '../utils/text.js';
+import { getFingerprint } from './scheduler.js';
 import { parseSceneStateResponse } from './structured.js';
 
 /** @typedef {import('../types.d.ts').SceneState} SceneState */
@@ -86,7 +87,7 @@ export function getSceneExtractionWindow(chat, sceneStates, skipSystem = true) {
     }
 
     // Find the index of the lastSourceFp message
-    const lastIndex = chat.findIndex((m) => m.fingerprint === lastSourceFp);
+    const lastIndex = chat.findIndex((m) => getFingerprint(m) === lastSourceFp);
 
     if (lastIndex === -1) {
         // Message not found: return all messages
@@ -114,7 +115,7 @@ export function findCurrentSceneState(chat, sceneStates) {
 
     // Walk backward from the last message
     for (let i = chat.length - 1; i >= 0; i--) {
-        const fp = chat[i].fingerprint;
+        const fp = getFingerprint(chat[i]);
         if (stateKeys.has(fp)) {
             return sceneStates[fp];
         }
@@ -149,7 +150,7 @@ export function resolveLedgerForBatch(ledger, chat, batchFps) {
 
     // Empty ledger: single batch with null context
     if (!ledger?.length) {
-        const indices = batchFps.map((fp) => chat.findIndex((m) => m.fingerprint === fp)).filter((i) => i >= 0);
+        const indices = batchFps.map((fp) => chat.findIndex((m) => getFingerprint(m) === fp)).filter((i) => i >= 0);
         if (indices.length === 0) return [];
         return [{ startIdx: Math.min(...indices), endIdx: Math.max(...indices), location: null, time: null }];
     }
@@ -157,7 +158,7 @@ export function resolveLedgerForBatch(ledger, chat, batchFps) {
     // Build fingerprint→index map for O(1) resolution
     const fpToIndex = new Map();
     for (let i = 0; i < chat.length; i++) {
-        fpToIndex.set(chat[i].fingerprint, i);
+        fpToIndex.set(getFingerprint(chat[i]), i);
     }
 
     // Resolve ledger fps to positions, filter out invalid entries
@@ -240,7 +241,7 @@ export async function extractSceneState(data, chat, settings, { abortSignal } = 
     const messagesText = window
         .map(
             (m) =>
-                `<message fingerprint="${m.fingerprint}" sender="${m.name || 'Unknown'}">\n${m.mes || ''}\n</message>`
+                `<message fingerprint="${getFingerprint(m)}" sender="${m.name || 'Unknown'}">\n${m.mes || ''}\n</message>`
         )
         .join('\n');
 
@@ -253,7 +254,7 @@ export async function extractSceneState(data, chat, settings, { abortSignal } = 
     const prompt = buildSceneStatePrompt(prevState, messagesText, outputLanguage, prefillText);
 
     // Get fingerprint of last message in window
-    const lastFp = window[window.length - 1].fingerprint;
+    const lastFp = getFingerprint(window[window.length - 1]);
 
     try {
         logDebug(`[SceneState] Extracting from ${window.length} messages, last fp: ${lastFp}`);

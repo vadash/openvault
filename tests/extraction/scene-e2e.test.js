@@ -139,15 +139,15 @@ describe('Scene State E2E Integration', () => {
             scene_counter: 0,
         };
 
-        // Build 6 real messages with fingerprints
+        // Build 6 real messages with send_date for fingerprints
         mockContext = {
             chat: [
-                { mes: 'Hello there', is_user: true, name: 'User', fingerprint: 'fp_1', is_system: false },
-                { mes: 'Greetings', is_user: false, name: 'Alice', fingerprint: 'fp_2', is_system: false },
-                { mes: 'How are you?', is_user: true, name: 'User', fingerprint: 'fp_3', is_system: false },
-                { mes: 'I am well', is_user: false, name: 'Alice', fingerprint: 'fp_4', is_system: false },
-                { mes: 'Let us talk', is_user: true, name: 'User', fingerprint: 'fp_5', is_system: false },
-                { mes: 'Indeed', is_user: false, name: 'Alice', fingerprint: 'fp_6', is_system: false },
+                { mes: 'Hello there', is_user: true, name: 'User', send_date: 'fp_1', is_system: false },
+                { mes: 'Greetings', is_user: false, name: 'Alice', send_date: 'fp_2', is_system: false },
+                { mes: 'How are you?', is_user: true, name: 'User', send_date: 'fp_3', is_system: false },
+                { mes: 'I am well', is_user: false, name: 'Alice', send_date: 'fp_4', is_system: false },
+                { mes: 'Let us talk', is_user: true, name: 'User', send_date: 'fp_5', is_system: false },
+                { mes: 'Indeed', is_user: false, name: 'Alice', send_date: 'fp_6', is_system: false },
             ],
             name1: 'User',
             name2: 'Alice',
